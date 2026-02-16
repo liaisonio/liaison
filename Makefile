@@ -196,7 +196,7 @@ build-frontier-linux:
 		echo "✅ frontier binary already exists, skipping download"; \
 	else \
 		echo "Downloading frontier-linux-amd64 from GitHub releases..."; \
-		curl -L -o ./bin/frontier https://github.com/singchia/frontier/releases/download/v1.2.2/frontier-linux-amd64 && \
+		curl -L -o ./bin/frontier https://github.com/singchia/frontier/releases/download/v1.2.3-rc.1/frontier-linux-amd64 && \
 		chmod +x ./bin/frontier && \
 		echo "✅ Downloaded: ./bin/frontier"; \
 	fi

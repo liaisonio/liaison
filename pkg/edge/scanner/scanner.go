@@ -263,11 +263,21 @@ func (s *scanner) scanWithGo(ctx context.Context, task *proto.ScanApplicationTas
 							// IPv6 地址，跳过
 							continue
 						}
+
+						// 检测是否是 HTTP 应用
+						protocol := scanTask.Protocol
+						if scanTask.Protocol == "tcp" {
+							// 尝试检测是否是 HTTP
+							if isHTTP(scanTask.IP, scanTask.Port, timeout) {
+								protocol = "http"
+							}
+						}
+
 						mu.Lock()
 						result.ScannedApplications = append(result.ScannedApplications, proto.ScannedApplication{
 							IP:       scanTask.IP,
 							Port:     scanTask.Port,
-							Protocol: scanTask.Protocol,
+							Protocol: protocol,
 						})
 						mu.Unlock()
 					}
@@ -343,6 +353,7 @@ func isNetworkOrBroadcast(ip net.IP, ipNet *net.IPNet) bool {
 // getTopPorts 返回常见端口列表（基于 Nmap top 100 ports）
 func getTopPorts(count int) []int {
 	// Nmap top 100 ports: 7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157
+	// 添加自定义端口: 8096 (Jellyfin), 18789
 	commonPorts := []int{
 		7, 9, 13, 21, 22, 23, 25, 26, 37, 53,
 		79, 80, 81, 88, 106, 110, 111, 113, 119, 135,
@@ -352,8 +363,8 @@ func getTopPorts(count int) []int {
 		1110, 1433, 1720, 1723, 1755, 1900, 2000, 2001, 2049, 2121,
 		2717, 3000, 3128, 3306, 3389, 3986, 4899, 5000, 5009, 5051,
 		5060, 5101, 5190, 5357, 5432, 5631, 5666, 5800, 5900, 6000,
-		6001, 6646, 7070, 8000, 8008, 8009, 8080, 8081, 8443, 8888,
-		9100, 9999, 10000, 32768, 49152, 49153, 49154, 49155, 49156, 49157,
+		6001, 6646, 7070, 8000, 8008, 8009, 8080, 8081, 8096, 8443,
+		8888, 9100, 9999, 10000, 18789, 32768, 49152, 49153, 49154, 49155, 49156, 49157,
 	}
 
 	if count > len(commonPorts) {
@@ -397,4 +408,32 @@ func scanUDP(ip string, port int, timeout time.Duration) bool {
 		return false
 	}
 	return true
+}
+
+// isHTTP 检测端口是否是 HTTP 服务
+func isHTTP(ip string, port int, timeout time.Duration) bool {
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
+	conn, err := net.DialTimeout("tcp", addr, timeout)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+
+	// 发送 HTTP 请求
+	_ = conn.SetWriteDeadline(time.Now().Add(timeout))
+	_, err = conn.Write([]byte("GET / HTTP/1.1\r\nHost: " + ip + "\r\n\r\n"))
+	if err != nil {
+		return false
+	}
+
+	// 读取响应
+	_ = conn.SetReadDeadline(time.Now().Add(timeout))
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+
+	// 检查是否是 HTTP 响应（以 HTTP/ 开头）
+	return len(line) >= 5 && line[:5] == "HTTP/"
 }

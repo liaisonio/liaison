@@ -49,7 +49,7 @@ declare namespace API {
     port: number;
     edge_id: number;
     device?: Device;
-    proxy?: Proxy; // 已关联代理
+    proxy?: Proxy; // 已关联访问
     created_at: string;
     updated_at: string;
   }
@@ -172,7 +172,7 @@ declare namespace API {
     protocol?: string;
   }
 
-  // ========== 代理 (Proxy) ==========
+  // ========== 访问 (Proxy) ==========
   interface Proxy {
     id: number;
     name: string;
@@ -182,6 +182,7 @@ declare namespace API {
     application?: Application;
     created_at: string;
     updated_at: string;
+    access_url?: string;
   }
 
   interface ProxyListResult {

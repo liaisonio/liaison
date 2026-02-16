@@ -11,7 +11,8 @@ import (
 type ApplicationType string
 
 const (
-	ApplicationTypeTCP ApplicationType = "tcp" // currently only support tcp
+	ApplicationTypeTCP  ApplicationType = "tcp"  // TCP 应用
+	ApplicationTypeHTTP ApplicationType = "http" // HTTP 应用
 )
 
 // UintSlice 为 []uint 实现 Scanner 和 Valuer 接口，用于 SQLite JSON 字段处理

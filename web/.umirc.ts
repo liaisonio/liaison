@@ -43,7 +43,7 @@ export default defineConfig({
       component: './Dashboard',
     },
     {
-      name: '代理',
+      name: '访问',
       path: '/proxy',
       icon: 'CloudServerOutlined',
       component: './Proxy',

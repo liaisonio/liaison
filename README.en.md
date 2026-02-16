@@ -48,11 +48,11 @@
 
 ```bash
 # Download latest version
-wget https://github.com/singchia/liaison/releases/download/v1.2.3/liaison-v1.2.3-linux-amd64.tar.gz
+wget https://github.com/singchia/liaison/releases/download/v1.2.4/liaison-v1.2.4-linux-amd64.tar.gz
 
 # Extract
-tar -xzf liaison-v1.2.3-linux-amd64.tar.gz
-cd liaison-v1.2.3-linux-amd64
+tar -xzf liaison-v1.2.4-linux-amd64.tar.gz
+cd liaison-v1.2.4-linux-amd64
 ```
 
 **2. Run Installation Script**

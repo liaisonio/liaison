@@ -12,7 +12,7 @@ import (
 // getDefaultPortByApplicationType 根据应用类型返回默认端口
 func getDefaultPortByApplicationType(appType string) int {
 	defaultPorts := map[string]int{
-		"web":        80,
+		"http":       80,
 		"ssh":        22,
 		"rdp":        3389,
 		"mysql":      3306,
@@ -31,8 +31,8 @@ func getDefaultPortByApplicationType(appType string) int {
 func detectApplicationTypeByPort(port int) string {
 	portToType := map[int]string{
 		22:    "ssh",
-		80:    "web",
-		443:   "web",
+		80:    "http",
+		443:   "http",
 		3389:  "rdp",
 		3306:  "mysql",
 		5432:  "postgresql",

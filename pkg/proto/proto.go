@@ -15,6 +15,10 @@ type Proxy struct {
 	ApplicationID uint
 	// 目的地址
 	Dst string
+	// 应用类型（用于决定使用 HTTP 还是 TCP 代理）
+	ApplicationType string
+	// 是否使用 HTTPS（仅对 HTTP 应用有效）
+	UseHTTPS bool
 }
 
 type ProxyManager interface {

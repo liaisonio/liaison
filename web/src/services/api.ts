@@ -170,7 +170,7 @@ export async function createEdgeScanTask(data: API.EdgeScanTaskCreateParams) {
   );
 }
 
-/** 获取代理列表 GET /v1/proxies */
+/** 获取访问列表 GET /v1/proxies */
 export async function getProxyList(params?: API.ProxyListParams) {
   return request<API.Response<API.ProxyListResult>>('/api/v1/proxies', {
     method: 'GET',
@@ -178,7 +178,7 @@ export async function getProxyList(params?: API.ProxyListParams) {
   });
 }
 
-/** 创建代理 POST /v1/proxies */
+/** 创建访问 POST /v1/proxies */
 export async function createProxy(data: API.ProxyCreateParams) {
   return request<API.Response<API.Proxy>>('/api/v1/proxies', {
     method: 'POST',
@@ -186,7 +186,7 @@ export async function createProxy(data: API.ProxyCreateParams) {
   });
 }
 
-/** 更新代理 PUT /v1/proxies/:id */
+/** 更新访问 PUT /v1/proxies/:id */
 export async function updateProxy(id: number, data: API.ProxyUpdateParams) {
   return request<API.Response<API.Proxy>>(`/api/v1/proxies/${id}`, {
     method: 'PUT',
@@ -194,7 +194,7 @@ export async function updateProxy(id: number, data: API.ProxyUpdateParams) {
   });
 }
 
-/** 删除代理 DELETE /v1/proxies/:id */
+/** 删除访问 DELETE /v1/proxies/:id */
 export async function deleteProxy(id: number) {
   return request<API.Response>(`/api/v1/proxies/${id}`, {
     method: 'DELETE',

@@ -219,8 +219,8 @@ const ConnectorPage: React.FC = () => {
     const appType = parts[2] || (() => {
       const portToType: Record<number, string> = {
         22: 'ssh',
-        80: 'web',
-        443: 'web',
+        80: 'http',
+        443: 'http',
         3389: 'rdp',
         3306: 'mysql',
         5432: 'postgresql',
@@ -261,14 +261,14 @@ const ConnectorPage: React.FC = () => {
       title: '添加应用',
       content: (
         <div>
-          <div style={{ marginBottom: 8 }}>确定要添加应用 <strong>{ip}:{port}</strong> 吗？是否同时创建代理？</div>
+          <div style={{ marginBottom: 8 }}>确定要添加应用 <strong>{ip}:{port}</strong> 吗？是否同时创建访问？</div>
         </div>
       ),
       width: 450,
       centered: true,
       closable: true,
       maskClosable: false, // 禁止点击遮罩层关闭
-      okText: '添加并设置代理',
+      okText: '添加并设置访问',
       cancelText: '只添加应用',
       okButtonProps: { style: { marginRight: 80 } },
       footer: (_, { OkBtn }) => (
@@ -283,7 +283,7 @@ const ConnectorPage: React.FC = () => {
         </>
       ),
       onOk: async () => {
-        // 添加应用并跳转到代理页面
+        // 添加应用并跳转到访问页面
         const result = await executeAction(
           () =>
             createApplication({
@@ -303,7 +303,7 @@ const ConnectorPage: React.FC = () => {
                   applications: scanTask.applications.filter((a) => a !== appStr),
                 });
               }
-              // 跳转到代理页面，传递应用ID、名称和autoCreate参数
+              // 跳转到访问页面，传递应用ID、名称和autoCreate参数
               if (data?.id) {
                 const appName = encodeURIComponent(data.name || `App-${ip}:${port}`);
                 history.push(`/proxy?application_id=${data.id}&application_name=${appName}&autoCreate=true`);
@@ -425,7 +425,7 @@ const ConnectorPage: React.FC = () => {
           </a>
           <DeleteLink
             title="确定要删除这个连接器吗？"
-            description="删除后，该连接器关联的所有应用和代理将失效"
+            description="删除后，该连接器关联的所有应用和访问将失效"
             onConfirm={() => handleDelete(record.id)}
           />
         </Space>
@@ -763,8 +763,8 @@ const ConnectorPage: React.FC = () => {
                   const detectApplicationTypeByPort = (port: number): string => {
                     const portToType: Record<number, string> = {
                       22: 'SSH',
-                      80: 'Web',
-                      443: 'Web',
+                      80: 'HTTP',
+                      443: 'HTTP',
                       3389: 'RDP',
                       3306: 'MySQL',
                       5432: 'PostgreSQL',

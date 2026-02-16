@@ -457,8 +457,8 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(_ context.Context, req *v1.Ge
 	detectApplicationTypeByPort := func(port int) string {
 		portToType := map[int]string{
 			22:    "ssh",
-			80:    "web",
-			443:   "web",
+			80:    "http",
+			443:   "http",
 			3389:  "rdp",
 			3306:  "mysql",
 			5432:  "postgresql",
@@ -473,11 +473,11 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(_ context.Context, req *v1.Ge
 
 	applications := []string{}
 	for _, application := range result.ScannedApplications {
-		// 根据端口推断应用类型，如果推断不出则使用 protocol
-		appType := detectApplicationTypeByPort(application.Port)
-		if appType == "tcp" && application.Protocol != "" {
-			// 如果推断为 tcp，但 protocol 不是 tcp，则使用 protocol
-			appType = application.Protocol
+		// 如果 protocol 是 http，直接使用 http
+		appType := application.Protocol
+		if appType == "" || appType == "tcp" {
+			// 根据端口推断应用类型
+			appType = detectApplicationTypeByPort(application.Port)
 		}
 		applications = append(applications, fmt.Sprintf("%s:%d:%s", application.IP, application.Port, appType))
 	}

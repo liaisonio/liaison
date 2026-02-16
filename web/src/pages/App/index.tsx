@@ -8,7 +8,8 @@ import {
   ProFormText,
   ProTable,
 } from '@ant-design/pro-components';
-import { Space, Tag, Typography, Select, Form } from 'antd';
+import { Space, Tag, Typography, Select, Form, Alert } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import { LinkOutlined, ApiOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import {
@@ -34,6 +35,7 @@ const AppPage: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [proxyModalVisible, setProxyModalVisible] = useState(false);
   const [currentRow, setCurrentRow] = useState<API.Application>();
+  const [selectedApplicationType, setSelectedApplicationType] = useState<string | undefined>();
   const [deviceOptions, setDeviceOptions] = useState<{ label: string; value: string }[]>([]);
 
   const reload = () => actionRef.current?.reload();
@@ -112,10 +114,10 @@ const AppPage: React.FC = () => {
           application_id: currentRow.id,
         }),
       {
-        successMessage: '代理创建成功',
-        errorMessage: '代理创建失败',
+        successMessage: '访问创建成功',
+        errorMessage: '访问创建失败',
         onSuccess: (data) => {
-          // 保存创建的代理信息
+          // 保存创建的访问信息
           if (data) {
             createdProxy = data as API.Proxy;
           }
@@ -152,7 +154,7 @@ const AppPage: React.FC = () => {
       width: 100,
       valueType: 'select',
       valueEnum: {
-        web: { text: 'Web' },
+        http: { text: 'HTTP' },
         tcp: { text: 'TCP' },
         ssh: { text: 'SSH' },
         rdp: { text: 'RDP' },
@@ -217,7 +219,7 @@ const AppPage: React.FC = () => {
       },
     },
     {
-      title: '已关联代理',
+      title: '已关联访问',
       dataIndex: 'proxy',
       ellipsis: true,
       width: 150,
@@ -252,7 +254,7 @@ const AppPage: React.FC = () => {
             setCurrentRow(record);
             setProxyModalVisible(true);
           }}>
-            创建代理
+            创建访问
           </a>
           <a onClick={() => {
             setCurrentRow(record);
@@ -306,7 +308,12 @@ const AppPage: React.FC = () => {
       <ModalForm
         title="新建应用"
         open={createModalVisible}
-        onOpenChange={setCreateModalVisible}
+        onOpenChange={(visible) => {
+          setCreateModalVisible(visible);
+          if (!visible) {
+            setSelectedApplicationType(undefined);
+          }
+        }}
         onFinish={handleAdd}
         modalProps={{ destroyOnClose: true }}
         form={createForm}
@@ -323,7 +330,7 @@ const AppPage: React.FC = () => {
           label="应用类型"
           placeholder="请选择应用类型（不填默认为TCP）"
           options={[
-            { label: 'Web', value: 'web' },
+            { label: 'HTTP', value: 'http' },
             { label: 'TCP', value: 'tcp' },
             { label: 'SSH', value: 'ssh' },
             { label: 'RDP', value: 'rdp' },
@@ -335,9 +342,10 @@ const AppPage: React.FC = () => {
           extra="不填默认为TCP"
           fieldProps={{
             onChange: (value: string) => {
+              setSelectedApplicationType(value);
               // 根据应用类型设置默认端口
               const defaultPorts: Record<string, number> = {
-                web: 80,
+                http: 80,
                 ssh: 22,
                 rdp: 3389,
                 mysql: 3306,
@@ -352,6 +360,17 @@ const AppPage: React.FC = () => {
             },
           }}
         />
+        {selectedApplicationType === 'http' && (
+          <Alert
+            message={<span style={{ fontSize: '11px', lineHeight: '16px', marginBottom: 0, display: 'block' }}>将开启 HTTPS</span>}
+            description={<span style={{ fontSize: '10px', lineHeight: '14px', marginTop: 0, display: 'block' }}>HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书</span>}
+            type="info"
+            icon={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />}
+            style={{ marginBottom: 16, padding: '8px 12px' }}
+            messageStyle={{ marginBottom: 0 }}
+            descriptionStyle={{ marginTop: 0 }}
+          />
+        )}
         <ProFormText
           name="ip"
           label="IP 地址"
@@ -418,7 +437,7 @@ const AppPage: React.FC = () => {
       </ModalForm>
 
       <ModalForm
-        title="为应用创建代理"
+        title="为应用创建访问"
         open={proxyModalVisible}
         onOpenChange={setProxyModalVisible}
         onFinish={handleCreateProxy}
@@ -427,11 +446,22 @@ const AppPage: React.FC = () => {
       >
         <ProFormText
           name="name"
-          label="代理名称"
-          placeholder="请输入代理名称"
+          label="访问名称"
+          placeholder="请输入访问名称"
           initialValue={currentRow?.name}
-          rules={[{ required: true, message: '请输入代理名称' }]}
+          rules={[{ required: true, message: '请输入访问名称' }]}
         />
+        {currentRow?.application_type === 'http' && (
+          <Alert
+            message={<span style={{ fontSize: '11px', lineHeight: '16px', marginBottom: 0, display: 'block' }}>将开启 HTTPS</span>}
+            description={<span style={{ fontSize: '10px', lineHeight: '14px', marginTop: 0, display: 'block' }}>HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书</span>}
+            type="info"
+            icon={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />}
+            style={{ marginBottom: 16, padding: '8px 12px' }}
+            messageStyle={{ marginBottom: 0 }}
+            descriptionStyle={{ marginTop: 0 }}
+          />
+        )}
         <ProFormDigit
           name="port"
           label="公网端口"

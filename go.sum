@@ -82,10 +82,10 @@ github.com/rogpeppe/go-internal v1.12.0 h1:exVL4IDcn6na9z1rAb56Vxr+CgyK3nn3O+epU
 github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99yedzYV+kq4uf4=
 github.com/shirou/gopsutil v3.21.11+incompatible h1:+1+c1VGhc88SSonWP6foOcLhvnKlUeu/erjjvaPEYiI=
 github.com/shirou/gopsutil v3.21.11+incompatible/go.mod h1:5b4v6he4MtMOwMlS0TUMTu2PcXUg8+E1lC7eC3UO/RA=
-github.com/singchia/frontier v1.2.2 h1:qI2bfP9ss0m358K0W7wkTCBBU9MNIL6bKdaSFtOo4kU=
-github.com/singchia/frontier v1.2.2/go.mod h1:DN9FWs3qt3aK+Owh/GRBCrdvN7luI+LAX2uj7prSjJ8=
-github.com/singchia/geminio v1.2.0 h1:Bxi6b2Av9GAvGM+M2VQ8fIR6E6MRL1q9/pumr6FXMKw=
-github.com/singchia/geminio v1.2.0/go.mod h1:b6bld5o0aofg/kuAdc5uAnaTJYvd6YaJxYDtH9b+NzY=
+github.com/singchia/frontier v1.2.3-rc.1 h1:HYy3UWhs95TxPUxxLw6ebBrKPvCcbaWL7ZW5Y/erTro=
+github.com/singchia/frontier v1.2.3-rc.1/go.mod h1:9FaOkVyxubV7MHG1fdHo12XPXL1Ke2EVyA+D4kyaNXs=
+github.com/singchia/geminio v1.2.2-rc.2 h1:3cAb2GrgxCp1tQwy0ZwLR2b0HsjwY4NfAMO28QEQm+M=
+github.com/singchia/geminio v1.2.2-rc.2/go.mod h1:b6bld5o0aofg/kuAdc5uAnaTJYvd6YaJxYDtH9b+NzY=
 github.com/singchia/go-timer/v2 v2.0.3/go.mod h1:PgkEQc6io8slCUiT5rHzWKU4/P2HXHWk3WWfijZXAf4=
 github.com/singchia/go-timer/v2 v2.2.1 h1:gJucmL99fkuNzGk2AfNPFpa1X3/4+aGO21KkjFAG624=
 github.com/singchia/go-timer/v2 v2.2.1/go.mod h1:PgkEQc6io8slCUiT5rHzWKU4/P2HXHWk3WWfijZXAf4=

@@ -9,7 +9,8 @@ import {
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import { Space, Tag, Typography, Switch } from 'antd';
+import { Space, Tag, Typography, Switch, Alert, Tooltip, message } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams, useLocation } from '@umijs/max';
 import {
@@ -35,8 +36,10 @@ const ProxyPage: React.FC = () => {
   const [currentRow, setCurrentRow] = useState<API.Proxy>();
   const [initialApplicationId, setInitialApplicationId] = useState<number | undefined>();
   const [applicationOptions, setApplicationOptions] = useState<
-    { label: string; value: number }[]
+    { label: string; value: number; application_type?: string }[]
   >([]);
+  const [applicationMap, setApplicationMap] = useState<Map<number, API.Application>>(new Map());
+  const [selectedApplicationId, setSelectedApplicationId] = useState<number | undefined>();
   const hasProcessedUrlRef = useRef(false); // 使用 ref 跟踪是否已处理过 URL 参数
 
   // 从 URL 查询参数中读取 application_id、application_name 和 autoCreate（只执行一次）
@@ -88,17 +91,31 @@ const ProxyPage: React.FC = () => {
         
         // 重新加载应用列表，确保包含完整信息（IP和端口）
         getApplicationList({ page_size: 100 }).then((res) => {
+          const apps = res.data?.applications || [];
+          const appMap = new Map<number, API.Application>();
+          apps.forEach((app: API.Application) => {
+            appMap.set(app.id, app);
+          });
+          setApplicationMap(appMap);
+          
           const options =
-            res.data?.applications?.map((item) => ({
+            apps.map((item: API.Application) => ({
               label: `${item.name} (${item.ip}:${item.port})`,
               value: item.id,
+              application_type: item.application_type,
             })) || [];
           // 如果URL中有应用名称，确保对应的选项存在（即使列表中没有）
           if (applicationName) {
             const decodedName = decodeURIComponent(applicationName);
             const exists = options.some(opt => opt.value === id);
             if (!exists) {
-              options.push({ label: decodedName, value: id });
+              // 尝试从 appMap 中获取应用类型，如果找不到则默认为空
+              const app = appMap.get(id);
+              options.push({ 
+                label: decodedName, 
+                value: id,
+                application_type: app?.application_type || '',
+              });
             }
           }
           setApplicationOptions(options);
@@ -109,7 +126,7 @@ const ProxyPage: React.FC = () => {
             setApplicationOptions((prev) => {
               const exists = prev.some(opt => opt.value === id);
               if (exists) return prev;
-              return [...prev, { label: decodedName, value: id }];
+              return [...prev, { label: decodedName, value: id, application_type: '' }];
             });
           }
         });
@@ -139,10 +156,18 @@ const ProxyPage: React.FC = () => {
     const loadApplications = async () => {
       try {
         const res = await getApplicationList({ page_size: 100 });
+        const apps = res.data?.applications || [];
+        const appMap = new Map<number, API.Application>();
+        apps.forEach((app: API.Application) => {
+          appMap.set(app.id, app);
+        });
+        setApplicationMap(appMap);
+        
         const options =
-          res.data?.applications?.map((item) => ({
+          apps.map((item: API.Application) => ({
             label: `${item.name} (${item.ip}:${item.port})`,
             value: item.id,
+            application_type: item.application_type,
           })) || [];
         setApplicationOptions(options);
       } catch {
@@ -212,12 +237,12 @@ const ProxyPage: React.FC = () => {
 
   const columns: ProColumns<API.Proxy>[] = [
     {
-      title: '代理名称',
+      title: '访问名称',
       dataIndex: 'name',
       ellipsis: true,
       copyable: true,
       fieldProps: {
-        placeholder: '请输入代理名称',
+        placeholder: '请输入访问名称',
       },
     },
     {
@@ -225,6 +250,38 @@ const ProxyPage: React.FC = () => {
       dataIndex: 'description',
       ellipsis: true,
       search: false,
+    },
+    {
+      title: '访问地址',
+      dataIndex: 'access_url',
+      ellipsis: false,
+      search: false,
+      width: 300,
+      render: (_, record) => {
+        const accessUrl = record.access_url;
+        if (!accessUrl || typeof accessUrl !== 'string') {
+          return <Text type="secondary">-</Text>;
+        }
+        // 确保 URL 有协议前缀
+        const url = accessUrl.startsWith('http://') || accessUrl.startsWith('https://') 
+          ? accessUrl 
+          : `https://${accessUrl}`;
+        
+        return (
+          <Tag
+            color="blue"
+            style={{
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              window.open(url, '_blank');
+            }}
+          >
+            {accessUrl}
+          </Tag>
+        );
+      },
     },
     {
       title: '公网端口',
@@ -241,7 +298,14 @@ const ProxyPage: React.FC = () => {
       render: (_, record) =>
         record.application ? (
           <Space direction="vertical" size={0}>
-            <Text>{record.application.name}</Text>
+            <Space>
+              <Text>{record.application.name}</Text>
+              {record.application.application_type === 'http' && (
+                <Tooltip title={<span style={{ fontSize: '11px' }}>已开启 HTTPS</span>}>
+                  <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />
+                </Tooltip>
+              )}
+            </Space>
             <Text type="secondary" className="text-xs">
               {record.application.ip}:{record.application.port}
             </Text>
@@ -309,7 +373,7 @@ const ProxyPage: React.FC = () => {
             setEditModalVisible(true);
           }} />
           <DeleteLink
-            title="确定要删除这个代理吗？"
+            title="确定要删除这个访问吗？"
             onConfirm={() => handleDelete(record.id)}
           />
         </Space>
@@ -318,10 +382,10 @@ const ProxyPage: React.FC = () => {
   ];
 
   return (
-    <PageContainer>
+    <PageContainer title="访问">
       <div className="table-search-wrapper">
         <ProTable<API.Proxy>
-        headerTitle="代理列表"
+        headerTitle="访问列表"
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -331,7 +395,7 @@ const ProxyPage: React.FC = () => {
         }}
         toolBarRender={() => [
           <CreateButton key="create" onClick={() => setCreateModalVisible(true)}>
-            新建代理
+            新建访问
           </CreateButton>,
         ]}
         pagination={defaultPagination}
@@ -345,7 +409,7 @@ const ProxyPage: React.FC = () => {
 
       <ModalForm
         key={initialApplicationId ?? 'create'}
-        title="新建代理"
+        title="新建访问"
         open={createModalVisible}
         formRef={createFormRef}
         initialValues={
@@ -357,6 +421,9 @@ const ProxyPage: React.FC = () => {
           setCreateModalVisible(visible);
           if (!visible) {
             setInitialApplicationId(undefined);
+            setSelectedApplicationId(undefined);
+          } else if (initialApplicationId) {
+            setSelectedApplicationId(initialApplicationId);
           }
         }}
         onFinish={handleAdd}
@@ -365,17 +432,31 @@ const ProxyPage: React.FC = () => {
       >
         <ProFormText
           name="name"
-          label="代理名称"
-          placeholder="请输入代理名称"
-          rules={[{ required: true, message: '请输入代理名称' }]}
+          label="访问名称"
+          placeholder="请输入访问名称"
+          rules={[{ required: true, message: '请输入访问名称' }]}
         />
         <ProFormSelect
           name="application_id"
           label="关联应用"
-          placeholder="请选择要代理的应用"
+          placeholder="请选择要访问的应用"
           rules={[{ required: true, message: '请选择应用' }]}
           options={applicationOptions}
+          fieldProps={{
+            onChange: (value: number) => {
+              setSelectedApplicationId(value);
+            },
+          }}
         />
+        {selectedApplicationId && applicationMap.get(selectedApplicationId)?.application_type === 'http' && (
+          <Alert
+            message={<span style={{ fontSize: '11px', lineHeight: '16px', marginBottom: 0, display: 'block' }}>将开启 HTTPS</span>}
+            description={<span style={{ fontSize: '10px', lineHeight: '14px', marginTop: 0, display: 'block' }}>HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书</span>}
+            type="info"
+            icon={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />}
+            style={{ marginBottom: 16, padding: '8px 12px' }}
+          />
+        )}
         <ProFormDigit
           name="port"
           label="公网端口"
@@ -387,12 +468,12 @@ const ProxyPage: React.FC = () => {
         <ProFormTextArea
           name="description"
           label="描述"
-          placeholder="请输入代理描述"
+          placeholder="请输入访问描述"
         />
       </ModalForm>
 
       <ModalForm
-        title="编辑代理"
+        title="编辑访问"
         open={editModalVisible}
         onOpenChange={setEditModalVisible}
         onFinish={handleEdit}
@@ -402,9 +483,9 @@ const ProxyPage: React.FC = () => {
       >
         <ProFormText
           name="name"
-          label="代理名称"
-          placeholder="请输入代理名称"
-          rules={[{ required: true, message: '请输入代理名称' }]}
+          label="访问名称"
+          placeholder="请输入访问名称"
+          rules={[{ required: true, message: '请输入访问名称' }]}
         />
         <ProFormDigit
           name="port"
@@ -416,7 +497,7 @@ const ProxyPage: React.FC = () => {
         <ProFormTextArea
           name="description"
           label="描述"
-          placeholder="请输入代理描述"
+          placeholder="请输入访问描述"
         />
       </ModalForm>
     </PageContainer>

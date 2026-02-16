@@ -72,7 +72,7 @@ const DashboardPage: React.FC = () => {
       const applications = applicationsRes.data?.applications || [];
       const appStats: Record<string, number> = {};
       const typeMap: Record<string, string> = {
-        web: 'Web',
+        http: 'HTTP',
         tcp: 'TCP',
         udp: 'UDP',
         ssh: 'SSH',

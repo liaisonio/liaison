@@ -31,7 +31,7 @@ func NewFrontierBound(conf *config.Configuration) (*frontierBound, error) {
 		return utils.Dial(&dial, rand.Intn(len(dial.Addrs)))
 	}
 
-	svc, err := service.NewService(dialer, service.OptionServiceBufferSize(8192, 8192))
+	svc, err := service.NewService(dialer, service.OptionServiceBufferSize(512, 512))
 	if err != nil {
 		return nil, err
 	}

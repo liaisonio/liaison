@@ -36,6 +36,10 @@ check-local-modules:
 DOCKER_VOLUME := -v "$(shell pwd):/build" -v "$(PARENT_DIR):/parent"
 DOCKER_BASE := docker run --rm $(DOCKER_VOLUME) $(DOCKER_WORKDIR)
 
+# 重写 GO_BUILD_FLAGS，保留符号表（用于调试）
+# 主 Makefile 中使用 -s -w 去除符号表，这里只保留 -trimpath
+GO_BUILD_FLAGS = -trimpath
+
 # 重写 docker-build-cgo 函数，在构建前检查本地模块
 # 在容器内创建符号链接，使 ../frontier 和 ../geminio 指向正确的位置
 define docker-build-cgo

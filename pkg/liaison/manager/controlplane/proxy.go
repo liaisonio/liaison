@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
@@ -46,13 +47,21 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 	}
 
 	// 创建Proxy（如果端口为0，系统会自动分配）
+	// 如果是 HTTP 应用，默认使用 HTTPS
+	useHTTPS := false
+	if application.ApplicationType == model.ApplicationTypeHTTP {
+		useHTTPS = true
+	}
+
 	protoproxy := &proto.Proxy{
-		ID:            int(proxy.ID),
-		Name:          proxy.Name,
-		ProxyPort:     requestedPort, // 如果为0，系统会自动分配
-		EdgeID:        uint64(application.EdgeIDs[0]),
-		ApplicationID: application.ID,
-		Dst:           fmt.Sprintf("%s:%d", application.IP, application.Port),
+		ID:              int(proxy.ID),
+		Name:            proxy.Name,
+		ProxyPort:       requestedPort, // 如果为0，系统会自动分配
+		EdgeID:          uint64(application.EdgeIDs[0]),
+		ApplicationID:   application.ID,
+		Dst:             fmt.Sprintf("%s:%d", application.IP, application.Port),
+		ApplicationType: string(application.ApplicationType),
+		UseHTTPS:        useHTTPS,
 	}
 	err = cp.proxyManager.CreateProxy(context.Background(), protoproxy)
 	if err != nil {
@@ -80,7 +89,7 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 	return &v1.CreateProxyResponse{
 		Code:    200,
 		Message: "success",
-		Data:    transformProxy(proxy),
+		Data:    cp.transformProxy(proxy),
 	}, nil
 }
 
@@ -142,7 +151,7 @@ func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesReques
 		Message: "success",
 		Data: &v1.Proxies{
 			Total:   int32(count),
-			Proxies: transformProxies(proxies),
+			Proxies: cp.transformProxies(proxies),
 		},
 	}, nil
 }
@@ -197,12 +206,19 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 			}
 		} else if proxy.Status == model.ProxyStatusRunning {
 			// 启动代理：调用 CreateProxy
+			// 如果是 HTTP 应用，默认使用 HTTPS
+			useHTTPS := false
+			if application.ApplicationType == model.ApplicationTypeHTTP {
+				useHTTPS = true
+			}
 			err = cp.proxyManager.CreateProxy(context.Background(), &proto.Proxy{
-				ID:        int(proxy.ID),
-				Name:      proxy.Name,
-				ProxyPort: proxy.Port,
-				EdgeID:    uint64(application.EdgeIDs[0]),
-				Dst:       fmt.Sprintf("%s:%d", application.IP, application.Port),
+				ID:              int(proxy.ID),
+				Name:            proxy.Name,
+				ProxyPort:       proxy.Port,
+				EdgeID:          uint64(application.EdgeIDs[0]),
+				Dst:             fmt.Sprintf("%s:%d", application.IP, application.Port),
+				ApplicationType: string(application.ApplicationType),
+				UseHTTPS:        useHTTPS,
 			})
 			if err != nil {
 				log.Errorf("failed to start proxy: %s", err)
@@ -226,7 +242,7 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 	return &v1.UpdateProxyResponse{
 		Code:    200,
 		Message: "success",
-		Data:    transformProxy(updatedProxy),
+		Data:    cp.transformProxy(updatedProxy),
 	}, nil
 }
 
@@ -246,15 +262,15 @@ func (cp *controlPlane) DeleteProxy(_ context.Context, req *v1.DeleteProxyReques
 	}, nil
 }
 
-func transformProxies(proxies []*model.Proxy) []*v1.Proxy {
+func (cp *controlPlane) transformProxies(proxies []*model.Proxy) []*v1.Proxy {
 	proxiesV1 := make([]*v1.Proxy, len(proxies))
 	for i, proxy := range proxies {
-		proxiesV1[i] = transformProxy(proxy)
+		proxiesV1[i] = cp.transformProxy(proxy)
 	}
 	return proxiesV1
 }
 
-func transformProxy(proxy *model.Proxy) *v1.Proxy {
+func (cp *controlPlane) transformProxy(proxy *model.Proxy) *v1.Proxy {
 	var application *v1.Application
 	if proxy.Application != nil {
 		application = transformApplication(proxy.Application)
@@ -271,6 +287,27 @@ func transformProxy(proxy *model.Proxy) *v1.Proxy {
 		status = "unknown"
 	}
 
+	// 生成访问地址
+	var accessURL string
+	if proxy.Application != nil && proxy.Port > 0 {
+		serverURL := cp.conf.Manager.ServerURL
+		if serverURL != "" {
+			if proxy.Application.ApplicationType == model.ApplicationTypeHTTP {
+				// HTTP: server_url + 端口
+				accessURL = fmt.Sprintf("%s:%d", serverURL, proxy.Port)
+			} else {
+				// TCP: server_url去掉https://，加上端口
+				url := serverURL
+				if strings.HasPrefix(url, "https://") {
+					url = strings.TrimPrefix(url, "https://")
+				} else if strings.HasPrefix(url, "http://") {
+					url = strings.TrimPrefix(url, "http://")
+				}
+				accessURL = fmt.Sprintf("%s:%d", url, proxy.Port)
+			}
+		}
+	}
+
 	return &v1.Proxy{
 		Id:          uint64(proxy.ID),
 		Name:        proxy.Name,
@@ -280,5 +317,6 @@ func transformProxy(proxy *model.Proxy) *v1.Proxy {
 		Description: proxy.Description,
 		CreatedAt:   proxy.CreatedAt.Format(time.DateTime),
 		UpdatedAt:   proxy.UpdatedAt.Format(time.DateTime),
+		AccessUrl:   accessURL,
 	}
 }

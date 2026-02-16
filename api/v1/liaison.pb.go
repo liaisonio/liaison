@@ -2210,6 +2210,7 @@ type Proxy struct {
 	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,8,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
+	AccessUrl     string                 `protobuf:"bytes,9,opt,name=access_url,proto3" json:"access_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2296,6 +2297,13 @@ func (x *Proxy) GetCreatedAt() string {
 func (x *Proxy) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *Proxy) GetAccessUrl() string {
+	if x != nil {
+		return x.AccessUrl
 	}
 	return ""
 }
@@ -4230,7 +4238,7 @@ const file_liaison_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\"I\n" +
 	"\x19DeleteApplicationResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xe9\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x89\x02\n" +
 	"\x05Proxy\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -4243,7 +4251,10 @@ const file_liaison_proto_rawDesc = "" +
 	"created_at\x12\x1e\n" +
 	"\n" +
 	"updated_at\x18\b \x01(\tR\n" +
-	"updated_at\"A\n" +
+	"updated_at\x12\x1e\n" +
+	"\n" +
+	"access_url\x18\t \x01(\tR\n" +
+	"access_url\"A\n" +
 	"\aProxies\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12 \n" +
 	"\aproxies\x18\x02 \x03(\v2\x06.ProxyR\aproxies\"Z\n" +

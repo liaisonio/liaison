@@ -41,7 +41,7 @@ func NewFrontierBound(conf *config.Configuration, repo repo.Repo, trafficCollect
 	dialer := func() (net.Conn, error) {
 		return utils.Dial(&dial, rand.Intn(len(dial.Addrs)))
 	}
-	svc, err := service.NewService(dialer, service.OptionServiceLog(log.DefaultLog), service.OptionServiceBufferSize(1024, 1024))
+	svc, err := service.NewService(dialer, service.OptionServiceLog(log.DefaultLog), service.OptionServiceBufferSize(512, 512))
 	if err != nil {
 		log.Errorf("new service error: %s", err)
 		return nil, err

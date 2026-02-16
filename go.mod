@@ -9,8 +9,8 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/pion/transport/v2 v2.2.10
 	github.com/shirou/gopsutil v3.21.11+incompatible
-	github.com/singchia/frontier v1.2.2
-	github.com/singchia/geminio v1.2.0
+	github.com/singchia/frontier v1.2.3-rc.1
+	github.com/singchia/geminio v1.2.2-rc.2
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/swag v1.16.5
 	github.com/yusufpapurcu/wmi v1.2.4

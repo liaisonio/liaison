@@ -48,11 +48,11 @@
 
 ```bash
 # 下载最新版本
-wget https://github.com/singchia/liaison/releases/download/v1.2.3/liaison-v1.2.3-linux-amd64.tar.gz
+wget https://github.com/singchia/liaison/releases/download/v1.2.4/liaison-v1.2.4-linux-amd64.tar.gz
 
 # 解压
-tar -xzf liaison-v1.2.3-linux-amd64.tar.gz
-cd liaison-v1.2.3-linux-amd64
+tar -xzf liaison-v1.2.4-linux-amd64.tar.gz
+cd liaison-v1.2.4-linux-amd64
 ```
 
 **2. 运行安装脚本**
