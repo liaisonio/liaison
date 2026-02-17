@@ -2,6 +2,7 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/binary"
@@ -253,25 +254,27 @@ func (s *Server) handleRequest(ctx context.Context, clientConn net.Conn, reader 
 	// 检查是否是 keep-alive 连接
 	keepAlive := req.ProtoAtLeast(1, 1) && req.Header.Get("Connection") != "close"
 
-	// 检查是否是 Direct Play 请求，如果是则返回 403
-	if s.isDirectPlay(req) {
-		log.Warnf("Direct Play request blocked: %s %s", req.Method, req.URL.Path)
-		resp := &http.Response{
-			StatusCode: http.StatusForbidden,
-			Status:     "Forbidden",
-			Proto:      "HTTP/1.1",
-			ProtoMajor: 1,
-			ProtoMinor: 1,
-			Header:     make(http.Header),
-			Body:       http.NoBody,
+	/*
+		// 检查是否是 Direct Play 请求，如果是则返回 403
+		if s.isDirectPlay(req) {
+			log.Warnf("Direct Play request blocked: %s %s", req.Method, req.URL.Path)
+			resp := &http.Response{
+				StatusCode: http.StatusUnsupportedMediaType,
+				Status:     "Forbidden",
+				Proto:      "HTTP/1.1",
+				ProtoMajor: 1,
+				ProtoMinor: 1,
+				Header:     make(http.Header),
+				Body:       http.NoBody,
+			}
+			resp.Header.Set("Content-Type", "text/plain; charset=utf-8")
+			if !keepAlive {
+				resp.Header.Set("Connection", "close")
+			}
+			_ = resp.Write(clientConn)
+			return false
 		}
-		resp.Header.Set("Content-Type", "text/plain; charset=utf-8")
-		if !keepAlive {
-			resp.Header.Set("Connection", "close")
-		}
-		_ = resp.Write(clientConn)
-		return false
-	}
+	*/
 
 	// 打开到 edge 的 stream
 	stream, err := s.frontierBound.OpenStream(ctx, protoproxy.EdgeID)
@@ -299,6 +302,12 @@ func (s *Server) handleRequest(ctx context.Context, clientConn net.Conn, reader 
 	if err := s.writeDstInfo(stream, protoproxy); err != nil {
 		log.Errorf("failed to write dst info: %s", err)
 		return false
+	}
+
+	// 检查并修改 PlaybackInfo 请求的请求体
+	if err := s.modifyPlaybackInfoRequest(req); err != nil {
+		log.Errorf("failed to modify PlaybackInfo request: %s", err)
+		// 即使修改失败，也继续发送请求
 	}
 
 	// 构建并发送 HTTP 请求
@@ -446,6 +455,80 @@ func (s *Server) isDirectPlay(req *http.Request) bool {
 	}
 
 	return true
+}
+
+// modifyPlaybackInfoRequest 修改 PlaybackInfo 请求的请求体，清空 DirectPlayProfiles
+func (s *Server) modifyPlaybackInfoRequest(req *http.Request) error {
+	// 检查路径是否包含 "PlaybackInfo"
+	path := strings.ToLower(req.URL.Path)
+	if !strings.Contains(path, "playbackinfo") {
+		return nil
+	}
+
+	// 只处理 POST 和 PUT 请求
+	if req.Method != "POST" && req.Method != "PUT" {
+		return nil
+	}
+
+	// 检查 Content-Type 是否为 JSON
+	contentType := req.Header.Get("Content-Type")
+	if !strings.Contains(strings.ToLower(contentType), "application/json") {
+		return nil
+	}
+
+	// 读取请求体
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read request body: %w", err)
+	}
+	req.Body.Close()
+
+	// 如果请求体为空，直接返回
+	if len(bodyBytes) == 0 {
+		req.Body = http.NoBody
+		return nil
+	}
+
+	// 解析 JSON
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &jsonData); err != nil {
+		// 如果不是有效的 JSON，直接返回原始请求体
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		return nil
+	}
+
+	// 清空 DeviceProfile.DirectPlayProfiles 数组
+	if deviceProfile, exists := jsonData["DeviceProfile"]; exists {
+		if deviceProfileMap, ok := deviceProfile.(map[string]interface{}); ok {
+			// 强制声明只支持 AAC
+			deviceProfileMap["SupportedAudioCodecs"] = []interface{}{"aac"}
+
+			// 限制为立体声
+			deviceProfileMap["MaxAudioChannels"] = 2
+			if _, hasDirectPlayProfiles := deviceProfileMap["DirectPlayProfiles"]; hasDirectPlayProfiles {
+				deviceProfileMap["DirectPlayProfiles"] = []interface{}{}
+				deviceProfileMap["DirectStreamProfiles"] = []interface{}{}
+
+				log.Debugf("Cleared DeviceProfile.DirectPlayProfiles in PlaybackInfo request: %s", req.URL.Path)
+			}
+		}
+	}
+
+	// 重新序列化为 JSON
+	modifiedBody, err := json.Marshal(jsonData)
+	if err != nil {
+		// 如果序列化失败，使用原始请求体
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		return fmt.Errorf("failed to marshal modified JSON: %w", err)
+	}
+
+	// 设置修改后的请求体
+	req.Body = io.NopCloser(bytes.NewReader(modifiedBody))
+	// 更新 Content-Length
+	req.ContentLength = int64(len(modifiedBody))
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(modifiedBody)))
+
+	return nil
 }
 
 // handleWebSocket 处理 WebSocket 连接
