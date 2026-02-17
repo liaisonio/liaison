@@ -253,6 +253,26 @@ func (s *Server) handleRequest(ctx context.Context, clientConn net.Conn, reader 
 	// 检查是否是 keep-alive 连接
 	keepAlive := req.ProtoAtLeast(1, 1) && req.Header.Get("Connection") != "close"
 
+	// 检查是否是 Direct Play 请求，如果是则返回 403
+	if s.isDirectPlay(req) {
+		log.Warnf("Direct Play request blocked: %s %s", req.Method, req.URL.Path)
+		resp := &http.Response{
+			StatusCode: http.StatusForbidden,
+			Status:     "Forbidden",
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header:     make(http.Header),
+			Body:       http.NoBody,
+		}
+		resp.Header.Set("Content-Type", "text/plain; charset=utf-8")
+		if !keepAlive {
+			resp.Header.Set("Connection", "close")
+		}
+		_ = resp.Write(clientConn)
+		return false
+	}
+
 	// 打开到 edge 的 stream
 	stream, err := s.frontierBound.OpenStream(ctx, protoproxy.EdgeID)
 	if err != nil {
@@ -409,6 +429,23 @@ func (s *Server) isWebSocketUpgrade(req *http.Request) bool {
 
 	// 检查是否包含 upgrade 和 websocket
 	return strings.Contains(connection, "upgrade") && strings.Contains(upgrade, "websocket")
+}
+
+// isDirectPlay 检查是否是 Direct Play 请求
+func (s *Server) isDirectPlay(req *http.Request) bool {
+	// 检查路径是否包含 "/stream"
+	path := strings.ToLower(req.URL.Path)
+	if !strings.Contains(path, "/stream") {
+		return false
+	}
+
+	// 检查请求头是否包含 "Range"
+	rangeHeader := req.Header.Get("Range")
+	if rangeHeader == "" {
+		return false
+	}
+
+	return true
 }
 
 // handleWebSocket 处理 WebSocket 连接

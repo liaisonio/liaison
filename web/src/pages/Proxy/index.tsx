@@ -9,7 +9,7 @@ import {
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import { Space, Tag, Typography, Switch, Alert, Tooltip, message } from 'antd';
+import { Space, Tag, Typography, Switch, Alert, Tooltip, message, Button } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams, useLocation } from '@umijs/max';
@@ -252,38 +252,6 @@ const ProxyPage: React.FC = () => {
       search: false,
     },
     {
-      title: '访问地址',
-      dataIndex: 'access_url',
-      ellipsis: false,
-      search: false,
-      width: 300,
-      render: (_, record) => {
-        const accessUrl = record.access_url;
-        if (!accessUrl || typeof accessUrl !== 'string') {
-          return <Text type="secondary">-</Text>;
-        }
-        // 确保 URL 有协议前缀
-        const url = accessUrl.startsWith('http://') || accessUrl.startsWith('https://') 
-          ? accessUrl 
-          : `https://${accessUrl}`;
-        
-        return (
-          <Tag
-            color="blue"
-            style={{
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-            onClick={() => {
-              window.open(url, '_blank');
-            }}
-          >
-            {accessUrl}
-          </Tag>
-        );
-      },
-    },
-    {
       title: '公网端口',
       dataIndex: 'port',
       width: 100,
@@ -363,21 +331,44 @@ const ProxyPage: React.FC = () => {
     {
       title: '操作',
       valueType: 'option',
-      width: 120,
+      width: 180,
       fixed: 'right',
       align: 'center',
-      render: (_, record) => (
-        <Space>
-          <EditLink onClick={() => {
-            setCurrentRow(record);
-            setEditModalVisible(true);
-          }} />
-          <DeleteLink
-            title="确定要删除这个访问吗？"
-            onConfirm={() => handleDelete(record.id)}
-          />
-        </Space>
-      ),
+      render: (_, record) => {
+        const accessUrl = record.access_url;
+        const url = accessUrl && typeof accessUrl === 'string'
+          ? (accessUrl.startsWith('http://') || accessUrl.startsWith('https://') 
+              ? accessUrl 
+              : `https://${accessUrl}`)
+          : null;
+        
+        return (
+          <Space>
+            {url && (
+              <Tooltip title={<span style={{ fontSize: '12px' }}>{accessUrl}</span>}>
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ padding: 0, height: 'auto' }}
+                  onClick={() => {
+                    window.open(url, '_blank');
+                  }}
+                >
+                  去访问
+                </Button>
+              </Tooltip>
+            )}
+            <EditLink onClick={() => {
+              setCurrentRow(record);
+              setEditModalVisible(true);
+            }} />
+            <DeleteLink
+              title="确定要删除这个访问吗？"
+              onConfirm={() => handleDelete(record.id)}
+            />
+          </Space>
+        );
+      },
     },
   ];
 
