@@ -1,11 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns="http://www.w3.org/2000/svg" xmlns:xl="http://www.w3.org/1999/xlink" viewBox="486 326 256 159" width="256" height="159">
   <defs>
-    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0" stop-color="#5eead4" stop-opacity=".95"/>
-      <stop offset="1" stop-color="#60a5fa" stop-opacity=".95"/>
+    <linearGradient x1="0" x2="1" id="Gradient" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0c00e3" stop-opacity=".50700335"/>
+      <stop offset=".54615385" stop-color="#862cd3" stop-opacity=".5016462"/>
+      <stop offset="1" stop-color="#e400c3" stop-opacity=".49628906"/>
     </linearGradient>
+    <linearGradient id="Obj_Gradient" xl:href="#Gradient" gradientTransform="translate(581.63696 327.41147) rotate(44) scale(224.8257)"/>
   </defs>
-  <rect width="128" height="128" rx="28" fill="#0b1220"/>
-  <circle cx="64" cy="64" r="44" fill="none" stroke="url(#g)" stroke-width="8"/>
-  <path d="M44 66l13 13 27-30" fill="none" stroke="url(#g)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <g id="版面___9" stroke="none" stroke-opacity="1" fill="none" stroke-dasharray="none" fill-opacity="1">
+    <title>版面 9</title>
+    <g id="版面___9_图层_1">
+      <title>图层 1</title>
+      <g id="Graphic_3">
+        <circle cx="565.5" cy="405.5" r="79.5001270332008" fill="#005fff" fill-opacity=".6677176"/>
+      </g>
+      <g id="Graphic_4">
+        <circle cx="662.5" cy="405.5" r="79.5001270332008" fill="url(#Obj_Gradient)"/>
+      </g>
+    </g>
+  </g>
 </svg>
