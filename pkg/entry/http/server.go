@@ -14,6 +14,7 @@ import (
 	"net/http/httputil"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
@@ -27,6 +28,20 @@ type Server struct {
 	proxies        map[int]*httpProxy // id -> proxy
 	proxiesIdxPort map[int]int        // port -> id
 	frontierBound  frontierbound.FrontierBound
+	// 流量统计器（可选，如果设置了则统计流量）
+	trafficCollector interface {
+		RecordTraffic(proxyID, applicationID uint, bytesIn, bytesOut int64)
+	}
+	// 流量统计数据（每分钟上报一次）
+	trafficStats map[string]*trafficStats // key: "proxyID:applicationID"
+	stop         chan struct{}
+}
+
+type trafficStats struct {
+	ProxyID       uint
+	ApplicationID uint
+	BytesIn       int64
+	BytesOut      int64
 }
 
 type httpProxy struct {
@@ -40,11 +55,25 @@ type httpProxy struct {
 
 // NewServer 创建 HTTP 服务器
 func NewServer(frontierBound frontierbound.FrontierBound) *Server {
-	return &Server{
+	s := &Server{
 		proxies:        make(map[int]*httpProxy),
 		proxiesIdxPort: make(map[int]int),
 		frontierBound:  frontierBound,
+		trafficStats:   make(map[string]*trafficStats),
+		stop:           make(chan struct{}),
 	}
+	// 启动定时上报任务（每分钟上报一次）
+	go s.reportLoop()
+	return s
+}
+
+// SetTrafficCollector 设置流量统计器
+func (s *Server) SetTrafficCollector(collector interface {
+	RecordTraffic(proxyID, applicationID uint, bytesIn, bytesOut int64)
+}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.trafficCollector = collector
 }
 
 // CreateProxy 创建 HTTP/HTTPS 代理
@@ -163,6 +192,9 @@ func (s *Server) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// 停止流量统计上报
+	close(s.stop)
+
 	for _, proxy := range s.proxies {
 		proxy.cancel()
 		proxy.listener.Close()
@@ -172,6 +204,79 @@ func (s *Server) Close() {
 	}
 	s.proxies = make(map[int]*httpProxy)
 	s.proxiesIdxPort = make(map[int]int)
+}
+
+// recordTraffic 记录流量（累积到stats中，由定时器每分钟上报一次）
+func (s *Server) recordTraffic(proxyID, applicationID uint, bytesIn, bytesOut int64) {
+	if bytesIn == 0 && bytesOut == 0 {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	key := fmt.Sprintf("%d:%d", proxyID, applicationID)
+	stats, exists := s.trafficStats[key]
+	if !exists {
+		stats = &trafficStats{
+			ProxyID:       proxyID,
+			ApplicationID: applicationID,
+		}
+		s.trafficStats[key] = stats
+	}
+
+	stats.BytesIn += bytesIn
+	stats.BytesOut += bytesOut
+}
+
+// reportLoop 每分钟上报一次流量统计
+func (s *Server) reportLoop() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			s.flushAndReport()
+		case <-s.stop:
+			// 退出前最后一次上报
+			s.flushAndReport()
+			return
+		}
+	}
+}
+
+// flushAndReport 上报并清零流量统计
+func (s *Server) flushAndReport() {
+	s.mu.Lock()
+	if len(s.trafficStats) == 0 {
+		s.mu.Unlock()
+		return
+	}
+
+	// 复制统计数据
+	statsToReport := make([]*trafficStats, 0, len(s.trafficStats))
+	for _, stats := range s.trafficStats {
+		statsToReport = append(statsToReport, &trafficStats{
+			ProxyID:       stats.ProxyID,
+			ApplicationID: stats.ApplicationID,
+			BytesIn:       stats.BytesIn,
+			BytesOut:      stats.BytesOut,
+		})
+	}
+
+	// 清空统计数据
+	s.trafficStats = make(map[string]*trafficStats)
+	trafficCollector := s.trafficCollector
+	s.mu.Unlock()
+
+	// 上报（在锁外执行，避免阻塞）
+	if trafficCollector != nil {
+		for _, stats := range statsToReport {
+			trafficCollector.RecordTraffic(stats.ProxyID, stats.ApplicationID, stats.BytesIn, stats.BytesOut)
+		}
+		log.Debugf("HTTP server reported %d traffic metrics", len(statsToReport))
+	}
 }
 
 // serve 处理连接
@@ -254,27 +359,28 @@ func (s *Server) handleRequest(ctx context.Context, clientConn net.Conn, reader 
 	// 检查是否是 keep-alive 连接
 	keepAlive := req.ProtoAtLeast(1, 1) && req.Header.Get("Connection") != "close"
 
-	/*
-		// 检查是否是 Direct Play 请求，如果是则返回 403
-		if s.isDirectPlay(req) {
-			log.Warnf("Direct Play request blocked: %s %s", req.Method, req.URL.Path)
-			resp := &http.Response{
-				StatusCode: http.StatusUnsupportedMediaType,
-				Status:     "Forbidden",
-				Proto:      "HTTP/1.1",
-				ProtoMajor: 1,
-				ProtoMinor: 1,
-				Header:     make(http.Header),
-				Body:       http.NoBody,
-			}
-			resp.Header.Set("Content-Type", "text/plain; charset=utf-8")
-			if !keepAlive {
-				resp.Header.Set("Connection", "close")
-			}
-			_ = resp.Write(clientConn)
-			return false
+	// 统计请求流量（入站）
+	var requestBytes int64
+	if req.ContentLength > 0 {
+		requestBytes = req.ContentLength
+	} else {
+		// 如果ContentLength未知，读取请求体来统计
+		if req.Body != nil && req.Body != http.NoBody {
+			bodyBytes, _ := io.ReadAll(req.Body)
+			requestBytes = int64(len(bodyBytes))
+			req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 		}
-	*/
+	}
+	// 加上请求行和请求头的大小（估算）
+	requestLineSize := int64(len(req.Method) + len(req.URL.RequestURI()) + len(req.Proto) + 4) // +4 for spaces and CRLF
+	var headerSize int64
+	for k, v := range req.Header {
+		headerSize += int64(len(k) + 2) // key + ": "
+		for _, val := range v {
+			headerSize += int64(len(val) + 2) // value + CRLF
+		}
+	}
+	requestBytes += requestLineSize + headerSize + 2 // +2 for final CRLF
 
 	// 打开到 edge 的 stream
 	stream, err := s.frontierBound.OpenStream(ctx, protoproxy.EdgeID)
@@ -331,11 +437,35 @@ func (s *Server) handleRequest(ctx context.Context, clientConn net.Conn, reader 
 		resp.Header.Set("Connection", "close")
 	}
 
+	// 统计响应流量（出站）
+	var responseBytes int64
+	if resp.ContentLength > 0 {
+		responseBytes = resp.ContentLength
+	} else if resp.Body != nil && resp.Body != http.NoBody {
+		// 如果ContentLength未知，读取响应体来统计
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		responseBytes = int64(len(bodyBytes))
+		resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	// 加上状态行和响应头的大小（估算）
+	statusLineSize := int64(len(resp.Status) + len(resp.Proto) + 4) // +4 for spaces and CRLF
+	var respHeaderSize int64
+	for k, v := range resp.Header {
+		respHeaderSize += int64(len(k) + 2) // key + ": "
+		for _, val := range v {
+			respHeaderSize += int64(len(val) + 2) // value + CRLF
+		}
+	}
+	responseBytes += statusLineSize + respHeaderSize + 2 // +2 for final CRLF
+
 	// 写入响应到客户端
 	if err := resp.Write(clientConn); err != nil {
 		log.Errorf("failed to write response: %s", err)
 		return false
 	}
+
+	// 记录流量统计
+	s.recordTraffic(uint(protoproxy.ID), protoproxy.ApplicationID, requestBytes, responseBytes)
 
 	return keepAlive
 }
@@ -578,29 +708,67 @@ func (s *Server) handleWebSocket(ctx context.Context, clientConn net.Conn, reade
 	clientConn.SetReadDeadline(time.Time{})
 	clientConn.SetWriteDeadline(time.Time{})
 
-	// 双向复制数据：客户端 <-> stream
+	// 双向复制数据：客户端 <-> stream，并统计流量
 	errChan := make(chan error, 2)
+	var bytesIn, bytesOut int64
 
-	// 从客户端读取，写入 stream
+	// 从客户端读取，写入 stream（入站流量）
 	go func() {
-		_, err := io.Copy(stream, clientConn)
+		n, err := io.Copy(stream, clientConn)
+		if n > 0 {
+			atomic.AddInt64(&bytesIn, n)
+		}
 		if err != nil && !isErrClosed(err) {
 			log.Errorf("WebSocket copy client->stream error: %s", err)
 		}
 		errChan <- err
 	}()
 
-	// 从 stream 读取，写入客户端
+	// 从 stream 读取，写入客户端（出站流量）
 	go func() {
-		_, err := io.Copy(clientConn, stream)
+		n, err := io.Copy(clientConn, stream)
+		if n > 0 {
+			atomic.AddInt64(&bytesOut, n)
+		}
 		if err != nil && !isErrClosed(err) {
 			log.Errorf("WebSocket copy stream->client error: %s", err)
 		}
 		errChan <- err
 	}()
 
-	// 等待任一方向出错或关闭
+	// 等待任一方向出错或关闭（连接关闭时，两个方向都会停止）
 	<-errChan
+	// 等待一小段时间，确保另一个方向的统计也完成
+	time.Sleep(10 * time.Millisecond)
+
+	// 记录WebSocket流量统计
+	// 读取最终的流量统计值（使用atomic确保读取到最新值）
+	finalBytesIn := atomic.LoadInt64(&bytesIn)
+	finalBytesOut := atomic.LoadInt64(&bytesOut)
+
+	// 加上WebSocket升级请求和响应的流量
+	upgradeRequestBytes := int64(len(req.Method) + len(req.URL.RequestURI()) + len(req.Proto) + 4)
+	for k, v := range req.Header {
+		upgradeRequestBytes += int64(len(k) + 2)
+		for _, val := range v {
+			upgradeRequestBytes += int64(len(val) + 2)
+		}
+	}
+	upgradeRequestBytes += 2
+
+	upgradeResponseBytes := int64(len(resp.Status) + len(resp.Proto) + 4)
+	for k, v := range resp.Header {
+		upgradeResponseBytes += int64(len(k) + 2)
+		for _, val := range v {
+			upgradeResponseBytes += int64(len(val) + 2)
+		}
+	}
+	upgradeResponseBytes += 2
+
+	totalBytesIn := finalBytesIn + upgradeRequestBytes
+	totalBytesOut := finalBytesOut + upgradeResponseBytes
+	s.recordTraffic(uint(protoproxy.ID), protoproxy.ApplicationID, totalBytesIn, totalBytesOut)
+
 	log.Debugf("WebSocket connection closed for proxy %d", protoproxy.ID)
 }
 

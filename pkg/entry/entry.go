@@ -41,6 +41,10 @@ func NewEntry(conf *config.Configuration, manager controlplane.ControlPlane, tra
 
 	// 创建 HTTP 服务器
 	httpServer := http.NewServer(frontierBound)
+	// 设置流量统计器
+	if trafficCollector != nil {
+		httpServer.SetTrafficCollector(trafficCollector)
+	}
 
 	// 创建统一的 ProxyManager，根据应用类型路由到不同的服务器
 	proxyManager := &unifiedProxyManager{
