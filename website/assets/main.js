@@ -19,5 +19,22 @@ const enableSmoothAnchors = () => {
   }
 }
 
+const enableRevealOnScroll = () => {
+  const sections = document.querySelectorAll('.section--reveal')
+  if (!sections.length) return
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed')
+        }
+      }
+    },
+    { rootMargin: '0px 0px -8% 0px', threshold: 0 }
+  )
+  sections.forEach((section) => observer.observe(section))
+}
+
 setYear()
 enableSmoothAnchors()
+enableRevealOnScroll()

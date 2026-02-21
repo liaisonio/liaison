@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <base href="/products/" />
+    <!-- 部署在 /products/ 时由 Nginx 等配置 base，本地预览请勿启用 base，否则 CSS/JS 会 404 -->
     <title>Liaison｜让网络马上通达</title>
     <meta
       name="description"
@@ -18,28 +18,17 @@
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="zh_CN" />
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Syne:wght@500..800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./assets/styles.css" />
   </head>
   <body>
+    <div class="grain" aria-hidden="true"></div>
     <header class="header">
       <div class="container header__inner">
         <a class="brand" href="#top" aria-label="Liaison">
-          <span class="brand__mark" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2.5c5.247 0 9.5 4.253 9.5 9.5S17.247 21.5 12 21.5 2.5 17.247 2.5 12 6.753 2.5 12 2.5Z"
-                stroke="currentColor"
-                stroke-width="1.5"
-              />
-              <path
-                d="M7.5 12.2 10.6 15.3 16.7 9.2"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
+          <img class="brand__mark" src="./assets/favicon.svg" alt="" />
           <span class="brand__name">Liaison</span>
         </a>
 
@@ -142,15 +131,15 @@
         </div>
       </section>
 
-      <section id="features" class="section section--divider">
+      <section id="features" class="section section--divider section--reveal">
         <div class="container">
-          <div class="section__head">
+          <div class="section__head reveal reveal--stagger-1">
             <h2 class="section__title">核心优势</h2>
             <p class="section__desc">从安全、体验到运维效率，面向真实互联网环境打造。</p>
           </div>
 
           <div class="grid grid--3">
-            <div class="card">
+            <div class="card reveal reveal--stagger-2">
               <div class="card__icon card__icon--shield" aria-hidden="true"></div>
               <h3 class="card__title">安全可靠</h3>
               <p class="card__desc">TLS 加密传输，内网不暴露；支持 JWT 鉴权与权限边界。</p>
@@ -159,7 +148,7 @@
                 <li>面向公网访问场景的默认安全策略</li>
               </ul>
             </div>
-            <div class="card">
+            <div class="card reveal reveal--stagger-3">
               <div class="card__icon card__icon--bolt" aria-hidden="true"></div>
               <h3 class="card__title">简单易用</h3>
               <p class="card__desc">控制台完成全流程操作；一键生成安装命令，秒级上线连接器。</p>
@@ -168,7 +157,7 @@
                 <li>快速开始与脚本分发开箱即用</li>
               </ul>
             </div>
-            <div class="card">
+            <div class="card reveal reveal--stagger-4">
               <div class="card__icon card__icon--radar" aria-hidden="true"></div>
               <h3 class="card__title">自动发现</h3>
               <p class="card__desc">设备上报 + 远程扫描闭环，自动发现内网应用与端口。</p>
@@ -180,11 +169,11 @@
           </div>
 
           <div class="grid grid--2 section__grid">
-            <div class="card card--flat">
+            <div class="card card--flat reveal reveal--stagger-5">
               <h3 class="card__title">跨平台分发</h3>
               <p class="card__desc">连接器支持 Linux/macOS/Windows，覆盖 x86_64 与 ARM64，适用于服务器、工控与边缘设备。</p>
             </div>
-            <div class="card card--flat">
+            <div class="card card--flat reveal reveal--stagger-6">
               <h3 class="card__title">可视化监控</h3>
               <p class="card__desc">设备在线状态、延迟、流量统计可视化呈现，为运维与容量评估提供数据依据。</p>
             </div>
@@ -192,29 +181,29 @@
         </div>
       </section>
 
-      <section id="architecture" class="section section--dark">
+      <section id="architecture" class="section section--dark section--reveal">
         <div class="container">
-          <div class="section__head">
+          <div class="section__head reveal reveal--stagger-1">
             <h2 class="section__title">架构一目了然</h2>
             <p class="section__desc">中心化控制平面统一管理，边缘连接器负责最后一公里的通达。</p>
           </div>
 
           <div class="grid grid--3">
-            <div class="card card--dark">
+            <div class="card card--dark reveal reveal--stagger-2">
               <h3 class="card__title">Manager</h3>
               <p class="card__desc">控制台 + API：连接器管理、代理配置、任务下发、数据可视化。</p>
             </div>
-            <div class="card card--dark">
+            <div class="card card--dark reveal reveal--stagger-3">
               <h3 class="card__title">Frontier</h3>
               <p class="card__desc">连接器网关：统一承载连接与通信，简化公网入口与运维。</p>
             </div>
-            <div class="card card--dark">
+            <div class="card card--dark reveal reveal--stagger-4">
               <h3 class="card__title">Edge</h3>
               <p class="card__desc">边缘连接器：设备信息上报、端口扫描、流量采集与应用转发。</p>
             </div>
           </div>
 
-          <div class="callout">
+          <div class="callout reveal reveal--stagger-5">
             <div class="callout__title">典型访问路径</div>
             <div class="callout__body">
               互联网客户端 → 代理端口（Entry）→ 连接器（Edge）→ 内网应用 (ip:port)
@@ -224,27 +213,27 @@
         </div>
       </section>
 
-      <section id="scenarios" class="section">
+      <section id="scenarios" class="section section--reveal">
         <div class="container">
-          <div class="section__head">
+          <div class="section__head reveal reveal--stagger-1">
             <h2 class="section__title">适用场景</h2>
             <p class="section__desc">从个人到企业，覆盖典型的“外网访问内网”与边缘设备管理需求。</p>
           </div>
 
           <div class="grid grid--4">
-            <div class="tile">
+            <div class="tile reveal reveal--stagger-2">
               <div class="tile__title">远程办公</div>
               <div class="tile__desc">安全访问办公室内网服务，开发调试与资料共享更顺畅。</div>
             </div>
-            <div class="tile">
+            <div class="tile reveal reveal--stagger-3">
               <div class="tile__title">NAS 伴侣</div>
               <div class="tile__desc">随时随地访问家庭 NAS 与自建服务，避免暴露内网拓扑。</div>
             </div>
-            <div class="tile">
+            <div class="tile reveal reveal--stagger-4">
               <div class="tile__title">多机房/多地域</div>
               <div class="tile__desc">统一连接不同地域的设备与应用，降低跨域运维成本。</div>
             </div>
-            <div class="tile">
+            <div class="tile reveal reveal--stagger-5">
               <div class="tile__title">边缘计算</div>
               <div class="tile__desc">连接与监控边缘节点，支持自动发现与任务下发。</div>
             </div>
@@ -252,15 +241,15 @@
         </div>
       </section>
 
-      <section id="quickstart" class="section section--gradient">
+      <section id="quickstart" class="section section--gradient section--reveal">
         <div class="container">
-          <div class="section__head">
+          <div class="section__head reveal reveal--stagger-1">
             <h2 class="section__title">快速开始</h2>
             <p class="section__desc">在一台 Linux 机器安装 Liaison 服务端，随后通过 Web 控制台完成配置。</p>
           </div>
 
           <div class="grid grid--1">
-            <div class="card card--glass">
+            <div class="card card--glass reveal reveal--stagger-2">
               <h3 class="card__title">安装 Liaison（服务端）</h3>
               <p class="card__desc">需要一台 Linux 机器（推荐 Ubuntu / Debian / CentOS），具备可被访问的公网 IP 或域名。</p>
               <div class="code">
@@ -273,7 +262,7 @@ sudo ./install.sh</code></pre>
             </div>
           </div>
 
-          <div class="cta">
+          <div class="cta reveal reveal--stagger-3">
             <div class="cta__title">准备好开始了吗？</div>
             <div class="cta__desc">安装完成后访问控制台，开始创建连接器与代理配置。</div>
             <div class="cta__actions">
@@ -284,25 +273,25 @@ sudo ./install.sh</code></pre>
         </div>
       </section>
 
-      <section id="faq" class="section">
+      <section id="faq" class="section section--reveal">
         <div class="container">
-          <div class="section__head">
+          <div class="section__head reveal reveal--stagger-1">
             <h2 class="section__title">常见问题</h2>
             <p class="section__desc">面向互联网部署时最常见的疑问。</p>
           </div>
 
           <div class="faq">
-            <details class="faq__item">
+            <details class="faq__item reveal reveal--stagger-2">
               <summary class="faq__q">Liaison 和传统“内网穿透”有什么区别？</summary>
               <div class="faq__a">
                 Liaison 以“管理中心 + 连接器 + 代理入口”的体系化方式提供可视化控制、任务下发、自动发现与流量统计，适合管理多设备、多应用的长期场景。
               </div>
             </details>
-            <details class="faq__item">
+            <details class="faq__item reveal reveal--stagger-3">
               <summary class="faq__q">是否会暴露内网地址与拓扑？</summary>
               <div class="faq__a">默认策略强调不暴露内网，外部访问通过代理端口完成转发，并提供 TLS 加密保障链路安全。</div>
             </details>
-            <details class="faq__item">
+            <details class="faq__item reveal reveal--stagger-4">
               <summary class="faq__q">适合个人使用还是企业使用？</summary>
               <div class="faq__a">两者都适合：个人可用于 NAS/远程办公；企业可用于多机房通达、边缘设备管理与运维监控。</div>
             </details>

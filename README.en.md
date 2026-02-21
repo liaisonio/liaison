@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="website/assets/favicon.svg" alt="Liaison" width="120" />
+
 # Liaison
 
 **Network connectivity made simple - Easily connect devices and applications across different locations**
@@ -71,31 +73,7 @@ After installation, visit `https://your-public-ip` to access the Web console.
 
 ### 🔌 Install Connector
 
-**1. Create Connector**
-
-Create a connector in the Web console and obtain `Access Key` and `Secret Key`.
-
-**2. Install on Target Device**
-
-**Linux/macOS:**
-```bash
-curl -sSL https://your-server-address/install.sh | bash -s -- \
-  --access-key=YOUR_ACCESS_KEY \
-  --secret-key=YOUR_SECRET_KEY
-```
-
-**Windows:**
-```powershell
-# Download installation script
-Invoke-WebRequest -Uri "https://your-server-address/install.ps1" -OutFile "install.ps1"
-
-# Run installation
-.\install.ps1 -AccessKey "YOUR_ACCESS_KEY" -SecretKey "YOUR_SECRET_KEY"
-```
-
-**3. Wait for Auto Connection**
-
-Wait a few seconds, and the device will automatically appear in the console without additional configuration!
+**Create a new connector** in the Web console, copy the install command for your platform from the page, and run it on the target device to complete installation. The connector will then appear in the console automatically.
 
 ---
 

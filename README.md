@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="website/assets/favicon.svg" alt="Liaison" width="120" />
+
 # Liaison
 
 **让网络马上通达，轻松连接分布在不同位置的设备与应用**
@@ -71,31 +73,7 @@ sudo ./install.sh
 
 ### 🔌 安装连接器
 
-**1. 创建连接器**
-
-在 Web 控制台中创建连接器，获取 `Access Key` 和 `Secret Key`。
-
-**2. 在目标设备上安装**
-
-**Linux/macOS:**
-```bash
-curl -sSL https://你的服务地址/install.sh | bash -s -- \
-  --access-key=YOUR_ACCESS_KEY \
-  --secret-key=YOUR_SECRET_KEY
-```
-
-**Windows:**
-```powershell
-# 下载安装脚本
-Invoke-WebRequest -Uri "https://你的服务地址/install.ps1" -OutFile "install.ps1"
-
-# 运行安装
-.\install.ps1 -AccessKey "YOUR_ACCESS_KEY" -SecretKey "YOUR_SECRET_KEY"
-```
-
-**3. 等待自动连接**
-
-等待几秒钟，设备会自动出现在控制台中，无需额外配置！
+在 Web 控制台**新建连接器**，在页面上拷贝对应平台的安装命令，在目标设备上执行即可完成安装。安装后连接器会自动出现在控制台中。
 
 ---
 
