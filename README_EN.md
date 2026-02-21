@@ -1,6 +1,6 @@
 # <img src="website/assets/favicon.svg" alt="" width="48" style="vertical-align: middle;" /> Liaison
 
-[English](./README_EN.md) | [中文](./README.md)
+[English](README_EN.md) | [中文](README.md)
 
 [![Go](https://github.com/singchia/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/singchia/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/singchia/liaison)](https://goreportcard.com/report/github.com/singchia/liaison)
