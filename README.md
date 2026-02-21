@@ -1,7 +1,7 @@
 
 # <img src="website/assets/favicon.svg" alt="" width="48" style="vertical-align: middle;" /> Liaison
 
-[English](./README.en.md) | [中文](./README.md)
+[English](./README_EN.md) | [中文](./README.md)
 
 [![Go](https://github.com/singchia/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/singchia/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/singchia/liaison)](https://goreportcard.com/report/github.com/singchia/liaison)
@@ -124,10 +124,12 @@ sudo ./install.sh
 
 ## 📸 功能展示
 
-| 设备管理 | 应用管理 |
+| 功能 | 截图 |
 |:---:|:---:|
-| **设备管理**<br/>![Device](docs/pages/device.png) | **应用管理**<br/>![Application](docs/pages/application.png) |
-| **代理配置**<br/>![Proxy](docs/pages/proxy.png) | **连接器管理**<br/>![Connector](docs/pages/connector.png) |
+| 设备管理 | ![Device](docs/pages/device.png) |
+| 应用管理 | ![Application](docs/pages/application.png) |
+| 代理配置 | ![Proxy](docs/pages/proxy.png) |
+| 连接器管理 | ![Connector](docs/pages/connector.png) |
 
 ---
 
@@ -169,17 +171,16 @@ sudo ./install.sh
 
 ---
 
-## 🙏 致谢
-
-感谢所有为 Liaison 做出贡献的开发者！
-
----
-
 <div align="center">
 
 **如果这个项目对你有帮助，请给一个 ⭐ Star！**
 
 Made with ❤️ by [Liaison Contributors](https://github.com/singchia/liaison/graphs/contributors)
+
+<p align=center>
+<img src="./web/public/wechat.png" width="30%">
+</p>
+
 
 [GitHub](https://github.com/singchia/liaison) • [Issues](https://github.com/singchia/liaison/issues) • [Discussions](https://github.com/singchia/liaison/discussions)
 
