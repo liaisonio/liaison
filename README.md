@@ -1,24 +1,20 @@
-<div align="center">
 
-<img src="website/assets/favicon.svg" alt="Liaison" width="120" />
-
-# Liaison
-
-**让网络马上通达，轻松连接分布在不同位置的设备与应用**
+# <img src="website/assets/favicon.svg" alt="" width="48" style="vertical-align: middle;" /> Liaison
 
 [![Go](https://github.com/singchia/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/singchia/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/singchia/liaison)](https://goreportcard.com/report/github.com/singchia/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub stars](https://img.shields.io/github/stars/singchia/liaison?style=social)](https://github.com/singchia/liaison/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/singchia/liaison?style=social)](https://github.com/singchia/liaison/network/members)
+[![技术栈](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#技术栈一览)
+[![版本](https://img.shields.io/badge/Version-v1.2.6-green)](#)
+
+> **网络马上通达，轻松连接分布在不同位置的设备与应用**
 
 [English](./README.en.md) | [中文](./README.md)
 
-![Dashboard](docs/pages/dashboard.png)
+![Dashboard](docs/pages/home.png)
 
 [快速开始](#-快速开始) • [特性](#-核心特性) • [使用场景](#-使用场景) • [文档](#-文档) • [贡献](#-贡献)
 
-</div>
 
 ---
 

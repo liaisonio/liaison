@@ -1,8 +1,6 @@
 <div align="center">
 
-<img src="website/assets/favicon.svg" alt="Liaison" width="120" />
-
-# Liaison
+# <img src="website/assets/favicon.svg" alt="" width="48" style="vertical-align: middle;" /> Liaison
 
 **Network connectivity made simple - Easily connect devices and applications across different locations**
 
