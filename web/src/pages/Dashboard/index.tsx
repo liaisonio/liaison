@@ -320,7 +320,7 @@ const DashboardPage: React.FC = () => {
       colorField: 'type',
       // 标签显示在外部，显示类型名称和数值
       label: {
-        text: (d: any) => `${d.type}: ${d.value}`,
+        text: (d: any) => (Number(d.value) > 0 ? `${d.type}: ${d.value}` : ''),
         position: 'outside',
         style: {
           fontSize: 12,
@@ -332,7 +332,17 @@ const DashboardPage: React.FC = () => {
       // 使用更丰富的颜色方案
       color: ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'],
       height: 200,
-      tooltip: false,
+      tooltip: {
+        title: false,
+        items: [
+          (datum: any) => {
+            return {
+              name: datum.type,
+              value: datum.value,
+            };
+          },
+        ],
+      },
     };
   };
 
@@ -503,14 +513,87 @@ const DashboardPage: React.FC = () => {
                     value: bps,
                   };
                 });
+
+                // 对每条应用曲线做轻量平滑，减弱单点尖峰的突兀感
+                const groupedByApp: Record<string, { date: string; type: string; value: number }[]> = {};
+                dataWithBps.forEach((point) => {
+                  if (!groupedByApp[point.type]) {
+                    groupedByApp[point.type] = [];
+                  }
+                  groupedByApp[point.type].push(point);
+                });
+                const smoothValues = (values: number[]): number[] => {
+                  // 5点加权平滑：1-2-3-2-1，边界点使用邻近点填充
+                  const get = (idx: number) => values[Math.max(0, Math.min(values.length - 1, idx))];
+                  return values.map((_, i) => {
+                    const v =
+                      get(i - 2) * 1 +
+                      get(i - 1) * 2 +
+                      get(i) * 3 +
+                      get(i + 1) * 2 +
+                      get(i + 2) * 1;
+                    return Math.max(0, v / 9);
+                  });
+                };
+                const suppressSpikes = (values: number[]): number[] => {
+                  if (values.length < 3) return values;
+                  return values.map((current, i) => {
+                    if (i === 0 || i === values.length - 1) return current;
+                    const prev = values[i - 1];
+                    const next = values[i + 1];
+                    const localMean = (prev + next) / 2;
+                    if (localMean <= 0) return current;
+                    // 压制孤立突刺，避免出现针状峰
+                    if (current > localMean * 2.2) {
+                      return localMean + (current - localMean) * 0.15;
+                    }
+                    return current;
+                  });
+                };
+                const ema = (values: number[], alpha = 0.2): number[] => {
+                  if (values.length === 0) return values;
+                  const out: number[] = [values[0]];
+                  for (let i = 1; i < values.length; i++) {
+                    out[i] = alpha * values[i] + (1 - alpha) * out[i - 1];
+                  }
+                  return out;
+                };
+
+                const smoothedDataWithBps: { date: string; type: string; value: number }[] = [];
+                Object.values(groupedByApp).forEach((points) => {
+                  const rawValues = points.map((p) => p.value);
+                  // 先去尖峰，再做多阶段平滑
+                  const deSpiked = suppressSpikes(rawValues);
+                  const pass1 = smoothValues(deSpiked);
+                  const pass2 = smoothValues(pass1);
+                  const pass3 = ema(pass2, 0.2);
+                  for (let i = 0; i < points.length; i++) {
+                    smoothedDataWithBps.push({
+                      ...points[i],
+                      value: pass3[i],
+                    });
+                  }
+                });
                 
                 // 计算最大值，如果所有值都是0，设置一个小的非零值避免显示多个0刻度
-                const maxValue = Math.max(...dataWithBps.map(d => d.value));
+                const maxValue = Math.max(...smoothedDataWithBps.map(d => d.value));
                 const allZero = maxValue === 0;
+                const formatTrafficValue = (datum: any): string => {
+                  const value = typeof datum === 'number' ? datum : parseFloat(String(datum || 0));
+                  if (isNaN(value) || value === 0) return '0 bps';
+                  if (value >= 1000 * 1000 * 1000) {
+                    return `${(value / (1000 * 1000 * 1000)).toFixed(2)} Gbps`;
+                  } else if (value >= 1000 * 1000) {
+                    return `${(value / (1000 * 1000)).toFixed(2)} Mbps`;
+                  } else if (value >= 1000) {
+                    return `${(value / 1000).toFixed(2)} Kbps`;
+                  }
+                  return `${Math.round(value)} bps`;
+                };
                 
                 return (
                   <Line
-                    data={dataWithBps}
+                    data={smoothedDataWithBps}
                   xField={(d: any) => {
                     // 解析本地时间格式（YYYY-MM-DDTHH:mm:ss）
                     const dateStr = d.date;
@@ -528,10 +611,18 @@ const DashboardPage: React.FC = () => {
                   yField="value"
                   colorField="type"
                   height={350}
+                  paddingTop={26}
                   point={false}
                   smooth={true}
+                  style={{
+                    lineWidth: 1.5,
+                    lineCap: 'round',
+                    lineJoin: 'round',
+                    opacity: 0.85,
+                  }}
                   legend={{
                     position: 'top-right',
+                    offsetY: -8,
                     itemHeight: 14,
                     maxWidth: 300,
                   }}
@@ -555,20 +646,8 @@ const DashboardPage: React.FC = () => {
                     },
                     y: {
                       labelFill: '#666',
-                      labelFormatter: (datum: any) => {
-                        // 确保值是数字类型（单位：bps）
-                        const value = typeof datum === 'number' ? datum : parseFloat(String(datum || 0));
-                        if (isNaN(value) || value === 0) return '0 bps';
-                        // 转换为合适的单位：bps, Kbps, Mbps, Gbps
-                        if (value >= 1000 * 1000 * 1000) {
-                          return `${(value / (1000 * 1000 * 1000)).toFixed(2)} Gbps`;
-                        } else if (value >= 1000 * 1000) {
-                          return `${(value / (1000 * 1000)).toFixed(2)} Mbps`;
-                        } else if (value >= 1000) {
-                          return `${(value / 1000).toFixed(2)} Kbps`;
-                        }
-                        return `${Math.round(value)} bps`;
-                      },
+                      labelSpacing: 12,
+                      labelFormatter: formatTrafficValue,
                       lineStroke: '#e8e8e8',
                       tickStroke: '#e8e8e8',
                       tickCount: allZero ? 2 : 5, // 当所有值都是0时，只显示2个刻度（0和1）
@@ -578,6 +657,8 @@ const DashboardPage: React.FC = () => {
                   tooltip={{
                     showCrosshairs: true,
                     shared: true,
+                    field: 'value',
+                    valueFormatter: formatTrafficValue,
                   }}
                 />
                 );
