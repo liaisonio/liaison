@@ -23,6 +23,7 @@ import { useModel } from '@umijs/max';
 import { changePassword } from '@/services/api';
 import { executeAction } from '@/utils/request';
 import { APP_NAME } from '@/constants';
+import { useI18n } from '@/i18n';
 import './index.less';
 
 const { Title, Text, Link } = Typography;
@@ -31,6 +32,7 @@ const GITHUB_URL = 'https://github.com/singchia/liaison';
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
   const { initialState } = useModel('@@initialState');
+  const { tr } = useI18n();
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordForm] = Form.useForm();
 
@@ -40,7 +42,7 @@ const SettingsPage: React.FC = () => {
     confirmPassword: string;
   }) => {
     if (values.newPassword !== values.confirmPassword) {
-      message.error('两次输入的新密码不一致');
+      message.error(tr('两次输入的新密码不一致', 'New passwords do not match'));
       return;
     }
 
@@ -52,8 +54,8 @@ const SettingsPage: React.FC = () => {
           new_password: values.newPassword,
         }),
       {
-        successMessage: '密码修改成功',
-        errorMessage: '密码修改失败',
+        successMessage: tr('密码修改成功', 'Password changed successfully'),
+        errorMessage: tr('密码修改失败', 'Failed to change password'),
         onSuccess: () => passwordForm.resetFields(),
       },
     );
@@ -66,7 +68,7 @@ const SettingsPage: React.FC = () => {
       label: (
         <span>
           <UserOutlined />
-          账户信息
+          {tr('账户信息', 'Account')}
         </span>
       ),
       children: (
@@ -94,22 +96,22 @@ const SettingsPage: React.FC = () => {
               column={{ xs: 1, sm: 1, md: 2 }}
               styles={{ label: { fontWeight: 500 } }}
             >
-              <Descriptions.Item label="用户名">
+              <Descriptions.Item label={tr('用户名', 'Username')}>
                 {initialState?.currentUser?.name || 'Admin'}
               </Descriptions.Item>
-              <Descriptions.Item label="邮箱">
+              <Descriptions.Item label={tr('邮箱', 'Email')}>
                 {initialState?.currentUser?.email || 'default@liaison.local'}
               </Descriptions.Item>
-              <Descriptions.Item label="角色">
-                {initialState?.currentUser?.role || '管理员'}
+              <Descriptions.Item label={tr('角色', 'Role')}>
+                {initialState?.currentUser?.role || tr('管理员', 'Administrator')}
               </Descriptions.Item>
-              <Descriptions.Item label="注册时间">
+              <Descriptions.Item label={tr('注册时间', 'Created At')}>
                 {initialState?.currentUser?.created_at || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="最后登录">
+              <Descriptions.Item label={tr('最后登录', 'Last Login')}>
                 {initialState?.currentUser?.last_login || '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="登录IP">
+              <Descriptions.Item label={tr('登录IP', 'Login IP')}>
                 {initialState?.currentUser?.login_ip || '-'}
               </Descriptions.Item>
             </Descriptions>
@@ -122,7 +124,7 @@ const SettingsPage: React.FC = () => {
       label: (
         <span>
           <LockOutlined />
-          修改密码
+          {tr('修改密码', 'Password')}
         </span>
       ),
       children: (
@@ -131,10 +133,10 @@ const SettingsPage: React.FC = () => {
             <div className="password-tips">
               <SafetyOutlined className="text-blue-500 text-xl mr-2" />
               <div>
-                <Text strong>密码安全提示</Text>
+                <Text strong>{tr('密码安全提示', 'Password Security Tips')}</Text>
                 <br />
                 <Text type="secondary">
-                  建议定期修改密码，密码长度至少8位，包含字母和数字
+                  {tr('建议定期修改密码，密码长度至少8位，包含字母和数字', 'Use at least 8 characters and include letters and numbers')}
                 </Text>
               </div>
             </div>
@@ -150,52 +152,52 @@ const SettingsPage: React.FC = () => {
             >
               <Form.Item
                 name="oldPassword"
-                label="当前密码"
-                rules={[{ required: true, message: '请输入当前密码' }]}
+                label={tr('当前密码', 'Current Password')}
+                rules={[{ required: true, message: tr('请输入当前密码', 'Please input current password') }]}
               >
                 <Input.Password
                   prefix={<LockOutlined />}
-                  placeholder="请输入当前密码"
+                  placeholder={tr('请输入当前密码', 'Please input current password')}
                 />
               </Form.Item>
 
               <Form.Item
                 name="newPassword"
-                label="新密码"
+                label={tr('新密码', 'New Password')}
                 rules={[
-                  { required: true, message: '请输入新密码' },
-                  { min: 8, message: '密码长度至少8位' },
+                  { required: true, message: tr('请输入新密码', 'Please input new password') },
+                  { min: 8, message: tr('密码长度至少8位', 'Password must be at least 8 characters') },
                   {
                     pattern: /^(?=.*[A-Za-z])(?=.*\d)/,
-                    message: '密码必须包含字母和数字',
+                    message: tr('密码必须包含字母和数字', 'Password must include letters and numbers'),
                   },
                 ]}
               >
                 <Input.Password
                   prefix={<LockOutlined />}
-                  placeholder="请输入新密码"
+                  placeholder={tr('请输入新密码', 'Please input new password')}
                 />
               </Form.Item>
 
               <Form.Item
                 name="confirmPassword"
-                label="确认新密码"
+                label={tr('确认新密码', 'Confirm New Password')}
                 dependencies={['newPassword']}
                 rules={[
-                  { required: true, message: '请确认新密码' },
+                  { required: true, message: tr('请确认新密码', 'Please confirm new password') },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
                       if (!value || getFieldValue('newPassword') === value) {
                         return Promise.resolve();
                       }
-                      return Promise.reject(new Error('两次输入的密码不一致'));
+                      return Promise.reject(new Error(tr('两次输入的密码不一致', 'Passwords do not match')));
                     },
                   }),
                 ]}
               >
                 <Input.Password
                   prefix={<LockOutlined />}
-                  placeholder="请再次输入新密码"
+                  placeholder={tr('请再次输入新密码', 'Please input password again')}
                 />
               </Form.Item>
 
@@ -205,7 +207,7 @@ const SettingsPage: React.FC = () => {
                   htmlType="submit"
                   loading={passwordLoading}
                 >
-                  修改密码
+                  {tr('修改密码', 'Change Password')}
                 </Button>
               </Form.Item>
             </Form>
@@ -218,17 +220,17 @@ const SettingsPage: React.FC = () => {
       label: (
         <span>
           <InfoCircleOutlined />
-          关于
+          {tr('关于', 'About')}
         </span>
       ),
       children: (
         <div className="settings-section">
           <Card variant="borderless">
-            <Title level={4}>关于 {APP_NAME}</Title>
+            <Title level={4}>{tr('关于', 'About')} {APP_NAME}</Title>
             <Divider />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>产品名称:</span>
+                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>{tr('产品名称:', 'Product:')}</span>
                 <span>{APP_NAME}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
@@ -249,7 +251,7 @@ const SettingsPage: React.FC = () => {
                 </Link>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>许可证:</span>
+                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>{tr('许可证:', 'License:')}</span>
                 <span>Apache License 2.0</span>
               </div>
             </div>

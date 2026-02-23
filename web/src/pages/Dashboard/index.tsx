@@ -4,6 +4,7 @@ import { Pie, Line } from '@ant-design/plots';
 import { useEffect, useState } from 'react';
 import { BarChartOutlined, PieChartOutlined, LineChartOutlined } from '@ant-design/icons';
 import { getDeviceList, getApplicationList, getEdgeList, getTrafficMetricsList } from '@/services/api';
+import { useI18n } from '@/i18n';
 
 interface PieData {
   type: string;
@@ -25,6 +26,7 @@ interface TimeTrafficData {
 }
 
 const DashboardPage: React.FC = () => {
+  const { tr } = useI18n();
   const [loading, setLoading] = useState(true);
   const [deviceData, setDeviceData] = useState<PieData[]>([]);
   const [applicationData, setApplicationData] = useState<PieData[]>([]);
@@ -55,7 +57,7 @@ const DashboardPage: React.FC = () => {
       const deviceStats: Record<string, number> = {};
       devices.forEach((device: API.Device) => {
         const os = device.os?.toLowerCase() || 'unknown';
-        let osType = '其他';
+        let osType = tr('其他', 'Other');
         if (os.includes('linux')) {
           osType = 'Linux';
         } else if (os.includes('darwin') || os.includes('mac')) {
@@ -77,7 +79,7 @@ const DashboardPage: React.FC = () => {
         udp: 'UDP',
         ssh: 'SSH',
         rdp: 'RDP',
-        database: '数据库',
+        database: tr('数据库', 'Database'),
         mysql: 'MySQL',
         postgresql: 'PostgreSQL',
         redis: 'Redis',
@@ -94,18 +96,18 @@ const DashboardPage: React.FC = () => {
       // 处理连接器数据 - 按在线状态分类
       const edges = edgesRes.data?.edges || [];
       const edgeStats: Record<string, number> = {
-        在线: 0,
-        离线: 0,
+        [tr('在线', 'Online')]: 0,
+        [tr('离线', 'Offline')]: 0,
       };
       edges.forEach((edge: API.Edge) => {
         if (edge.online === 1) {
-          edgeStats['在线']++;
+          edgeStats[tr('在线', 'Online')]++;
         } else {
-          edgeStats['离线']++;
+          edgeStats[tr('离线', 'Offline')]++;
         }
       });
       // 只有当有连接器数据时才显示，否则显示空状态
-      const totalEdges = edgeStats['在线'] + edgeStats['离线'];
+      const totalEdges = edgeStats[tr('在线', 'Online')] + edgeStats[tr('离线', 'Offline')];
       const edgeDataList = totalEdges > 0 
         ? Object.entries(edgeStats).map(([type, value]) => ({ type, value }))
         : [];
@@ -339,7 +341,7 @@ const DashboardPage: React.FC = () => {
       <Spin spinning={loading}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={24} md={8}>
-            <Card title="设备统计" variant="outlined">
+            <Card title={tr('设备统计', 'Device Stats')} variant="outlined">
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {deviceData.length > 0 ? (
                   <>
@@ -380,14 +382,14 @@ const DashboardPage: React.FC = () => {
                     marginBottom: '16px',
                     color: '#d9d9d9'
                   }} />
-                  <div>暂无数据</div>
+                  <div>{tr('暂无数据', 'No Data')}</div>
                   </div>
                 )}
               </div>
             </Card>
           </Col>
           <Col xs={24} sm={24} md={8}>
-            <Card title="应用统计" variant="outlined">
+            <Card title={tr('应用统计', 'Application Stats')} variant="outlined">
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {applicationData.length > 0 ? (
                   <>
@@ -428,14 +430,14 @@ const DashboardPage: React.FC = () => {
                     marginBottom: '16px',
                     color: '#d9d9d9'
                   }} />
-                  <div>暂无数据</div>
+                  <div>{tr('暂无数据', 'No Data')}</div>
                   </div>
                 )}
               </div>
             </Card>
           </Col>
           <Col xs={24} sm={24} md={8}>
-            <Card title="连接器统计" variant="outlined">
+            <Card title={tr('连接器统计', 'Edge Stats')} variant="outlined">
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {edgeData.length > 0 ? (
                   <>
@@ -445,7 +447,7 @@ const DashboardPage: React.FC = () => {
                     <div style={{ marginTop: 16, textAlign: 'center' }}>
                       {edgeData.map((item, index) => {
                         // 连接器统计使用特定颜色：在线=蓝色，离线=灰色
-                        const colors = item.type === '在线' ? '#1890ff' : '#d9d9d9';
+                        const colors = item.type === tr('在线', 'Online') ? '#1890ff' : '#d9d9d9';
                         return (
                           <span key={item.type} style={{ margin: '0 8px', fontSize: '12px' }}>
                             <span
@@ -477,7 +479,7 @@ const DashboardPage: React.FC = () => {
                     marginBottom: '16px',
                     color: '#d9d9d9'
                   }} />
-                  <div>暂无数据</div>
+                  <div>{tr('暂无数据', 'No Data')}</div>
                   </div>
                 )}
               </div>
@@ -487,7 +489,7 @@ const DashboardPage: React.FC = () => {
         {/* 第二排：应用流量监控图表 */}
         <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
           <Col xs={24}>
-            <Card title="应用流量监控" variant="outlined">
+            <Card title={tr('应用流量监控', 'Application Traffic')} variant="outlined">
               {timeTrafficData.length > 0 ? (() => {
                 // 计算所有数据的bps值，用于确定Y轴范围
                 const dataWithBps = timeTrafficData.map((d) => {
@@ -591,7 +593,7 @@ const DashboardPage: React.FC = () => {
                     marginBottom: '16px',
                     color: '#d9d9d9'
                   }} />
-                  <div>暂无流量数据</div>
+                  <div>{tr('暂无流量数据', 'No traffic data')}</div>
                 </div>
               )}
             </Card>

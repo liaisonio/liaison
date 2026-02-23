@@ -6,11 +6,11 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/singchia/liaison)](https://goreportcard.com/report/github.com/singchia/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
-[![Version](https://img.shields.io/badge/Version-v1.2.6-green)](#)
+[![Version](https://img.shields.io/badge/Version-v1.3.0-green)](#)
 
 > **Network connectivity made simple — Easily connect devices and applications across different locations**
 
-![Dashboard](docs/pages/home.png)
+![Dashboard](docs/pages/home_en.png)
 
 [Quick Start](#quick-start) • [Introduction](#introduction) • [Use Cases](#use-cases) • [Documentation](#documentation) • [Contributing](#contributing)
 
@@ -45,9 +45,9 @@ Use cases:
 **1. Download**
 
 ```bash
-wget https://github.com/singchia/liaison/releases/download/v1.2.6/liaison-v1.2.6-linux-amd64.tar.gz
-tar -xzf liaison-v1.2.6-linux-amd64.tar.gz
-cd liaison-v1.2.6-linux-amd64
+wget https://github.com/singchia/liaison/releases/download/v1.3.0/liaison-v1.3.0-linux-amd64.tar.gz
+tar -xzf liaison-v1.3.0-linux-amd64.tar.gz
+cd liaison-v1.3.0-linux-amd64
 ```
 
 **2. Run install script**
@@ -110,10 +110,10 @@ Liaison uses a centralized architecture with Frontier managing all connectors.
 
 | Feature | Screenshot |
 |:---:|:---:|
-| Device Management | ![Device](docs/pages/device.png) |
-| Application Management | ![Application](docs/pages/application.png) |
-| Proxy Configuration | ![Proxy](docs/pages/proxy.png) |
-| Connector Management | ![Connector](docs/pages/connector.png) |
+| Device Management | ![Device](docs/pages/device_en.png) |
+| Application Management | ![Application](docs/pages/application_en.png) |
+| Proxy Configuration | ![Proxy](docs/pages/proxy_en.png) |
+| Edge Management | ![Edge](docs/pages/edge.png) |
 
 ---
 

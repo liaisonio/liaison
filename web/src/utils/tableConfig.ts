@@ -4,6 +4,7 @@
  */
 
 import { ProColumns } from '@ant-design/pro-components';
+import { tr } from '@/i18n';
 
 /**
  * 默认分页配置
@@ -12,6 +13,8 @@ export const defaultPagination = {
   defaultPageSize: 10,
   showSizeChanger: true,
   showQuickJumper: true,
+  showTotal: (total: number, range: [number, number]) =>
+    tr(`第 ${range[0]}-${range[1]} 条/总共 ${total} 条`, `${range[0]}-${range[1]} of ${total} items`),
 };
 
 /**

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Popconfirm } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { tr } from '@/i18n';
 
 interface RefreshButtonProps {
   onClick: () => void;
@@ -12,7 +13,7 @@ interface RefreshButtonProps {
  */
 export const RefreshButton: React.FC<RefreshButtonProps> = ({ onClick, loading }) => (
   <Button key="refresh" icon={<ReloadOutlined />} onClick={onClick} loading={loading}>
-    刷新
+    {tr('刷新', 'Refresh')}
   </Button>
 );
 
@@ -24,9 +25,9 @@ interface CreateButtonProps {
 /**
  * 新建按钮
  */
-export const CreateButton: React.FC<CreateButtonProps> = ({ onClick, children = '新建' }) => (
+export const CreateButton: React.FC<CreateButtonProps> = ({ onClick, children }) => (
   <Button key="create" type="primary" icon={<PlusOutlined />} onClick={onClick}>
-    {children}
+    {children || tr('新建', 'Create')}
   </Button>
 );
 
@@ -40,7 +41,7 @@ interface EditLinkProps {
  */
 export const EditLink: React.FC<EditLinkProps> = ({ onClick, showIcon = false }) => (
   <a onClick={onClick}>
-    {showIcon && <EditOutlined />} 编辑
+    {showIcon && <EditOutlined />} {tr('编辑', 'Edit')}
   </a>
 );
 
@@ -59,6 +60,6 @@ export const DeleteLink: React.FC<DeleteLinkProps> = ({
   description,
 }) => (
   <Popconfirm title={title} description={description} onConfirm={onConfirm}>
-    <a className="text-red-500">删除</a>
+    <a className="text-red-500">{tr('删除', 'Delete')}</a>
   </Popconfirm>
 );

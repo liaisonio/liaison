@@ -1,13 +1,35 @@
 import { history, RequestConfig } from '@umijs/max';
-import { Dropdown, message, Typography, Tooltip } from 'antd';
-import { LogoutOutlined, SettingOutlined, GithubOutlined, BugOutlined } from '@ant-design/icons';
+import { ConfigProvider, Dropdown, message, Typography, Tooltip } from 'antd';
+import { LogoutOutlined, SettingOutlined, BugOutlined, GlobalOutlined } from '@ant-design/icons';
 import React from 'react';
+import enUS from 'antd/locale/en_US';
+import zhCN from 'antd/locale/zh_CN';
 import { getCurrentUser, logout } from '@/services/api';
 import { APP_NAME, GITHUB_URL } from '@/constants';
+import { getLocale, setLocale, tr } from '@/i18n';
 import './global.less';
 
 const { Text, Link } = Typography;
 const GITHUB_ISSUES_URL = 'https://github.com/singchia/liaison/issues/new';
+
+const localizeMenuName = (path?: string, name?: string) => {
+  const map: Record<string, string> = {
+    '/dashboard': tr('Dashboard', 'Dashboard'),
+    '/proxy': tr('访问', 'Entries'),
+    '/resource': tr('设备/应用', 'Devices/Apps'),
+    '/resource/device': tr('设备', 'Devices'),
+    '/resource/app': tr('应用', 'Applications'),
+    '/connector': tr('连接器', 'Edges'),
+    '/settings': tr('设置', 'Settings'),
+  };
+  if (path && map[path]) {
+    return map[path];
+  }
+  if (!name) {
+    return name;
+  }
+  return name;
+};
 
 if (process.env.NODE_ENV === 'development') {
   const filterMessages = [
@@ -78,23 +100,25 @@ const handleLogout = async () => {
     await logout();
   } catch (e) {}
   localStorage.removeItem('token');
-  message.success('已退出登录');
+  message.success(tr('已退出登录', 'Logged out'));
   history.push('/login');
 };
 
 // 布局配置
 export const layout = ({ initialState }: any) => {
+  const currentLocale = getLocale();
+  const antdLocale = currentLocale === 'en-US' ? enUS : zhCN;
   const dropdownMenuItems = [
     {
       key: 'settings',
       icon: React.createElement(SettingOutlined),
-      label: '个人设置',
+      label: tr('个人设置', 'Settings'),
       onClick: () => history.push('/settings'),
     },
     {
       key: 'logout',
       icon: React.createElement(LogoutOutlined),
-      label: '退出登录',
+      label: tr('退出登录', 'Logout'),
       onClick: handleLogout,
     },
     {
@@ -103,7 +127,7 @@ export const layout = ({ initialState }: any) => {
     {
       key: 'report',
       icon: React.createElement(BugOutlined),
-      label: '报告问题',
+      label: tr('报告问题', 'Report Issue'),
       onClick: () => {
         window.open(GITHUB_ISSUES_URL, '_blank');
       },
@@ -121,6 +145,108 @@ export const layout = ({ initialState }: any) => {
     menu: {
       locale: false,
     },
+    menuDataRender: (menuData: any[]) => {
+      const localizeItems = (items: any[]): any[] =>
+        items.map((item) => ({
+          ...item,
+          name: localizeMenuName(item.path, item.name),
+          children: item.children ? localizeItems(item.children) : undefined,
+        }));
+      return localizeItems(menuData);
+    },
+    actionsRender: () => [
+      React.createElement(
+        'div',
+        {
+          key: 'locale-switch',
+          className: 'locale-switch',
+          style: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: 3,
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            borderRadius: 999,
+            background: 'rgba(250, 250, 250, 0.9)',
+            boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+          },
+        },
+        React.createElement(GlobalOutlined, {
+          className: 'locale-switch__icon',
+          style: {
+            fontSize: 12,
+            color: 'rgba(0, 0, 0, 0.45)',
+            margin: '0 2px 0 4px',
+          },
+        }),
+        React.createElement(
+          'span',
+          {
+            className: `locale-switch__item ${currentLocale === 'zh-CN' ? 'is-active' : ''}`,
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 22,
+              minWidth: 36,
+              padding: '0 8px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 500,
+              lineHeight: '22px',
+              cursor: currentLocale === 'zh-CN' ? 'default' : 'pointer',
+              color: currentLocale === 'zh-CN' ? '#1677ff' : 'rgba(0, 0, 0, 0.65)',
+              background: currentLocale === 'zh-CN' ? '#e6f4ff' : 'transparent',
+              boxShadow: currentLocale === 'zh-CN' ? 'inset 0 0 0 1px rgba(22, 119, 255, 0.22)' : 'none',
+              userSelect: 'none',
+            },
+            onClick: () => {
+              if (currentLocale === 'zh-CN') return;
+              setLocale('zh-CN');
+              window.location.reload();
+            },
+          },
+          '中文',
+        ),
+        React.createElement(
+          'span',
+          {
+            className: `locale-switch__item ${currentLocale === 'en-US' ? 'is-active' : ''}`,
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 22,
+              minWidth: 36,
+              padding: '0 8px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 500,
+              lineHeight: '22px',
+              cursor: currentLocale === 'en-US' ? 'default' : 'pointer',
+              color: currentLocale === 'en-US' ? '#1677ff' : 'rgba(0, 0, 0, 0.65)',
+              background: currentLocale === 'en-US' ? '#e6f4ff' : 'transparent',
+              boxShadow: currentLocale === 'en-US' ? 'inset 0 0 0 1px rgba(22, 119, 255, 0.22)' : 'none',
+              userSelect: 'none',
+            },
+            onClick: () => {
+              if (currentLocale === 'en-US') return;
+              setLocale('en-US');
+              window.location.reload();
+            },
+          },
+          'EN',
+        ),
+      ),
+    ],
+    childrenRender: (children: React.ReactNode) =>
+      React.createElement(
+        ConfigProvider,
+        {
+          locale: antdLocale,
+        },
+        children,
+      ),
     layout: 'mix',
     splitMenus: false,
     fixedHeader: true,
@@ -229,7 +355,7 @@ export const layout = ({ initialState }: any) => {
             {
               title: React.createElement('img', {
                 src: '/wechat.png',
-                alt: '微信二维码',
+                alt: tr('微信二维码', 'WeChat QR Code'),
                 style: {
                   width: 200,
                   height: 200,
@@ -316,20 +442,20 @@ export const request: RequestConfig = {
       const { response } = error;
       if (response?.status === 401 || response?.status === 403) {
         localStorage.removeItem('token');
-        message.error('登录已过期，请重新登录');
+        message.error(tr('登录已过期，请重新登录', 'Session expired, please login again'));
         history.push('/login');
       } else if (response?.status === 500) {
         // 检查是否是认证相关的500错误
         const errorMessage = error?.response?.data?.message || error?.message || '';
         if (errorMessage.includes('authentication') || errorMessage.includes('token') || errorMessage.includes('unauthorized')) {
           localStorage.removeItem('token');
-          message.error('登录已过期，请重新登录');
+          message.error(tr('登录已过期，请重新登录', 'Session expired, please login again'));
           history.push('/login');
         } else {
-          message.error('服务器错误');
+          message.error(tr('服务器错误', 'Server error'));
         }
       } else if (!response) {
-        message.error('网络异常');
+        message.error(tr('网络异常', 'Network error'));
       }
     },
   },

@@ -67,6 +67,14 @@
 
 include ./Makefile.defs
 
+# When running `make version=1.2.7` without explicit goals,
+# use version update as the default action.
+ifeq ($(strip $(MAKECMDGOALS)),)
+ifneq ($(strip $(version)),)
+.DEFAULT_GOAL := update-version
+endif
+endif
+
 # ============================================================================
 # Docker build variables and functions
 # ============================================================================
@@ -459,3 +467,33 @@ package: build-linux build-edge-all package-edge-all build-web build-tools-linux
 # Legacy alias
 .PHONY: pack
 pack: package
+
+# ============================================================================
+# Version sync
+# Usage:
+#   make update-version version=1.2.7
+#   make version version=1.2.7
+#   make version=1.2.7
+# ============================================================================
+.PHONY: update-version version
+update-version version:
+	@if [ -z "$(version)" ]; then \
+		echo "❌ Error: missing version. Usage: make version=1.2.7"; \
+		exit 1; \
+	fi
+	@RAW_VERSION="$(version)"; \
+	if echo "$$RAW_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		NEW_VERSION="$$RAW_VERSION"; \
+	elif echo "$$RAW_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		NEW_VERSION="v$$RAW_VERSION"; \
+	else \
+		echo "❌ Error: invalid version '$$RAW_VERSION'. Expect 1.2.7 or v1.2.7"; \
+		exit 1; \
+	fi; \
+	echo "$$NEW_VERSION" > VERSION; \
+	for f in README.md README_EN.md website/index.html; do \
+		if [ -f "$$f" ]; then \
+			sed -E "s/v[0-9]+\.[0-9]+\.[0-9]+/$$NEW_VERSION/g" "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+		fi; \
+	done; \
+	echo "✅ Updated version to $$NEW_VERSION in VERSION, README.md, README_EN.md, website/index.html"

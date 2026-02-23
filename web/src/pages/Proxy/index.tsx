@@ -23,10 +23,12 @@ import {
 import { executeAction, tableRequest } from '@/utils/request';
 import { CreateButton, EditLink, DeleteLink } from '@/components/TableButtons';
 import { defaultPagination, defaultSearch, buildSearchParams } from '@/utils/tableConfig';
+import { useI18n } from '@/i18n';
 
 const { Text } = Typography;
 
 const ProxyPage: React.FC = () => {
+  const { tr } = useI18n();
   const actionRef = useRef<ActionType>();
   const createFormRef = useRef<any>();
   const location = useLocation();
@@ -193,8 +195,8 @@ const ProxyPage: React.FC = () => {
         application_id: values.application_id,
       }),
       {
-        successMessage: '创建成功',
-        errorMessage: '创建失败',
+        successMessage: tr('创建成功', 'Created successfully'),
+        errorMessage: tr('创建失败', 'Create failed'),
         onSuccess: () => {
           // 如果创建时端口为空，后端会动态分配端口并在响应中返回
           // 刷新列表即可显示动态分配的端口
@@ -217,8 +219,8 @@ const ProxyPage: React.FC = () => {
         port: values.port,
       }),
       {
-        successMessage: '更新成功',
-        errorMessage: '更新失败',
+        successMessage: tr('更新成功', 'Updated successfully'),
+        errorMessage: tr('更新失败', 'Update failed'),
         onSuccess: () => {
           setEditModalVisible(false);
           reload();
@@ -229,37 +231,37 @@ const ProxyPage: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     await executeAction(() => deleteProxy(id), {
-      successMessage: '删除成功',
-      errorMessage: '删除失败',
+      successMessage: tr('删除成功', 'Deleted successfully'),
+      errorMessage: tr('删除失败', 'Delete failed'),
       onSuccess: reload,
     });
   };
 
   const columns: ProColumns<API.Proxy>[] = [
     {
-      title: '访问名称',
+      title: tr('访问名称', 'Entry Name'),
       dataIndex: 'name',
       ellipsis: true,
       copyable: true,
       fieldProps: {
-        placeholder: '请输入访问名称',
+        placeholder: tr('请输入访问名称', 'Please input entry name'),
       },
     },
     {
-      title: '描述',
+      title: tr('描述', 'Description'),
       dataIndex: 'description',
       ellipsis: true,
       search: false,
     },
     {
-      title: '公网端口',
+      title: tr('公网端口', 'Public Port'),
       dataIndex: 'port',
       width: 100,
       search: false,
       render: (port) => <Tag color="blue">{port}</Tag>,
     },
     {
-      title: '关联应用',
+      title: tr('关联应用', 'Application'),
       dataIndex: ['application', 'name'],
       ellipsis: true,
       search: false,
@@ -269,7 +271,7 @@ const ProxyPage: React.FC = () => {
             <Space>
               <Text>{record.application.name}</Text>
               {record.application.application_type === 'http' && (
-                <Tooltip title={<span style={{ fontSize: '11px' }}>已开启 HTTPS</span>}>
+                <Tooltip title={<span style={{ fontSize: '11px' }}>{tr('已开启 HTTPS', 'HTTPS enabled')}</span>}>
                   <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} />
                 </Tooltip>
               )}
@@ -283,18 +285,18 @@ const ProxyPage: React.FC = () => {
         ),
     },
     {
-      title: '状态',
+      title: tr('状态', 'Status'),
       dataIndex: 'status',
       width: 100,
       search: false,
       valueEnum: {
-        running: { text: '运行中', status: 'Success' },
-        stopped: { text: '已停止', status: 'Default' },
-        error: { text: '异常', status: 'Error' },
+        running: { text: tr('运行中', 'Running'), status: 'Success' },
+        stopped: { text: tr('已停止', 'Stopped'), status: 'Default' },
+        error: { text: tr('异常', 'Error'), status: 'Error' },
       },
     },
     {
-      title: '启用',
+      title: tr('启用', 'Enabled'),
       dataIndex: 'enabled',
       width: 80,
       search: false,
@@ -312,8 +314,8 @@ const ProxyPage: React.FC = () => {
                 status: newStatus,
               }),
               {
-                successMessage: checked ? '已启用' : '已停用',
-                errorMessage: '操作失败',
+                successMessage: checked ? tr('已启用', 'Enabled') : tr('已停用', 'Disabled'),
+                errorMessage: tr('操作失败', 'Operation failed'),
                 onSuccess: reload,
               },
             );
@@ -322,14 +324,14 @@ const ProxyPage: React.FC = () => {
       ),
     },
     {
-      title: '创建时间',
+      title: tr('创建时间', 'Created At'),
       dataIndex: 'created_at',
       valueType: 'dateTime',
       width: 180,
       search: false,
     },
     {
-      title: '操作',
+      title: tr('操作', 'Actions'),
       valueType: 'option',
       width: 180,
       fixed: 'right',
@@ -354,7 +356,7 @@ const ProxyPage: React.FC = () => {
                     window.open(url, '_blank');
                   }}
                 >
-                  去访问
+                  {tr('去访问', 'Open')}
                 </Button>
               </Tooltip>
             )}
@@ -373,10 +375,10 @@ const ProxyPage: React.FC = () => {
   ];
 
   return (
-    <PageContainer title="访问">
+    <PageContainer title={tr('访问', 'Entries')}>
       <div className="table-search-wrapper">
         <ProTable<API.Proxy>
-        headerTitle="访问列表"
+        headerTitle={tr('访问列表', 'Entries')}
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
@@ -386,7 +388,7 @@ const ProxyPage: React.FC = () => {
         }}
         toolBarRender={() => [
           <CreateButton key="create" onClick={() => setCreateModalVisible(true)}>
-            新建访问
+            {tr('新建访问', 'New Entry')}
           </CreateButton>,
         ]}
         pagination={defaultPagination}
@@ -400,7 +402,7 @@ const ProxyPage: React.FC = () => {
 
       <ModalForm
         key={initialApplicationId ?? 'create'}
-        title="新建访问"
+        title={tr('新建访问', 'New Entry')}
         open={createModalVisible}
         formRef={createFormRef}
         initialValues={
@@ -423,15 +425,15 @@ const ProxyPage: React.FC = () => {
       >
         <ProFormText
           name="name"
-          label="访问名称"
-          placeholder="请输入访问名称"
-          rules={[{ required: true, message: '请输入访问名称' }]}
+          label={tr('访问名称', 'Entry Name')}
+          placeholder={tr('请输入访问名称', 'Please input entry name')}
+          rules={[{ required: true, message: tr('请输入访问名称', 'Please input entry name') }]}
         />
         <ProFormSelect
           name="application_id"
-          label="关联应用"
-          placeholder="请选择要访问的应用"
-          rules={[{ required: true, message: '请选择应用' }]}
+          label={tr('关联应用', 'Application')}
+          placeholder={tr('请选择要访问的应用', 'Please select an application')}
+          rules={[{ required: true, message: tr('请选择应用', 'Please select an application') }]}
           options={applicationOptions}
           fieldProps={{
             onChange: (value: number) => {
@@ -441,8 +443,8 @@ const ProxyPage: React.FC = () => {
         />
         {selectedApplicationId && applicationMap.get(selectedApplicationId)?.application_type === 'http' && (
           <Alert
-            message={<span style={{ fontSize: '11px', lineHeight: '16px', marginBottom: 0, display: 'block' }}>将开启 HTTPS</span>}
-            description={<span style={{ fontSize: '10px', lineHeight: '14px', marginTop: 0, display: 'block' }}>HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书</span>}
+            message={<span style={{ fontSize: '11px', lineHeight: '16px', marginBottom: 0, display: 'block' }}>{tr('将开启 HTTPS', 'HTTPS will be enabled')}</span>}
+            description={<span style={{ fontSize: '10px', lineHeight: '14px', marginTop: 0, display: 'block' }}>{tr('HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书', 'HTTP applications will be exposed over HTTPS with configured TLS certificates')}</span>}
             type="info"
             icon={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />}
             style={{ marginBottom: 16, padding: '8px 12px' }}
@@ -450,21 +452,21 @@ const ProxyPage: React.FC = () => {
         )}
         <ProFormDigit
           name="port"
-          label="公网端口"
-          placeholder="留空自动分配"
+          label={tr('公网端口', 'Public Port')}
+          placeholder={tr('留空自动分配', 'Leave empty for auto allocation')}
           min={1}
           max={65535}
-          extra="映射到公网的端口号，留空则自动分配"
+          extra={tr('映射到公网的端口号，留空则自动分配', 'Mapped public port, empty means auto allocation')}
         />
         <ProFormTextArea
           name="description"
-          label="描述"
-          placeholder="请输入访问描述"
+          label={tr('描述', 'Description')}
+          placeholder={tr('请输入访问描述', 'Please input description')}
         />
       </ModalForm>
 
       <ModalForm
-        title="编辑访问"
+        title={tr('编辑访问', 'Edit Entry')}
         open={editModalVisible}
         onOpenChange={setEditModalVisible}
         onFinish={handleEdit}
@@ -474,21 +476,21 @@ const ProxyPage: React.FC = () => {
       >
         <ProFormText
           name="name"
-          label="访问名称"
-          placeholder="请输入访问名称"
-          rules={[{ required: true, message: '请输入访问名称' }]}
+          label={tr('访问名称', 'Entry Name')}
+          placeholder={tr('请输入访问名称', 'Please input entry name')}
+          rules={[{ required: true, message: tr('请输入访问名称', 'Please input entry name') }]}
         />
         <ProFormDigit
           name="port"
-          label="公网端口"
-          placeholder="请输入端口"
+          label={tr('公网端口', 'Public Port')}
+          placeholder={tr('请输入端口', 'Please input port')}
           min={1}
           max={65535}
         />
         <ProFormTextArea
           name="description"
-          label="描述"
-          placeholder="请输入访问描述"
+          label={tr('描述', 'Description')}
+          placeholder={tr('请输入访问描述', 'Please input description')}
         />
       </ModalForm>
     </PageContainer>

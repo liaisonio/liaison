@@ -4,6 +4,7 @@ import { history, useModel } from '@umijs/max';
 import { App } from 'antd';
 import { login } from '@/services/api';
 import { APP_NAME } from '@/constants';
+import { useI18n } from '@/i18n';
 import './index.less';
 
 const GITHUB_URL = 'https://github.com/singchia/liaison';
@@ -11,13 +12,14 @@ const GITHUB_URL = 'https://github.com/singchia/liaison';
 const Login: React.FC = () => {
   const { message } = App.useApp();
   const { setInitialState } = useModel('@@initialState');
+  const { tr } = useI18n();
 
   const handleSubmit = async (values: { email: string; password: string }) => {
     try {
       const result = await login(values);
       if (result.code === 200 && result.data?.token) {
         localStorage.setItem('token', result.data.token);
-        message.success('登录成功！');
+        message.success(tr('登录成功！', 'Login successful'));
 
         setInitialState((s) => ({
           ...s,
@@ -28,9 +30,9 @@ const Login: React.FC = () => {
         history.push(urlParams.get('redirect') || '/');
         return;
       }
-      message.error(result.message || '登录失败');
+      message.error(result.message || tr('登录失败', 'Login failed'));
     } catch (error: any) {
-      message.error(error?.message || '登录失败，请重试！');
+      message.error(error?.message || tr('登录失败，请重试！', 'Login failed, please retry'));
     }
   };
 
@@ -53,7 +55,7 @@ const Login: React.FC = () => {
           }}
           submitter={{
             searchConfig: {
-              submitText: '登录',
+              submitText: tr('登录', 'Login'),
             },
           }}
           onFinish={handleSubmit}
@@ -64,16 +66,16 @@ const Login: React.FC = () => {
               size: 'large',
               prefix: <UserOutlined className="prefixIcon" />,
             }}
-            placeholder="邮箱"
+            placeholder={tr('邮箱', 'Email')}
             initialValue=""
             rules={[
               {
                 required: true,
-                message: '请输入邮箱!',
+                message: tr('请输入邮箱!', 'Please input email'),
               },
               {
                 type: 'email',
-                message: '请输入有效的邮箱地址!',
+                message: tr('请输入有效的邮箱地址!', 'Please input a valid email'),
               },
             ]}
           />
@@ -83,12 +85,12 @@ const Login: React.FC = () => {
               size: 'large',
               prefix: <LockOutlined className="prefixIcon" />,
             }}
-            placeholder="密码"
+            placeholder={tr('密码', 'Password')}
             initialValue=""
             rules={[
               {
                 required: true,
-                message: '请输入密码！',
+                message: tr('请输入密码！', 'Please input password'),
               },
             ]}
           />
