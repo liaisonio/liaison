@@ -7,7 +7,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/singchia/liaison)](https://goreportcard.com/report/github.com/singchia/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![技术栈](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#技术栈一览)
-[![版本](https://img.shields.io/badge/Version-v1.3.0-green)](#)
+[![版本](https://img.shields.io/badge/Version-v1.3.1-green)](#)
 
 > **网络马上通达，轻松连接分布在不同位置的设备与应用**
 
@@ -50,11 +50,11 @@ Liaison 是一个企业级应用访问解决方案，不暴露任何内网端口
 
 ```bash
 # 下载最新版本
-wget https://github.com/singchia/liaison/releases/download/v1.3.0/liaison-v1.3.0-linux-amd64.tar.gz
+wget https://github.com/singchia/liaison/releases/download/v1.3.1/liaison-v1.3.1-linux-amd64.tar.gz
 
 # 解压
-tar -xzf liaison-v1.3.0-linux-amd64.tar.gz
-cd liaison-v1.3.0-linux-amd64
+tar -xzf liaison-v1.3.1-linux-amd64.tar.gz
+cd liaison-v1.3.1-linux-amd64
 sudo ./install.sh
 ```
 
