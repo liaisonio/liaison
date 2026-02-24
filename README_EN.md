@@ -8,7 +8,7 @@ English | [中文](./README_CN.md)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
 [![Version](https://img.shields.io/badge/Version-v1.3.1-green)](#)
 
-> **Network connectivity made simple — Easily connect devices and applications across different locations**
+> **Connector-powered access to devices and apps behind NAT**
 
 ![Dashboard](docs/pages/home_en.png)
 
@@ -18,13 +18,13 @@ English | [中文](./README_CN.md)
 
 ## Introduction
 
-Liaison is an enterprise-grade application access solution that does not expose any internal ports and can be enabled or disabled at any time. It provides full product features: auto-discovery of device applications, real-time traffic statistics, and secure TLS-encrypted transport.
+Liaison is an enterprise-grade application access solution that can be enabled or disabled at any time, without exposing ports on your LAN or home network. It provides a complete feature set: automatic app discovery on connected devices, real-time traffic metrics, and secure TLS-encrypted transport.
 
 This project addresses:
 
-- **Intranet access** — Access internal devices and services from the public internet without complex setup
+- **Private network access** — Reach devices and services behind NAT from the public internet with minimal setup
 - **Multi-device management** — Manage devices across locations with Linux/macOS/Windows support
-- **Secure connectivity** — TLS encryption, no exposure of the internal network, enable or disable at any time
+- **Secure connectivity** — TLS-encrypted transport without exposing ports on your LAN or home network
 - **Traffic monitoring** — Real-time device status and traffic metrics for operations and capacity planning
 - **Application proxy** — TCP, HTTP/HTTPS, WebSocket and other protocols
 
@@ -68,7 +68,7 @@ Visit `https://your-public-ip` to access the Web console.
 
 ### Install Connector
 
-**Create a new connector** in the Web console, copy the install command for your platform from the page, and run it on the target device. The connector will appear in the console automatically.
+**Create a new connector** in the Web console, copy the install command for your platform from the UI, and run it on the target device. The connector will appear in the console automatically.
 
 ---
 
@@ -90,8 +90,8 @@ Liaison uses a centralized architecture with Frontier managing all connectors.
 
 **Components**
 
-- **Liaison** — Web UI and API, Entries for applications
-- **Frontier** — Connector gateway for connections and traffic
+- **Liaison** — Web UI and API, plus application entry points
+- **Frontier** — Connector gateway that handles connector connections and traffic routing
 - **Edge** — Connector client on target devices
 
 ---
