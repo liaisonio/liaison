@@ -12,6 +12,10 @@ English | [中文](./README_CN.md)
 
 ![Dashboard](docs/pages/home_en.png)
 
+| Jellyfin (Stream Home Movies Anywhere) | OpenClaw (Use Home AI Anywhere) |
+|:---:|:---:|
+| ![Jellyfin](docs/pages/jellyfin-ss.png) | ![OpenClaw](docs/pages/openclaw-ss.png) |
+
 [Quick Start](#quick-start) • [Introduction](#introduction) • [Documentation](#documentation) • [Contributing](#contributing)
 
 ---

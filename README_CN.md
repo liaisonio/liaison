@@ -13,6 +13,10 @@
 
 ![Dashboard](docs/pages/home.png)
 
+| Jellyfin（随时随地看家庭影片） | OpenClaw（随时随地用家庭 AI 助手） |
+|:---:|:---:|
+| ![Jellyfin](docs/pages/jellyfin-ss.png) | ![OpenClaw](docs/pages/openclaw-ss.png) |
+
 [快速开始](#-快速开始) • [简介](#-项目简介) • [文档](#-文档) • [贡献](#-贡献)
 
 
