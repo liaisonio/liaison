@@ -3,7 +3,11 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -261,6 +265,8 @@ func (web *web) Login(ctx context.Context, req *v1.LoginRequest) (*v1.LoginRespo
 	}
 	// 填充登录IP
 	userV1.LoginIp = resp.User.LoginIP
+	// 填充头像
+	userV1.Avatar = resp.User.Avatar
 
 	return &v1.LoginResponse{
 		Code:    200,
@@ -338,12 +344,104 @@ func (web *web) GetProfile(ctx context.Context, req *v1.GetProfileRequest) (*v1.
 	}
 	// 填充登录IP
 	userV1.LoginIp = user.LoginIP
+	// 填充头像
+	userV1.Avatar = user.Avatar
 
 	return &v1.GetProfileResponse{
 		Code:    200,
 		Message: "success",
 		Data:    userV1,
 	}, nil
+}
+
+// UpdateProfile 更新用户资料（如头像）
+func (web *web) UpdateProfile(ctx context.Context, req *v1.UpdateProfileRequest) (*v1.GetProfileResponse, error) {
+	userID := ctx.Value("user_id")
+	if userID == nil {
+		return nil, errors.New("未认证")
+	}
+	if err := web.iamService.UpdateProfile(userID.(uint), req.GetAvatar()); err != nil {
+		return nil, err
+	}
+	return web.GetProfile(ctx, &v1.GetProfileRequest{})
+}
+
+// getUserIDFromContext 从上下文或 Authorization 头获取当前用户 ID（自定义路由用）
+func (web *web) getUserIDFromContext(ctx kratoshttp.Context) (uint, error) {
+	if v := ctx.Value("user_id"); v != nil {
+		return v.(uint), nil
+	}
+	if v := ctx.Request().Context().Value("user_id"); v != nil {
+		return v.(uint), nil
+	}
+	authHeader := ctx.Request().Header.Get("Authorization")
+	if authHeader == "" {
+		return 0, kratoserrors.New(401, "UNAUTHORIZED", "未认证")
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return 0, kratoserrors.New(401, "UNAUTHORIZED", "未认证")
+	}
+	user, err := web.iamService.GetUserByToken(parts[1])
+	if err != nil || user == nil {
+		return 0, kratoserrors.New(401, "UNAUTHORIZED", "未认证")
+	}
+	return user.ID, nil
+}
+
+// handleUploadAvatar 处理 POST /api/v1/iam/avatar 上传头像（multipart）
+func (web *web) handleUploadAvatar(ctx kratoshttp.Context) error {
+	uid, err := web.getUserIDFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// 解析 multipart，限制 5MB
+	if err := ctx.Request().ParseMultipartForm(5 << 20); err != nil {
+		return kratoserrors.New(400, "BAD_REQUEST", "请求体解析失败")
+	}
+	file, header, err := ctx.Request().FormFile("file")
+	if err != nil {
+		return kratoserrors.New(400, "BAD_REQUEST", "请选择图片文件")
+	}
+	defer file.Close()
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	allowed := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	if !allowed[ext] {
+		return kratoserrors.New(400, "BAD_REQUEST", "仅支持 JPG、PNG、GIF、WebP 图片")
+	}
+
+	webDir, err := filepath.Abs(web.conf.Manager.WebDir)
+	if err != nil || webDir == "" {
+		return kratoserrors.New(500, "INTERNAL_ERROR", "服务配置错误")
+	}
+	avatarsDir := filepath.Join(webDir, "avatars")
+	if err := os.MkdirAll(avatarsDir, 0755); err != nil {
+		return kratoserrors.New(500, "INTERNAL_ERROR", "创建目录失败")
+	}
+	destName := fmt.Sprintf("%d%s", uid, ext)
+	destPath := filepath.Join(avatarsDir, destName)
+	out, err := os.Create(destPath)
+	if err != nil {
+		return kratoserrors.New(500, "INTERNAL_ERROR", "保存文件失败")
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, file); err != nil {
+		os.Remove(destPath)
+		return kratoserrors.New(500, "INTERNAL_ERROR", "保存文件失败")
+	}
+
+	avatarURL := "/avatars/" + destName
+	if err := web.iamService.UpdateProfile(uid, avatarURL); err != nil {
+		return err
+	}
+	reqCtx := context.WithValue(context.Background(), "user_id", uid)
+	resp, err := web.GetProfile(reqCtx, &v1.GetProfileRequest{})
+	if err != nil {
+		return err
+	}
+	return ctx.Result(200, resp)
 }
 
 // @Summary Logout

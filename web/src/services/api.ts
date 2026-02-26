@@ -20,6 +20,24 @@ export async function getCurrentUser() {
   });
 }
 
+/** 更新当前用户资料（如头像）PUT /v1/iam/profile */
+export async function updateProfile(data: { avatar?: string }) {
+  return request<API.Response<API.CurrentUser>>('/api/v1/iam/profile', {
+    method: 'PUT',
+    data,
+  });
+}
+
+/** 上传头像（本地选图）POST /api/v1/iam/avatar，body: multipart file 字段名为 file */
+export async function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request<API.Response<API.CurrentUser>>('/api/v1/iam/avatar', {
+    method: 'POST',
+    data: formData,
+  });
+}
+
 /** 修改密码 POST /v1/iam/password */
 export async function changePassword(data: {
   old_password: string;

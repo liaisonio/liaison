@@ -21,9 +21,15 @@ export default defineConfig({
   tailwindcss: {},
   proxy: {
     '/api': {
-      target: 'https://49.232.250.11:443',
+      target: 'https://82.156.194.159:443',
       changeOrigin: true,
       secure: false, // 如果是 HTTP，设置为 false
+    },
+    // 开发时头像请求代理到后端
+    '/avatars': {
+      target: 'https://82.156.194.159:443',
+      changeOrigin: true,
+      secure: false,
     },
   },
   routes: [

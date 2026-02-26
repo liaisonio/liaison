@@ -32,12 +32,14 @@ type web struct {
 	app *kratos.App
 
 	// deps
+	conf         *config.Configuration
 	controlPlane controlplane.ControlPlane
 	iamService   *iam.IAMService
 }
 
 func NewWebServer(conf *config.Configuration, controlPlane controlplane.ControlPlane, iamService *iam.IAMService) (Web, error) {
 	web := &web{
+		conf:         conf,
 		controlPlane: controlPlane,
 		iamService:   iamService,
 	}
@@ -57,6 +59,8 @@ func NewWebServer(conf *config.Configuration, controlPlane controlplane.ControlP
 	}
 	srv := kratoshttp.NewServer(opts...)
 	v1.RegisterLiaisonServiceHTTPServer(srv, web)
+	// 上传头像（multipart，自定义路由）
+	srv.Route("/").POST("/api/v1/iam/avatar", web.handleUploadAvatar)
 
 	// 文件服务
 	err = web.serveFiles(conf, srv)

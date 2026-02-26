@@ -41,6 +41,7 @@ const (
 	LiaisonService_Login_FullMethodName                         = "/LiaisonService/Login"
 	LiaisonService_Logout_FullMethodName                        = "/LiaisonService/Logout"
 	LiaisonService_GetProfile_FullMethodName                    = "/LiaisonService/GetProfile"
+	LiaisonService_UpdateProfile_FullMethodName                 = "/LiaisonService/UpdateProfile"
 	LiaisonService_ChangePassword_FullMethodName                = "/LiaisonService/ChangePassword"
 	LiaisonService_Health_FullMethodName                        = "/LiaisonService/Health"
 	LiaisonService_ListTrafficMetrics_FullMethodName            = "/LiaisonService/ListTrafficMetrics"
@@ -78,6 +79,7 @@ type LiaisonServiceClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 	GetProfile(ctx context.Context, in *GetProfileRequest, opts ...grpc.CallOption) (*GetProfileResponse, error)
+	UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*GetProfileResponse, error)
 	ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*ChangePasswordResponse, error)
 	// 健康检查
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
@@ -291,6 +293,15 @@ func (c *liaisonServiceClient) GetProfile(ctx context.Context, in *GetProfileReq
 	return out, nil
 }
 
+func (c *liaisonServiceClient) UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*GetProfileResponse, error) {
+	out := new(GetProfileResponse)
+	err := c.cc.Invoke(ctx, LiaisonService_UpdateProfile_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *liaisonServiceClient) ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*ChangePasswordResponse, error) {
 	out := new(ChangePasswordResponse)
 	err := c.cc.Invoke(ctx, LiaisonService_ChangePassword_FullMethodName, in, out, opts...)
@@ -350,6 +361,7 @@ type LiaisonServiceServer interface {
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	GetProfile(context.Context, *GetProfileRequest) (*GetProfileResponse, error)
+	UpdateProfile(context.Context, *UpdateProfileRequest) (*GetProfileResponse, error)
 	ChangePassword(context.Context, *ChangePasswordRequest) (*ChangePasswordResponse, error)
 	// 健康检查
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
@@ -427,6 +439,9 @@ func (UnimplementedLiaisonServiceServer) Logout(context.Context, *LogoutRequest)
 }
 func (UnimplementedLiaisonServiceServer) GetProfile(context.Context, *GetProfileRequest) (*GetProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProfile not implemented")
+}
+func (UnimplementedLiaisonServiceServer) UpdateProfile(context.Context, *UpdateProfileRequest) (*GetProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateProfile not implemented")
 }
 func (UnimplementedLiaisonServiceServer) ChangePassword(context.Context, *ChangePasswordRequest) (*ChangePasswordResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangePassword not implemented")
@@ -846,6 +861,24 @@ func _LiaisonService_GetProfile_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LiaisonService_UpdateProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LiaisonServiceServer).UpdateProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LiaisonService_UpdateProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LiaisonServiceServer).UpdateProfile(ctx, req.(*UpdateProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _LiaisonService_ChangePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ChangePasswordRequest)
 	if err := dec(in); err != nil {
@@ -994,6 +1027,10 @@ var LiaisonService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProfile",
 			Handler:    _LiaisonService_GetProfile_Handler,
+		},
+		{
+			MethodName: "UpdateProfile",
+			Handler:    _LiaisonService_UpdateProfile_Handler,
 		},
 		{
 			MethodName: "ChangePassword",

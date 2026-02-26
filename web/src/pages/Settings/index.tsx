@@ -10,6 +10,7 @@ import {
   Avatar,
   Typography,
   Divider,
+  Upload,
 } from 'antd';
 import {
   UserOutlined,
@@ -17,12 +18,13 @@ import {
   SafetyOutlined,
   GithubOutlined,
   InfoCircleOutlined,
+  CameraOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import { useModel } from '@umijs/max';
-import { changePassword } from '@/services/api';
+import { changePassword, uploadAvatar } from '@/services/api';
 import { executeAction } from '@/utils/request';
-import { APP_NAME } from '@/constants';
+import { APP_NAME, getAvatarUrl } from '@/constants';
 import { useI18n } from '@/i18n';
 import './index.less';
 
@@ -31,9 +33,10 @@ const GITHUB_URL = 'https://github.com/singchia/liaison';
 
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
-  const { initialState } = useModel('@@initialState');
+  const { initialState, setInitialState } = useModel('@@initialState');
   const { tr } = useI18n();
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
   const [passwordForm] = Form.useForm();
 
   const handleChangePassword = async (values: {
@@ -62,6 +65,42 @@ const SettingsPage: React.FC = () => {
     setPasswordLoading(false);
   };
 
+  const handleUploadAvatar = async (file: File) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      message.error(tr('请选择 JPG、PNG、GIF 或 WebP 图片', 'Please select JPG, PNG, GIF or WebP image'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      message.error(tr('图片大小不能超过 5MB', 'Image size must be under 5MB'));
+      return;
+    }
+    setAvatarLoading(true);
+    try {
+      const res = await uploadAvatar(file);
+      // 兼容 dataField 解包：返回可能是 { code, data } 或直接是用户对象
+      const user = (res as any)?.data !== undefined ? (res as any).data : res;
+      const ok = (res as any)?.code === 200 || (user && typeof user === 'object');
+      if (ok && user && typeof user === 'object') {
+        message.success(tr('头像已更新', 'Avatar updated'));
+        const rawAvatar = (user as any).avatar ?? (user as any).Avatar ?? '';
+        const avatarUrl = rawAvatar
+          ? `${rawAvatar}${rawAvatar.includes('?') ? '&' : '?'}t=${Date.now()}`
+          : rawAvatar;
+        setInitialState((s) => ({
+          ...s,
+          currentUser: { ...user, avatar: avatarUrl },
+        }));
+      } else {
+        message.error((res as any)?.message || tr('更新失败', 'Update failed'));
+      }
+    } catch (e: any) {
+      message.error(e?.message || tr('更新头像失败', 'Failed to update avatar'));
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   const items = [
     {
       key: 'account',
@@ -78,7 +117,7 @@ const SettingsPage: React.FC = () => {
               <Avatar
                 size={80}
                 icon={<UserOutlined />}
-                src="/avatar.svg"
+                src={getAvatarUrl(initialState?.currentUser?.avatar)}
               />
               <div className="user-info">
                 <Title level={4}>
@@ -88,6 +127,23 @@ const SettingsPage: React.FC = () => {
                   {initialState?.currentUser?.email || 'default@liaison.local'}
                 </Text>
               </div>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                {tr('更新头像', 'Update avatar')}（{tr('从本机选择图片', 'Select image from device')}，JPG/PNG/GIF/WebP，≤5MB）
+              </Text>
+              <Upload
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  handleUploadAvatar(file);
+                  return false;
+                }}
+              >
+                <Button icon={<CameraOutlined />} loading={avatarLoading}>
+                  {tr('选择图片', 'Choose image')}
+                </Button>
+              </Upload>
             </div>
             
             <Divider />

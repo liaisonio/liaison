@@ -13,7 +13,8 @@ type User struct {
 	Password  string     `gorm:"column:password;type:varchar(255);not null" json:"-"` // 不序列化密码
 	Status    UserStatus `gorm:"column:status;type:varchar(50);not null;default:'active'" json:"status"`
 	LastLogin *time.Time `gorm:"column:last_login;type:datetime" json:"last_login"`
-	LoginIP   string     `gorm:"column:login_ip;type:varchar(45)" json:"login_ip"` // IPv6最长45字符
+	LoginIP   string     `gorm:"column:login_ip;type:varchar(45)" json:"login_ip"`   // IPv6最长45字符
+	Avatar    string     `gorm:"column:avatar;type:varchar(512)" json:"avatar"`     // 头像 URL
 }
 
 // UserStatus 用户状态

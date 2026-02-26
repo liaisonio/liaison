@@ -222,6 +222,19 @@ func (s *IAMService) GetUserByID(userID uint) (*model.User, error) {
 	return user, nil
 }
 
+// UpdateProfile 更新用户资料（如头像）
+func (s *IAMService) UpdateProfile(userID uint, avatar string) error {
+	user, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+	user.Avatar = avatar
+	return s.repo.UpdateUser(user)
+}
+
 // ChangePassword 修改密码
 func (s *IAMService) ChangePassword(userID uint, req *ChangePasswordRequest) error {
 	// 获取用户

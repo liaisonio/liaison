@@ -475,6 +475,12 @@ service LiaisonService {
             get: "/api/v1/iam/profile"
         };
     };
+    rpc UpdateProfile(UpdateProfileRequest) returns (GetProfileResponse) {
+        option (google.api.http) = {
+            put: "/api/v1/iam/profile"
+            body: "*"
+        };
+    };
     rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {
         option (google.api.http) = {
             post: "/api/v1/iam/password"
@@ -504,6 +510,7 @@ message User {
     string created_at = 3 [json_name = "created_at"]; // 注册时间
     string last_login = 4 [json_name = "last_login"]; // 最后登录时间
     string login_ip = 5 [json_name = "login_ip"]; // 登录IP
+    string avatar = 6 [json_name = "avatar"]; // 头像 URL
 }
 
 // 登录请求
@@ -535,6 +542,10 @@ message GetProfileResponse {
     User data = 3 [json_name = "data"];
 }
 
+// 更新用户信息请求（如头像）
+message UpdateProfileRequest {
+    string avatar = 1 [json_name = "avatar"]; // 头像 URL，空表示清除
+}
 
 // 登出请求
 message LogoutRequest {

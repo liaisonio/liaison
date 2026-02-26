@@ -5,7 +5,7 @@ import React from 'react';
 import enUS from 'antd/locale/en_US';
 import zhCN from 'antd/locale/zh_CN';
 import { getCurrentUser, logout } from '@/services/api';
-import { APP_NAME, GITHUB_URL } from '@/constants';
+import { APP_NAME, GITHUB_URL, getAvatarUrl } from '@/constants';
 import { getLocale, setLocale, tr } from '@/i18n';
 import './global.less';
 
@@ -70,10 +70,12 @@ export async function getInitialState(): Promise<{
         return undefined;
       }
       const res = await getCurrentUser();
-      if (res.code === 200 && res.data) {
-        return res.data;
-      }
-      return undefined;
+      // 兼容 dataField 解包与未解包两种返回
+      const raw = (res as any)?.data !== undefined ? (res as any).data : res;
+      if (!raw || typeof raw !== 'object') return undefined;
+      if ((res as any)?.code !== undefined && (res as any).code !== 200) return undefined;
+      const avatar = (raw as any).avatar ?? (raw as any).Avatar ?? '';
+      return { ...raw, avatar } as API.CurrentUser;
     } catch (error) {
       return undefined;
     }
@@ -267,7 +269,7 @@ export const layout = ({ initialState }: any) => {
       sizeUnit: 4,
     },
     avatarProps: {
-      src: '/avatar.svg',
+      src: getAvatarUrl(initialState?.currentUser?.avatar),
       size: 'small',
       title: initialState?.currentUser?.name || 'Admin',
       render: (_props: any, avatarChildren: React.ReactNode) => {

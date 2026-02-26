@@ -43,6 +43,7 @@ const OperationLiaisonServiceLogout = "/LiaisonService/Logout"
 const OperationLiaisonServiceUpdateApplication = "/LiaisonService/UpdateApplication"
 const OperationLiaisonServiceUpdateDevice = "/LiaisonService/UpdateDevice"
 const OperationLiaisonServiceUpdateEdge = "/LiaisonService/UpdateEdge"
+const OperationLiaisonServiceUpdateProfile = "/LiaisonService/UpdateProfile"
 const OperationLiaisonServiceUpdateProxy = "/LiaisonService/UpdateProxy"
 
 type LiaisonServiceHTTPServer interface {
@@ -78,6 +79,7 @@ type LiaisonServiceHTTPServer interface {
 	UpdateApplication(context.Context, *UpdateApplicationRequest) (*UpdateApplicationResponse, error)
 	UpdateDevice(context.Context, *UpdateDeviceRequest) (*UpdateDeviceResponse, error)
 	UpdateEdge(context.Context, *UpdateEdgeRequest) (*UpdateEdgeResponse, error)
+	UpdateProfile(context.Context, *UpdateProfileRequest) (*GetProfileResponse, error)
 	UpdateProxy(context.Context, *UpdateProxyRequest) (*UpdateProxyResponse, error)
 }
 
@@ -105,6 +107,7 @@ func RegisterLiaisonServiceHTTPServer(s *http.Server, srv LiaisonServiceHTTPServ
 	r.POST("/api/v1/iam/login", _LiaisonService_Login0_HTTP_Handler(srv))
 	r.POST("/api/v1/iam/logout", _LiaisonService_Logout0_HTTP_Handler(srv))
 	r.GET("/api/v1/iam/profile", _LiaisonService_GetProfile0_HTTP_Handler(srv))
+	r.PUT("/api/v1/iam/profile", _LiaisonService_UpdateProfile0_HTTP_Handler(srv))
 	r.POST("/api/v1/iam/password", _LiaisonService_ChangePassword0_HTTP_Handler(srv))
 	r.GET("/api/health", _LiaisonService_Health0_HTTP_Handler(srv))
 	r.GET("/api/v1/traffic-metrics", _LiaisonService_ListTrafficMetrics0_HTTP_Handler(srv))
@@ -594,6 +597,28 @@ func _LiaisonService_GetProfile0_HTTP_Handler(srv LiaisonServiceHTTPServer) func
 	}
 }
 
+func _LiaisonService_UpdateProfile0_HTTP_Handler(srv LiaisonServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in UpdateProfileRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationLiaisonServiceUpdateProfile)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.UpdateProfile(ctx, req.(*UpdateProfileRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetProfileResponse)
+		return ctx.Result(200, reply)
+	}
+}
+
 func _LiaisonService_ChangePassword0_HTTP_Handler(srv LiaisonServiceHTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
 		var in ChangePasswordRequest
@@ -687,6 +712,7 @@ type LiaisonServiceHTTPClient interface {
 	UpdateApplication(ctx context.Context, req *UpdateApplicationRequest, opts ...http.CallOption) (rsp *UpdateApplicationResponse, err error)
 	UpdateDevice(ctx context.Context, req *UpdateDeviceRequest, opts ...http.CallOption) (rsp *UpdateDeviceResponse, err error)
 	UpdateEdge(ctx context.Context, req *UpdateEdgeRequest, opts ...http.CallOption) (rsp *UpdateEdgeResponse, err error)
+	UpdateProfile(ctx context.Context, req *UpdateProfileRequest, opts ...http.CallOption) (rsp *GetProfileResponse, err error)
 	UpdateProxy(ctx context.Context, req *UpdateProxyRequest, opts ...http.CallOption) (rsp *UpdateProxyResponse, err error)
 }
 
@@ -1010,6 +1036,19 @@ func (c *LiaisonServiceHTTPClientImpl) UpdateEdge(ctx context.Context, in *Updat
 	pattern := "/api/v1/edges/{id}"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationLiaisonServiceUpdateEdge))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "PUT", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *LiaisonServiceHTTPClientImpl) UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...http.CallOption) (*GetProfileResponse, error) {
+	var out GetProfileResponse
+	pattern := "/api/v1/iam/profile"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationLiaisonServiceUpdateProfile))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "PUT", path, in, &out, opts...)
 	if err != nil {

@@ -147,43 +147,36 @@ func (s *Server) CreateProxy(ctx context.Context, protoproxy *proto.Proxy, certF
 	return nil
 }
 
-// DeleteProxy 删除代理
+// DeleteProxy 删除代理：先关闭 listener（立即停止接受新连接），再从 map 移除并返回；
+// 已在处理的连接和 proxy 的 goroutine 在后台异步收尾，不阻塞调用方。
 func (s *Server) DeleteProxy(ctx context.Context, id int) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	proxy, exists := s.proxies[id]
 	if !exists {
+		s.mu.Unlock()
 		log.Warnf("proxy %d not found", id)
 		return nil
 	}
 
-	// 取消 context
-	proxy.cancel()
-
-	// 关闭监听器
+	// 1. 先关闭 listener，Accept() 会立即返回错误，不再接受新连接
 	if err := proxy.listener.Close(); err != nil {
 		log.Errorf("failed to close listener for proxy %d: %s", id, err)
 	}
+	// 2. 取消 context，让正在处理的请求能感知到关闭
+	proxy.cancel()
 
-	// 等待 goroutine 退出
-	done := make(chan struct{})
-	go func() {
-		proxy.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// goroutine 已退出
-	case <-time.After(5 * time.Second):
-		log.Warnf("proxy %d goroutine did not exit within 5 seconds", id)
-	}
-
+	// 3. 从 map 移除，端口可被复用，API 立即返回
 	delete(s.proxies, id)
 	delete(s.proxiesIdxPort, proxy.port)
+	s.mu.Unlock()
 
-	log.Infof("HTTP proxy %d deleted", id)
+	// 4. 异步等待 proxy 的 goroutine 和已有连接收尾，不阻塞
+	go func() {
+		proxy.wg.Wait()
+		log.Debugf("HTTP proxy %d goroutines and connections drained", id)
+	}()
+
+	log.Infof("HTTP proxy %d deleted (listener closed, draining in background)", id)
 	return nil
 }
 
