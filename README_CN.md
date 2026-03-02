@@ -147,12 +147,6 @@ sudo ./install.sh
 
 ---
 
-## ⭐ Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=singchia/liaison&type=Date)](https://star-history.com/#singchia/liaison&Date)
-
----
-
 <div align="center">
 
 **如果这个项目对你有帮助，请给一个 ⭐ Star！**
