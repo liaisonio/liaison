@@ -141,12 +141,6 @@ Contributions are welcome.
 
 ---
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=singchia/liaison&type=Date)](https://star-history.com/#singchia/liaison&Date)
-
----
-
 <div align="center">
 
 **If this project helps you, please give it a ⭐ Star!**
