@@ -319,6 +319,7 @@ export const layout = ({ initialState }: any) => {
             },
           },
           React.createElement(Text, { type: 'secondary', style: { fontSize: 13 } }, `© 2026 ${APP_NAME}. All rights reserved.`),
+          React.createElement(Text, { type: 'secondary', style: { fontSize: 13 } }, '备案号：浙ICP备2026007675号-1'),
           React.createElement(
             Link,
             {

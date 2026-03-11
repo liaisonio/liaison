@@ -54,6 +54,10 @@ const Footer: React.FC = () => {
           </Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
+            备案号：浙ICP备2026007675号-1
+          </Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
             Licensed under the Apache License, Version 2.0
           </Text>
         </div>

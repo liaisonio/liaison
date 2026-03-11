@@ -478,7 +478,7 @@ html[lang="en-US"] .section__title{
 .footer__links{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted)}
 .footer__links a{padding:8px 10px;border-radius:10px}
 .footer__links a:hover{background:rgba(255,255,255,.05);color:var(--text)}
-.footer__meta{color:var(--muted2);display:flex;gap:8px;align-items:center}
+.footer__meta{color:var(--muted2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .sep{opacity:.5}
 
 @media (max-width: 980px){

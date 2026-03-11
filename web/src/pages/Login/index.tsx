@@ -119,6 +119,7 @@ const Login: React.FC = () => {
                 <span>GitHub</span>
               </a>
             </div>
+            <div>备案号：浙ICP备2026007675号-1</div>
           </div>
         </div>
       </div>
