@@ -175,13 +175,9 @@ if [[ "$HTTP_PORT" == "$SERVER_HTTP_ADDR" ]]; then
     HTTP_PORT="443"
 fi
 
-# 根据端口选择协议
-if [[ "$HTTP_PORT" == "443" ]]; then
-    PACKAGE_URL="https://${SERVER_HTTP_ADDR}/packages/edge/${PACKAGE_NAME}"
-else
-    PACKAGE_URL="http://${SERVER_HTTP_ADDR}/packages/edge/${PACKAGE_NAME}"
-fi
-echo -e "${YELLOW}HTTP download address: ${SERVER_HTTP_ADDR}${NC}"
+PACKAGE_URL="https://${SERVER_HTTP_ADDR}/packages/edge/${PACKAGE_NAME}"
+
+echo -e "${YELLOW}HTTPS download address: ${SERVER_HTTP_ADDR}${NC}"
 echo -e "${YELLOW}Edge connection address: ${SERVER_EDGE_ADDR}${NC}"
 echo -e "${YELLOW}Package URL: ${PACKAGE_URL}${NC}"
 
