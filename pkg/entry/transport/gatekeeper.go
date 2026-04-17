@@ -13,9 +13,9 @@ import (
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/jumboframes/armorigo/rproxy"
-	"github.com/singchia/liaison/pkg/entry/frontierbound"
-	"github.com/singchia/liaison/pkg/lerrors"
-	"github.com/singchia/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/entry/frontierbound"
+	"github.com/liaisonio/liaison/pkg/lerrors"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 // Gatekeeper 端口管理器，负责动态管理TCP端口监听

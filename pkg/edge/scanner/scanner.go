@@ -14,8 +14,8 @@ import (
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/singchia/geminio"
-	"github.com/singchia/liaison/pkg/edge/frontierbound"
-	"github.com/singchia/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/edge/frontierbound"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 type Scanner interface{}

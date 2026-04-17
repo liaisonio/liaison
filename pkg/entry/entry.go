@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/jumboframes/armorigo/log"
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/entry/frontierbound"
-	"github.com/singchia/liaison/pkg/entry/http"
-	"github.com/singchia/liaison/pkg/entry/transport"
-	"github.com/singchia/liaison/pkg/liaison/config"
-	"github.com/singchia/liaison/pkg/liaison/manager/controlplane"
-	"github.com/singchia/liaison/pkg/proto"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/entry/frontierbound"
+	"github.com/liaisonio/liaison/pkg/entry/http"
+	"github.com/liaisonio/liaison/pkg/entry/transport"
+	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 type Entry struct {

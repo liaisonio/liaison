@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/api/annotations.proto";
 
-option go_package = "github.com/singchia/liaison/api/v1;v1";
+option go_package = "github.com/liaisonio/liaison/api/v1;v1";
 
 // 连接器
 message Edge {

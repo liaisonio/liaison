@@ -8,9 +8,9 @@ import (
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/singchia/frontier/api/dataplane/v1/service"
-	"github.com/singchia/liaison/pkg/liaison/config"
-	"github.com/singchia/liaison/pkg/liaison/repo"
-	"github.com/singchia/liaison/pkg/utils"
+	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/repo"
+	"github.com/liaisonio/liaison/pkg/utils"
 )
 
 type FrontierBound interface {

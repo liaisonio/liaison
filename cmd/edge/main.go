@@ -7,8 +7,8 @@ import (
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/jumboframes/armorigo/sigaction"
-	"github.com/singchia/liaison/pkg/edge"
-	"github.com/singchia/liaison/pkg/edge/config"
+	"github.com/liaisonio/liaison/pkg/edge"
+	"github.com/liaisonio/liaison/pkg/edge/config"
 )
 
 func main() {

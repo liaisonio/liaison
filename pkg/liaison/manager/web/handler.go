@@ -9,8 +9,8 @@ import (
 
 	kratoserrors "github.com/go-kratos/kratos/v2/errors"
 	kratoshttp "github.com/go-kratos/kratos/v2/transport/http"
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/manager/iam"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 )
 
 //-- Edge --//

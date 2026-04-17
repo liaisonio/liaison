@@ -8,8 +8,8 @@ import (
 
 	"github.com/singchia/frontier/api/dataplane/v1/service"
 	"github.com/singchia/geminio"
-	"github.com/singchia/liaison/pkg/liaison/config"
-	"github.com/singchia/liaison/pkg/utils"
+	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/utils"
 )
 
 type FrontierBound interface {

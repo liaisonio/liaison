@@ -1,6 +1,6 @@
 [Unit]
 Description=Liaison Edge Computing Management Service
-Documentation=https://github.com/singchia/liaison
+Documentation=https://github.com/liaisonio/liaison
 After=network.target network-online.target
 Wants=network-online.target
 StartLimitInterval=60s

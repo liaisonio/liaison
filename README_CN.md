@@ -3,8 +3,8 @@
 
 简体中文 | [English](./README.md)
 
-[![Go](https://github.com/singchia/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/singchia/liaison/actions/workflows/go.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/singchia/liaison)](https://goreportcard.com/report/github.com/singchia/liaison)
+[![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![技术栈](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#技术栈一览)
 [![版本](https://img.shields.io/badge/Version-v1.3.1-green)](#)
@@ -54,7 +54,7 @@ Liaison 是一个企业级应用访问解决方案，不暴露任何内网端口
 
 ```bash
 # 下载最新版本
-wget https://github.com/singchia/liaison/releases/download/v1.3.1/liaison-v1.3.1-linux-amd64.tar.gz
+wget https://github.com/liaisonio/liaison/releases/download/v1.3.1/liaison-v1.3.1-linux-amd64.tar.gz
 
 # 解压
 tar -xzf liaison-v1.3.1-linux-amd64.tar.gz
@@ -126,10 +126,10 @@ sudo ./install.sh
 
 我们欢迎所有形式的贡献！
 
-- 🐛 [报告 Bug](https://github.com/singchia/liaison/issues/new?template=bug_report.md)
-- 💡 [提出建议](https://github.com/singchia/liaison/issues/new?template=feature_request.md)
-- 📝 [提交 PR](https://github.com/singchia/liaison/pulls)
-- 📖 [改进文档](https://github.com/singchia/liaison/issues/new?template=documentation.md)
+- 🐛 [报告 Bug](https://github.com/liaisonio/liaison/issues/new?template=bug_report.md)
+- 💡 [提出建议](https://github.com/liaisonio/liaison/issues/new?template=feature_request.md)
+- 📝 [提交 PR](https://github.com/liaisonio/liaison/pulls)
+- 📖 [改进文档](https://github.com/liaisonio/liaison/issues/new?template=documentation.md)
 
 ### 贡献指南
 
@@ -151,13 +151,13 @@ sudo ./install.sh
 
 **如果这个项目对你有帮助，请给一个 ⭐ Star！**
 
-Made with ❤️ by [Liaison Contributors](https://github.com/singchia/liaison/graphs/contributors)
+Made with ❤️ by [Liaison Contributors](https://github.com/liaisonio/liaison/graphs/contributors)
 
 <p align=center>
 <img src="./web/public/wechat.png" width="30%">
 </p>
 
 
-[GitHub](https://github.com/singchia/liaison) • [Issues](https://github.com/singchia/liaison/issues) • [Discussions](https://github.com/singchia/liaison/discussions)
+[GitHub](https://github.com/liaisonio/liaison) • [Issues](https://github.com/liaisonio/liaison/issues) • [Discussions](https://github.com/liaisonio/liaison/discussions)
 
 </div>

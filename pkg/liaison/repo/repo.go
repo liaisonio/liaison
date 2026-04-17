@@ -1,8 +1,8 @@
 package repo
 
 import (
-	"github.com/singchia/liaison/pkg/liaison/config"
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
+	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
 )
 
 type Repo dao.Dao

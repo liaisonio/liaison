@@ -12,9 +12,9 @@ import (
 	"github.com/jumboframes/armorigo/log"
 	"github.com/singchia/geminio"
 	"github.com/singchia/geminio/client"
-	"github.com/singchia/liaison/pkg/edge/config"
-	"github.com/singchia/liaison/pkg/proto"
-	"github.com/singchia/liaison/pkg/utils"
+	"github.com/liaisonio/liaison/pkg/edge/config"
+	"github.com/liaisonio/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/utils"
 )
 
 // FrontierBound 处于依赖链的最低端，负责与frontier通信

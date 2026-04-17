@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
-	"github.com/singchia/liaison/pkg/proto"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 func (cp *controlPlane) RegisterProxyManager(proxyManager proto.ProxyManager) {

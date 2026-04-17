@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/liaison/pkg/config"
+	"github.com/liaisonio/liaison/pkg/config"
 )
 
 func Dial(dial *config.Dial, index int) (net.Conn, error) {

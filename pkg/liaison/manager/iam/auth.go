@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/liaison/pkg/liaison/repo"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
-	"github.com/singchia/liaison/pkg/utils"
+	"github.com/liaisonio/liaison/pkg/liaison/repo"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/utils"
 )
 
 // IAMService IAM服务

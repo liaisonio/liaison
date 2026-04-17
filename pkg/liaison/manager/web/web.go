@@ -9,11 +9,11 @@ import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	kratoshttp "github.com/go-kratos/kratos/v2/transport/http"
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/config"
-	"github.com/singchia/liaison/pkg/liaison/manager/controlplane"
-	"github.com/singchia/liaison/pkg/liaison/manager/iam"
-	"github.com/singchia/liaison/pkg/utils"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
+	"github.com/liaisonio/liaison/pkg/utils"
 )
 
 // @title Liaison Swagger API

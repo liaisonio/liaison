@@ -9,7 +9,7 @@ import (
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/pion/transport/v2/udp"
-	"github.com/singchia/liaison/pkg/config"
+	"github.com/liaisonio/liaison/pkg/config"
 )
 
 var (

@@ -15,8 +15,8 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
-	"github.com/singchia/liaison/pkg/proto"
-	"github.com/singchia/liaison/pkg/utils"
+	"github.com/liaisonio/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/utils"
 )
 
 func (r *reporter) loopReportDevice(ctx context.Context) {

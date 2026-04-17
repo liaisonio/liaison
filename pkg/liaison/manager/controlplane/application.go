@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
 // getDefaultPortByApplicationType 根据应用类型返回默认端口

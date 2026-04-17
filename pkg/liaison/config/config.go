@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/liaison/pkg/config"
-	"github.com/singchia/liaison/pkg/lerrors"
+	"github.com/liaisonio/liaison/pkg/config"
+	"github.com/liaisonio/liaison/pkg/lerrors"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v2"
 )

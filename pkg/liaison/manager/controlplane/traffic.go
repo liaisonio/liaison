@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
 )
 
 // 本地时间格式（不带时区信息）

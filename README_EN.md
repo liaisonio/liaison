@@ -2,8 +2,8 @@
 
 English | [中文](./README_CN.md)
 
-[![Go](https://github.com/singchia/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/singchia/liaison/actions/workflows/go.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/singchia/liaison)](https://goreportcard.com/report/github.com/singchia/liaison)
+[![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
 [![Version](https://img.shields.io/badge/Version-v1.3.1-green)](#)
@@ -51,7 +51,7 @@ Use cases:
 **1. Download**
 
 ```bash
-wget https://github.com/singchia/liaison/releases/download/v1.3.1/liaison-v1.3.1-linux-amd64.tar.gz
+wget https://github.com/liaisonio/liaison/releases/download/v1.3.1/liaison-v1.3.1-linux-amd64.tar.gz
 tar -xzf liaison-v1.3.1-linux-amd64.tar.gz
 cd liaison-v1.3.1-linux-amd64
 ```
@@ -122,10 +122,10 @@ Liaison uses a centralized architecture with Frontier managing all connectors.
 
 Contributions are welcome.
 
-- [Report a bug](https://github.com/singchia/liaison/issues/new?template=bug_report.md)
-- [Suggest a feature](https://github.com/singchia/liaison/issues/new?template=feature_request.md)
-- [Open a PR](https://github.com/singchia/liaison/pulls)
-- [Improve docs](https://github.com/singchia/liaison/issues/new?template=documentation.md)
+- [Report a bug](https://github.com/liaisonio/liaison/issues/new?template=bug_report.md)
+- [Suggest a feature](https://github.com/liaisonio/liaison/issues/new?template=feature_request.md)
+- [Open a PR](https://github.com/liaisonio/liaison/pulls)
+- [Improve docs](https://github.com/liaisonio/liaison/issues/new?template=documentation.md)
 
 1. Fork the repo  
 2. Create a branch (`git checkout -b feature/AmazingFeature`)  
@@ -151,8 +151,8 @@ Contributions are welcome.
 
 **If this project helps you, please give it a ⭐ Star!**
 
-Made with ❤️ by [Liaison Contributors](https://github.com/singchia/liaison/graphs/contributors)
+Made with ❤️ by [Liaison Contributors](https://github.com/liaisonio/liaison/graphs/contributors)
 
-[GitHub](https://github.com/singchia/liaison) • [Issues](https://github.com/singchia/liaison/issues) • [Discussions](https://github.com/singchia/liaison/discussions)
+[GitHub](https://github.com/liaisonio/liaison) • [Issues](https://github.com/liaisonio/liaison/issues) • [Discussions](https://github.com/liaisonio/liaison/discussions)
 
 </div>

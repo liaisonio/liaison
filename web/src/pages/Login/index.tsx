@@ -7,7 +7,7 @@ import { APP_NAME } from '@/constants';
 import { useI18n } from '@/i18n';
 import './index.less';
 
-const GITHUB_URL = 'https://github.com/singchia/liaison';
+const GITHUB_URL = 'https://github.com/liaisonio/liaison';
 
 const Login: React.FC = () => {
   const { message } = App.useApp();

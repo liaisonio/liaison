@@ -1,6 +1,6 @@
 package dao
 
-import "github.com/singchia/liaison/pkg/liaison/repo/model"
+import "github.com/liaisonio/liaison/pkg/liaison/repo/model"
 
 func (d *dao) CreateApplication(application *model.Application) error {
 	return d.getDB().Create(application).Error

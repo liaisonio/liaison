@@ -3,11 +3,11 @@ package controlplane
 import (
 	"context"
 
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/config"
-	"github.com/singchia/liaison/pkg/liaison/manager/frontierbound"
-	"github.com/singchia/liaison/pkg/liaison/repo"
-	"github.com/singchia/liaison/pkg/proto"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/frontierbound"
+	"github.com/liaisonio/liaison/pkg/liaison/repo"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 type ControlPlane interface {

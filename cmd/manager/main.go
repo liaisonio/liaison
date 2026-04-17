@@ -5,8 +5,8 @@ import (
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/jumboframes/armorigo/sigaction"
-	"github.com/singchia/liaison/pkg/lerrors"
-	"github.com/singchia/liaison/pkg/liaison"
+	"github.com/liaisonio/liaison/pkg/lerrors"
+	"github.com/liaisonio/liaison/pkg/liaison"
 )
 
 func main() {

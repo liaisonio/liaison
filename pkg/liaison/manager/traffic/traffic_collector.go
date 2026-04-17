@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
 // TrafficCollector 流量统计收集器

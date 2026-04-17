@@ -1,8 +1,8 @@
 package controlplane
 
 import (
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
 func (cp *controlPlane) checkTask() {

@@ -3,7 +3,7 @@ import { Typography, Divider } from 'antd';
 import { APP_NAME } from '@/constants';
 
 const { Text, Link } = Typography;
-const GITHUB_URL = 'https://github.com/singchia/liaison';
+const GITHUB_URL = 'https://github.com/liaisonio/liaison';
 
 const Footer: React.FC = () => {
   return (

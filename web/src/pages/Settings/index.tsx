@@ -27,7 +27,7 @@ import { useI18n } from '@/i18n';
 import './index.less';
 
 const { Title, Text, Link } = Typography;
-const GITHUB_URL = 'https://github.com/singchia/liaison';
+const GITHUB_URL = 'https://github.com/liaisonio/liaison';
 
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();

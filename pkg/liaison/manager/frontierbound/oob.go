@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
-	"github.com/singchia/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 // 获取设备ID

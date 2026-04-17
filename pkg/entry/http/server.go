@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/liaison/pkg/entry/frontierbound"
-	"github.com/singchia/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/entry/frontierbound"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 // Server HTTP/HTTPS 反向代理服务器

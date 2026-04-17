@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/manager/frontierbound"
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/frontierbound"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
 func (cp *controlPlane) CreateEdge(_ context.Context, req *v1.CreateEdgeRequest) (*v1.CreateEdgeResponse, error) {

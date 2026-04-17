@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/singchia/liaison/api/v1"
-	"github.com/singchia/liaison/pkg/liaison/repo/dao"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
 func (cp *controlPlane) ListDevices(_ context.Context, req *v1.ListDevicesRequest) (*v1.ListDevicesResponse, error) {

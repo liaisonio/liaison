@@ -3,7 +3,7 @@ package dao
 import (
 	"time"
 
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
 func (d *dao) GetEdge(id uint64) (*model.Edge, error) {

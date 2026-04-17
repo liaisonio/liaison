@@ -7,8 +7,8 @@ import (
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/singchia/geminio"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
-	"github.com/singchia/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/proto"
 )
 
 // 获取 Edge 发现的设备列表（用于 ping）

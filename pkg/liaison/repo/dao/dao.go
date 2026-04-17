@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/singchia/liaison/pkg/liaison/config"
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

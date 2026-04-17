@@ -4,4 +4,4 @@ export const APP_NAME = 'Liaison';
 export const DEFAULT_NAME = 'Umi Max';
 
 // GitHub 地址
-export const GITHUB_URL = 'https://github.com/singchia/liaison';
+export const GITHUB_URL = 'https://github.com/liaisonio/liaison';

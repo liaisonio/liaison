@@ -3,7 +3,7 @@ package reporter
 import (
 	"context"
 
-	"github.com/singchia/liaison/pkg/edge/frontierbound"
+	"github.com/liaisonio/liaison/pkg/edge/frontierbound"
 )
 
 type Reporter interface {

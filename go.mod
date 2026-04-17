@@ -1,4 +1,4 @@
-module github.com/singchia/liaison
+module github.com/liaisonio/liaison
 
 go 1.24.0
 

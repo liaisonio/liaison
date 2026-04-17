@@ -6,13 +6,13 @@ import (
 	"runtime"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/liaison/pkg/edge/config"
-	"github.com/singchia/liaison/pkg/edge/frontierbound"
-	"github.com/singchia/liaison/pkg/edge/pinger"
-	"github.com/singchia/liaison/pkg/edge/proxy"
-	"github.com/singchia/liaison/pkg/edge/reporter"
-	"github.com/singchia/liaison/pkg/edge/scanner"
-	"github.com/singchia/liaison/pkg/utils"
+	"github.com/liaisonio/liaison/pkg/edge/config"
+	"github.com/liaisonio/liaison/pkg/edge/frontierbound"
+	"github.com/liaisonio/liaison/pkg/edge/pinger"
+	"github.com/liaisonio/liaison/pkg/edge/proxy"
+	"github.com/liaisonio/liaison/pkg/edge/reporter"
+	"github.com/liaisonio/liaison/pkg/edge/scanner"
+	"github.com/liaisonio/liaison/pkg/utils"
 	"k8s.io/klog/v2"
 )
 

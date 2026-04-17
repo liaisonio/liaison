@@ -4406,7 +4406,7 @@ const file_liaison_proto_rawDesc = "" +
 	"GetProfile\x12\x12.GetProfileRequest\x1a\x13.GetProfileResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/api/v1/iam/profile\x12b\n" +
 	"\x0eChangePassword\x12\x16.ChangePasswordRequest\x1a\x17.ChangePasswordResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/iam/password\x12>\n" +
 	"\x06Health\x12\x0e.HealthRequest\x1a\x0f.HealthResponse\"\x13\x82\xd3\xe4\x93\x02\r\x12\v/api/health\x12n\n" +
-	"\x12ListTrafficMetrics\x12\x1a.ListTrafficMetricsRequest\x1a\x1b.ListTrafficMetricsResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/traffic-metricsB'Z%github.com/singchia/liaison/api/v1;v1b\x06proto3"
+	"\x12ListTrafficMetrics\x12\x1a.ListTrafficMetricsRequest\x1a\x1b.ListTrafficMetricsResponse\"\x1f\x82\xd3\xe4\x93\x02\x19\x12\x17/api/v1/traffic-metricsB'Z%github.com/liaisonio/liaison/api/v1;v1b\x06proto3"
 
 var (
 	file_liaison_proto_rawDescOnce sync.Once

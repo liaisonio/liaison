@@ -1,7 +1,7 @@
 package dao
 
 import (
-	"github.com/singchia/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 	"gorm.io/gorm"
 )
 

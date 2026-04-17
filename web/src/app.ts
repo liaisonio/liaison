@@ -10,7 +10,7 @@ import { getLocale, setLocale, tr } from '@/i18n';
 import './global.less';
 
 const { Text, Link } = Typography;
-const GITHUB_ISSUES_URL = 'https://github.com/singchia/liaison/issues/new';
+const GITHUB_ISSUES_URL = 'https://github.com/liaisonio/liaison/issues/new';
 
 const localizeMenuName = (path?: string, name?: string) => {
   const map: Record<string, string> = {
