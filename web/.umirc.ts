@@ -33,6 +33,11 @@ export default defineConfig({
       layout: false,
     },
     {
+      path: '/cli-auth',
+      component: './CliAuth',
+      layout: false,
+    },
+    {
       path: '/',
       redirect: '/dashboard',
     },

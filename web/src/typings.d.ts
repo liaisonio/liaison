@@ -229,4 +229,41 @@ declare namespace API {
   interface TrafficMetricsListResult {
     metrics: TrafficMetric[];
   }
+
+  // ========== Personal Access Token (PAT) ==========
+  interface APIToken {
+    id: number;
+    name: string;
+    token_prefix: string;
+    scope: string;
+    last_used_at?: string;
+    last_used_ip?: string;
+    expires_at?: string;
+    created_at: string;
+  }
+
+  // 创建 PAT 的响应比 APIToken 多一个 token 明文字段
+  interface APITokenCreated extends APIToken {
+    token: string;
+  }
+
+  interface APITokenListResult {
+    tokens: APIToken[];
+  }
+
+  interface APITokenCreateParams {
+    name: string;
+    expires_in_days?: number; // 0 或不传 = 永不过期
+  }
+
+  // ========== 代理防火墙 (Firewall) ==========
+  interface ProxyFirewall {
+    proxy_id: number;
+    allowed_cidrs: string[];
+    updated_at?: string;
+  }
+
+  interface ProxyFirewallUpsertParams {
+    allowed_cidrs: string[];
+  }
 }

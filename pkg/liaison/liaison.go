@@ -83,6 +83,9 @@ func NewLiaison() (*Liaison, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 把持久化的防火墙规则推回数据面 —— entry 此时已经把 proxies 起起来了，
+	// 在这里恢复 CIDR 白名单可以避免重启后的短暂宽松窗口。
+	controlPlane.RestoreFirewallRules()
 	return &Liaison{
 		web:              web,
 		frontierBound:    frontierBound,

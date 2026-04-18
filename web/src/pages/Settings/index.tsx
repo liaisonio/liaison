@@ -4,12 +4,18 @@ import {
   Tabs,
   Form,
   Input,
+  InputNumber,
   Button,
   App,
   Descriptions,
   Avatar,
   Typography,
   Divider,
+  Modal,
+  Table,
+  Popconfirm,
+  Space,
+  Alert,
 } from 'antd';
 import {
   UserOutlined,
@@ -17,10 +23,18 @@ import {
   SafetyOutlined,
   GithubOutlined,
   InfoCircleOutlined,
+  KeyOutlined,
+  CopyOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useModel } from '@umijs/max';
-import { changePassword } from '@/services/api';
+import {
+  changePassword,
+  createAPIToken,
+  listAPITokens,
+  revokeAPIToken,
+} from '@/services/api';
 import { executeAction } from '@/utils/request';
 import { APP_NAME } from '@/constants';
 import { useI18n } from '@/i18n';
@@ -35,6 +49,64 @@ const SettingsPage: React.FC = () => {
   const { tr } = useI18n();
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordForm] = Form.useForm();
+
+  // ── PAT state ──────────────────────────────────────────────
+  const [tokens, setTokens] = useState<API.APIToken[]>([]);
+  const [tokensLoading, setTokensLoading] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createForm] = Form.useForm();
+  // plaintext of the just-created token — shown exactly once.
+  const [revealed, setRevealed] = useState<string>('');
+
+  const fetchTokens = async () => {
+    setTokensLoading(true);
+    try {
+      const res = await listAPITokens();
+      if (res.code === 200 && res.data) {
+        setTokens(res.data.tokens || []);
+      }
+    } catch (err: any) {
+      message.error(err?.message || tr('加载 Token 失败', 'Failed to load tokens'));
+    } finally {
+      setTokensLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTokens();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleCreateToken = async (values: { name: string; expires_in_days?: number }) => {
+    setCreateLoading(true);
+    try {
+      const res = await createAPIToken({
+        name: values.name,
+        expires_in_days: values.expires_in_days || 0,
+      });
+      if (res.code === 200 && res.data?.token) {
+        setRevealed(res.data.token);
+        setCreateOpen(false);
+        createForm.resetFields();
+        fetchTokens();
+      } else {
+        message.error(res.message || tr('创建失败', 'Failed to create'));
+      }
+    } catch (err: any) {
+      message.error(err?.message || tr('创建失败', 'Failed to create'));
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleRevokeToken = async (id: number) => {
+    await executeAction(() => revokeAPIToken(id), {
+      successMessage: tr('Token 已撤销', 'Token revoked'),
+      errorMessage: tr('撤销失败', 'Failed to revoke'),
+      onSuccess: fetchTokens,
+    });
+  };
 
   const handleChangePassword = async (values: {
     oldPassword: string;
@@ -216,6 +288,101 @@ const SettingsPage: React.FC = () => {
       ),
     },
     {
+      key: 'tokens',
+      label: (
+        <span>
+          <KeyOutlined />
+          {tr('API Token', 'API Tokens')}
+        </span>
+      ),
+      children: (
+        <div className="settings-section">
+          <Card variant="borderless">
+            <div className="password-tips">
+              <KeyOutlined className="text-blue-500 text-xl mr-2" />
+              <div>
+                <Text strong>{tr('个人访问令牌 (PAT)', 'Personal Access Tokens')}</Text>
+                <br />
+                <Text type="secondary">
+                  {tr(
+                    '用于 CLI / 脚本调用 API。每个 token 只会明文显示一次，请妥善保管。',
+                    'For CLI / script API access. Each token is shown in plaintext once — copy it immediately.',
+                  )}
+                </Text>
+              </div>
+            </div>
+            <Divider />
+            <Space style={{ marginBottom: 16 }}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setCreateOpen(true)}
+              >
+                {tr('新建 Token', 'Create token')}
+              </Button>
+            </Space>
+            <Table<API.APIToken>
+              rowKey="id"
+              loading={tokensLoading}
+              dataSource={tokens}
+              pagination={false}
+              columns={[
+                { title: tr('名称', 'Name'), dataIndex: 'name', key: 'name' },
+                {
+                  title: tr('前缀', 'Prefix'),
+                  dataIndex: 'token_prefix',
+                  key: 'token_prefix',
+                  render: (v: string) => <code>{v}…</code>,
+                },
+                {
+                  title: tr('创建时间', 'Created'),
+                  dataIndex: 'created_at',
+                  key: 'created_at',
+                },
+                {
+                  title: tr('最后使用', 'Last used'),
+                  key: 'last_used',
+                  render: (_: unknown, r) => (
+                    <span>
+                      {r.last_used_at || '-'}
+                      {r.last_used_ip ? ` (${r.last_used_ip})` : ''}
+                    </span>
+                  ),
+                },
+                {
+                  title: tr('过期时间', 'Expires'),
+                  dataIndex: 'expires_at',
+                  key: 'expires_at',
+                  render: (v?: string) => v || tr('永不过期', 'Never'),
+                },
+                {
+                  title: tr('操作', 'Actions'),
+                  key: 'actions',
+                  render: (_: unknown, r) => (
+                    <Popconfirm
+                      title={tr('撤销此 Token？', 'Revoke this token?')}
+                      description={tr(
+                        '撤销后使用此 Token 的客户端将立即失败。',
+                        'Clients using this token will stop working immediately.',
+                      )}
+                      okText={tr('撤销', 'Revoke')}
+                      cancelText={tr('取消', 'Cancel')}
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => handleRevokeToken(r.id)}
+                    >
+                      <Button danger size="small">
+                        {tr('撤销', 'Revoke')}
+                      </Button>
+                    </Popconfirm>
+                  ),
+                },
+              ]}
+            />
+          </Card>
+        </div>
+      ),
+    },
+    {
       key: 'about',
       label: (
         <span>
@@ -270,6 +437,92 @@ const SettingsPage: React.FC = () => {
           className="settings-tabs"
         />
       </Card>
+
+      {/* Create-token modal */}
+      <Modal
+        title={tr('新建 API Token', 'Create API Token')}
+        open={createOpen}
+        onCancel={() => {
+          setCreateOpen(false);
+          createForm.resetFields();
+        }}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={createForm} layout="vertical" onFinish={handleCreateToken} requiredMark={false}>
+          <Form.Item
+            name="name"
+            label={tr('名称', 'Name')}
+            rules={[
+              { required: true, message: tr('请填写名称', 'Please enter a name') },
+              { max: 64, message: tr('最长 64 个字符', 'At most 64 characters') },
+            ]}
+          >
+            <Input placeholder={tr('例如: laptop-cli', 'e.g. laptop-cli')} />
+          </Form.Item>
+          <Form.Item
+            name="expires_in_days"
+            label={tr('过期天数（0 或留空表示永不过期）', 'Expires in days (0 or blank = never)')}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={createLoading}>
+                {tr('创建', 'Create')}
+              </Button>
+              <Button onClick={() => setCreateOpen(false)}>{tr('取消', 'Cancel')}</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* One-time reveal modal */}
+      <Modal
+        title={tr('保管好你的 Token', 'Save this token now')}
+        open={!!revealed}
+        onCancel={() => setRevealed('')}
+        okText={tr('我已保存', 'I have saved it')}
+        cancelButtonProps={{ style: { display: 'none' } }}
+        onOk={() => setRevealed('')}
+        closable={false}
+        maskClosable={false}
+      >
+        <Alert
+          type="warning"
+          showIcon
+          message={tr(
+            '此 Token 明文仅显示一次，关闭后无法再次查看。',
+            'This plaintext token is shown only once and cannot be retrieved later.',
+          )}
+          style={{ marginBottom: 12 }}
+        />
+        <div
+          style={{
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+            fontSize: 13,
+            background: 'rgba(0,0,0,0.04)',
+            border: '1px solid rgba(0,0,0,0.08)',
+            borderRadius: 6,
+            padding: '10px 12px',
+            wordBreak: 'break-all',
+            userSelect: 'all',
+          }}
+        >
+          {revealed}
+        </div>
+        <div style={{ marginTop: 12, textAlign: 'right' }}>
+          <Button
+            icon={<CopyOutlined />}
+            onClick={() => {
+              navigator.clipboard.writeText(revealed);
+              message.success(tr('已复制', 'Copied'));
+            }}
+          >
+            {tr('复制', 'Copy')}
+          </Button>
+        </div>
+      </Modal>
     </PageContainer>
   );
 };

@@ -115,6 +115,7 @@ type Dao interface {
 	UpsertFirewallRule(rule *model.ProxyFirewallRule) error
 	DeleteFirewallRuleByProxyID(proxyID uint) error
 	ListFirewallRulesByUserID(userID uint) ([]*model.ProxyFirewallRule, error)
+	ListAllFirewallRules() ([]*model.ProxyFirewallRule, error)
 
 	// 资源清理
 	Close() error

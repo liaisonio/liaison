@@ -42,3 +42,11 @@ func (d *dao) ListFirewallRulesByUserID(userID uint) ([]*model.ProxyFirewallRule
 	err := d.getDB().Where("user_id = ?", userID).Find(&rules).Error
 	return rules, err
 }
+
+// ListAllFirewallRules returns every rule in the table — used on startup to
+// rehydrate the data-plane firewall state after the process restarts.
+func (d *dao) ListAllFirewallRules() ([]*model.ProxyFirewallRule, error) {
+	var rules []*model.ProxyFirewallRule
+	err := d.getDB().Find(&rules).Error
+	return rules, err
+}

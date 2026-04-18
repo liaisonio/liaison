@@ -44,6 +44,11 @@ type ControlPlane interface {
 
 	RegisterProxyManager(proxyManager proto.ProxyManager)
 	RegisterFirewallManager(firewallManager proto.FirewallManager)
+
+	// RestoreFirewallRules rehydrates the data-plane firewall allowlist from
+	// persisted rules. Call after the entry layer has finished starting
+	// its proxies.
+	RestoreFirewallRules()
 }
 
 func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound frontierbound.FrontierBound) (ControlPlane, error) {

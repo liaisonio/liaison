@@ -208,3 +208,50 @@ export async function getTrafficMetricsList(params?: API.TrafficMetricsListParam
     params,
   });
 }
+
+/** 获取 PAT 列表 GET /v1/iam/tokens */
+export async function listAPITokens() {
+  return request<API.Response<API.APITokenListResult>>('/api/v1/iam/tokens', {
+    method: 'GET',
+  });
+}
+
+/** 创建 PAT POST /v1/iam/tokens — 响应中的 token 明文只会返回一次 */
+export async function createAPIToken(data: API.APITokenCreateParams) {
+  return request<API.Response<API.APITokenCreated>>('/api/v1/iam/tokens', {
+    method: 'POST',
+    data,
+  });
+}
+
+/** 撤销 PAT DELETE /v1/iam/tokens/:id */
+export async function revokeAPIToken(id: number) {
+  return request<API.Response>(`/api/v1/iam/tokens/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/** 获取代理防火墙 GET /v1/proxies/:id/firewall */
+export async function getProxyFirewall(proxyId: number) {
+  return request<API.Response<API.ProxyFirewall>>(`/api/v1/proxies/${proxyId}/firewall`, {
+    method: 'GET',
+  });
+}
+
+/** 设置代理防火墙 PUT /v1/proxies/:id/firewall —— allowed_cidrs 为 [] 表示全部拒绝 */
+export async function upsertProxyFirewall(
+  proxyId: number,
+  data: API.ProxyFirewallUpsertParams,
+) {
+  return request<API.Response<API.ProxyFirewall>>(`/api/v1/proxies/${proxyId}/firewall`, {
+    method: 'PUT',
+    data,
+  });
+}
+
+/** 删除代理防火墙 DELETE /v1/proxies/:id/firewall —— 恢复为默认放行 */
+export async function deleteProxyFirewall(proxyId: number) {
+  return request<API.Response>(`/api/v1/proxies/${proxyId}/firewall`, {
+    method: 'DELETE',
+  });
+}
