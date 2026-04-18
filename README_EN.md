@@ -29,8 +29,10 @@ This project addresses:
 - **Private network access** — Reach devices and services behind NAT from the public internet with minimal setup
 - **Multi-device management** — Manage devices across locations with Linux/macOS/Windows support
 - **Secure connectivity** — TLS-encrypted transport without exposing ports on your LAN or home network
+- **Per-entry firewall** — Source-IP CIDR allowlist on each TCP or HTTP entry, enforced at connection accept
 - **Traffic monitoring** — Real-time device status and traffic metrics for operations and capacity planning
 - **Application proxy** — TCP, HTTP/HTTPS, WebSocket and other protocols
+- **API automation** — Personal Access Tokens (PAT) for CLI/scripts with a browser-mediated sign-in flow at `/cli-auth`
 
 Use cases:
 
