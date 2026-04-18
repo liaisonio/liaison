@@ -495,10 +495,6 @@ const ProxyPage: React.FC = () => {
                 </Button>
               </Tooltip>
             )}
-            <EditLink onClick={() => {
-              setCurrentRow(record);
-              setEditModalVisible(true);
-            }} />
             <Button
               type="link"
               size="small"
@@ -507,6 +503,10 @@ const ProxyPage: React.FC = () => {
             >
               {tr('防火墙', 'Firewall')}
             </Button>
+            <EditLink onClick={() => {
+              setCurrentRow(record);
+              setEditModalVisible(true);
+            }} />
             <DeleteLink
               title="确定要删除这个访问吗？"
               onConfirm={() => handleDelete(record.id)}
