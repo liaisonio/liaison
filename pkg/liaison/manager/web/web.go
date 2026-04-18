@@ -62,6 +62,9 @@ func NewWebServer(conf *config.Configuration, controlPlane controlplane.ControlP
 	srv.HandleFunc("/api/v1/iam/tokens", web.handleTokensHTTP)
 	srv.HandleFunc("/api/v1/iam/tokens/{id}", web.handleTokenByIDHTTP)
 
+	// 公开：返回调用方的出口 IP（用于前端防火墙面板的「我的 IP」一键加白）
+	srv.HandleFunc("/api/v1/iam/client_ip", web.handleClientIP)
+
 	// 代理防火墙
 	srv.HandleFunc("/api/v1/proxies/{id}/firewall", web.handleFirewallHTTP)
 

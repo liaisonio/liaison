@@ -9,7 +9,7 @@ import {
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import { Space, Tag, Typography, Switch, Alert, Tooltip, message, Button, Modal, Select, Spin, Popconfirm } from 'antd';
+import { Space, Tag, Typography, Switch, Alert, Tooltip, message, Button, Drawer, Input, Table, Spin, Popconfirm } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams, useLocation } from '@umijs/max';
@@ -22,6 +22,7 @@ import {
   getProxyFirewall,
   upsertProxyFirewall,
   deleteProxyFirewall,
+  getClientIP,
 } from '@/services/api';
 import { executeAction, tableRequest } from '@/utils/request';
 import { CreateButton, EditLink, DeleteLink } from '@/components/TableButtons';
@@ -47,60 +48,119 @@ const ProxyPage: React.FC = () => {
   const [selectedApplicationId, setSelectedApplicationId] = useState<number | undefined>();
   const hasProcessedUrlRef = useRef(false); // 使用 ref 跟踪是否已处理过 URL 参数
 
-  // 防火墙 Modal 状态
-  const [firewallModalVisible, setFirewallModalVisible] = useState(false);
-  const [firewallProxy, setFirewallProxy] = useState<API.Proxy | undefined>();
-  const [firewallCidrs, setFirewallCidrs] = useState<string[]>([]);
-  const [firewallUpdatedAt, setFirewallUpdatedAt] = useState<string>('');
-  const [firewallLoading, setFirewallLoading] = useState(false);
+  // 防火墙 Drawer 状态
+  type FirewallDrawerState = {
+    open: boolean;
+    loading: boolean;
+    record?: API.Proxy;
+    draftCIDRs: string[];
+    updatedAt: string;
+    hasRule: boolean; // 后端返回 updated_at 非空代表显式规则
+  };
+  const [firewallDrawer, setFirewallDrawer] = useState<FirewallDrawerState>({
+    open: false,
+    loading: false,
+    draftCIDRs: [],
+    updatedAt: '',
+    hasRule: false,
+  });
+  const [newFirewallCIDR, setNewFirewallCIDR] = useState('');
+  const [clientIP, setClientIP] = useState<string | null>(null);
   const [firewallSaving, setFirewallSaving] = useState(false);
 
-  // CIDR 校验：v4 (e.g. 10.0.0.0/8) 或 v6 (包含冒号)。宽松匹配，后端会最终判定。
-  const isValidCidr = (s: string): boolean => {
-    if (!s) return false;
-    const v4 = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
-    return v4.test(s) || (s.includes(':') && s.includes('/'));
+  // IPv4 地址或带前缀的 IPv4 CIDR。纯 IP 保存时会自动补 /32。
+  const isValidCIDR = (value: string): boolean => {
+    const trimmed = value.trim();
+    return /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[12][0-9]|3[0-2]))?$/.test(trimmed);
+  };
+  const normalizeCIDR = (value: string) => {
+    const trimmed = value.trim();
+    return trimmed.includes('/') ? trimmed : `${trimmed}/32`;
   };
 
-  const openFirewallModal = async (proxy: API.Proxy) => {
-    setFirewallProxy(proxy);
-    setFirewallCidrs([]);
-    setFirewallUpdatedAt('');
-    setFirewallModalVisible(true);
-    setFirewallLoading(true);
+  const openFirewallDrawer = async (record: API.Proxy) => {
+    setFirewallDrawer({
+      open: true,
+      loading: true,
+      record,
+      draftCIDRs: [],
+      updatedAt: '',
+      hasRule: false,
+    });
+    setNewFirewallCIDR('');
+    setClientIP(null);
+    getClientIP().then((res) => {
+      if (res?.data?.ip) setClientIP(res.data.ip);
+    }).catch(() => {});
+
     try {
-      const res = await getProxyFirewall(proxy.id);
-      if (res.code === 200 && res.data) {
-        // 后端：没有规则时返回 ["0.0.0.0/0"] + updated_at 空，此时 UI 显示「未设置」
-        const hasRule = !!res.data.updated_at;
-        setFirewallCidrs(hasRule ? (res.data.allowed_cidrs || []) : []);
-        setFirewallUpdatedAt(res.data.updated_at || '');
+      const res = await getProxyFirewall(record.id);
+      if (res.code !== 200 || !res.data) {
+        message.error(res.message || tr('获取防火墙失败', 'Failed to load firewall'));
+        setFirewallDrawer({ open: false, loading: false, draftCIDRs: [], updatedAt: '', hasRule: false });
+        return;
       }
+      const hasRule = !!res.data.updated_at;
+      setFirewallDrawer({
+        open: true,
+        loading: false,
+        record,
+        draftCIDRs: hasRule ? [...(res.data.allowed_cidrs || [])] : [],
+        updatedAt: res.data.updated_at || '',
+        hasRule,
+      });
     } catch (err: any) {
-      message.error(err?.message || tr('加载防火墙规则失败', 'Failed to load firewall rule'));
-    } finally {
-      setFirewallLoading(false);
+      message.error(err?.message || tr('获取防火墙失败', 'Failed to load firewall'));
+      setFirewallDrawer({ open: false, loading: false, draftCIDRs: [], updatedAt: '', hasRule: false });
     }
+  };
+
+  const closeFirewallDrawer = () => {
+    setFirewallDrawer((prev) => ({ ...prev, open: false }));
+  };
+
+  const addFirewallCIDR = (value: string) => {
+    const raw = value.trim();
+    if (!raw) return;
+    if (!isValidCIDR(raw)) {
+      message.error(
+        tr(
+          '请输入合法的 IPv4 地址或 CIDR，例如 203.0.113.1 或 203.0.113.0/24',
+          'Enter a valid IPv4 address or CIDR, e.g. 203.0.113.1 or 203.0.113.0/24',
+        ),
+      );
+      return;
+    }
+    const cidr = normalizeCIDR(raw);
+    if (firewallDrawer.draftCIDRs.includes(cidr)) {
+      message.warning(tr('该 CIDR 已存在', 'This CIDR already exists'));
+      return;
+    }
+    setFirewallDrawer((prev) => ({ ...prev, draftCIDRs: [...prev.draftCIDRs, cidr] }));
+    setNewFirewallCIDR('');
+  };
+
+  const removeFirewallCIDR = (cidr: string) => {
+    setFirewallDrawer((prev) => ({
+      ...prev,
+      draftCIDRs: prev.draftCIDRs.filter((c) => c !== cidr),
+    }));
   };
 
   const handleFirewallSave = async () => {
-    if (!firewallProxy) return;
-    const invalid = firewallCidrs.find((c) => !isValidCidr(c));
-    if (invalid) {
-      message.error(tr(`无效 CIDR：${invalid}`, `Invalid CIDR: ${invalid}`));
-      return;
-    }
+    const record = firewallDrawer.record;
+    if (!record?.id) return;
     setFirewallSaving(true);
     await executeAction(
-      () => upsertProxyFirewall(firewallProxy.id, { allowed_cidrs: firewallCidrs }),
+      () => upsertProxyFirewall(record.id, { allowed_cidrs: firewallDrawer.draftCIDRs }),
       {
         successMessage:
-          firewallCidrs.length === 0
-            ? tr('已保存（空规则=拒绝全部）', 'Saved (empty rule = deny all)')
-            : tr('已保存', 'Saved'),
-        errorMessage: tr('保存失败', 'Failed to save'),
+          firewallDrawer.draftCIDRs.length === 0
+            ? tr('已保存（空规则 = 拒绝全部）', 'Saved (empty rule = deny all)')
+            : tr('防火墙已更新', 'Firewall updated'),
+        errorMessage: tr('防火墙更新失败', 'Failed to update firewall'),
         onSuccess: () => {
-          setFirewallModalVisible(false);
+          setFirewallDrawer({ open: false, loading: false, draftCIDRs: [], updatedAt: '', hasRule: false });
         },
       },
     );
@@ -108,14 +168,13 @@ const ProxyPage: React.FC = () => {
   };
 
   const handleFirewallReset = async () => {
-    if (!firewallProxy) return;
-    await executeAction(() => deleteProxyFirewall(firewallProxy.id), {
+    const record = firewallDrawer.record;
+    if (!record?.id) return;
+    await executeAction(() => deleteProxyFirewall(record.id), {
       successMessage: tr('已恢复为放行全部', 'Reset to allow-all'),
       errorMessage: tr('操作失败', 'Operation failed'),
       onSuccess: () => {
-        setFirewallCidrs([]);
-        setFirewallUpdatedAt('');
-        setFirewallModalVisible(false);
+        setFirewallDrawer({ open: false, loading: false, draftCIDRs: [], updatedAt: '', hasRule: false });
       },
     });
   };
@@ -444,7 +503,7 @@ const ProxyPage: React.FC = () => {
               type="link"
               size="small"
               style={{ padding: 0, height: 'auto' }}
-              onClick={() => openFirewallModal(record)}
+              onClick={() => openFirewallDrawer(record)}
             >
               {tr('防火墙', 'Firewall')}
             </Button>
@@ -578,85 +637,210 @@ const ProxyPage: React.FC = () => {
         />
       </ModalForm>
 
-      <Modal
+      <Drawer
         title={
-          firewallProxy
-            ? tr(`防火墙 — ${firewallProxy.name}`, `Firewall — ${firewallProxy.name}`)
-            : tr('防火墙', 'Firewall')
+          firewallDrawer.record
+            ? `${tr('设置防火墙', 'Configure Firewall')} · ${firewallDrawer.record.name}`
+            : tr('设置防火墙', 'Configure Firewall')
         }
-        open={firewallModalVisible}
-        onCancel={() => setFirewallModalVisible(false)}
-        width={560}
+        open={firewallDrawer.open}
+        onClose={closeFirewallDrawer}
         destroyOnClose
-        footer={[
-          <Popconfirm
-            key="reset"
-            title={tr('恢复为放行全部？', 'Reset to allow-all?')}
-            description={tr(
-              '删除规则后，任何来源 IP 都能访问此代理。',
-              'After removal, any source IP can reach this proxy.',
-            )}
-            okText={tr('确认', 'Confirm')}
-            cancelText={tr('取消', 'Cancel')}
-            onConfirm={handleFirewallReset}
-            disabled={!firewallUpdatedAt}
-          >
-            <Button danger disabled={!firewallUpdatedAt}>
-              {tr('恢复默认', 'Reset')}
+        placement="right"
+        width={600}
+        extra={
+          <Space>
+            <Popconfirm
+              title={tr('恢复为放行全部？', 'Reset to allow-all?')}
+              description={tr(
+                '删除规则后，任何来源 IP 都能访问此代理。',
+                'After removal, any source IP can reach this proxy.',
+              )}
+              okText={tr('确认', 'Confirm')}
+              cancelText={tr('取消', 'Cancel')}
+              onConfirm={handleFirewallReset}
+              disabled={!firewallDrawer.hasRule}
+            >
+              <Button danger disabled={!firewallDrawer.hasRule}>
+                {tr('恢复默认', 'Reset')}
+              </Button>
+            </Popconfirm>
+            <Button onClick={closeFirewallDrawer}>
+              {tr('取消', 'Cancel')}
             </Button>
-          </Popconfirm>,
-          <Button key="cancel" onClick={() => setFirewallModalVisible(false)}>
-            {tr('取消', 'Cancel')}
-          </Button>,
-          <Button
-            key="save"
-            type="primary"
-            loading={firewallSaving}
-            onClick={handleFirewallSave}
-          >
-            {tr('保存', 'Save')}
-          </Button>,
-        ]}
+            <Button type="primary" loading={firewallSaving} onClick={handleFirewallSave}>
+              {tr('保存', 'Save')}
+            </Button>
+          </Space>
+        }
       >
-        {firewallLoading ? (
+        {firewallDrawer.loading ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <Spin />
           </div>
         ) : (
           <>
-            <Alert
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-              message={
-                firewallUpdatedAt
-                  ? `${tr('规则上次修改：', 'Rule last updated: ')} ${firewallUpdatedAt}`
-                  : tr('当前未设置规则 —— 放行全部来源。', 'No rule set — currently allowing all sources.')
-              }
-              description={
-                <div style={{ fontSize: 12 }}>
-                  {tr(
-                    '填写允许访问此代理的源 IP CIDR。留空保存 = 拒绝全部；点「恢复默认」= 放行全部。HTTP / TCP 代理均在 Accept 时按 L4 过滤。',
-                    'Enter source-IP CIDRs allowed to reach this proxy. Save with empty list = deny all; click Reset = allow all. Both HTTP and TCP proxies are filtered at Accept.',
+            {/* Info card */}
+            <div
+              style={{
+                marginBottom: 16,
+                padding: '12px 16px',
+                borderRadius: 8,
+                background: 'var(--ant-color-fill-quaternary)',
+                border: '1px solid var(--ant-color-border-secondary)',
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                {tr('入口访问规则', 'Entry access rules')}
+              </div>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                {tr(
+                  '为当前代理配置来源 IP 白名单。保存后立即生效；HTTP/TCP 代理均在 Accept 时按 L4 过滤。支持单个 IPv4 或 CIDR（纯 IP 将自动补 /32）。',
+                  'Configure source IP allowlist for this proxy. Takes effect immediately; both HTTP and TCP are filtered at Accept. Supports single IPv4 or CIDR (a bare IP is auto-completed to /32).',
+                )}
+              </Text>
+              <div style={{ marginTop: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {tr('端口', 'Port')}: <strong>{firewallDrawer.record?.port || '-'}</strong>
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {tr('规则数', 'Rules')}: <strong>{firewallDrawer.draftCIDRs.length}</strong>
+                </Text>
+                {firewallDrawer.updatedAt && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {tr('最近更新', 'Updated')}: {firewallDrawer.updatedAt}
+                  </Text>
+                )}
+              </div>
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {tr('我的 IP', 'My IP')}:{' '}
+                  {clientIP ? (
+                    <Text code style={{ fontSize: 12 }}>{clientIP}</Text>
+                  ) : (
+                    <Text type="secondary" style={{ fontSize: 12 }}>...</Text>
                   )}
-                </div>
-              }
-            />
-            <Select
-              mode="tags"
-              style={{ width: '100%' }}
-              value={firewallCidrs}
-              onChange={(vs: string[]) => setFirewallCidrs(vs.map((v) => v.trim()).filter(Boolean))}
-              placeholder={tr('例如：10.0.0.0/8', 'e.g. 10.0.0.0/8')}
-              tokenSeparators={[',', ' ', '\n']}
-              open={false}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
-              {tr('输入后按回车或逗号分隔。', 'Press Enter or comma to separate.')}
+                </Text>
+                {clientIP && !firewallDrawer.draftCIDRs.includes(`${clientIP}/32`) && !firewallDrawer.draftCIDRs.includes(clientIP) && (
+                  <Button
+                    size="small"
+                    type="link"
+                    style={{ padding: 0, fontSize: 12, height: 'auto' }}
+                    onClick={() => addFirewallCIDR(clientIP)}
+                  >
+                    {tr('添加', 'Add')}
+                  </Button>
+                )}
+                {clientIP && (firewallDrawer.draftCIDRs.includes(`${clientIP}/32`) || firewallDrawer.draftCIDRs.includes(clientIP)) && (
+                  <Text type="success" style={{ fontSize: 12 }}>✓ {tr('已添加', 'Added')}</Text>
+                )}
+              </div>
+            </div>
+
+            {/* Rules card */}
+            <div
+              style={{
+                borderRadius: 8,
+                border: '1px solid var(--ant-color-border-secondary)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 16px',
+                  borderBottom: '1px solid var(--ant-color-border-secondary)',
+                  background: 'var(--ant-color-bg-container)',
+                }}
+              >
+                <Text strong style={{ fontSize: 13 }}>
+                  {tr('来源规则', 'Source Rules')}
+                </Text>
+                <Input.Search
+                  value={newFirewallCIDR}
+                  onChange={(e) => setNewFirewallCIDR(e.target.value)}
+                  onSearch={addFirewallCIDR}
+                  placeholder={tr(
+                    '输入 IP 或 CIDR，如 203.0.113.1 或 203.0.113.0/24',
+                    'Enter IP or CIDR, e.g. 203.0.113.1 or 203.0.113.0/24',
+                  )}
+                  enterButton={tr('添加', 'Add')}
+                  size="small"
+                  style={{ width: 320 }}
+                />
+              </div>
+              <Table
+                size="middle"
+                rowKey="cidr"
+                pagination={{
+                  pageSize: 10,
+                  size: 'small',
+                  hideOnSinglePage: true,
+                  showTotal: (total) => `${total} ${tr('条', 'rules')}`,
+                }}
+                locale={{
+                  emptyText: tr(
+                    '暂无规则。保存空列表 = 拒绝全部；点右上角「恢复默认」= 放行全部。',
+                    'No rules. Save empty list = deny all; click "Reset" top-right = allow all.',
+                  ),
+                }}
+                dataSource={firewallDrawer.draftCIDRs.map((cidr) => ({ cidr }))}
+                columns={[
+                  {
+                    title: tr('来源 CIDR', 'Source CIDR'),
+                    dataIndex: 'cidr',
+                    render: (v: string) => <Text code>{v}</Text>,
+                  },
+                  {
+                    title: tr('协议', 'Protocol'),
+                    width: 90,
+                    render: () => {
+                      const at = firewallDrawer.record?.application?.application_type;
+                      const isHTTP = at === 'http';
+                      return (
+                        <Tag color={isHTTP ? 'green' : 'blue'} bordered={false}>
+                          {isHTTP ? 'HTTP' : 'TCP'}
+                        </Tag>
+                      );
+                    },
+                  },
+                  {
+                    title: tr('端口', 'Port'),
+                    width: 90,
+                    render: () => <Tag bordered={false}>{firewallDrawer.record?.port || '-'}</Tag>,
+                  },
+                  {
+                    title: tr('策略', 'Policy'),
+                    width: 80,
+                    render: () => (
+                      <Tag color="success" bordered={false}>
+                        {tr('允许', 'Allow')}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: tr('操作', 'Actions'),
+                    width: 70,
+                    render: (_, row: { cidr: string }) => (
+                      <Button
+                        type="link"
+                        danger
+                        size="small"
+                        style={{ padding: 0 }}
+                        onClick={() => removeFirewallCIDR(row.cidr)}
+                      >
+                        {tr('删除', 'Delete')}
+                      </Button>
+                    ),
+                  },
+                ]}
+              />
             </div>
           </>
         )}
-      </Modal>
+      </Drawer>
     </PageContainer>
   );
 };

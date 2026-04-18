@@ -209,6 +209,13 @@ export async function getTrafficMetricsList(params?: API.TrafficMetricsListParam
   });
 }
 
+/** 获取调用方的出口 IP（公开接口）GET /v1/iam/client_ip */
+export async function getClientIP() {
+  return request<API.Response<{ ip: string }>>('/api/v1/iam/client_ip', {
+    method: 'GET',
+  });
+}
+
 /** 获取 PAT 列表 GET /v1/iam/tokens */
 export async function listAPITokens() {
   return request<API.Response<API.APITokenListResult>>('/api/v1/iam/tokens', {

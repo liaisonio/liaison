@@ -92,6 +92,7 @@ func isIAMEndpoint(path string) bool {
 	noAuthPaths := []string{
 		"/api/v1/iam/login",
 		"/api/v1/iam/logout",
+		"/api/v1/iam/client_ip",
 		"/install.sh",
 		"/install.ps1",
 		"/install.bat",

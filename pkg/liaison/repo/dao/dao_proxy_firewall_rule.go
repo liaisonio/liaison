@@ -18,21 +18,35 @@ func (d *dao) GetFirewallRuleByProxyID(proxyID uint) (*model.ProxyFirewallRule, 
 
 // UpsertFirewallRule updates the existing rule for rule.ProxyID if one
 // exists, otherwise creates a new row. UserID/AllowedCIDRs are overwritten.
+//
+// Looks at soft-deleted rows too — the UNIQUE index on proxy_id is not
+// composite with deleted_at, so a stale soft-deleted row would collide
+// with a new Create. When we find such a row, we resurrect it (clear
+// DeletedAt) and Save over the fields.
 func (d *dao) UpsertFirewallRule(rule *model.ProxyFirewallRule) error {
-	existing, err := d.GetFirewallRuleByProxyID(rule.ProxyID)
+	var existing model.ProxyFirewallRule
+	err := d.getDB().
+		Unscoped().
+		Where("proxy_id = ?", rule.ProxyID).
+		First(&existing).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return d.getDB().Create(rule).Error
+	}
 	if err != nil {
 		return err
 	}
-	if existing != nil {
-		existing.UserID = rule.UserID
-		existing.AllowedCIDRs = rule.AllowedCIDRs
-		return d.getDB().Save(existing).Error
-	}
-	return d.getDB().Create(rule).Error
+	existing.UserID = rule.UserID
+	existing.AllowedCIDRs = rule.AllowedCIDRs
+	existing.DeletedAt = gorm.DeletedAt{} // resurrect if soft-deleted
+	return d.getDB().Unscoped().Save(&existing).Error
 }
 
+// DeleteFirewallRuleByProxyID hard-deletes the row so subsequent Upserts
+// for the same proxy_id cannot hit the UNIQUE index via stale soft-deleted
+// rows. Firewall rules carry no audit value that justifies soft delete.
 func (d *dao) DeleteFirewallRuleByProxyID(proxyID uint) error {
 	return d.getDB().
+		Unscoped().
 		Where("proxy_id = ?", proxyID).
 		Delete(&model.ProxyFirewallRule{}).Error
 }
