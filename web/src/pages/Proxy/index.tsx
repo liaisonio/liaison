@@ -468,7 +468,7 @@ const ProxyPage: React.FC = () => {
     {
       title: tr('操作', 'Actions'),
       valueType: 'option',
-      width: 180,
+      width: 240,
       fixed: 'right',
       align: 'center',
       render: (_, record) => {
