@@ -175,33 +175,75 @@ async fn cmd_login(app: AppHandle, state: State<'_, AppState>) -> Result<(), Str
     let log_file = state.log_file.clone();
     let binary_path = state.binary_path.lock().expect("poisoned").clone();
 
+    debug_log(format!(
+        "cmd_login: invoked base_url={} manager_addr={} config_path={} binary_path={}",
+        base_url,
+        manager_addr,
+        config_path.display(),
+        binary_path.display()
+    ));
+
     // Probe both candidate dashboard mount paths (SaaS uses
     // /dashboard/cli-auth, private deployments commonly use /cli-auth)
     // so a single client binary works against either without a setting.
     let cli_auth_path = auth::discover_cli_auth_path(&base_url).await;
+    debug_log(format!("cmd_login: cli_auth_path={}", cli_auth_path));
+
     let pending = auth::start_login(&base_url, &cli_auth_path, None)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            let msg = format!("start_login failed: {e}");
+            debug_log(format!("cmd_login: ERR {msg}"));
+            msg
+        })?;
     let url = pending.auth_url.clone();
+    debug_log(format!("cmd_login: opening browser auth_url={}", url));
     app.opener()
         .open_url(&url, None::<&str>)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            let msg = format!("open_url failed: {e}");
+            debug_log(format!("cmd_login: ERR {msg}"));
+            msg
+        })?;
 
+    debug_log("cmd_login: waiting for browser callback (timeout=300s)");
     let pat = pending
         .await_token(Duration::from_secs(LOGIN_TIMEOUT_SECS))
         .await
-        .map_err(|e| e.to_string())?;
-    auth::save_pat_to_keychain(&base_url, &pat).map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            let msg = format!("await_token failed: {e}");
+            debug_log(format!("cmd_login: ERR {msg}"));
+            msg
+        })?;
+    debug_log(format!("cmd_login: token received len={}", pat.len()));
+
+    auth::save_pat_to_keychain(&base_url, &pat).map_err(|e| {
+        let msg = format!("save_pat_to_keychain failed: {e}");
+        debug_log(format!("cmd_login: ERR {msg}"));
+        msg
+    })?;
+    debug_log("cmd_login: pat saved to keychain");
 
     // From here on, any failure must roll the keychain entry back —
     // otherwise the popup sees a stored PAT, decides we're "logged
     // in but not running", paints the 恢复连接 button, and gets stuck
     // because no edge.yaml ever got written.
-    let api = api_client::ApiClient::new(&base_url, &pat)
-        .map_err(|e| login_rollback(&base_url, e.to_string()))?;
+    let api = api_client::ApiClient::new(&base_url, &pat).map_err(|e| {
+        debug_log(format!("cmd_login: ERR ApiClient::new failed: {e}"));
+        login_rollback(&base_url, e.to_string())
+    })?;
+    debug_log("cmd_login: api client built");
+
     let keys = api
         .create_edge(DESKTOP_EDGE_NAME, "menubar GUI")
         .await
-        .map_err(|e| login_rollback(&base_url, e.to_string()))?;
+        .map_err(|e| {
+            debug_log(format!("cmd_login: ERR create_edge failed: {e}"));
+            login_rollback(&base_url, e.to_string())
+        })?;
+    debug_log(format!(
+        "cmd_login: edge created on manager (access_key.len={})",
+        keys.access_key.len()
+    ));
 
     let cfg = EdgeConfig {
         manager_addr,
@@ -211,8 +253,17 @@ async fn cmd_login(app: AppHandle, state: State<'_, AppState>) -> Result<(), Str
         insecure_skip_verify: true,
         log_file,
     };
-    write_edge_config(&config_path, &cfg)
-        .map_err(|e| login_rollback(&base_url, e.to_string()))?;
+    write_edge_config(&config_path, &cfg).map_err(|e| {
+        debug_log(format!(
+            "cmd_login: ERR write_edge_config to {} failed: {e}",
+            config_path.display()
+        ));
+        login_rollback(&base_url, e.to_string())
+    })?;
+    debug_log(format!(
+        "cmd_login: edge config written to {}",
+        config_path.display()
+    ));
 
     // Logging in implies the user wants to be connected. If state.json
     // still carries `intended = Stopped` from an earlier pause on the
@@ -221,8 +272,10 @@ async fn cmd_login(app: AppHandle, state: State<'_, AppState>) -> Result<(), Str
     // before start_supervisor reads state.json so the run loop sees
     // Running on the very first poll.
     persist_intended(IntendedState::Running);
+    debug_log("cmd_login: persisted intended=Running, starting supervisor");
 
     start_supervisor(&app, &state, binary_path, config_path, Some(pat));
+    debug_log("cmd_login: supervisor spawned, login complete");
 
     // Pull the popup back to the front. The browser took over focus
     // for the OAuth round-trip and the blur handler hid the popup
