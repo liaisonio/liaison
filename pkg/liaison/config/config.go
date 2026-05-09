@@ -45,11 +45,12 @@ type Manager struct {
 	PackagesDir      string        `yaml:"packages_dir,omitempty" json:"packages_dir"`             // 安装包目录，默认 /opt/liaison/packages
 	WebDir           string        `yaml:"web_dir,omitempty" json:"web_dir"`                       // 前端文件目录，如果为空则不提供前端服务
 	FrontierEdgePort int           `yaml:"frontier_edge_port,omitempty" json:"frontier_edge_port"` // Edge 和 Frontier 之间的通信端口
-	JWTSecret        string        `yaml:"jwt_secret,omitempty" json:"jwt_secret"`                // JWT 密钥（必需，至少32字符）
+	JWTSecret        string        `yaml:"jwt_secret,omitempty" json:"jwt_secret"`                 // JWT 密钥（必需，至少32字符）
 }
 
 type Frontier struct {
-	Dial config.Dial `yaml:"dial,omitempty" json:"dial"`
+	Dial            config.Dial `yaml:"dial,omitempty" json:"dial"`
+	ControlPlaneURL string      `yaml:"controlplane_url,omitempty" json:"controlplane_url"`
 }
 
 type Log struct {

@@ -2201,18 +2201,20 @@ func (x *DeleteApplicationResponse) GetMessage() string {
 
 // 代理
 type Proxy struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Port          int32                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
-	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Application   *Application           `protobuf:"bytes,5,opt,name=application,proto3" json:"application,omitempty"`
-	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,proto3" json:"created_at,omitempty"`
-	UpdatedAt     string                 `protobuf:"bytes,8,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
-	AccessUrl     string                 `protobuf:"bytes,9,opt,name=access_url,proto3" json:"access_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Id                     uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                   string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Port                   int32                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	Status                 string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Application            *Application           `protobuf:"bytes,5,opt,name=application,proto3" json:"application,omitempty"`
+	Description            string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	CreatedAt              string                 `protobuf:"bytes,7,opt,name=created_at,proto3" json:"created_at,omitempty"`
+	UpdatedAt              string                 `protobuf:"bytes,8,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
+	AccessUrl              string                 `protobuf:"bytes,9,opt,name=access_url,proto3" json:"access_url,omitempty"`
+	EffectiveStatus        string                 `protobuf:"bytes,10,opt,name=effective_status,proto3" json:"effective_status,omitempty"`
+	EffectiveStatusMessage string                 `protobuf:"bytes,11,opt,name=effective_status_message,proto3" json:"effective_status_message,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Proxy) Reset() {
@@ -2304,6 +2306,20 @@ func (x *Proxy) GetUpdatedAt() string {
 func (x *Proxy) GetAccessUrl() string {
 	if x != nil {
 		return x.AccessUrl
+	}
+	return ""
+}
+
+func (x *Proxy) GetEffectiveStatus() string {
+	if x != nil {
+		return x.EffectiveStatus
+	}
+	return ""
+}
+
+func (x *Proxy) GetEffectiveStatusMessage() string {
+	if x != nil {
+		return x.EffectiveStatusMessage
 	}
 	return ""
 }
@@ -4238,7 +4254,7 @@ const file_liaison_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\"I\n" +
 	"\x19DeleteApplicationResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x89\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xf1\x02\n" +
 	"\x05Proxy\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -4254,7 +4270,10 @@ const file_liaison_proto_rawDesc = "" +
 	"updated_at\x12\x1e\n" +
 	"\n" +
 	"access_url\x18\t \x01(\tR\n" +
-	"access_url\"A\n" +
+	"access_url\x12*\n" +
+	"\x10effective_status\x18\n" +
+	" \x01(\tR\x10effective_status\x12:\n" +
+	"\x18effective_status_message\x18\v \x01(\tR\x18effective_status_message\"A\n" +
 	"\aProxies\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12 \n" +
 	"\aproxies\x18\x02 \x03(\v2\x06.ProxyR\aproxies\"Z\n" +

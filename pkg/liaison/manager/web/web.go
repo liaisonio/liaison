@@ -1,6 +1,8 @@
 package web
 
 import (
+	"errors"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -37,15 +39,29 @@ type web struct {
 }
 
 func NewWebServer(conf *config.Configuration, controlPlane controlplane.ControlPlane, iamService *iam.IAMService) (Web, error) {
+	ln, err := NewListener(conf)
+	if err != nil {
+		return nil, err
+	}
+	web, err := NewWebServerWithListener(conf, controlPlane, iamService, ln)
+	if err != nil {
+		_ = ln.Close()
+		return nil, err
+	}
+	return web, nil
+}
+
+func NewListener(conf *config.Configuration) (net.Listener, error) {
+	return utils.Listen(&conf.Manager.Listen)
+}
+
+func NewWebServerWithListener(conf *config.Configuration, controlPlane controlplane.ControlPlane, iamService *iam.IAMService, ln net.Listener) (Web, error) {
+	if ln == nil {
+		return nil, errors.New("web listener is nil")
+	}
 	web := &web{
 		controlPlane: controlPlane,
 		iamService:   iamService,
-	}
-
-	listen := &conf.Manager.Listen
-	ln, err := utils.Listen(listen)
-	if err != nil {
-		return nil, err
 	}
 	// 创建认证中间件
 	authMiddleware := iam.AuthMiddleware(web.iamService)
@@ -69,8 +85,7 @@ func NewWebServer(conf *config.Configuration, controlPlane controlplane.ControlP
 	srv.HandleFunc("/api/v1/proxies/{id}/firewall", web.handleFirewallHTTP)
 
 	// 文件服务
-	err = web.serveFiles(conf, srv)
-	if err != nil {
+	if err := web.serveFiles(conf, srv); err != nil {
 		return nil, err
 	}
 

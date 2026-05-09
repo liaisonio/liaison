@@ -1,53 +1,57 @@
+import { CreateButton, DeleteLink } from '@/components/TableButtons';
+import { useI18n } from '@/i18n';
+import {
+  createApplication,
+  createEdge,
+  createEdgeScanTask,
+  deleteEdge,
+  getDeviceList,
+  getEdgeList,
+  getEdgeScanTask,
+  updateEdge,
+} from '@/services/api';
+import { copyToClipboard } from '@/utils/format';
+import { executeAction, tableRequest } from '@/utils/request';
+import {
+  buildSearchParams,
+  defaultPagination,
+  defaultSearch,
+} from '@/utils/tableConfig';
+import {
+  CheckCircleOutlined,
+  CopyOutlined,
+  LoadingOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import {
   ActionType,
+  ModalForm,
   PageContainer,
   ProColumns,
-  ProTable,
-  StepsForm,
   ProFormText,
   ProFormTextArea,
-  ProFormSelect,
-  ModalForm,
+  ProTable,
+  StepsForm,
 } from '@ant-design/pro-components';
+import { history } from '@umijs/max';
 import {
+  Alert,
+  App,
   Badge,
   Button,
   Drawer,
   List,
-  App,
   Modal,
+  Result,
+  Select,
   Space,
+  Spin,
+  Switch,
+  Tabs,
   Tag,
   Typography,
-  Spin,
-  Result,
-  Alert,
-  Select,
-  Tabs,
 } from 'antd';
-import {
-  CopyOutlined,
-  CheckCircleOutlined,
-  LoadingOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
 import { useRef, useState } from 'react';
-import { history } from '@umijs/max';
-import {
-  getEdgeList,
-  createEdge,
-  updateEdge,
-  deleteEdge,
-  getEdgeScanTask,
-  createEdgeScanTask,
-  createApplication,
-  getDeviceList,
-} from '@/services/api';
-import { executeAction, tableRequest } from '@/utils/request';
-import { CreateButton, DeleteLink } from '@/components/TableButtons';
-import { defaultPagination, defaultSearch, buildSearchParams } from '@/utils/tableConfig';
-import { copyToClipboard } from '@/utils/format';
-import { useI18n } from '@/i18n';
 
 const { Text, Paragraph } = Typography;
 
@@ -63,7 +67,9 @@ const ConnectorPage: React.FC = () => {
   const [accessKeys, setAccessKeys] = useState<API.EdgeCreateResult>();
   const [scanTask, setScanTask] = useState<API.EdgeScanApplicationTask>();
   const [scanning, setScanning] = useState(false);
-  const [deviceOptions, setDeviceOptions] = useState<{ label: string; value: string }[]>([]);
+  const [deviceOptions, setDeviceOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [installOS, setInstallOS] = useState<'windows' | 'other'>('other');
 
   const reload = () => actionRef.current?.reload();
@@ -103,7 +109,6 @@ const ConnectorPage: React.FC = () => {
         updateEdge(currentRow.id, {
           name: values.name,
           description: values.description,
-          status: values.status,
         }),
       {
         successMessage: tr('更新成功', 'Updated successfully'),
@@ -116,9 +121,36 @@ const ConnectorPage: React.FC = () => {
     );
   };
 
+  const handleRuntimeToggle = async (record: API.Edge, checked: boolean) => {
+    await executeAction(
+      () => updateEdge(record.id, { status: checked ? 1 : 2 }),
+      {
+        successMessage: checked
+          ? tr('连接器已启用', 'Edge enabled')
+          : tr('连接器已禁用', 'Edge disabled'),
+        errorMessage: tr('操作失败', 'Operation failed'),
+        onSuccess: reload,
+      },
+    );
+  };
+
   const handleDiscoverApps = async (edge: API.Edge) => {
+    if (edge.status !== 1) {
+      message.warning(
+        tr(
+          '连接器已禁用，无法扫描应用',
+          'Edge is disabled, cannot scan applications',
+        ),
+      );
+      return;
+    }
     if (edge.online !== 1) {
-      message.warning(tr('连接器不在线，无法扫描应用', 'Edge is offline, cannot scan applications'));
+      message.warning(
+        tr(
+          '连接器不在线，无法扫描应用',
+          'Edge is offline, cannot scan applications',
+        ),
+      );
       return;
     }
 
@@ -147,16 +179,21 @@ const ConnectorPage: React.FC = () => {
       }
 
       // 没有任务或任务状态允许创建新任务，则创建新的扫描任务
-      const createRes = await createEdgeScanTask({ 
+      const createRes = await createEdgeScanTask({
         edge_id: edge.id,
         protocol: 'tcp',
       });
       if (createRes.code !== 200) {
-        message.error(createRes.message || tr('创建扫描任务失败', 'Failed to create scan task'));
+        message.error(
+          createRes.message ||
+            tr('创建扫描任务失败', 'Failed to create scan task'),
+        );
         setScanning(false);
         return;
       }
-      await new Promise<void>(resolve => { setTimeout(resolve, 1000); });
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 1000);
+      });
       const res = await getEdgeScanTask(edge.id);
       if (res.code === 200 && res.data) {
         setScanTask(res.data);
@@ -175,16 +212,21 @@ const ConnectorPage: React.FC = () => {
     setScanTask(undefined);
 
     try {
-      const createRes = await createEdgeScanTask({ 
+      const createRes = await createEdgeScanTask({
         edge_id: currentRow.id,
         protocol: 'tcp',
       });
       if (createRes.code !== 200) {
-        message.error(createRes.message || tr('创建扫描任务失败', 'Failed to create scan task'));
+        message.error(
+          createRes.message ||
+            tr('创建扫描任务失败', 'Failed to create scan task'),
+        );
         setScanning(false);
         return;
       }
-      await new Promise<void>(resolve => { setTimeout(resolve, 1000); });
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 1000);
+      });
       const res = await getEdgeScanTask(currentRow.id);
       if (res.code === 200 && res.data) {
         setScanTask(res.data);
@@ -218,19 +260,21 @@ const ConnectorPage: React.FC = () => {
     const ip = parts[0];
     const port = parseInt(parts[1], 10);
     // 如果后端已经提供了类型，使用后端的类型；否则根据端口推断
-    const appType = parts[2] || (() => {
-      const portToType: Record<number, string> = {
-        22: 'ssh',
-        80: 'http',
-        443: 'http',
-        3389: 'rdp',
-        3306: 'mysql',
-        5432: 'postgresql',
-        6379: 'redis',
-        27017: 'mongodb',
-      };
-      return portToType[port] || 'tcp';
-    })();
+    const appType =
+      parts[2] ||
+      (() => {
+        const portToType: Record<number, string> = {
+          22: 'ssh',
+          80: 'http',
+          443: 'http',
+          3389: 'rdp',
+          3306: 'mysql',
+          5432: 'postgresql',
+          6379: 'redis',
+          27017: 'mongodb',
+        };
+        return portToType[port] || 'tcp';
+      })();
 
     // 显示确认对话框
     const handleAddOnly = async () => {
@@ -263,7 +307,16 @@ const ConnectorPage: React.FC = () => {
       title: tr('添加应用', 'Add Application'),
       content: (
         <div>
-          <div style={{ marginBottom: 8 }}>{tr('确定要添加应用', 'Add application')} <strong>{ip}:{port}</strong> {tr('吗？是否同时创建访问？', 'and create an entry at the same time?')}</div>
+          <div style={{ marginBottom: 8 }}>
+            {tr('确定要添加应用', 'Add application')}{' '}
+            <strong>
+              {ip}:{port}
+            </strong>{' '}
+            {tr(
+              '吗？是否同时创建访问？',
+              'and create an entry at the same time?',
+            )}
+          </div>
         </div>
       ),
       width: 450,
@@ -275,10 +328,12 @@ const ConnectorPage: React.FC = () => {
       okButtonProps: { style: { marginRight: 80 } },
       footer: (_, { OkBtn }) => (
         <>
-          <Button onClick={async () => {
-            modalInstance.destroy();
-            await handleAddOnly();
-          }}>
+          <Button
+            onClick={async () => {
+              modalInstance.destroy();
+              await handleAddOnly();
+            }}
+          >
             {tr('只添加应用', 'Add Only')}
           </Button>
           <OkBtn />
@@ -302,13 +357,19 @@ const ConnectorPage: React.FC = () => {
               if (scanTask) {
                 setScanTask({
                   ...scanTask,
-                  applications: scanTask.applications.filter((a) => a !== appStr),
+                  applications: scanTask.applications.filter(
+                    (a) => a !== appStr,
+                  ),
                 });
               }
               // 跳转到访问页面，传递应用ID、名称和autoCreate参数
               if (data?.id) {
-                const appName = encodeURIComponent(data.name || `App-${ip}:${port}`);
-                history.push(`/proxy?application_id=${data.id}&application_name=${appName}&autoCreate=true`);
+                const appName = encodeURIComponent(
+                  data.name || `App-${ip}:${port}`,
+                );
+                history.push(
+                  `/proxy?application_id=${data.id}&application_name=${appName}&autoCreate=true`,
+                );
               } else {
                 history.push('/proxy?autoCreate=true');
               }
@@ -347,7 +408,10 @@ const ConnectorPage: React.FC = () => {
             showSearch
             allowClear
             options={deviceOptions}
-            filterOption={(input: string, option?: { label: string; value: string }) =>
+            filterOption={(
+              input: string,
+              option?: { label: string; value: string },
+            ) =>
               (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
             }
             onFocus={loadDeviceOptions}
@@ -378,19 +442,24 @@ const ConnectorPage: React.FC = () => {
       render: (_, record) => (
         <Badge
           status={record.online === 1 ? 'success' : 'default'}
-          text={record.online === 1 ? tr('在线', 'Online') : tr('离线', 'Offline')}
+          text={
+            record.online === 1 ? tr('在线', 'Online') : tr('离线', 'Offline')
+          }
         />
       ),
     },
     {
       title: tr('运行状态', 'Runtime Status'),
       dataIndex: 'status',
-      width: 100,
+      width: 130,
       search: false,
       render: (_, record) => (
-        <Tag color={record.status === 1 ? 'green' : 'default'}>
-          {record.status === 1 ? tr('运行中', 'Running') : tr('已停止', 'Stopped')}
-        </Tag>
+        <Switch
+          checked={record.status === 1}
+          checkedChildren={tr('运行', 'On')}
+          unCheckedChildren={tr('停止', 'Off')}
+          onChange={(checked) => handleRuntimeToggle(record, checked)}
+        />
       ),
     },
     {
@@ -419,15 +488,20 @@ const ConnectorPage: React.FC = () => {
           <a onClick={() => handleDiscoverApps(record)}>
             {tr('扫描应用', 'Scan Apps')}
           </a>
-          <a onClick={() => {
-            setCurrentRow(record);
-            setEditModalVisible(true);
-          }}>
+          <a
+            onClick={() => {
+              setCurrentRow(record);
+              setEditModalVisible(true);
+            }}
+          >
             {tr('编辑', 'Edit')}
           </a>
           <DeleteLink
             title={tr('确定要删除这个连接器吗？', 'Delete this edge?')}
-            description={tr('删除后，该连接器关联的所有应用和访问将失效', 'Related applications and entries will become invalid after deletion')}
+            description={tr(
+              '将连带删除该连接器承载的应用、访问、访问密钥和关系，历史流量与任务记录会保留',
+              'Applications, entries, access keys, and relations on this edge will be removed. Traffic and task history will be retained',
+            )}
             onConfirm={() => handleDelete(record.id)}
           />
         </Space>
@@ -439,34 +513,37 @@ const ConnectorPage: React.FC = () => {
     <PageContainer>
       <div className="table-search-wrapper">
         <ProTable<API.Edge>
-        headerTitle={tr('连接器列表', 'Edges')}
-        actionRef={actionRef}
-        formRef={formRef}
-        rowKey="id"
-        columns={columns}
-        request={async (params) => {
-          console.log('ProTable request params:', params);
-          const searchParams = buildSearchParams<API.EdgeListParams>(params, ['name', 'device_name']);
-          console.log('buildSearchParams result:', searchParams);
-          return tableRequest(() => getEdgeList(searchParams), 'edges');
-        }}
-        onSubmit={(values) => {
-          console.log('ProTable onSubmit:', values);
-          // 触发表格刷新，此时会使用表单值
-          actionRef.current?.reload();
-        }}
-        toolBarRender={() => [
-          <CreateButton key="create" onClick={handleOpenCreateModal}>
-            {tr('新建连接器', 'New Edge')}
-          </CreateButton>,
-        ]}
-        pagination={defaultPagination}
-        search={{
-          ...defaultSearch,
-          labelWidth: 'auto',
-        }}
-        scroll={{ x: 'max-content' }}
-      />
+          headerTitle={tr('连接器列表', 'Edges')}
+          actionRef={actionRef}
+          formRef={formRef}
+          rowKey="id"
+          columns={columns}
+          request={async (params) => {
+            console.log('ProTable request params:', params);
+            const searchParams = buildSearchParams<API.EdgeListParams>(params, [
+              'name',
+              'device_name',
+            ]);
+            console.log('buildSearchParams result:', searchParams);
+            return tableRequest(() => getEdgeList(searchParams), 'edges');
+          }}
+          onSubmit={(values) => {
+            console.log('ProTable onSubmit:', values);
+            // 触发表格刷新，此时会使用表单值
+            actionRef.current?.reload();
+          }}
+          toolBarRender={() => [
+            <CreateButton key="create" onClick={handleOpenCreateModal}>
+              {tr('新建连接器', 'New Edge')}
+            </CreateButton>,
+          ]}
+          pagination={defaultPagination}
+          search={{
+            ...defaultSearch,
+            labelWidth: 'auto',
+          }}
+          scroll={{ x: 'max-content' }}
+        />
       </div>
 
       <StepsForm
@@ -497,7 +574,10 @@ const ConnectorPage: React.FC = () => {
             if (props.step === 2) {
               return dom.map((item: any) => {
                 if (item.key === 'submit') {
-                  return { ...item, props: { ...item.props, children: tr('完成', 'Done') } };
+                  return {
+                    ...item,
+                    props: { ...item.props, children: tr('完成', 'Done') },
+                  };
                 }
                 return item;
               });
@@ -521,7 +601,9 @@ const ConnectorPage: React.FC = () => {
               });
               if (res.code === 200 && res.data) {
                 setAccessKeys(res.data);
-                message.success(tr('连接器创建成功', 'Edge created successfully'));
+                message.success(
+                  tr('连接器创建成功', 'Edge created successfully'),
+                );
                 return true;
               }
               message.error(res.message || tr('创建失败', 'Create failed'));
@@ -536,13 +618,24 @@ const ConnectorPage: React.FC = () => {
             name="name"
             label={tr('连接器名称', 'Edge Name')}
             placeholder={tr('请输入连接器名称', 'Please input edge name')}
-            rules={[{ required: true, message: tr('请输入连接器名称', 'Please input edge name') }]}
-            extra={tr('名称用于标识这个连接器，建议使用有意义的名称', 'Use a meaningful name to identify this edge')}
+            rules={[
+              {
+                required: true,
+                message: tr('请输入连接器名称', 'Please input edge name'),
+              },
+            ]}
+            extra={tr(
+              '名称用于标识这个连接器，建议使用有意义的名称',
+              'Use a meaningful name to identify this edge',
+            )}
           />
           <ProFormTextArea
             name="description"
             label={tr('描述', 'Description')}
-            placeholder={tr('请输入连接器描述（可选）', 'Please input edge description (optional)')}
+            placeholder={tr(
+              '请输入连接器描述（可选）',
+              'Please input edge description (optional)',
+            )}
           />
         </StepsForm.StepForm>
 
@@ -554,7 +647,10 @@ const ConnectorPage: React.FC = () => {
           {accessKeys ? (
             <>
               <Alert
-                message={tr('连接器已创建，请复制下面的安装命令在目标设备上执行', 'Edge created. Copy and run the command on target device')}
+                message={tr(
+                  '连接器已创建，请复制下面的安装命令在目标设备上执行',
+                  'Edge created. Copy and run the command on target device',
+                )}
                 type="success"
                 showIcon
                 icon={<CheckCircleOutlined />}
@@ -601,9 +697,13 @@ const ConnectorPage: React.FC = () => {
                             <Paragraph
                               copyable
                               className="mb-0 text-sm"
-                              style={{ marginBottom: 0, wordBreak: 'break-all' }}
+                              style={{
+                                marginBottom: 0,
+                                wordBreak: 'break-all',
+                              }}
                             >
-                              {accessKeys.command || `curl -k -sSL https://49.232.250.11/install.sh | bash -s -- --access-key=${accessKeys.access_key} --secret-key=${accessKeys.secret_key} --server-http-addr=49.232.250.11 --server-edge-addr=49.232.250.11:30012`}
+                              {accessKeys.command ||
+                                `curl -k -sSL https://49.232.250.11/install.sh | bash -s -- --access-key=${accessKeys.access_key} --secret-key=${accessKeys.secret_key} --server-http-addr=49.232.250.11 --server-edge-addr=49.232.250.11:30012`}
                             </Paragraph>
                           </div>
                         ),
@@ -616,28 +716,39 @@ const ConnectorPage: React.FC = () => {
                             <Paragraph
                               copyable
                               className="mb-0 text-sm"
-                              style={{ marginBottom: 0, wordBreak: 'break-all' }}
+                              style={{
+                                marginBottom: 0,
+                                wordBreak: 'break-all',
+                              }}
                             >
                               {(() => {
                                 // 从后端命令中提取服务器地址，或使用默认值
                                 let serverUrl = 'https://49.232.250.11';
                                 let httpAddr = '49.232.250.11';
                                 let edgeAddr = '49.232.250.11:30012';
-                                
+
                                 if (accessKeys.command) {
                                   // 从命令中提取 URL（例如：curl -k -sSL https://xxx/install.sh）
-                                  const urlMatch = accessKeys.command.match(/https?:\/\/[^\s\/]+/);
+                                  const urlMatch =
+                                    accessKeys.command.match(
+                                      /https?:\/\/[^\s\/]+/,
+                                    );
                                   if (urlMatch) {
                                     serverUrl = urlMatch[0];
-                                    httpAddr = serverUrl.replace(/^https?:\/\//, '');
+                                    httpAddr = serverUrl.replace(
+                                      /^https?:\/\//,
+                                      '',
+                                    );
                                     // 提取 edge 地址（--server-edge-addr=xxx）
-                                    const edgeMatch = accessKeys.command.match(/--server-edge-addr=([^\s]+)/);
+                                    const edgeMatch = accessKeys.command.match(
+                                      /--server-edge-addr=([^\s]+)/,
+                                    );
                                     if (edgeMatch) {
                                       edgeAddr = edgeMatch[1];
                                     }
                                   }
                                 }
-                                
+
                                 // 使用 curl.exe 下载脚本，然后使用 PowerShell 执行（Windows 10+ 内置）
                                 // 注意：PowerShell 中 curl 是 Invoke-WebRequest 的别名，需要使用 curl.exe
                                 // 使用分号分隔命令，PowerShell 不支持 &&
@@ -652,13 +763,21 @@ const ConnectorPage: React.FC = () => {
                   />
                 </div>
                 <Alert
-                  message={tr('请妥善保管以上密钥信息，关闭后将无法再次查看', 'Keep keys safe. They cannot be viewed again after closing')}
+                  message={tr(
+                    '请妥善保管以上密钥信息，关闭后将无法再次查看',
+                    'Keep keys safe. They cannot be viewed again after closing',
+                  )}
                   type="warning"
                   showIcon
                   className="mt-4"
                 />
                 <div className="mt-4 text-gray-500 text-sm">
-                  <p>{tr('支持的操作系统：Linux (x86_64, arm64)、Windows (x86_64)、macOS (x86_64, arm64)', 'Supported OS: Linux (x86_64, arm64), Windows (x86_64), macOS (x86_64, arm64)')}</p>
+                  <p>
+                    {tr(
+                      '支持的操作系统：Linux (x86_64, arm64)、Windows (x86_64)、macOS (x86_64, arm64)',
+                      'Supported OS: Linux (x86_64, arm64), Windows (x86_64), macOS (x86_64, arm64)',
+                    )}
+                  </p>
                 </div>
               </div>
             </>
@@ -666,19 +785,22 @@ const ConnectorPage: React.FC = () => {
             <Result
               status="error"
               title={tr('未获取到密钥信息', 'Missing key information')}
-              subTitle={tr('请返回上一步重新创建', 'Please go back and create again')}
+              subTitle={tr(
+                '请返回上一步重新创建',
+                'Please go back and create again',
+              )}
             />
           )}
         </StepsForm.StepForm>
 
-        <StepsForm.StepForm
-          name="done"
-          title={tr('完成', 'Done')}
-        >
+        <StepsForm.StepForm name="done" title={tr('完成', 'Done')}>
           <Result
             status="success"
             title={tr('连接器创建成功', 'Edge created successfully')}
-            subTitle={tr('安装完成后，连接器将自动上线。您可以在连接器列表中查看状态。', 'After installation, edge will come online automatically. You can check status in edge list.')}
+            subTitle={tr(
+              '安装完成后，连接器将自动上线。您可以在连接器列表中查看状态。',
+              'After installation, edge will come online automatically. You can check status in edge list.',
+            )}
           />
         </StepsForm.StepForm>
       </StepsForm>
@@ -696,21 +818,17 @@ const ConnectorPage: React.FC = () => {
           name="name"
           label={tr('连接器名称', 'Edge Name')}
           placeholder={tr('请输入连接器名称', 'Please input edge name')}
-          rules={[{ required: true, message: tr('请输入连接器名称', 'Please input edge name') }]}
+          rules={[
+            {
+              required: true,
+              message: tr('请输入连接器名称', 'Please input edge name'),
+            },
+          ]}
         />
         <ProFormTextArea
           name="description"
           label={tr('描述', 'Description')}
           placeholder={tr('请输入连接器描述', 'Please input description')}
-        />
-        <ProFormSelect
-          name="status"
-          label={tr('运行状态', 'Runtime Status')}
-          options={[
-            { label: tr('运行中', 'Running'), value: 1 },
-            { label: tr('已停止', 'Stopped'), value: 2 },
-          ]}
-          placeholder={tr('请选择运行状态', 'Please select runtime status')}
         />
       </ModalForm>
 
@@ -733,19 +851,34 @@ const ConnectorPage: React.FC = () => {
           <div className="text-center py-12">
             <Spin
               indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />}
-              tip={tr('正在扫描内网应用...', 'Scanning intranet applications...')}
+              tip={tr(
+                '正在扫描内网应用...',
+                'Scanning intranet applications...',
+              )}
             />
           </div>
         ) : scanTask ? (
           <>
             <div className="mb-4 flex justify-between items-center">
               <Text type="secondary">
-                {tr('扫描状态', 'Scan Status')}: {scanTask.task_status === 'pending' ? tr('扫描中', 'Scanning') : scanTask.task_status === 'running' ? tr('扫描中', 'Scanning') : scanTask.task_status === 'completed' ? tr('已完成', 'Completed') : scanTask.task_status === 'failed' ? tr('失败', 'Failed') : scanTask.task_status}
+                {tr('扫描状态', 'Scan Status')}:{' '}
+                {scanTask.task_status === 'pending'
+                  ? tr('扫描中', 'Scanning')
+                  : scanTask.task_status === 'running'
+                  ? tr('扫描中', 'Scanning')
+                  : scanTask.task_status === 'completed'
+                  ? tr('已完成', 'Completed')
+                  : scanTask.task_status === 'failed'
+                  ? tr('失败', 'Failed')
+                  : scanTask.task_status}
                 {scanTask.error && (
-                  <Text type="danger" className="ml-2">{scanTask.error}</Text>
+                  <Text type="danger" className="ml-2">
+                    {scanTask.error}
+                  </Text>
                 )}
               </Text>
-              {(scanTask.task_status === 'completed' || scanTask.task_status === 'failed') && (
+              {(scanTask.task_status === 'completed' ||
+                scanTask.task_status === 'failed') && (
                 <Button size="small" onClick={handleRescan} loading={scanning}>
                   {tr('重新扫描', 'Rescan')}
                 </Button>
@@ -760,9 +893,11 @@ const ConnectorPage: React.FC = () => {
                   const ip = parts[0];
                   const port = parseInt(parts[1], 10);
                   const protocol = parts[2] || 'tcp';
-                  
+
                   // 根据端口推断应用类型
-                  const detectApplicationTypeByPort = (port: number): string => {
+                  const detectApplicationTypeByPort = (
+                    port: number,
+                  ): string => {
                     const portToType: Record<number, string> = {
                       22: 'SSH',
                       80: 'HTTP',
@@ -775,39 +910,48 @@ const ConnectorPage: React.FC = () => {
                     };
                     return portToType[port] || protocol.toUpperCase();
                   };
-                  
+
                   const appType = detectApplicationTypeByPort(port);
                   const displayText = `${ip}:${port}`;
-                  
+
                   return (
                     <List.Item
                       actions={[
-                        <Button key="add" type="link" onClick={() => handleAddDiscoveredApp(app)}>
+                        <Button
+                          key="add"
+                          type="link"
+                          onClick={() => handleAddDiscoveredApp(app)}
+                        >
                           添加
                         </Button>,
                       ]}
                     >
-                      <List.Item.Meta 
-                        title={displayText} 
+                      <List.Item.Meta
+                        title={displayText}
                         description={
                           <Space>
                             <Tag color="blue">{appType}</Tag>
                             <span>扫描到的内网服务</span>
                           </Space>
-                        } 
+                        }
                       />
                     </List.Item>
                   );
                 }}
               />
-            ) : (scanTask.task_status === 'pending' || scanTask.task_status === 'running') ? (
+            ) : scanTask.task_status === 'pending' ||
+              scanTask.task_status === 'running' ? (
               <div className="text-center py-12 text-gray-400">扫描中...</div>
             ) : (
-              <div className="text-center py-12 text-gray-400">未扫描到可用应用</div>
+              <div className="text-center py-12 text-gray-400">
+                未扫描到可用应用
+              </div>
             )}
           </>
         ) : (
-          <div className="text-center py-12 text-gray-400">点击刷新开始扫描</div>
+          <div className="text-center py-12 text-gray-400">
+            点击刷新开始扫描
+          </div>
         )}
       </Drawer>
     </PageContainer>

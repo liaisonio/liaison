@@ -250,6 +250,8 @@ message Proxy {
     string created_at = 7 [json_name = "created_at"];
     string updated_at = 8 [json_name = "updated_at"];
     string access_url = 9 [json_name = "access_url"];
+    string effective_status = 10 [json_name = "effective_status"];
+    string effective_status_message = 11 [json_name = "effective_status_message"];
 }
 
 message Proxies {

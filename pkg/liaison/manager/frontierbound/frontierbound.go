@@ -3,28 +3,46 @@ package frontierbound
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
+	"net/http"
+	"sync"
+	"time"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/frontier/api/dataplane/v1/service"
 	"github.com/liaisonio/liaison/pkg/liaison/config"
 	"github.com/liaisonio/liaison/pkg/liaison/repo"
 	"github.com/liaisonio/liaison/pkg/utils"
+	"github.com/singchia/frontier/api/dataplane/v1/service"
+	"github.com/singchia/geminio"
 )
 
 type FrontierBound interface {
 	EmitScanApplications(ctx context.Context, taskID uint, edgeID uint64, net *Net) error
+	KickEdge(ctx context.Context, edgeID uint64) error
 	Close() error
 }
 
 type frontierBound struct {
 	repo             repo.Repo
 	svc              service.Service
+	edgeConnMu       sync.Mutex
+	edgeConnAddr     map[uint64]string
+	controlPlaneURL  string
+	httpClient       *http.Client
+	registerMu       sync.Mutex
+	cancel           context.CancelFunc
 	trafficCollector interface {
 		RecordTraffic(proxyID, applicationID uint, bytesIn, bytesOut int64)
 	}
 }
+
+const (
+	registrationTimeout         = 10 * time.Second
+	registrationRepairDelay     = 10 * time.Second
+	registrationRefreshInterval = 5 * time.Minute
+)
 
 func NewFrontierBound(conf *config.Configuration, repo repo.Repo, trafficCollector interface {
 	RecordTraffic(proxyID, applicationID uint, bytesIn, bytesOut int64)
@@ -35,6 +53,9 @@ func NewFrontierBound(conf *config.Configuration, repo repo.Repo, trafficCollect
 	}
 	fb := &frontierBound{
 		repo:             repo,
+		edgeConnAddr:     map[uint64]string{},
+		controlPlaneURL:  conf.Frontier.ControlPlaneURL,
+		httpClient:       &http.Client{Timeout: 5 * time.Second},
 		trafficCollector: trafficCollector,
 	}
 
@@ -46,64 +67,78 @@ func NewFrontierBound(conf *config.Configuration, repo repo.Repo, trafficCollect
 		log.Errorf("new service error: %s", err)
 		return nil, err
 	}
-	// 注册frontier回调函数
-	err = svc.RegisterGetEdgeID(context.Background(), fb.getID)
-	if err != nil {
-		log.Errorf("register get edge id error: %s", err)
-		return nil, err
-	}
-	err = svc.RegisterEdgeOnline(context.Background(), fb.online)
-	if err != nil {
-		log.Errorf("register edge online error: %s", err)
-		return nil, err
-	}
-	err = svc.RegisterEdgeOffline(context.Background(), fb.offline)
-	if err != nil {
-		log.Errorf("register edge offline error: %s", err)
-		return nil, err
-	}
-	// 注册liaison函数
-	err = svc.Register(context.Background(), "report_device", fb.reportDevice)
-	if err != nil {
-		log.Errorf("register report device error: %s", err)
-		return nil, err
-	}
-	err = svc.Register(context.Background(), "report_device_usage", fb.reportDeviceUsage)
-	if err != nil {
-		log.Errorf("register report device usage error: %s", err)
-		return nil, err
-	}
-	err = svc.Register(context.Background(), "report_edge", fb.reportEdge)
-	if err != nil {
-		log.Errorf("register report edge error: %s", err)
-		return nil, err
-	}
-	err = svc.Register(context.Background(), "report_task_scan_application", fb.reportTaskScanApplication)
-	if err != nil {
-		log.Errorf("register report task scan application error: %s", err)
-		return nil, err
-	}
-	err = svc.Register(context.Background(), "pull_task_scan_application", fb.pullTaskScanApplication)
-	if err != nil {
-		log.Errorf("register pull task scan application error: %s", err)
-		return nil, err
-	}
-	err = svc.Register(context.Background(), "get_edge_discovered_devices", fb.getEdgeDiscoveredDevices)
-	if err != nil {
-		log.Errorf("register get edge discovered devices error: %s", err)
-		return nil, err
-	}
-	err = svc.Register(context.Background(), "update_device_heartbeat", fb.updateDeviceHeartbeat)
-	if err != nil {
-		log.Errorf("register update device heartbeat error: %s", err)
-		return nil, err
-	}
-	// 流量统计已移到entry端，不再需要edge端上报
-
 	fb.svc = svc
+	ctx, cancel := context.WithCancel(context.Background())
+	fb.cancel = cancel
+	registerCtx, cancelRegister := context.WithTimeout(context.Background(), registrationTimeout)
+	defer cancelRegister()
+	if err := fb.registerRPCs(registerCtx); err != nil {
+		cancel()
+		_ = svc.Close()
+		return nil, err
+	}
+	go fb.refreshRegistrations(ctx)
 	return fb, nil
 }
 
 func (fb *frontierBound) Close() error {
+	if fb.cancel != nil {
+		fb.cancel()
+	}
 	return fb.svc.Close()
+}
+
+func (fb *frontierBound) refreshRegistrations(ctx context.Context) {
+	timer := time.NewTimer(registrationRepairDelay)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			registerCtx, cancelRegister := context.WithTimeout(ctx, registrationTimeout)
+			err := fb.registerRPCs(registerCtx)
+			cancelRegister()
+			if err != nil {
+				log.Warnf("refresh frontier RPC registrations failed: %s", err)
+			}
+			timer.Reset(registrationRefreshInterval)
+		}
+	}
+}
+
+func (fb *frontierBound) registerRPCs(ctx context.Context) error {
+	fb.registerMu.Lock()
+	defer fb.registerMu.Unlock()
+
+	// 注册 frontier 回调函数。
+	if err := fb.svc.RegisterGetEdgeID(ctx, fb.getID); err != nil {
+		return fmt.Errorf("register get edge id: %w", err)
+	}
+	if err := fb.svc.RegisterEdgeOnline(ctx, fb.online); err != nil {
+		return fmt.Errorf("register edge online: %w", err)
+	}
+	if err := fb.svc.RegisterEdgeOffline(ctx, fb.offline); err != nil {
+		return fmt.Errorf("register edge offline: %w", err)
+	}
+
+	registrations := []struct {
+		name string
+		rpc  func(context.Context, geminio.Request, geminio.Response)
+	}{
+		{name: "report_device", rpc: fb.reportDevice},
+		{name: "report_device_usage", rpc: fb.reportDeviceUsage},
+		{name: "report_edge", rpc: fb.reportEdge},
+		{name: "report_task_scan_application", rpc: fb.reportTaskScanApplication},
+		{name: "pull_task_scan_application", rpc: fb.pullTaskScanApplication},
+		{name: "get_edge_discovered_devices", rpc: fb.getEdgeDiscoveredDevices},
+		{name: "update_device_heartbeat", rpc: fb.updateDeviceHeartbeat},
+	}
+	for _, registration := range registrations {
+		if err := fb.svc.Register(ctx, registration.name, registration.rpc); err != nil {
+			return fmt.Errorf("register %s: %w", registration.name, err)
+		}
+	}
+	return nil
 }

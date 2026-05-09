@@ -163,6 +163,7 @@ manager:
       enable: false
   db: /opt/liaison/data/liaison.db
 frontier:
+  controlplane_url: http://127.0.0.1:30010
   dial:
     addrs:
       - 127.0.0.1:30011

@@ -13,3 +13,7 @@ func (d *dao) GetAccessKeyByID(id uint) (*model.AccessKey, error) {
 	}
 	return &accessKey, nil
 }
+
+func (d *dao) DeleteAccessKeysByEdgeID(edgeID uint64) error {
+	return d.getDB().Where("edge_id = ?", edgeID).Delete(&model.AccessKey{}).Error
+}

@@ -23,21 +23,28 @@ func (cp *controlPlane) RegisterFirewallManager(firewallManager proto.FirewallMa
 }
 
 func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyRequest) (*v1.CreateProxyResponse, error) {
-	// 查看是否有冲突
-	// 获取application
 	application, err := cp.repo.GetApplicationByID(uint(req.ApplicationId))
 	if err != nil {
 		log.Warnf("application %d not found", req.ApplicationId)
 		return nil, err
 	}
-
-	// 如果端口为空或0，设置为0让系统自动分配
-	requestedPort := int(req.Port)
-	if requestedPort == 0 {
-		requestedPort = 0 // 明确设置为0，让系统自动分配
+	edge, err := cp.validateProxyApplication(application)
+	if err != nil {
+		return nil, err
 	}
 
-	// 创建Proxy持久化（如果端口为0，先保存0，后续会更新）
+	requestedPort := int(req.Port)
+	if requestedPort > 0 {
+		if err := cp.ensureProxyPortAvailable(requestedPort, 0); err != nil {
+			return nil, err
+		}
+	} else if edge.Status == model.EdgeStatusStopped {
+		requestedPort, err = cp.allocateAvailableProxyPort(0)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	proxy := &model.Proxy{
 		Name:          req.Name,
 		Status:        model.ProxyStatusRunning,
@@ -50,43 +57,20 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 		log.Warnf("failed to create proxy: %s", err)
 		return nil, err
 	}
+	proxy.Application = application
 
-	// 创建Proxy（如果端口为0，系统会自动分配）
-	// 如果是 HTTP 应用，默认使用 HTTPS
-	useHTTPS := false
-	if application.ApplicationType == model.ApplicationTypeHTTP {
-		useHTTPS = true
-	}
-
-	protoproxy := &proto.Proxy{
-		ID:              int(proxy.ID),
-		Name:            proxy.Name,
-		ProxyPort:       requestedPort, // 如果为0，系统会自动分配
-		EdgeID:          uint64(application.EdgeIDs[0]),
-		ApplicationID:   application.ID,
-		Dst:             fmt.Sprintf("%s:%d", application.IP, application.Port),
-		ApplicationType: string(application.ApplicationType),
-		UseHTTPS:        useHTTPS,
-	}
-	err = cp.proxyManager.CreateProxy(context.Background(), protoproxy)
-	if err != nil {
-		log.Errorf("failed to create proxy listener: %s", err)
-		// 如果创建失败，删除数据库记录
-		_ = cp.repo.DeleteProxy(proxy.ID)
-		return nil, err
-	}
-
-	// 如果端口为0，系统已经分配了端口，更新数据库中的端口
-	if requestedPort == 0 {
-		actualPort := protoproxy.ProxyPort
-		if actualPort > 0 {
-			proxy.Port = actualPort
-			err = cp.repo.UpdateProxy(proxy)
-			if err != nil {
-				log.Errorf("failed to update proxy port: %s", err)
-				// 即使更新失败，代理已经创建成功，继续返回成功
-			} else {
-				log.Infof("proxy %d: updated port to %d (system allocated)", proxy.ID, actualPort)
+	if edge.Status == model.EdgeStatusRunning {
+		err = cp.startProxyRuntime(proxy, application)
+		if err != nil {
+			log.Errorf("failed to create proxy listener: %s", err)
+			_ = cp.repo.DeleteProxy(proxy.ID)
+			return nil, err
+		}
+		if requestedPort == 0 && proxy.Port > 0 {
+			if err = cp.repo.UpdateProxy(proxy); err != nil {
+				_ = cp.stopProxyRuntime(proxy)
+				_ = cp.repo.DeleteProxy(proxy.ID)
+				return nil, err
 			}
 		}
 	}
@@ -119,22 +103,26 @@ func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesReques
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]uint, len(proxies))
-	for i, proxy := range proxies {
-		ids[i] = proxy.ApplicationID
+	ids := make([]uint, 0, len(proxies))
+	seenIDs := make(map[uint]bool)
+	for _, proxy := range proxies {
+		if !seenIDs[proxy.ApplicationID] {
+			ids = append(ids, proxy.ApplicationID)
+			seenIDs[proxy.ApplicationID] = true
+		}
 	}
-	// list applications
-	applications, err := cp.repo.ListApplications(&dao.ListApplicationsQuery{
-		Query: dao.Query{
-			Page:     int(req.Page),
-			PageSize: int(req.PageSize),
-			Order:    "id",
-			Desc:     true,
-		},
-		IDs: ids,
-	})
-	if err != nil {
-		return nil, err
+	var applications []*model.Application
+	if len(ids) > 0 {
+		applications, err = cp.repo.ListApplications(&dao.ListApplicationsQuery{
+			Query: dao.Query{
+				Order: "id",
+				Desc:  true,
+			},
+			IDs: ids,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	// add applications to proxies
 	// 创建一个 map 来快速查找 application
@@ -161,27 +149,26 @@ func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesReques
 	}, nil
 }
 
-// 更新代理，不允许更新代理端口
 func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyRequest) (*v1.UpdateProxyResponse, error) {
 	proxy, err := cp.repo.GetProxyByID(uint(req.Id))
 	if err != nil {
 		return nil, err
 	}
 
-	// 保存旧状态
-	oldStatus := proxy.Status
+	oldProxy := *proxy
 
-	// 更新名称
 	if req.Name != "" {
 		proxy.Name = req.Name
 	}
-
-	// 更新描述
 	if req.Description != "" {
 		proxy.Description = req.Description
 	}
-
-	// 更新状态
+	if req.Port > 0 && int(req.Port) != proxy.Port {
+		if err := cp.ensureProxyPortAvailable(int(req.Port), proxy.ID); err != nil {
+			return nil, err
+		}
+		proxy.Port = int(req.Port)
+	}
 	if req.Status != "" {
 		switch req.Status {
 		case "running":
@@ -189,52 +176,62 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 		case "stopped":
 			proxy.Status = model.ProxyStatusStopped
 		default:
-			log.Warnf("unknown proxy status: %s", req.Status)
+			return nil, fmt.Errorf("unknown proxy status: %s", req.Status)
 		}
 	}
 
-	// 如果状态发生变化，需要调用 ProxyManager
-	if oldStatus != proxy.Status {
-		// 获取 application 信息（用于启动代理时）
-		application, err := cp.repo.GetApplicationByID(proxy.ApplicationID)
+	statusChanged := oldProxy.Status != proxy.Status
+	portChanged := oldProxy.Port != proxy.Port
+	runtimeChanged := statusChanged || portChanged
+
+	var application *model.Application
+	var applicationErr error
+	if proxy.Status == model.ProxyStatusRunning || oldProxy.Status == model.ProxyStatusRunning {
+		application, applicationErr = cp.repo.GetApplicationByID(proxy.ApplicationID)
+	}
+	if proxy.Status == model.ProxyStatusRunning && applicationErr != nil {
+		return nil, applicationErr
+	}
+
+	oldRuntimeEligible := false
+	if oldProxy.Status == model.ProxyStatusRunning && applicationErr == nil {
+		oldRuntimeEligible, _ = cp.proxyRuntimeEligible(&oldProxy, application)
+	}
+	newRuntimeEligible := false
+	if proxy.Status == model.ProxyStatusRunning {
+		newRuntimeEligible, err = cp.proxyRuntimeEligible(proxy, application)
 		if err != nil {
-			log.Warnf("application %d not found", proxy.ApplicationID)
 			return nil, err
 		}
+	}
 
-		if proxy.Status == model.ProxyStatusStopped {
-			// 停止代理：调用 DeleteProxy（这会停止代理但不会删除数据库记录）
-			err = cp.proxyManager.DeleteProxy(context.Background(), int(proxy.ID))
-			if err != nil {
-				log.Errorf("failed to stop proxy: %s", err)
-				return nil, err
-			}
-		} else if proxy.Status == model.ProxyStatusRunning {
-			// 启动代理：调用 CreateProxy
-			// 如果是 HTTP 应用，默认使用 HTTPS
-			useHTTPS := false
-			if application.ApplicationType == model.ApplicationTypeHTTP {
-				useHTTPS = true
-			}
-			err = cp.proxyManager.CreateProxy(context.Background(), &proto.Proxy{
-				ID:              int(proxy.ID),
-				Name:            proxy.Name,
-				ProxyPort:       proxy.Port,
-				EdgeID:          uint64(application.EdgeIDs[0]),
-				Dst:             fmt.Sprintf("%s:%d", application.IP, application.Port),
-				ApplicationType: string(application.ApplicationType),
-				UseHTTPS:        useHTTPS,
-			})
-			if err != nil {
-				log.Errorf("failed to start proxy: %s", err)
-				return nil, err
-			}
+	if runtimeChanged && oldProxy.Status == model.ProxyStatusRunning {
+		if err := cp.stopProxyRuntime(&oldProxy); err != nil {
+			log.Errorf("failed to stop proxy: %s", err)
+			return nil, err
 		}
 	}
 
-	// 更新数据库
+	startedNewRuntime := false
+	if runtimeChanged && newRuntimeEligible {
+		if err := cp.startProxyRuntime(proxy, application); err != nil {
+			if oldRuntimeEligible {
+				_ = cp.startProxyRuntime(&oldProxy, application)
+			}
+			log.Errorf("failed to start proxy: %s", err)
+			return nil, err
+		}
+		startedNewRuntime = true
+	}
+
 	err = cp.repo.UpdateProxy(proxy)
 	if err != nil {
+		if startedNewRuntime {
+			_ = cp.stopProxyRuntime(proxy)
+		}
+		if runtimeChanged && oldRuntimeEligible {
+			_ = cp.startProxyRuntime(&oldProxy, application)
+		}
 		return nil, err
 	}
 
@@ -243,6 +240,10 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 	if err != nil {
 		return nil, err
 	}
+	if application == nil {
+		application, _ = cp.repo.GetApplicationByID(updatedProxy.ApplicationID)
+	}
+	updatedProxy.Application = application
 
 	return &v1.UpdateProxyResponse{
 		Code:    200,
@@ -252,22 +253,7 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 }
 
 func (cp *controlPlane) DeleteProxy(_ context.Context, req *v1.DeleteProxyRequest) (*v1.DeleteProxyResponse, error) {
-	proxyID := uint(req.Id)
-
-	// 停数据面（幂等）。没有在运行或 proxyManager 未注册时直接跳过。
-	if err := cp.proxyManager.DeleteProxy(context.Background(), int(proxyID)); err != nil {
-		log.Warnf("delete proxy runtime %d: %s", proxyID, err)
-	}
-	// 清理数据面防火墙状态
-	if cp.firewallManager != nil {
-		cp.firewallManager.Revoke(int(proxyID))
-	}
-	// 删除持久化的防火墙规则（如有）
-	if err := cp.repo.DeleteFirewallRuleByProxyID(proxyID); err != nil {
-		log.Warnf("delete firewall rule for proxy %d: %s", proxyID, err)
-	}
-	// 删除 proxy 本身
-	if err := cp.repo.DeleteProxy(proxyID); err != nil {
+	if err := cp.deleteProxyCascade(uint(req.Id), newLifecycleDeleteTracker()); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteProxyResponse{
@@ -290,16 +276,8 @@ func (cp *controlPlane) transformProxy(proxy *model.Proxy) *v1.Proxy {
 		application = transformApplication(proxy.Application)
 	}
 
-	// 将 ProxyStatus 转换为字符串
-	var status string
-	switch proxy.Status {
-	case model.ProxyStatusRunning:
-		status = "running"
-	case model.ProxyStatusStopped:
-		status = "stopped"
-	default:
-		status = "unknown"
-	}
+	status := proxyStatusString(proxy.Status)
+	effectiveStatus, effectiveStatusMessage := cp.proxyEffectiveStatus(proxy, proxy.Application)
 
 	// 生成访问地址 —— server_url 形如 https://<host>[:<manager_port>]，
 	// 这里只需要 host 部分,再拼 entry 自己的端口。
@@ -326,14 +304,27 @@ func (cp *controlPlane) transformProxy(proxy *model.Proxy) *v1.Proxy {
 	}
 
 	return &v1.Proxy{
-		Id:          uint64(proxy.ID),
-		Name:        proxy.Name,
-		Port:        int32(proxy.Port),
-		Status:      status,
-		Application: application,
-		Description: proxy.Description,
-		CreatedAt:   proxy.CreatedAt.Format(time.DateTime),
-		UpdatedAt:   proxy.UpdatedAt.Format(time.DateTime),
-		AccessUrl:   accessURL,
+		Id:                     uint64(proxy.ID),
+		Name:                   proxy.Name,
+		Port:                   int32(proxy.Port),
+		Status:                 status,
+		Application:            application,
+		Description:            proxy.Description,
+		CreatedAt:              proxy.CreatedAt.Format(time.DateTime),
+		UpdatedAt:              proxy.UpdatedAt.Format(time.DateTime),
+		AccessUrl:              accessURL,
+		EffectiveStatus:        effectiveStatus,
+		EffectiveStatusMessage: effectiveStatusMessage,
+	}
+}
+
+func proxyStatusString(status model.ProxyStatus) string {
+	switch status {
+	case model.ProxyStatusRunning:
+		return "running"
+	case model.ProxyStatusStopped:
+		return "stopped"
+	default:
+		return "unknown"
 	}
 }

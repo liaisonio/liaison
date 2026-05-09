@@ -43,6 +43,7 @@ type Dao interface {
 	// AccessKey 相关方法
 	CreateAccessKey(accessKey *model.AccessKey) error
 	GetAccessKeyByID(id uint) (*model.AccessKey, error)
+	DeleteAccessKeysByEdgeID(edgeID uint64) error
 
 	// Device 相关方法
 	CreateDevice(device *model.Device) error

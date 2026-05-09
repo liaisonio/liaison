@@ -85,8 +85,7 @@ func (cp *controlPlane) UpdateDevice(_ context.Context, req *v1.UpdateDeviceRequ
 }
 
 func (cp *controlPlane) DeleteDevice(_ context.Context, req *v1.DeleteDeviceRequest) (*v1.DeleteDeviceResponse, error) {
-	err := cp.repo.DeleteDevice(uint(req.Id))
-	if err != nil {
+	if err := cp.deleteDeviceCascade(uint(req.Id), newLifecycleDeleteTracker()); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteDeviceResponse{

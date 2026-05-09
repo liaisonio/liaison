@@ -2,6 +2,11 @@ daemon:
   pprof:
     addr: 127.0.0.1:6061
     enable: true
+controlplane:
+  enable: true
+  listen:
+    network: tcp
+    addr: 127.0.0.1:${FRONTIER_CONTROLPLANE_PORT}
 edgebound:
   listen:
     network: tcp

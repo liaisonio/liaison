@@ -430,6 +430,7 @@ elif ! [[ "$FRONTIER_PORT" =~ ^[0-9]+$ ]] || [ "$FRONTIER_PORT" -lt 1 ] || [ "$F
     FRONTIER_PORT="$DEFAULT_FRONTIER_PORT"
 fi
 echo -e "${GREEN}${MSG_FRONTIER_PORT_SET} ${BOLD}${CYAN}${FRONTIER_PORT}${NC}${GREEN}${NC}"
+FRONTIER_CONTROLPLANE_PORT="${FRONTIER_CONTROLPLANE_PORT:-30010}"
 
 # Get public IP address or domain
 echo ""
@@ -482,11 +483,12 @@ echo -e "${YELLOW}${MSG_RENDERING_CONFIG}${NC}"
 if [[ -d "$SCRIPT_DIR/conf" ]]; then
     # Render liaison.yaml from template
     if [[ -f "$SCRIPT_DIR/conf/liaison.yaml.template" ]]; then
-        # Replace ${PUBLIC_ADDR}, ${JWT_SECRET}, ${MANAGER_PORT}, ${FRONTIER_PORT}, and ${SERVER_URL} in the template
+        # Replace ${PUBLIC_ADDR}, ${JWT_SECRET}, ${MANAGER_PORT}, ${FRONTIER_PORT}, ${FRONTIER_CONTROLPLANE_PORT}, and ${SERVER_URL} in the template
         sed -e "s|\${PUBLIC_ADDR}|${PUBLIC_ADDR}|g" \
             -e "s|\${JWT_SECRET}|${JWT_SECRET}|g" \
             -e "s|\${MANAGER_PORT}|${MANAGER_PORT}|g" \
             -e "s|\${FRONTIER_PORT}|${FRONTIER_PORT}|g" \
+            -e "s|\${FRONTIER_CONTROLPLANE_PORT}|${FRONTIER_CONTROLPLANE_PORT}|g" \
             -e "s|\${SERVER_URL}|${SERVER_URL}|g" \
             "$SCRIPT_DIR/conf/liaison.yaml.template" > "$CONFIG_DIR/liaison.yaml"
         chown "$SERVICE_USER:$SERVICE_GROUP" "$CONFIG_DIR/liaison.yaml"
@@ -497,9 +499,10 @@ if [[ -d "$SCRIPT_DIR/conf" ]]; then
     
     # Render frontier.yaml from template
     if [[ -f "$SCRIPT_DIR/conf/frontier.yaml.template" ]]; then
-        # Replace ${PUBLIC_ADDR} and ${FRONTIER_PORT} if they exist in the template
+        # Replace ${PUBLIC_ADDR}, ${FRONTIER_PORT}, and ${FRONTIER_CONTROLPLANE_PORT} if they exist in the template
         sed -e "s|\${PUBLIC_ADDR}|${PUBLIC_ADDR}|g" \
             -e "s|\${FRONTIER_PORT}|${FRONTIER_PORT}|g" \
+            -e "s|\${FRONTIER_CONTROLPLANE_PORT}|${FRONTIER_CONTROLPLANE_PORT}|g" \
             "$SCRIPT_DIR/conf/frontier.yaml.template" > "$CONFIG_DIR/frontier.yaml"
         chown "$SERVICE_USER:$SERVICE_GROUP" "$CONFIG_DIR/frontier.yaml"
         chmod 644 "$CONFIG_DIR/frontier.yaml"

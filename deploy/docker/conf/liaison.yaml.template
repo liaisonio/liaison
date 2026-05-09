@@ -18,6 +18,7 @@ manager:
   server_url: ${SERVER_URL}
   jwt_secret: ${JWT_SECRET}
 frontier:
+  controlplane_url: http://127.0.0.1:${FRONTIER_CONTROLPLANE_PORT}
   dial:
     addrs:
       - 127.0.0.1:30011

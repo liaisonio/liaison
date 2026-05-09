@@ -9,6 +9,7 @@ services:
     network_mode: host
     environment:
       FRONTIER_PORT: ${FRONTIER_PORT:-30012}
+      FRONTIER_CONTROLPLANE_PORT: ${FRONTIER_CONTROLPLANE_PORT:-30010}
     volumes:
       - ./certs:/opt/liaison/certs
 
@@ -28,6 +29,7 @@ services:
       LIAISON_PUBLIC_HOST: ${LIAISON_PUBLIC_HOST:-localhost}
       MANAGER_PORT: ${MANAGER_PORT:-443}
       FRONTIER_PORT: ${FRONTIER_PORT:-30012}
+      FRONTIER_CONTROLPLANE_PORT: ${FRONTIER_CONTROLPLANE_PORT:-30010}
       LIAISON_ADMIN_EMAIL: ${LIAISON_ADMIN_EMAIL:-default@liaison.com}
       # Optional: pass a fixed JWT secret instead of letting first-run generate one.
       # JWT_SECRET: ""

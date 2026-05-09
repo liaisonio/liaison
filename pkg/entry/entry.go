@@ -2,11 +2,7 @@ package entry
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
-	"github.com/jumboframes/armorigo/log"
-	v1 "github.com/liaisonio/liaison/api/v1"
 	"github.com/liaisonio/liaison/pkg/entry/firewall"
 	"github.com/liaisonio/liaison/pkg/entry/frontierbound"
 	"github.com/liaisonio/liaison/pkg/entry/http"
@@ -70,8 +66,9 @@ func NewEntry(conf *config.Configuration, manager controlplane.ControlPlane, tra
 		manager:         manager,
 	}
 
-	err = entry.pullProxyConfigs()
-	if err != nil {
+	manager.ReconcileLifecycleState()
+
+	if err := manager.RestoreProxyListeners(); err != nil {
 		return nil, err
 	}
 
@@ -114,52 +111,6 @@ func (u *unifiedProxyManager) DeleteProxy(ctx context.Context, id int) error {
 	if tcpErr != nil {
 		return tcpErr
 	}
-	return nil
-}
-
-// pullProxyConfigs 定期从manager同步Proxy配置
-func (e *Entry) pullProxyConfigs() error {
-	rsp, err := e.manager.ListProxies(context.Background(), &v1.ListProxiesRequest{
-		Page:     -1,
-		PageSize: -1,
-	})
-	if err != nil {
-		log.Errorf("failed to list proxies: %s", err)
-		return err
-	}
-	if rsp.Code != 200 {
-		log.Errorf("failed to list proxies: %s", rsp.Message)
-		return errors.New(rsp.Message)
-	}
-	log.Infof("list proxies: %s", rsp.Data.GetProxies())
-
-	for _, proxy := range rsp.Data.GetProxies() {
-		application := proxy.Application
-		if application == nil {
-			log.Warnf("proxy %d (name: %s) has no associated application, skipping", proxy.Id, proxy.Name)
-			continue
-		}
-		dst := fmt.Sprintf("%s:%d", application.Ip, application.Port)
-		
-		// 判断是否是 HTTP 应用，如果是则默认使用 HTTPS
-		useHTTPS := false
-		if application.ApplicationType == "http" {
-			useHTTPS = true
-		}
-		
-		// 使用统一的 ProxyManager
-		e.proxyManager.CreateProxy(context.Background(), &proto.Proxy{
-			ID:              int(proxy.Id),
-			Name:            proxy.Name,
-			ProxyPort:       int(proxy.Port),
-			EdgeID:          application.EdgeId,
-			ApplicationID:   uint(application.Id),
-			Dst:             dst,
-			ApplicationType: application.ApplicationType,
-			UseHTTPS:        useHTTPS,
-		})
-	}
-
 	return nil
 }
 

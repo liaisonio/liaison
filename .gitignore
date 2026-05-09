@@ -64,3 +64,6 @@ certs/*.crt
 /deploy/docker/data/
 /deploy/docker/certs/
 /deploy/docker/logs/
+
+# Local runtime state
+/local-run/

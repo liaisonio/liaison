@@ -283,6 +283,7 @@ func (cp *controlPlane) UpdateEdge(_ context.Context, req *v1.UpdateEdgeRequest)
 	if err != nil {
 		return nil, err
 	}
+	oldStatus := edge.Status
 	if req.Name != "" {
 		edge.Name = req.Name
 	}
@@ -290,11 +291,32 @@ func (cp *controlPlane) UpdateEdge(_ context.Context, req *v1.UpdateEdgeRequest)
 		edge.Description = req.Description
 	}
 	if req.Status != 0 {
-		edge.Status = model.EdgeStatus(req.Status)
+		switch model.EdgeStatus(req.Status) {
+		case model.EdgeStatusRunning, model.EdgeStatusStopped:
+			edge.Status = model.EdgeStatus(req.Status)
+		default:
+			return nil, fmt.Errorf("unknown edge status: %d", req.Status)
+		}
+	}
+	statusChanged := oldStatus != edge.Status
+	if statusChanged && edge.Status == model.EdgeStatusStopped {
+		if err := cp.stopEdgeProxies(uint64(edge.ID)); err != nil {
+			return nil, err
+		}
+		if err := cp.failActiveEdgeTasks(uint64(edge.ID), "edge stopped"); err != nil {
+			return nil, err
+		}
 	}
 	err = cp.repo.UpdateEdge(edge)
 	if err != nil {
 		return nil, err
+	}
+	if statusChanged && edge.Status == model.EdgeStatusRunning {
+		if err := cp.startEdgeProxies(uint64(edge.ID)); err != nil {
+			edge.Status = oldStatus
+			_ = cp.repo.UpdateEdge(edge)
+			return nil, err
+		}
 	}
 	// 重新获取更新后的 edge 以返回完整数据
 	updatedEdge, err := cp.repo.GetEdge(req.Id)
@@ -309,8 +331,7 @@ func (cp *controlPlane) UpdateEdge(_ context.Context, req *v1.UpdateEdgeRequest)
 }
 
 func (cp *controlPlane) DeleteEdge(_ context.Context, req *v1.DeleteEdgeRequest) (*v1.DeleteEdgeResponse, error) {
-	err := cp.repo.DeleteEdge(req.Id)
-	if err != nil {
+	if err := cp.deleteEdgeCascade(req.Id, newLifecycleDeleteTracker()); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteEdgeResponse{
@@ -325,6 +346,10 @@ func (cp *controlPlane) CreateEdgeScanApplicationTask(_ context.Context, req *v1
 	if err != nil {
 		log.Errorf("get edge error: %s", err)
 		return nil, err
+	}
+	if edge.Status == model.EdgeStatusStopped {
+		log.Errorf("edge is stopped")
+		return nil, errors.New("edge is stopped")
 	}
 	if edge.Online != model.EdgeOnlineStatusOnline {
 		log.Errorf("edge is not online")

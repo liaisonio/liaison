@@ -6,9 +6,9 @@ import (
 	"errors"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/geminio"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 	"github.com/liaisonio/liaison/pkg/proto"
+	"github.com/singchia/geminio"
 	"gorm.io/gorm"
 )
 
@@ -16,6 +16,11 @@ import (
 func (fb *frontierBound) reportDeviceUsage(ctx context.Context, req geminio.Request, rsp geminio.Response) {
 	var usage proto.DeviceUsage
 	if err := json.Unmarshal(req.Data(), &usage); err != nil {
+		rsp.SetError(err)
+		return
+	}
+	edgeID, err := fb.requireRegisteredEdge(req)
+	if err != nil {
 		rsp.SetError(err)
 		return
 	}
@@ -35,25 +40,8 @@ func (fb *frontierBound) reportDeviceUsage(ctx context.Context, req geminio.Requ
 		return
 	}
 
-	// 更新 edge 心跳（edge 定期上报设备信息时更新心跳）
-	// 优先从 request 的 ClientID 获取
-	var edgeID uint64
-	if clientID := req.ClientID(); clientID > 0 {
-		edgeID = clientID
-	} else {
-		// 如果无法从 ClientID 获取，通过设备查找关联的 edge
-		hostType := model.EdgeDeviceRelationHost
-		edgeDevices, err := fb.repo.GetEdgeDevicesByDeviceID(deviceModel.ID, &hostType)
-		if err == nil && len(edgeDevices) > 0 {
-			edgeID = edgeDevices[0].EdgeID
-		}
-	}
-
-	if edgeID > 0 {
-		fb.updateEdgeHeartbeat(edgeID)
-	} else {
-		log.Debugf("cannot get edgeID from device usage request for heartbeat update")
-	}
+	// 更新 edge 心跳（edge 定期上报设备信息时更新心跳）。
+	fb.updateEdgeHeartbeat(edgeID)
 }
 
 // 上报设备
@@ -63,6 +51,12 @@ func (fb *frontierBound) reportDevice(ctx context.Context, req geminio.Request, 
 		rsp.SetError(err)
 		return
 	}
+	edgeID, err := fb.requireRequestEdge(req, device.EdgeID)
+	if err != nil {
+		rsp.SetError(err)
+		return
+	}
+	device.EdgeID = edgeID
 
 	tx := fb.repo.Begin()
 	committed := false
@@ -258,5 +252,5 @@ func (fb *frontierBound) reportDevice(ctx context.Context, req geminio.Request, 
 	}
 	committed = true
 
-	fb.updateEdgeHeartbeat(req.ClientID())
+	fb.updateEdgeHeartbeat(edgeID)
 }

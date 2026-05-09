@@ -1,3 +1,25 @@
+import { CreateButton, DeleteLink } from '@/components/TableButtons';
+import { useI18n } from '@/i18n';
+import {
+  createApplication,
+  createProxy,
+  deleteApplication,
+  getApplicationList,
+  getDeviceList,
+  getEdgeList,
+  updateApplication,
+} from '@/services/api';
+import { executeAction, tableRequest } from '@/utils/request';
+import {
+  buildSearchParams,
+  defaultPagination,
+  defaultSearch,
+} from '@/utils/tableConfig';
+import {
+  ApiOutlined,
+  CheckCircleOutlined,
+  LinkOutlined,
+} from '@ant-design/icons';
 import {
   ActionType,
   ModalForm,
@@ -8,23 +30,8 @@ import {
   ProFormText,
   ProTable,
 } from '@ant-design/pro-components';
-import { Space, Tag, Typography, Select, Form, Alert } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
-import { LinkOutlined, ApiOutlined } from '@ant-design/icons';
+import { Alert, Form, Space, Tag, Typography } from 'antd';
 import { useRef, useState } from 'react';
-import {
-  getApplicationList,
-  createApplication,
-  updateApplication,
-  deleteApplication,
-  getEdgeList,
-  createProxy,
-  getDeviceList,
-} from '@/services/api';
-import { executeAction, tableRequest } from '@/utils/request';
-import { CreateButton, DeleteLink } from '@/components/TableButtons';
-import { defaultPagination, defaultSearch, buildSearchParams } from '@/utils/tableConfig';
-import { useI18n } from '@/i18n';
 
 const { Text } = Typography;
 
@@ -37,8 +44,12 @@ const AppPage: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [proxyModalVisible, setProxyModalVisible] = useState(false);
   const [currentRow, setCurrentRow] = useState<API.Application>();
-  const [selectedApplicationType, setSelectedApplicationType] = useState<string | undefined>();
-  const [deviceOptions, setDeviceOptions] = useState<{ label: string; value: string }[]>([]);
+  const [selectedApplicationType, setSelectedApplicationType] = useState<
+    string | undefined
+  >();
+  const [deviceOptions, setDeviceOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
 
   const reload = () => actionRef.current?.reload();
 
@@ -106,7 +117,7 @@ const AppPage: React.FC = () => {
     if (!currentRow?.id) return false;
     const createPort = values.port || undefined;
     let createdProxy: API.Proxy | null = null;
-    
+
     const result = await executeAction(
       () =>
         createProxy({
@@ -126,12 +137,12 @@ const AppPage: React.FC = () => {
         },
       },
     );
-    
+
     // 如果创建时端口为空，创建后获取动态分配的端口
     // 端口已经在响应中返回，刷新列表即可显示动态分配的端口
     setProxyModalVisible(false);
     reload();
-    
+
     return result;
   };
 
@@ -204,8 +215,10 @@ const AppPage: React.FC = () => {
         showSearch: true,
         allowClear: true,
         options: deviceOptions,
-        filterOption: (input: string, option?: { label: string; value: string }) =>
-          (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
+        filterOption: (
+          input: string,
+          option?: { label: string; value: string },
+        ) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
         onFocus: loadDeviceOptions,
         onChange: (val: string) => {
           // 使用 formRef 获取表单实例并设置值
@@ -252,20 +265,28 @@ const AppPage: React.FC = () => {
       align: 'center',
       render: (_, record) => (
         <Space>
-          <a onClick={() => {
-            setCurrentRow(record);
-            setProxyModalVisible(true);
-          }}>
+          <a
+            onClick={() => {
+              setCurrentRow(record);
+              setProxyModalVisible(true);
+            }}
+          >
             {tr('创建访问', 'Create Entry')}
           </a>
-          <a onClick={() => {
-            setCurrentRow(record);
-            setEditModalVisible(true);
-          }}>
+          <a
+            onClick={() => {
+              setCurrentRow(record);
+              setEditModalVisible(true);
+            }}
+          >
             {tr('编辑', 'Edit')}
           </a>
           <DeleteLink
             title={tr('确定要删除这个应用吗？', 'Delete this application?')}
+            description={tr(
+              '将连带删除该应用下的所有访问和访问规则，历史流量记录会保留',
+              'All entries and access rules under this application will be removed. Traffic history will be retained',
+            )}
             onConfirm={() => handleDelete(record.id)}
           />
         </Space>
@@ -277,34 +298,43 @@ const AppPage: React.FC = () => {
     <PageContainer>
       <div className="table-search-wrapper">
         <ProTable<API.Application>
-        headerTitle={tr('应用列表', 'Applications')}
-        actionRef={actionRef}
-        formRef={formRef}
-        rowKey="id"
-        columns={columns}
-        request={async (params) => {
-          console.log('ProTable request params:', params);
-          const searchParams = buildSearchParams<API.ApplicationListParams>(params, ['name', 'device_name', 'application_type']);
-          console.log('buildSearchParams result:', searchParams);
-          return tableRequest(() => getApplicationList(searchParams), 'applications');
-        }}
-        onSubmit={(values) => {
-          console.log('ProTable onSubmit:', values);
-          // 触发表格刷新，此时会使用表单值
-          actionRef.current?.reload();
-        }}
-        toolBarRender={() => [
-          <CreateButton key="create" onClick={() => setCreateModalVisible(true)}>
-            {tr('新建应用', 'New Application')}
-          </CreateButton>,
-        ]}
-        pagination={defaultPagination}
-        search={{
-          ...defaultSearch,
-          labelWidth: 'auto',
-        }}
-        scroll={{ x: 'max-content' }}
-      />
+          headerTitle={tr('应用列表', 'Applications')}
+          actionRef={actionRef}
+          formRef={formRef}
+          rowKey="id"
+          columns={columns}
+          request={async (params) => {
+            console.log('ProTable request params:', params);
+            const searchParams = buildSearchParams<API.ApplicationListParams>(
+              params,
+              ['name', 'device_name', 'application_type'],
+            );
+            console.log('buildSearchParams result:', searchParams);
+            return tableRequest(
+              () => getApplicationList(searchParams),
+              'applications',
+            );
+          }}
+          onSubmit={(values) => {
+            console.log('ProTable onSubmit:', values);
+            // 触发表格刷新，此时会使用表单值
+            actionRef.current?.reload();
+          }}
+          toolBarRender={() => [
+            <CreateButton
+              key="create"
+              onClick={() => setCreateModalVisible(true)}
+            >
+              {tr('新建应用', 'New Application')}
+            </CreateButton>,
+          ]}
+          pagination={defaultPagination}
+          search={{
+            ...defaultSearch,
+            labelWidth: 'auto',
+          }}
+          scroll={{ x: 'max-content' }}
+        />
       </div>
 
       <ModalForm
@@ -325,12 +355,20 @@ const AppPage: React.FC = () => {
           name="name"
           label={tr('应用名称', 'Application Name')}
           placeholder={tr('请输入应用名称', 'Please input application name')}
-          rules={[{ required: true, message: tr('请输入应用名称', 'Please input application name') }]}
+          rules={[
+            {
+              required: true,
+              message: tr('请输入应用名称', 'Please input application name'),
+            },
+          ]}
         />
         <ProFormSelect
           name="application_type"
           label={tr('应用类型', 'Application Type')}
-          placeholder={tr('请选择应用类型（不填默认为TCP）', 'Please select application type (default TCP)')}
+          placeholder={tr(
+            '请选择应用类型（不填默认为TCP）',
+            'Please select application type (default TCP)',
+          )}
           options={[
             { label: 'HTTP', value: 'http' },
             { label: 'TCP', value: 'tcp' },
@@ -364,10 +402,39 @@ const AppPage: React.FC = () => {
         />
         {selectedApplicationType === 'http' && (
           <Alert
-            message={<span style={{ fontSize: '11px', lineHeight: '16px', marginBottom: 0, display: 'block' }}>{tr('将开启 HTTPS', 'HTTPS will be enabled')}</span>}
-            description={<span style={{ fontSize: '10px', lineHeight: '14px', marginTop: 0, display: 'block' }}>{tr('HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书', 'HTTP applications will be exposed over HTTPS with configured TLS certificates')}</span>}
+            message={
+              <span
+                style={{
+                  fontSize: '11px',
+                  lineHeight: '16px',
+                  marginBottom: 0,
+                  display: 'block',
+                }}
+              >
+                {tr('将开启 HTTPS', 'HTTPS will be enabled')}
+              </span>
+            }
+            description={
+              <span
+                style={{
+                  fontSize: '10px',
+                  lineHeight: '14px',
+                  marginTop: 0,
+                  display: 'block',
+                }}
+              >
+                {tr(
+                  'HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书',
+                  'HTTP applications will be exposed over HTTPS with configured TLS certificates',
+                )}
+              </span>
+            }
             type="info"
-            icon={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />}
+            icon={
+              <CheckCircleOutlined
+                style={{ color: '#52c41a', fontSize: '14px' }}
+              />
+            }
             style={{ marginBottom: 16, padding: '8px 12px' }}
             messageStyle={{ marginBottom: 0 }}
             descriptionStyle={{ marginTop: 0 }}
@@ -376,8 +443,16 @@ const AppPage: React.FC = () => {
         <ProFormText
           name="ip"
           label={tr('IP 地址', 'IP Address')}
-          placeholder={tr('请输入应用 IP 地址，如 192.168.1.100', 'Please input application IP, e.g. 192.168.1.100')}
-          rules={[{ required: true, message: tr('请输入 IP 地址', 'Please input IP address') }]}
+          placeholder={tr(
+            '请输入应用 IP 地址，如 192.168.1.100',
+            'Please input application IP, e.g. 192.168.1.100',
+          )}
+          rules={[
+            {
+              required: true,
+              message: tr('请输入 IP 地址', 'Please input IP address'),
+            },
+          ]}
         />
         <ProFormDigit
           name="port"
@@ -386,14 +461,31 @@ const AppPage: React.FC = () => {
           min={1}
           max={65535}
           rules={[
-            { required: true, message: tr('请输入端口号', 'Please input port') },
+            {
+              required: true,
+              message: tr('请输入端口号', 'Please input port'),
+            },
             {
               validator: (_: any, value: number) => {
                 if (!value || value === 0) {
-                  return Promise.reject(new Error(tr('端口号不能为0，请输入1-65535之间的端口号', 'Port cannot be 0, valid range is 1-65535')));
+                  return Promise.reject(
+                    new Error(
+                      tr(
+                        '端口号不能为0，请输入1-65535之间的端口号',
+                        'Port cannot be 0, valid range is 1-65535',
+                      ),
+                    ),
+                  );
                 }
                 if (value < 1 || value > 65535) {
-                  return Promise.reject(new Error(tr('端口号必须在1-65535之间', 'Port must be between 1 and 65535')));
+                  return Promise.reject(
+                    new Error(
+                      tr(
+                        '端口号必须在1-65535之间',
+                        'Port must be between 1 and 65535',
+                      ),
+                    ),
+                  );
                 }
                 return Promise.resolve();
               },
@@ -404,7 +496,12 @@ const AppPage: React.FC = () => {
           name="edge_id"
           label={tr('连接器', 'Edge')}
           placeholder={tr('请选择连接器', 'Please select edge')}
-          rules={[{ required: true, message: tr('请选择连接器', 'Please select edge') }]}
+          rules={[
+            {
+              required: true,
+              message: tr('请选择连接器', 'Please select edge'),
+            },
+          ]}
           request={async () => {
             try {
               const res = await getEdgeList({ page_size: 100 });
@@ -434,7 +531,12 @@ const AppPage: React.FC = () => {
           name="name"
           label={tr('应用名称', 'Application Name')}
           placeholder={tr('请输入应用名称', 'Please input application name')}
-          rules={[{ required: true, message: tr('请输入应用名称', 'Please input application name') }]}
+          rules={[
+            {
+              required: true,
+              message: tr('请输入应用名称', 'Please input application name'),
+            },
+          ]}
         />
       </ModalForm>
 
@@ -451,14 +553,48 @@ const AppPage: React.FC = () => {
           label={tr('访问名称', 'Entry Name')}
           placeholder={tr('请输入访问名称', 'Please input entry name')}
           initialValue={currentRow?.name}
-          rules={[{ required: true, message: tr('请输入访问名称', 'Please input entry name') }]}
+          rules={[
+            {
+              required: true,
+              message: tr('请输入访问名称', 'Please input entry name'),
+            },
+          ]}
         />
         {currentRow?.application_type === 'http' && (
           <Alert
-            message={<span style={{ fontSize: '11px', lineHeight: '16px', marginBottom: 0, display: 'block' }}>{tr('将开启 HTTPS', 'HTTPS will be enabled')}</span>}
-            description={<span style={{ fontSize: '10px', lineHeight: '14px', marginTop: 0, display: 'block' }}>{tr('HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书', 'HTTP applications will be exposed over HTTPS with configured TLS certificates')}</span>}
+            message={
+              <span
+                style={{
+                  fontSize: '11px',
+                  lineHeight: '16px',
+                  marginBottom: 0,
+                  display: 'block',
+                }}
+              >
+                {tr('将开启 HTTPS', 'HTTPS will be enabled')}
+              </span>
+            }
+            description={
+              <span
+                style={{
+                  fontSize: '10px',
+                  lineHeight: '14px',
+                  marginTop: 0,
+                  display: 'block',
+                }}
+              >
+                {tr(
+                  'HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书',
+                  'HTTP applications will be exposed over HTTPS with configured TLS certificates',
+                )}
+              </span>
+            }
             type="info"
-            icon={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: '14px' }} />}
+            icon={
+              <CheckCircleOutlined
+                style={{ color: '#52c41a', fontSize: '14px' }}
+              />
+            }
             style={{ marginBottom: 16, padding: '8px 12px' }}
             messageStyle={{ marginBottom: 0 }}
             descriptionStyle={{ marginTop: 0 }}
@@ -470,7 +606,10 @@ const AppPage: React.FC = () => {
           placeholder={tr('留空自动分配', 'Leave empty for auto allocation')}
           min={1}
           max={65535}
-          extra={tr('映射到公网的端口号，留空则自动分配', 'Mapped public port, empty means auto allocation')}
+          extra={tr(
+            '映射到公网的端口号，留空则自动分配',
+            'Mapped public port, empty means auto allocation',
+          )}
         />
         <ProFormText
           name="description"

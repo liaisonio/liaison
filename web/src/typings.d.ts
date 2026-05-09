@@ -179,6 +179,13 @@ declare namespace API {
     description?: string;
     port: number;
     status: string;
+    effective_status?:
+      | 'active'
+      | 'stopped'
+      | 'edge_stopped'
+      | 'edge_offline'
+      | 'invalid';
+    effective_status_message?: string;
     application?: Application;
     created_at: string;
     updated_at: string;

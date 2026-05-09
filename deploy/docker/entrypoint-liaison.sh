@@ -19,6 +19,7 @@ mkdir -p "$DATA_DIR" "$CERTS_DIR" "$LOG_DIR"
 
 # ---- Render config --------------------------------------------------------
 : "${FRONTIER_PORT:=30012}"
+: "${FRONTIER_CONTROLPLANE_PORT:=30010}"
 : "${LIAISON_PUBLIC_HOST:=localhost}"
 : "${MANAGER_PORT:=443}"
 : "${LIAISON_ADMIN_EMAIL:=default@liaison.com}"
@@ -37,11 +38,11 @@ if [ ! -f "$CONF_DIR/liaison.yaml" ]; then
     if [ -z "${JWT_SECRET:-}" ]; then
         JWT_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
     fi
-    export FRONTIER_PORT MANAGER_PORT SERVER_URL JWT_SECRET
+    export FRONTIER_PORT FRONTIER_CONTROLPLANE_PORT MANAGER_PORT SERVER_URL JWT_SECRET
     # shellcheck disable=SC2016
-    envsubst '${FRONTIER_PORT} ${MANAGER_PORT} ${SERVER_URL} ${JWT_SECRET}' \
+    envsubst '${FRONTIER_PORT} ${FRONTIER_CONTROLPLANE_PORT} ${MANAGER_PORT} ${SERVER_URL} ${JWT_SECRET}' \
         < "$CONF_DIR/liaison.yaml.template" > "$CONF_DIR/liaison.yaml"
-    echo "[entrypoint] rendered $CONF_DIR/liaison.yaml (public_host=$LIAISON_PUBLIC_HOST manager_port=$MANAGER_PORT frontier_port=$FRONTIER_PORT)"
+    echo "[entrypoint] rendered $CONF_DIR/liaison.yaml (public_host=$LIAISON_PUBLIC_HOST manager_port=$MANAGER_PORT frontier_port=$FRONTIER_PORT controlplane_port=$FRONTIER_CONTROLPLANE_PORT)"
 fi
 
 # ---- Generate TLS cert ----------------------------------------------------

@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/geminio"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 	"github.com/liaisonio/liaison/pkg/proto"
+	"github.com/singchia/geminio"
 )
 
 type Net struct {
@@ -50,11 +51,20 @@ func (fb *frontierBound) reportTaskScanApplication(ctx context.Context, req gemi
 		rsp.SetError(err)
 		return
 	}
+	edgeID, err := fb.requireRegisteredEdge(req)
+	if err != nil {
+		rsp.SetError(err)
+		return
+	}
 
 	// 获取任务
 	mtask, err := fb.repo.GetTask(task.TaskID)
 	if err != nil {
 		rsp.SetError(err)
+		return
+	}
+	if mtask.EdgeID != edgeID {
+		rsp.SetError(fmt.Errorf("task %d does not belong to edge %d", task.TaskID, edgeID))
 		return
 	}
 	if mtask.TaskStatus == model.TaskStatusFailed {
@@ -116,9 +126,14 @@ func (fb *frontierBound) pullTaskScanApplication(ctx context.Context, req gemini
 		rsp.SetError(err)
 		return
 	}
+	edgeID, err := fb.requireRequestEdge(req, request.EdgeID)
+	if err != nil {
+		rsp.SetError(err)
+		return
+	}
 
 	// 获取任务
-	task, err := fb.repo.GetTaskByEdgeID(request.EdgeID)
+	task, err := fb.repo.GetTaskByEdgeID(edgeID)
 	if err != nil {
 		rsp.SetError(err)
 		return

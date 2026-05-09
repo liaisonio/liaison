@@ -3,12 +3,13 @@ package frontierbound
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/geminio"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 	"github.com/liaisonio/liaison/pkg/proto"
+	"github.com/singchia/geminio"
 )
 
 // 获取 Edge 发现的设备列表（用于 ping）
@@ -18,10 +19,15 @@ func (fb *frontierBound) getEdgeDiscoveredDevices(ctx context.Context, req gemin
 		rsp.SetError(err)
 		return
 	}
+	edgeID, err := fb.requireRequestEdge(req, request.EdgeID)
+	if err != nil {
+		rsp.SetError(err)
+		return
+	}
 
 	// 通过 EdgeDevice 关系表获取 Edge 发现的设备（类型为 Discovered）
 	discoveredType := model.EdgeDeviceRelationDiscovered
-	edgeDevices, err := fb.repo.GetEdgeDevicesByEdgeID(request.EdgeID, &discoveredType)
+	edgeDevices, err := fb.repo.GetEdgeDevicesByEdgeID(edgeID, &discoveredType)
 	if err != nil {
 		log.Errorf("get edge discovered devices error: %s", err)
 		rsp.SetError(err)
@@ -80,8 +86,25 @@ func (fb *frontierBound) updateDeviceHeartbeat(ctx context.Context, req geminio.
 		rsp.SetError(err)
 		return
 	}
+	edgeID, err := fb.requireRegisteredEdge(req)
+	if err != nil {
+		rsp.SetError(err)
+		return
+	}
 
-	err := fb.repo.UpdateDeviceHeartbeat(uint(request.DeviceID))
+	discoveredType := model.EdgeDeviceRelationDiscovered
+	relation, err := fb.repo.GetEdgeDevice(edgeID, uint(request.DeviceID), discoveredType)
+	if err != nil {
+		log.Errorf("get edge device relation error: %s, edge_id: %d, device_id: %d", err, edgeID, request.DeviceID)
+		rsp.SetError(err)
+		return
+	}
+	if relation == nil {
+		rsp.SetError(fmt.Errorf("device %d is not discovered by edge %d", request.DeviceID, edgeID))
+		return
+	}
+
+	err = fb.repo.UpdateDeviceHeartbeat(uint(request.DeviceID))
 	if err != nil {
 		log.Errorf("update device heartbeat error: %s, device_id: %d", err, request.DeviceID)
 		rsp.SetError(err)

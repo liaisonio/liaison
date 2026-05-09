@@ -105,6 +105,9 @@ func (d *dao) UpdateEdge(edge *model.Edge) error {
 	if edge.Status != 0 {
 		updates["status"] = edge.Status
 	}
+	if edge.Online != 0 {
+		updates["online"] = edge.Online
+	}
 	if len(updates) > 0 {
 		if err := d.getDB().Model(&model.Edge{}).Where("id = ?", edge.ID).Updates(updates).Error; err != nil {
 			return err

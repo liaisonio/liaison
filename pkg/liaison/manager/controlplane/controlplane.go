@@ -49,6 +49,8 @@ type ControlPlane interface {
 	// persisted rules. Call after the entry layer has finished starting
 	// its proxies.
 	RestoreFirewallRules()
+	ReconcileLifecycleState()
+	RestoreProxyListeners() error
 }
 
 func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound frontierbound.FrontierBound) (ControlPlane, error) {

@@ -113,13 +113,13 @@ func (cp *controlPlane) CreateApplication(_ context.Context, req *v1.CreateAppli
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 重新获取创建的应用，包含完整的关联数据
 	createdApplication, err := cp.repo.GetApplicationByID(application.ID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &v1.CreateApplicationResponse{
 		Code:    200,
 		Message: "success",
@@ -232,11 +232,14 @@ func (cp *controlPlane) ListApplications(_ context.Context, req *v1.ListApplicat
 	for i, app := range applications {
 		applicationIDs[i] = app.ID
 	}
-	proxies, err := cp.repo.ListProxies(&dao.ListProxiesQuery{
-		ApplicationIDs: applicationIDs,
-	})
-	if err != nil {
-		return nil, err
+	var proxies []*model.Proxy
+	if len(applicationIDs) > 0 {
+		proxies, err = cp.repo.ListProxies(&dao.ListProxiesQuery{
+			ApplicationIDs: applicationIDs,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// 创建设备和Proxy映射，并关联到Application
@@ -308,8 +311,7 @@ func (cp *controlPlane) UpdateApplication(_ context.Context, req *v1.UpdateAppli
 }
 
 func (cp *controlPlane) DeleteApplication(_ context.Context, req *v1.DeleteApplicationRequest) (*v1.DeleteApplicationResponse, error) {
-	err := cp.repo.DeleteApplication(uint(req.Id))
-	if err != nil {
+	if err := cp.deleteApplicationCascade(uint(req.Id), newLifecycleDeleteTracker()); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteApplicationResponse{
@@ -352,21 +354,11 @@ func transformApplication(application *model.Application) *v1.Application {
 
 	// 填充Proxy信息（简化版，不包含Application以避免循环依赖）
 	if application.Proxy != nil {
-		// 将 ProxyStatus 转换为字符串
-		var status string
-		switch application.Proxy.Status {
-		case model.ProxyStatusRunning:
-			status = "running"
-		case model.ProxyStatusStopped:
-			status = "stopped"
-		default:
-			status = "unknown"
-		}
 		appV1.Proxy = &v1.Proxy{
 			Id:          uint64(application.Proxy.ID),
 			Name:        application.Proxy.Name,
 			Port:        int32(application.Proxy.Port),
-			Status:      status,
+			Status:      proxyStatusString(application.Proxy.Status),
 			Description: application.Proxy.Description,
 			CreatedAt:   application.Proxy.CreatedAt.Format(time.DateTime),
 			UpdatedAt:   application.Proxy.UpdatedAt.Format(time.DateTime),

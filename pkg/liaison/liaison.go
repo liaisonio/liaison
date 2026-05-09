@@ -47,18 +47,51 @@ func NewLiaison() (*Liaison, error) {
 			return nil, err
 		}
 	}
+	// Bind the public manager listener before registering RPCs with Frontier.
+	// A duplicate manager process must fail here without touching Frontier's
+	// service registry; otherwise its short-lived service connection can remove
+	// RPC routes used by the healthy manager process.
+	webListener, err := web.NewListener(config.Conf)
+	if err != nil {
+		return nil, err
+	}
+	listenerOwned := true
+	defer func() {
+		if listenerOwned {
+			_ = webListener.Close()
+		}
+	}()
+
 	// repo
 	repo, err := repo.NewRepo(config.Conf)
 	if err != nil {
 		return nil, err
 	}
+	repoOwned := true
+	defer func() {
+		if repoOwned {
+			_ = repo.Close()
+		}
+	}()
 	// traffic collector
 	trafficCollector := traffic.NewTrafficCollector(repo)
+	trafficCollectorOwned := true
+	defer func() {
+		if trafficCollectorOwned {
+			trafficCollector.Stop()
+		}
+	}()
 	// frontier bound
 	frontierBound, err := frontierbound.NewFrontierBound(config.Conf, repo, trafficCollector)
 	if err != nil {
 		return nil, err
 	}
+	frontierBoundOwned := true
+	defer func() {
+		if frontierBoundOwned {
+			_ = frontierBound.Close()
+		}
+	}()
 	// service layer
 	controlPlane, err := controlplane.NewControlPlane(config.Conf, repo, frontierBound)
 	if err != nil {
@@ -74,20 +107,38 @@ func NewLiaison() (*Liaison, error) {
 		return nil, fmt.Errorf("failed to set JWT secret: %w", err)
 	}
 	// web layer
-	web, err := web.NewWebServer(config.Conf, controlPlane, iamService)
+	webServer, err := web.NewWebServerWithListener(config.Conf, controlPlane, iamService, webListener)
 	if err != nil {
 		return nil, err
 	}
+	listenerOwned = false
+	webOwned := true
+	defer func() {
+		if webOwned {
+			_ = webServer.Close()
+		}
+	}()
 	// entry layer
 	entry, err := entry.NewEntry(config.Conf, controlPlane, trafficCollector)
 	if err != nil {
 		return nil, err
 	}
+	entryOwned := true
+	defer func() {
+		if entryOwned {
+			_ = entry.Close()
+		}
+	}()
 	// 把持久化的防火墙规则推回数据面 —— entry 此时已经把 proxies 起起来了，
 	// 在这里恢复 CIDR 白名单可以避免重启后的短暂宽松窗口。
 	controlPlane.RestoreFirewallRules()
+	webOwned = false
+	frontierBoundOwned = false
+	entryOwned = false
+	trafficCollectorOwned = false
+	repoOwned = false
 	return &Liaison{
-		web:              web,
+		web:              webServer,
 		frontierBound:    frontierBound,
 		entry:            entry,
 		repo:             repo,

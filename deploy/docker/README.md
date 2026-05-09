@@ -82,6 +82,7 @@ make package-docker
 |:---|:---|:---|
 | `MANAGER_PORT`(默认 443) | Web 控制台 HTTPS | 是 |
 | `FRONTIER_PORT`(默认 30012) | 连接器接入 | 是 |
+| `FRONTIER_CONTROLPLANE_PORT`(默认 30010) | liaison 主动断开连接器连接 | 否(loopback) |
 | 127.0.0.1:30011 | liaison ↔ frontier 本地通信 | 否(loopback) |
 
 Edge 连接器在 Web 里创建时会自动把 `LIAISON_PUBLIC_HOST:FRONTIER_PORT` 写进安装命令。改了 `FRONTIER_PORT` 之后,已发出去的 edge 安装命令也会指向新端口,老的 edge 需要重新下发。
