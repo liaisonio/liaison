@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"github.com/jumboframes/armorigo/log"
-	"github.com/singchia/geminio"
 	"github.com/liaisonio/liaison/pkg/edge/frontierbound"
 	"github.com/liaisonio/liaison/pkg/proto"
+	"github.com/singchia/geminio"
 )
 
 type Proxy interface{}

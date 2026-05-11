@@ -79,5 +79,11 @@ func (d *dao) UpdateProxy(proxy *model.Proxy) error {
 }
 
 func (d *dao) DeleteProxy(id uint) error {
+	if err := d.DeleteWebSSHHostKeyByProxyID(id); err != nil {
+		return err
+	}
+	if err := d.DeleteWebSSHCredentialByProxyID(id); err != nil {
+		return err
+	}
 	return d.getDB().Delete(&model.Proxy{}, id).Error
 }

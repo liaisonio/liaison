@@ -201,6 +201,45 @@ export async function deleteProxy(id: number) {
   });
 }
 
+/** 获取 WebSSH 目标信息 GET /v1/webssh/proxies/:id */
+export async function getWebSSHTarget(id: number) {
+  return request<API.Response<API.WebSSHTarget>>(
+    `/api/v1/webssh/proxies/${id}`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+/** 创建 WebSSH 会话 POST /v1/webssh/proxies/:id/session */
+export async function createWebSSHSession(
+  id: number,
+  data: API.CreateWebSSHSessionRequest,
+) {
+  return request<API.Response<API.CreateWebSSHSessionResponse>>(
+    `/api/v1/webssh/proxies/${id}/session`,
+    {
+      method: 'POST',
+      data,
+    },
+  );
+}
+
+/** 重置 WebSSH host key DELETE /v1/webssh/proxies/:id/host-key */
+export async function deleteWebSSHHostKey(id: number) {
+  return request<API.Response>(`/api/v1/webssh/proxies/${id}/host-key`, {
+    method: 'DELETE',
+  });
+}
+
+/** 清除 WebSSH 保存凭据 DELETE /v1/webssh/proxies/:id/credential */
+export async function deleteWebSSHCredential(id: number, username?: string) {
+  return request<API.Response>(`/api/v1/webssh/proxies/${id}/credential`, {
+    method: 'DELETE',
+    params: username ? { username } : undefined,
+  });
+}
+
 /** 获取流量监控列表 GET /v1/traffic-metrics */
 export async function getTrafficMetricsList(params?: API.TrafficMetricsListParams) {
   return request<API.Response<API.TrafficMetricsListResult>>('/api/v1/traffic-metrics', {

@@ -215,6 +215,46 @@ declare namespace API {
     status?: string;
   }
 
+  // ========== WebSSH ==========
+  interface WebSSHHostKey {
+    trusted: boolean;
+    algorithm?: string;
+    fingerprint_sha256?: string;
+  }
+
+  interface WebSSHCredential {
+    saved: boolean;
+    username?: string;
+    last_used_at?: string;
+  }
+
+  interface WebSSHTarget {
+    proxy_id: number;
+    proxy_name: string;
+    application_id: number;
+    application_name: string;
+    target_host: string;
+    target_port: number;
+    effective_status: string;
+    effective_status_message?: string;
+    host_key?: WebSSHHostKey;
+    credentials?: WebSSHCredential[];
+  }
+
+  interface CreateWebSSHSessionRequest {
+    username?: string;
+    password?: string;
+    save_credential?: boolean;
+    cols?: number;
+    rows?: number;
+  }
+
+  interface CreateWebSSHSessionResponse {
+    token: string;
+    ws_url: string;
+    expires_at: string;
+  }
+
   // ========== 流量监控 (Traffic Metric) ==========
   interface TrafficMetric {
     id: number;

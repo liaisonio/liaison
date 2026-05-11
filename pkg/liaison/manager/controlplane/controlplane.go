@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"net"
 
 	v1 "github.com/liaisonio/liaison/api/v1"
 	"github.com/liaisonio/liaison/pkg/liaison/config"
@@ -31,6 +32,16 @@ type ControlPlane interface {
 	CreateProxy(ctx context.Context, req *v1.CreateProxyRequest) (*v1.CreateProxyResponse, error)
 	UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequest) (*v1.UpdateProxyResponse, error)
 	DeleteProxy(ctx context.Context, req *v1.DeleteProxyRequest) (*v1.DeleteProxyResponse, error)
+
+	GetWebSSHTarget(ctx context.Context, proxyID uint) (*WebSSHTarget, error)
+	OpenWebSSHStream(ctx context.Context, proxyID uint) (net.Conn, *WebSSHTarget, error)
+	TrustWebSSHHostKey(ctx context.Context, proxyID uint, algorithm, fingerprintSHA256, publicKey string) error
+	DeleteWebSSHHostKey(ctx context.Context, proxyID uint) error
+	GetWebSSHCredentials(ctx context.Context, proxyID uint) ([]*WebSSHCredential, error)
+	GetWebSSHCredentialSecret(ctx context.Context, proxyID uint, username string) (*WebSSHCredentialSecret, error)
+	SaveWebSSHCredential(ctx context.Context, proxyID uint, username, encryptedPassword, nonce string) error
+	TouchWebSSHCredential(ctx context.Context, proxyID uint, username string) error
+	DeleteWebSSHCredential(ctx context.Context, proxyID uint, username string) error
 
 	CreateEdgeScanApplicationTask(ctx context.Context, req *v1.CreateEdgeScanApplicationTaskRequest) (*v1.CreateEdgeScanApplicationTaskResponse, error)
 	GetEdgeScanApplicationTask(ctx context.Context, req *v1.GetEdgeScanApplicationTaskRequest) (*v1.GetEdgeScanApplicationTaskResponse, error)

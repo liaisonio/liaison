@@ -29,7 +29,7 @@ import {
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import { useLocation, useSearchParams } from '@umijs/max';
+import { history, useLocation, useSearchParams } from '@umijs/max';
 import {
   Alert,
   Button,
@@ -652,6 +652,10 @@ const ProxyPage: React.FC = () => {
       align: 'center',
       render: (_, record) => {
         const accessUrl = record.access_url;
+        const isSSH = record.application?.application_type === 'ssh';
+        const isActive =
+          (record.effective_status ||
+            (record.status === 'running' ? 'active' : 'stopped')) === 'active';
         const url =
           accessUrl && typeof accessUrl === 'string'
             ? accessUrl.startsWith('http://') ||
@@ -662,25 +666,34 @@ const ProxyPage: React.FC = () => {
 
         return (
           <Space>
-            {url &&
-              (record.effective_status ||
-                (record.status === 'running' ? 'active' : 'stopped')) ===
-                'active' && (
-                <Tooltip
-                  title={<span style={{ fontSize: '12px' }}>{accessUrl}</span>}
-                >
-                  <Button
-                    type="link"
-                    size="small"
-                    style={{ padding: 0, height: 'auto' }}
-                    onClick={() => {
+            {isActive && (isSSH || url) && (
+              <Tooltip
+                title={
+                  <span style={{ fontSize: '12px' }}>
+                    {isSSH
+                      ? tr('在网页终端中打开 SSH', 'Open SSH in web terminal')
+                      : accessUrl}
+                  </span>
+                }
+              >
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ padding: 0, height: 'auto' }}
+                  onClick={() => {
+                    if (isSSH) {
+                      history.push(`/webssh/${record.id}`);
+                      return;
+                    }
+                    if (url) {
                       window.open(url, '_blank');
-                    }}
-                  >
-                    {tr('去访问', 'Open')}
-                  </Button>
-                </Tooltip>
-              )}
+                    }
+                  }}
+                >
+                  {tr('去访问', 'Open')}
+                </Button>
+              </Tooltip>
+            )}
             <Button
               type="link"
               size="small"

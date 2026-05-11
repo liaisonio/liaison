@@ -20,6 +20,7 @@ import (
 
 type FrontierBound interface {
 	EmitScanApplications(ctx context.Context, taskID uint, edgeID uint64, net *Net) error
+	OpenStream(ctx context.Context, edgeID uint64) (geminio.Stream, error)
 	KickEdge(ctx context.Context, edgeID uint64) error
 	Close() error
 }

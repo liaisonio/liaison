@@ -1,0 +1,99 @@
+.webssh-shell {
+  position: relative;
+  display: flex;
+  min-height: calc(100vh - 150px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: #0f1419;
+}
+
+.webssh-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: #ffffff;
+}
+
+.webssh-loading {
+  position: absolute;
+  z-index: 2;
+  top: 57px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.webssh-alert {
+  margin: 12px 16px 0;
+}
+
+.webssh-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.webssh-login {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: #f8fafc;
+}
+
+.webssh-terminal {
+  position: relative;
+  min-height: 480px;
+  flex: 1;
+  padding: 12px;
+  background: #101418;
+}
+
+.webssh-terminal-screen {
+  height: 100%;
+}
+
+.webssh-key-capture {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  outline: none;
+  resize: none;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  opacity: 0.01;
+}
+
+.webssh-terminal-screen .xterm {
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .webssh-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .webssh-login .ant-form {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .webssh-login .ant-form-item {
+    margin-right: 0;
+  }
+}

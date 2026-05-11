@@ -118,6 +118,19 @@ type Dao interface {
 	ListFirewallRulesByUserID(userID uint) ([]*model.ProxyFirewallRule, error)
 	ListAllFirewallRules() ([]*model.ProxyFirewallRule, error)
 
+	// WebSSHHostKey 相关方法
+	GetWebSSHHostKeyByProxyID(proxyID uint) (*model.WebSSHHostKey, error)
+	UpsertWebSSHHostKey(hostKey *model.WebSSHHostKey) error
+	DeleteWebSSHHostKeyByProxyID(proxyID uint) error
+
+	// WebSSHCredential 相关方法
+	ListWebSSHCredentialsByProxyAndUser(proxyID, userID uint) ([]*model.WebSSHCredential, error)
+	GetWebSSHCredential(proxyID, userID uint, username string) (*model.WebSSHCredential, error)
+	UpsertWebSSHCredential(credential *model.WebSSHCredential) error
+	TouchWebSSHCredential(proxyID, userID uint, username string) error
+	DeleteWebSSHCredential(proxyID, userID uint, username string) error
+	DeleteWebSSHCredentialByProxyID(proxyID uint) error
+
 	// 资源清理
 	Close() error
 }
@@ -162,7 +175,7 @@ func NewDao(config *config.Configuration) (Dao, error) {
 }
 
 func (d *dao) initDB() error {
-	return d.db.AutoMigrate(
+	if err := d.db.AutoMigrate(
 		&model.Edge{},
 		&model.AccessKey{},
 		&model.Device{},
@@ -175,7 +188,12 @@ func (d *dao) initDB() error {
 		&model.TrafficMetric{},
 		&model.UserAPIToken{},
 		&model.ProxyFirewallRule{},
-	)
+		&model.WebSSHHostKey{},
+		&model.WebSSHCredential{},
+	); err != nil {
+		return err
+	}
+	return d.migrateWebSSHCredentials()
 }
 
 // Begin 开始事务 - 返回新的事务 DAO 实例

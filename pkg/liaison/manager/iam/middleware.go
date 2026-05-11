@@ -111,6 +111,12 @@ func isIAMEndpoint(path string) bool {
 	if strings.HasPrefix(path, "/api/v1/proxies/") && strings.HasSuffix(path, "/firewall") {
 		return true
 	}
+	// WebSSH WebSocket upgrades are authorized by one-time session tokens
+	// instead of Authorization headers. Other WebSSH HTTP routes still use the
+	// normal bearer-token flow.
+	if strings.HasPrefix(path, "/api/v1/webssh/sessions/") && strings.HasSuffix(path, "/connect") {
+		return true
+	}
 
 	for _, noAuthPath := range noAuthPaths {
 		if path == noAuthPath {

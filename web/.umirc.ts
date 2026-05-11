@@ -54,6 +54,11 @@ export default defineConfig({
       component: './Proxy',
     },
     {
+      path: '/webssh/:proxyId',
+      component: './WebSSH',
+      hideInMenu: true,
+    },
+    {
       name: '设备/应用',
       path: '/resource',
       icon: 'AppstoreOutlined',

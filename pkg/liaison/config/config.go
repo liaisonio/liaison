@@ -46,6 +46,7 @@ type Manager struct {
 	WebDir           string        `yaml:"web_dir,omitempty" json:"web_dir"`                       // 前端文件目录，如果为空则不提供前端服务
 	FrontierEdgePort int           `yaml:"frontier_edge_port,omitempty" json:"frontier_edge_port"` // Edge 和 Frontier 之间的通信端口
 	JWTSecret        string        `yaml:"jwt_secret,omitempty" json:"jwt_secret"`                 // JWT 密钥（必需，至少32字符）
+	CredentialSecret string        `yaml:"credential_secret,omitempty" json:"credential_secret"`   // WebSSH 凭据加密密钥；为空时回退使用 JWTSecret
 }
 
 type Frontier struct {

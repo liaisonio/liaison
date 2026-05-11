@@ -1,6 +1,7 @@
 package web
 
 import (
+	"crypto/sha256"
 	"errors"
 	"net"
 	"net/http"
@@ -34,8 +35,10 @@ type web struct {
 	app *kratos.App
 
 	// deps
-	controlPlane controlplane.ControlPlane
-	iamService   *iam.IAMService
+	controlPlane  controlplane.ControlPlane
+	iamService    *iam.IAMService
+	webSSH        *webSSHSessionStore
+	credentialKey []byte
 }
 
 func NewWebServer(conf *config.Configuration, controlPlane controlplane.ControlPlane, iamService *iam.IAMService) (Web, error) {
@@ -59,9 +62,12 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	if ln == nil {
 		return nil, errors.New("web listener is nil")
 	}
+	credentialKey := deriveWebSSHCredentialKey(conf)
 	web := &web{
-		controlPlane: controlPlane,
-		iamService:   iamService,
+		controlPlane:  controlPlane,
+		iamService:    iamService,
+		webSSH:        newWebSSHSessionStore(),
+		credentialKey: credentialKey,
 	}
 	// 创建认证中间件
 	authMiddleware := iam.AuthMiddleware(web.iamService)
@@ -83,6 +89,13 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 
 	// 代理防火墙
 	srv.HandleFunc("/api/v1/proxies/{id}/firewall", web.handleFirewallHTTP)
+
+	// WebSSH
+	srv.HandleFunc("/api/v1/webssh/proxies/{id}", web.handleWebSSHTargetHTTP)
+	srv.HandleFunc("/api/v1/webssh/proxies/{id}/session", web.handleCreateWebSSHSessionHTTP)
+	srv.HandleFunc("/api/v1/webssh/proxies/{id}/credential", web.handleWebSSHCredentialHTTP)
+	srv.HandleFunc("/api/v1/webssh/proxies/{id}/host-key", web.handleWebSSHHostKeyHTTP)
+	srv.HandleFunc("/api/v1/webssh/sessions/{token}/connect", web.handleWebSSHConnectHTTP)
 
 	// 文件服务
 	if err := web.serveFiles(conf, srv); err != nil {
@@ -202,4 +215,19 @@ func (web *web) Serve() error {
 
 func (web *web) Close() error {
 	return web.app.Stop()
+}
+
+func deriveWebSSHCredentialKey(conf *config.Configuration) []byte {
+	secret := ""
+	if conf != nil {
+		secret = strings.TrimSpace(conf.Manager.CredentialSecret)
+		if secret == "" {
+			secret = strings.TrimSpace(conf.Manager.JWTSecret)
+		}
+	}
+	if secret == "" {
+		return nil
+	}
+	sum := sha256.Sum256([]byte("liaison-webssh-credential:" + secret))
+	return sum[:]
 }
