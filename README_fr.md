@@ -114,9 +114,9 @@ Application de barre de menus / barre d'état système qui encapsule le connecte
 
 | Plateforme | Fichier |
 |:---|:---|
-| macOS (Apple Silicon + Intel, universel) | [`Liaison_0.1.0_universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_universal.dmg) |
-| Windows (installateur .msi) | [`Liaison_0.1.0_x64_en-US.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64_en-US.msi) |
-| Windows (.exe NSIS, avec nettoyage du trousseau à la désinstallation) | [`Liaison_0.1.0_x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64-setup.exe) |
+| macOS (Apple Silicon + Intel, universel) | [`Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg) |
+| Windows (installateur .msi) | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi) |
+| Windows (.exe NSIS, avec nettoyage du trousseau à la désinstallation) | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe) |
 
 > Les installateurs v0.1 ne sont pas signés. Gatekeeper macOS et Windows SmartScreen avertiront au premier lancement — clic droit → Ouvrir sur macOS, ou « Informations supplémentaires » → « Exécuter quand même » sur Windows. WebView2 Runtime est requis sur Windows ; Win10 1803+ et Win11 l'incluent.
 

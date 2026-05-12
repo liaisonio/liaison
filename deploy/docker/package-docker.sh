@@ -79,6 +79,7 @@ rm -f "$PACK_DIR/.env.example.tmp"
 
 cp deploy/docker/load.sh "$PACK_DIR/load.sh"
 cp deploy/docker/uninstall.sh "$PACK_DIR/uninstall.sh"
+cp LICENSE "$PACK_DIR/LICENSE"
 chmod +x "$PACK_DIR/load.sh" "$PACK_DIR/uninstall.sh"
 
 cat > "$PACK_DIR/README.md" <<EOF

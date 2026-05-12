@@ -114,9 +114,9 @@ cd liaison-1.5.0-docker-amd64
 
 | 平台 | 文件 |
 |:---|:---|
-| macOS（Apple Silicon + Intel 通用） | [`Liaison_0.1.0_universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_universal.dmg) |
-| Windows（.msi 安装器） | [`Liaison_0.1.0_x64_en-US.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64_en-US.msi) |
-| Windows（.exe NSIS，卸载时清理 keychain） | [`Liaison_0.1.0_x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64-setup.exe) |
+| macOS（Apple Silicon + Intel 通用） | [`Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg) |
+| Windows（.msi 安装器） | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi) |
+| Windows（.exe NSIS，卸载时清理 keychain） | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe) |
 
 > v0.1 的安装包未签名。macOS Gatekeeper 与 Windows SmartScreen 首次启动会提示——macOS 上右键点击 → 打开，Windows 上选「更多信息」→「仍要运行」。Windows 需要 WebView2 Runtime；Win10 1803+ 和 Win11 已自带。
 

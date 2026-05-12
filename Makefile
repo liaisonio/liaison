@@ -154,7 +154,15 @@ endef
 define local-build-darwin
 	@echo "Building $(2) for darwin-$(1)..."
 	@mkdir -p ./bin
-	@CGO_ENABLED=1 GOOS=darwin GOARCH=$(1) go build $(GO_BUILD_FLAGS) -o ./bin/$(2) $(3)
+	@if [ "$$(uname)" != "Darwin" ]; then \
+		echo "❌ Error: darwin CGO builds must run on macOS"; \
+		exit 1; \
+	fi
+	@ARCH_FLAG="$$(if [ "$(1)" = "amd64" ]; then echo "x86_64"; else echo "arm64"; fi)" && \
+		CGO_ENABLED=1 GOOS=darwin GOARCH=$(1) \
+		CC="clang -arch $$ARCH_FLAG" \
+		CXX="clang++ -arch $$ARCH_FLAG" \
+		go build $(GO_BUILD_FLAGS) -o ./bin/$(2) $(3)
 	@chmod +x ./bin/$(2)
 	@echo "✅ Built: ./bin/$(2)"
 endef
@@ -327,19 +335,7 @@ build-edge-darwin-arm64:
 
 .PHONY: build-edge-windows-amd64
 build-edge-windows-amd64: docker-image
-	@echo "Building liaison-edge for windows-amd64..."
-	@mkdir -p ./bin
-	@$(DOCKER_BASE) \
-		--platform linux/amd64 \
-		-e CGO_ENABLED=1 \
-		-e GOOS=windows \
-		-e GOARCH=amd64 \
-		-e GOTOOLCHAIN=auto \
-		$(DOCKER_IMAGE) sh -c "\
-			go env -w GOTOOLCHAIN=auto && \
-			go mod download && \
-			CGO_ENABLED=1 go build $(GO_BUILD_FLAGS) -o ./bin/liaison-edge-windows-amd64.exe cmd/edge/main.go"
-	@echo "✅ Built: ./bin/liaison-edge-windows-amd64.exe"
+	$(call docker-build-no-cgo,linux/amd64,windows,amd64,liaison-edge-windows-amd64.exe,cmd/edge/main.go)
 
 # ============================================================================
 # Tar command detection: prefer gtar (GNU tar) if available
@@ -359,11 +355,11 @@ package-edge-linux-amd64: build-edge-linux-amd64
 	@mkdir -p ./packages/edge
 	@TMP_DIR=$$(mktemp -d) && \
 		PACKAGE_PATH="$$(pwd)/packages/edge/liaison-edge-linux-amd64.tar.gz" && \
-		COPYFILE_DISABLE=1 cp ./bin/liaison-edge-linux-amd64 $$TMP_DIR/liaison-edge && \
-		COPYFILE_DISABLE=1 cp ./dist/edge/liaison-edge.yaml.template $$TMP_DIR/liaison-edge.yaml.template && \
-		cd $$TMP_DIR && \
-		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf $$PACKAGE_PATH liaison-edge liaison-edge.yaml.template && \
-		rm -rf $$TMP_DIR && \
+		COPYFILE_DISABLE=1 cp ./bin/liaison-edge-linux-amd64 "$$TMP_DIR/liaison-edge" && \
+		COPYFILE_DISABLE=1 cp ./dist/edge/liaison-edge.yaml.template "$$TMP_DIR/liaison-edge.yaml.template" && \
+		cd "$$TMP_DIR" && \
+		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf "$$PACKAGE_PATH" liaison-edge liaison-edge.yaml.template && \
+		rm -rf "$$TMP_DIR" && \
 		echo "✅ Package created: ./packages/edge/liaison-edge-linux-amd64.tar.gz"
 
 .PHONY: package-edge-linux-arm64
@@ -372,11 +368,11 @@ package-edge-linux-arm64: build-edge-linux-arm64
 	@mkdir -p ./packages/edge
 	@TMP_DIR=$$(mktemp -d) && \
 		PACKAGE_PATH="$$(pwd)/packages/edge/liaison-edge-linux-arm64.tar.gz" && \
-		COPYFILE_DISABLE=1 cp ./bin/liaison-edge-linux-arm64 $$TMP_DIR/liaison-edge && \
-		COPYFILE_DISABLE=1 cp ./dist/edge/liaison-edge.yaml.template $$TMP_DIR/liaison-edge.yaml.template && \
-		cd $$TMP_DIR && \
-		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf $$PACKAGE_PATH liaison-edge liaison-edge.yaml.template && \
-		rm -rf $$TMP_DIR && \
+		COPYFILE_DISABLE=1 cp ./bin/liaison-edge-linux-arm64 "$$TMP_DIR/liaison-edge" && \
+		COPYFILE_DISABLE=1 cp ./dist/edge/liaison-edge.yaml.template "$$TMP_DIR/liaison-edge.yaml.template" && \
+		cd "$$TMP_DIR" && \
+		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf "$$PACKAGE_PATH" liaison-edge liaison-edge.yaml.template && \
+		rm -rf "$$TMP_DIR" && \
 		echo "✅ Package created: ./packages/edge/liaison-edge-linux-arm64.tar.gz"
 
 .PHONY: package-edge-darwin-amd64
@@ -385,11 +381,11 @@ package-edge-darwin-amd64: build-edge-darwin-amd64
 	@mkdir -p ./packages/edge
 	@TMP_DIR=$$(mktemp -d) && \
 		PACKAGE_PATH="$$(pwd)/packages/edge/liaison-edge-darwin-amd64.tar.gz" && \
-		COPYFILE_DISABLE=1 cp -X ./bin/liaison-edge-darwin-amd64 $$TMP_DIR/liaison-edge && \
-		COPYFILE_DISABLE=1 cp -X ./dist/edge/liaison-edge.yaml.template $$TMP_DIR/liaison-edge.yaml.template && \
-		cd $$TMP_DIR && \
-		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf $$PACKAGE_PATH liaison-edge liaison-edge.yaml.template && \
-		rm -rf $$TMP_DIR && \
+		COPYFILE_DISABLE=1 cp -X ./bin/liaison-edge-darwin-amd64 "$$TMP_DIR/liaison-edge" && \
+		COPYFILE_DISABLE=1 cp -X ./dist/edge/liaison-edge.yaml.template "$$TMP_DIR/liaison-edge.yaml.template" && \
+		cd "$$TMP_DIR" && \
+		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf "$$PACKAGE_PATH" liaison-edge liaison-edge.yaml.template && \
+		rm -rf "$$TMP_DIR" && \
 		echo "✅ Package created: ./packages/edge/liaison-edge-darwin-amd64.tar.gz"
 
 .PHONY: package-edge-darwin-arm64
@@ -398,11 +394,11 @@ package-edge-darwin-arm64: build-edge-darwin-arm64
 	@mkdir -p ./packages/edge
 	@TMP_DIR=$$(mktemp -d) && \
 		PACKAGE_PATH="$$(pwd)/packages/edge/liaison-edge-darwin-arm64.tar.gz" && \
-		COPYFILE_DISABLE=1 cp -X ./bin/liaison-edge-darwin-arm64 $$TMP_DIR/liaison-edge && \
-		COPYFILE_DISABLE=1 cp -X ./dist/edge/liaison-edge.yaml.template $$TMP_DIR/liaison-edge.yaml.template && \
-		cd $$TMP_DIR && \
-		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf $$PACKAGE_PATH liaison-edge liaison-edge.yaml.template && \
-		rm -rf $$TMP_DIR && \
+		COPYFILE_DISABLE=1 cp -X ./bin/liaison-edge-darwin-arm64 "$$TMP_DIR/liaison-edge" && \
+		COPYFILE_DISABLE=1 cp -X ./dist/edge/liaison-edge.yaml.template "$$TMP_DIR/liaison-edge.yaml.template" && \
+		cd "$$TMP_DIR" && \
+		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf "$$PACKAGE_PATH" liaison-edge liaison-edge.yaml.template && \
+		rm -rf "$$TMP_DIR" && \
 		echo "✅ Package created: ./packages/edge/liaison-edge-darwin-arm64.tar.gz"
 
 .PHONY: package-edge-windows-amd64
@@ -411,11 +407,11 @@ package-edge-windows-amd64: build-edge-windows-amd64
 	@mkdir -p ./packages/edge
 	@TMP_DIR=$$(mktemp -d) && \
 		PACKAGE_PATH="$$(pwd)/packages/edge/liaison-edge-windows-amd64.tar.gz" && \
-		COPYFILE_DISABLE=1 cp ./bin/liaison-edge-windows-amd64.exe $$TMP_DIR/liaison-edge.exe && \
-		COPYFILE_DISABLE=1 cp ./dist/edge/liaison-edge.yaml.template $$TMP_DIR/liaison-edge.yaml.template && \
-		cd $$TMP_DIR && \
-		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf $$PACKAGE_PATH liaison-edge.exe liaison-edge.yaml.template && \
-		rm -rf $$TMP_DIR && \
+		COPYFILE_DISABLE=1 cp ./bin/liaison-edge-windows-amd64.exe "$$TMP_DIR/liaison-edge.exe" && \
+		COPYFILE_DISABLE=1 cp ./dist/edge/liaison-edge.yaml.template "$$TMP_DIR/liaison-edge.yaml.template" && \
+		cd "$$TMP_DIR" && \
+		COPYFILE_DISABLE=1 $(TAR_CMD) --exclude='._*' --exclude='.DS_Store' -czf "$$PACKAGE_PATH" liaison-edge.exe liaison-edge.yaml.template && \
+		rm -rf "$$TMP_DIR" && \
 		echo "✅ Package created: ./packages/edge/liaison-edge-windows-amd64.tar.gz"
 
 # Legacy aliases
@@ -546,19 +542,5 @@ update-version version:
 		echo "❌ Error: missing version. Usage: make version=1.2.7"; \
 		exit 1; \
 	fi
-	@RAW_VERSION="$(version)"; \
-	if echo "$$RAW_VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$$'; then \
-		NEW_VERSION="$$RAW_VERSION"; \
-	elif echo "$$RAW_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
-		NEW_VERSION="v$$RAW_VERSION"; \
-	else \
-		echo "❌ Error: invalid version '$$RAW_VERSION'. Expect 1.2.7 or v1.2.7"; \
-		exit 1; \
-	fi; \
-	echo "$$NEW_VERSION" > VERSION; \
-	for f in README.md README_zh.md README_ja.md README_ko.md README_es.md README_fr.md README_de.md; do \
-		if [ -f "$$f" ]; then \
-			sed -E "s/v[0-9]+\.[0-9]+\.[0-9]+/$$NEW_VERSION/g" "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
-		fi; \
-	done; \
-	echo "✅ Updated version to $$NEW_VERSION in VERSION + all language READMEs"
+	@chmod +x scripts/sync-release-version.sh
+	@scripts/sync-release-version.sh "$(version)"

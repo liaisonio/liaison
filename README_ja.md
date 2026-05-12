@@ -114,9 +114,9 @@ cd liaison-1.5.0-docker-amd64
 
 | プラットフォーム | ファイル |
 |:---|:---|
-| macOS (Apple Silicon + Intel ユニバーサル) | [`Liaison_0.1.0_universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_universal.dmg) |
-| Windows (.msi インストーラー) | [`Liaison_0.1.0_x64_en-US.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64_en-US.msi) |
-| Windows (.exe NSIS、アンインストール時にキーチェーンクリーンアップ) | [`Liaison_0.1.0_x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64-setup.exe) |
+| macOS (Apple Silicon + Intel ユニバーサル) | [`Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg) |
+| Windows (.msi インストーラー) | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi) |
+| Windows (.exe NSIS、アンインストール時にキーチェーンクリーンアップ) | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe) |
 
 > v0.1 のインストーラーは未署名です。macOS Gatekeeper と Windows SmartScreen が初回起動時に警告を出します — macOS は右クリック → 開く、Windows は「詳細情報」→「実行」を選択してください。Windows には WebView2 Runtime が必要です (Win10 1803+ と Win11 にプリインストール済み)。
 
