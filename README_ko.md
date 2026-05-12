@@ -114,9 +114,9 @@ cd liaison-1.5.0-docker-amd64
 
 | 플랫폼 | 파일 |
 |:---|:---|
-| macOS (Apple Silicon + Intel 유니버설) | [`Liaison_0.1.0_universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_universal.dmg) |
-| Windows (.msi 설치 프로그램) | [`Liaison_0.1.0_x64_en-US.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64_en-US.msi) |
-| Windows (.exe NSIS, 제거 시 키체인 정리 포함) | [`Liaison_0.1.0_x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64-setup.exe) |
+| macOS (Apple Silicon + Intel 유니버설) | [`Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-macOS-universal.dmg) |
+| Windows (.msi 설치 프로그램) | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64.msi) |
+| Windows (.exe NSIS, 제거 시 키체인 정리 포함) | [`Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison-Desktop-dev-feat-desktop-client-Windows-x64-setup.exe) |
 
 > v0.1 설치 프로그램은 서명되지 않았습니다. macOS Gatekeeper 와 Windows SmartScreen 이 첫 실행 시 경고를 표시합니다 — macOS 는 우클릭 → 열기, Windows 는 "추가 정보" → "실행"을 선택하세요. Windows 에는 WebView2 Runtime 이 필요합니다 (Win10 1803+ 와 Win11 에 기본 포함).
 

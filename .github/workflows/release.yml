@@ -1,0 +1,153 @@
+name: Server Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example 1.6.0 or v1.6.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: server-release-${{ github.ref_name || inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            raw="${{ inputs.version }}"
+          else
+            raw="${GITHUB_REF_NAME}"
+          fi
+
+          version="${raw#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release version: $raw" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+  edge-darwin:
+    needs: metadata
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Sync release metadata
+        run: make version=${{ needs.metadata.outputs.version }}
+
+      - name: Package macOS edge binaries
+        run: make package-edge-darwin-amd64 package-edge-darwin-arm64
+
+      - name: Upload macOS edge packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-darwin-packages
+          path: packages/edge/liaison-edge-darwin-*.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    needs:
+      - metadata
+      - edge-darwin
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Setup QEMU for arm64 edge packaging
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Sync release metadata
+        run: make version=${{ needs.metadata.outputs.version }}
+
+      - name: Build Linux server, web, tools, and non-macOS edge packages
+        run: |
+          make build-linux
+          make package-edge-linux-amd64 package-edge-linux-arm64 package-edge-windows-amd64
+          make build-web
+          make build-tools-linux
+
+      - name: Download macOS edge packages
+        uses: actions/download-artifact@v4
+        with:
+          name: edge-darwin-packages
+          path: packages/edge
+
+      - name: Package server tarball
+        run: |
+          chmod +x dist/package.sh
+          ./dist/package.sh
+
+      - name: Package offline Docker bundle
+        run: make package-docker
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          version="${{ needs.metadata.outputs.version }}"
+          sha256sum \
+            "liaison-${version}-linux-amd64.tar.gz" \
+            "liaison-${version}-docker-amd64.tar.gz" \
+            > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.metadata.outputs.tag }}
+          name: Liaison ${{ needs.metadata.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            liaison-${{ needs.metadata.outputs.version }}-linux-amd64.tar.gz
+            liaison-${{ needs.metadata.outputs.version }}-docker-amd64.tar.gz
+            SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

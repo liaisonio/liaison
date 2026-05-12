@@ -250,6 +250,9 @@ if [[ "$(uname)" == "Darwin" ]]; then
     if [ -f "VERSION" ]; then
         cp -X VERSION "$PACK_DIR/" 2>/dev/null || cp VERSION "$PACK_DIR/"
     fi
+    if [ -f "LICENSE" ]; then
+        cp -X LICENSE "$PACK_DIR/" 2>/dev/null || cp LICENSE "$PACK_DIR/"
+    fi
 else
     if [ -f "dist/liaison/README.md" ]; then
         cp dist/liaison/README.md "$PACK_DIR/" 2>/dev/null || true
@@ -259,6 +262,9 @@ else
     fi
     if [ -f "VERSION" ]; then
         cp VERSION "$PACK_DIR/"
+    fi
+    if [ -f "LICENSE" ]; then
+        cp LICENSE "$PACK_DIR/"
     fi
 fi
 
