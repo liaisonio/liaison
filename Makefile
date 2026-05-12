@@ -97,6 +97,8 @@ DOCKER_IMAGE = golang:1.24.0
 DOCKER_VOLUME = -v "$(shell pwd):/build"
 DOCKER_WORKDIR = -w /build
 DOCKER_BASE = docker run --rm $(DOCKER_VOLUME) $(DOCKER_WORKDIR)
+DOCKER_HOST_UID := $(shell id -u 2>/dev/null || echo 0)
+DOCKER_HOST_GID := $(shell id -g 2>/dev/null || echo 0)
 GO_BUILD_FLAGS = -trimpath -ldflags '-s -w'
 
 # Ensure Docker image exists (pull only if not present locally)
@@ -126,7 +128,9 @@ define docker-build-cgo
 			DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gcc libc6-dev libsqlite3-dev >/dev/null 2>&1 && \
 			go env -w GOTOOLCHAIN=auto && \
 			go mod download && \
-			CC=gcc CGO_ENABLED=1 go build $(GO_BUILD_FLAGS) -o ./bin/$(4) $(5)"
+			CC=gcc CGO_ENABLED=1 go build $(GO_BUILD_FLAGS) -o ./bin/$(4) $(5) && \
+			chmod +x ./bin/$(4) && \
+			chown $(DOCKER_HOST_UID):$(DOCKER_HOST_GID) ./bin/$(4)"
 	@chmod +x ./bin/$(4)
 	@echo "✅ Built: ./bin/$(4)"
 endef
@@ -144,7 +148,9 @@ define docker-build-no-cgo
 		$(DOCKER_IMAGE) sh -c "\
 			go env -w GOTOOLCHAIN=auto && \
 			go mod download && \
-			CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o ./bin/$(4) $(5)"
+			CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -o ./bin/$(4) $(5) && \
+			chmod +x ./bin/$(4) && \
+			chown $(DOCKER_HOST_UID):$(DOCKER_HOST_GID) ./bin/$(4)"
 	@chmod +x ./bin/$(4)
 	@echo "✅ Built: ./bin/$(4)"
 endef
