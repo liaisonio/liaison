@@ -102,8 +102,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Sync release metadata
         run: make version=${{ needs.metadata.outputs.version }}
