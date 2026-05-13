@@ -76,7 +76,7 @@ Visit `https://your-public-ip` to access the Web console.
 
 ### Install Server — Option 2: Docker Compose
 
-Requires Docker 20.10+ with the `docker compose` plugin. The bundle ships `liaison` + `frontier` as two containers; images are pre-built — no registry or source checkout needed.
+Requires Docker 20.10+ with the `docker compose` plugin. The bundle ships pre-built `liaison`, `frontier`, and `guacd` images — no registry or source checkout needed.
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.7.0/liaison-1.7.0-docker-amd64.tar.gz

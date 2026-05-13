@@ -1,6 +1,6 @@
 # Liaison Docker Compose 部署
 
-把 server 端(`liaison` 管理面 + `frontier` 连接器网关)跑在 Docker 里。Edge(连接器)依旧按原生方式安装到目标主机,不在本方案内。
+把 server 端(`liaison` 管理面 + `frontier` 连接器网关 + `guacd` WebDesktop sidecar)跑在 Docker 里。Edge(连接器)依旧按原生方式安装到目标主机,不在本方案内。
 
 ## 前置
 
@@ -60,7 +60,7 @@ docker compose logs liaison | grep -A5 "first-run credentials"
 make package-docker
 ```
 
-产出 `liaison-<VERSION>-docker-amd64.tar.gz`(~145MB,含 `docker save` 出来的 liaison + frontier + guacd 镜像、compose 文件、`.env.example`、`load.sh`)。用户解压后一条 `./load.sh && docker compose up -d` 就能起。
+产出 `liaison-<VERSION>-docker-amd64.tar.gz`(含 `docker save` 出来的 liaison + frontier + guacd 镜像、compose 文件、`.env.example`、`load.sh`)。用户解压后执行 `./load.sh` 即可加载镜像并启动服务。
 
 ## 数据持久化
 
@@ -69,7 +69,7 @@ make package-docker
 | 目录 | 内容 |
 |:---|:---|
 | `data/` | SQLite 数据库 `liaison.db`、初始化标记 |
-| `certs/` | `server.crt` + `server.key`(两容器共享) |
+| `certs/` | `server.crt` + `server.key`(liaison/frontier 共享) |
 | `logs/` | liaison 进程日志 |
 
 `.gitignore` 已经忽略这三个目录。
@@ -107,11 +107,11 @@ docker compose up -d
 
 # 彻底删除(保留数据)— 对应离线包里的 ./uninstall.sh
 docker compose down
-docker rmi liaison/liaison:1.4.0 liaison/frontier:1.4.0
+docker rmi liaison/liaison:1.7.0 liaison/frontier:1.7.0 guacamole/guacd:1.5.5
 
 # 彻底删除并清空数据(不可恢复)— 对应离线包里的 ./uninstall.sh --purge
 docker compose down
-docker rmi liaison/liaison:1.4.0 liaison/frontier:1.4.0
+docker rmi liaison/liaison:1.7.0 liaison/frontier:1.7.0 guacamole/guacd:1.5.5
 rm -rf data certs logs .env
 ```
 
