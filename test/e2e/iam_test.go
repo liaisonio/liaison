@@ -3,22 +3,32 @@ package e2e
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
+	"github.com/liaisonio/liaison/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 const (
-	baseURL = "http://localhost:8080"
-	testDB  = "test_liaison.db"
+	baseURL      = "http://127.0.0.1:18088"
+	testDB       = "test_liaison_e2e.db"
+	testEmail    = "default@liaison.local"
+	testPassword = "default123"
 )
+
+var repoRoot string
 
 // TestConfig 测试配置
 type TestConfig struct {
@@ -67,15 +77,18 @@ type TestSuite struct {
 	httpClient *http.Client
 	serverCmd  *exec.Cmd
 	token      string
+	configPath string
 }
 
 // NewTestSuite 创建测试套件
 func NewTestSuite() *TestSuite {
+	dbPath := filepath.Join(repoRoot, testDB)
 	return &TestSuite{
 		config: &TestConfig{
 			BaseURL: baseURL,
-			DBPath:  testDB,
+			DBPath:  dbPath,
 		},
+		configPath: filepath.Join(repoRoot, "test_config.yaml"),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -84,6 +97,9 @@ func NewTestSuite() *TestSuite {
 
 // Setup 设置测试环境
 func (ts *TestSuite) Setup(t *testing.T) {
+	if os.Getenv("LIAISON_E2E") != "1" {
+		t.Skip("set LIAISON_E2E=1 to run manager process e2e tests")
+	}
 	// 清理测试数据库
 	ts.cleanupTestDB(t)
 
@@ -108,9 +124,11 @@ func (ts *TestSuite) Teardown(t *testing.T) {
 
 // cleanupTestDB 清理测试数据库
 func (ts *TestSuite) cleanupTestDB(t *testing.T) {
-	if _, err := os.Stat(ts.config.DBPath); err == nil {
-		err := os.Remove(ts.config.DBPath)
-		require.NoError(t, err, "Failed to remove test database")
+	for _, path := range []string{ts.config.DBPath, ts.config.DBPath + "-wal", ts.config.DBPath + "-shm", ts.configPath} {
+		if _, err := os.Stat(path); err == nil {
+			err := os.Remove(path)
+			require.NoErrorf(t, err, "Failed to remove %s", path)
+		}
 	}
 }
 
@@ -118,10 +136,11 @@ func (ts *TestSuite) cleanupTestDB(t *testing.T) {
 func (ts *TestSuite) startServer(t *testing.T) {
 	// 创建测试配置文件
 	ts.createTestConfig(t)
+	ts.ensureServerBinary(t)
 
 	// 启动服务器进程
-	ts.serverCmd = exec.Command("./bin/liaison", "-c", "test_config.yaml")
-	ts.serverCmd.Dir = "../.." // 回到项目根目录
+	ts.serverCmd = exec.Command(filepath.Join(repoRoot, "bin", "liaison"), "-c", ts.configPath)
+	ts.serverCmd.Dir = repoRoot
 
 	// 设置环境变量
 	ts.serverCmd.Env = append(os.Environ(), "LIAISON_DB_PATH="+ts.config.DBPath)
@@ -136,28 +155,52 @@ func (ts *TestSuite) createTestConfig(t *testing.T) {
 	configContent := fmt.Sprintf(`
 manager:
   listen:
-    addr: "0.0.0.0:8080"
+    addr: "127.0.0.1:18088"
     network: "tcp"
-  database:
-    driver: "sqlite"
-    source: "%s"
-  daemon:
-    pprof:
-      enable: false
+  db: "%s"
+  jwt_secret: "e2e-jwt-secret-please-change-1234567890"
+  credential_secret: "e2e-credential-secret-please-change-123"
+  frontier_edge_port: 13012
+frontier:
+  controlplane_url: "http://127.0.0.1:13010"
+  dial:
+    addrs:
+      - "127.0.0.1:13011"
+    network: "tcp"
+daemon:
+  pprof:
+    enable: false
     rlimit:
       enable: false
-`, ts.config.DBPath)
+log:
+  level: error
+  file: "%s"
+  maxsize: 10
+  maxrolls: 1
+`, ts.config.DBPath, filepath.Join(repoRoot, "test_e2e.log"))
 
-	err := os.WriteFile("test_config.yaml", []byte(configContent), 0644)
+	err := os.WriteFile(ts.configPath, []byte(configContent), 0644)
 	require.NoError(t, err, "Failed to create test config")
+}
+
+func (ts *TestSuite) ensureServerBinary(t *testing.T) {
+	binaryPath := filepath.Join(repoRoot, "bin", "liaison")
+	if _, err := os.Stat(binaryPath); err == nil {
+		return
+	}
+	cmd := exec.Command("go", "build", "-o", binaryPath, "cmd/manager/main.go")
+	cmd.Dir = repoRoot
+	cmd.Env = os.Environ()
+	out, err := cmd.CombinedOutput()
+	require.NoErrorf(t, err, "Failed to build liaison binary: %s", string(out))
 }
 
 // waitForServer 等待服务器启动
 func (ts *TestSuite) waitForServer(t *testing.T) {
 	maxRetries := 30
 	for i := 0; i < maxRetries; i++ {
-		resp, err := ts.httpClient.Get(ts.config.BaseURL + "/health")
-		if err == nil && resp.StatusCode == 200 {
+		resp, err := ts.httpClient.Get(ts.config.BaseURL + "/api/health")
+		if err == nil {
 			resp.Body.Close()
 			return
 		}
@@ -204,11 +247,11 @@ func TestIAMLogin(t *testing.T) {
 		ts.createDefaultUser(t)
 
 		loginReq := LoginRequest{
-			Email:    "default@liaison.local",
-			Password: "default123", // 假设这是默认密码
+			Email:    testEmail,
+			Password: testPassword,
 		}
 
-		resp, err := ts.makeRequest("POST", "/v1/iam/login", loginReq, "")
+		resp, err := ts.makeRequest("POST", "/api/v1/iam/login", loginReq, "")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -220,7 +263,7 @@ func TestIAMLogin(t *testing.T) {
 
 		assert.Equal(t, 200, loginResp.Code)
 		assert.NotEmpty(t, loginResp.Data.Token)
-		assert.Equal(t, "default@liaison.local", loginResp.Data.User.Email)
+		assert.Equal(t, testEmail, loginResp.Data.User.Email)
 
 		// 保存token供后续测试使用
 		ts.token = loginResp.Data.Token
@@ -228,15 +271,15 @@ func TestIAMLogin(t *testing.T) {
 
 	t.Run("Login with invalid credentials", func(t *testing.T) {
 		loginReq := LoginRequest{
-			Email:    "default@liaison.local",
+			Email:    testEmail,
 			Password: "wrongpassword",
 		}
 
-		resp, err := ts.makeRequest("POST", "/v1/iam/login", loginReq, "")
+		resp, err := ts.makeRequest("POST", "/api/v1/iam/login", loginReq, "")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 		var errorResp ErrorResponse
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
@@ -256,7 +299,7 @@ func TestIAMProfile(t *testing.T) {
 	ts.loginAndGetToken(t)
 
 	t.Run("Get profile with valid token", func(t *testing.T) {
-		resp, err := ts.makeRequest("GET", "/v1/iam/profile", nil, ts.token)
+		resp, err := ts.makeRequest("GET", "/api/v1/iam/profile", nil, ts.token)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -267,15 +310,15 @@ func TestIAMProfile(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, 200, profileResp.Code)
-		assert.Equal(t, "default@liaison.local", profileResp.Data.Email)
+		assert.Equal(t, testEmail, profileResp.Data.Email)
 	})
 
 	t.Run("Get profile without token", func(t *testing.T) {
-		resp, err := ts.makeRequest("GET", "/v1/iam/profile", nil, "")
+		resp, err := ts.makeRequest("GET", "/api/v1/iam/profile", nil, "")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 		var errorResp ErrorResponse
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
@@ -286,11 +329,11 @@ func TestIAMProfile(t *testing.T) {
 	})
 
 	t.Run("Get profile with invalid token", func(t *testing.T) {
-		resp, err := ts.makeRequest("GET", "/v1/iam/profile", nil, "invalid_token")
+		resp, err := ts.makeRequest("GET", "/api/v1/iam/profile", nil, "invalid_token")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 		var errorResp ErrorResponse
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
@@ -311,7 +354,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
 	ts.loginAndGetToken(t)
 
 	t.Run("Access protected endpoint with valid token", func(t *testing.T) {
-		resp, err := ts.makeRequest("GET", "/v1/applications", nil, ts.token)
+		resp, err := ts.makeRequest("GET", "/api/v1/applications", nil, ts.token)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -320,11 +363,11 @@ func TestAuthenticationMiddleware(t *testing.T) {
 	})
 
 	t.Run("Access protected endpoint without token", func(t *testing.T) {
-		resp, err := ts.makeRequest("GET", "/v1/applications", nil, "")
+		resp, err := ts.makeRequest("GET", "/api/v1/applications", nil, "")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 		var errorResp ErrorResponse
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
@@ -336,11 +379,11 @@ func TestAuthenticationMiddleware(t *testing.T) {
 
 	t.Run("Access login endpoint without token", func(t *testing.T) {
 		loginReq := LoginRequest{
-			Email:    "default@liaison.local",
-			Password: "default123",
+			Email:    testEmail,
+			Password: testPassword,
 		}
 
-		resp, err := ts.makeRequest("POST", "/v1/iam/login", loginReq, "")
+		resp, err := ts.makeRequest("POST", "/api/v1/iam/login", loginReq, "")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -359,7 +402,7 @@ func TestIAMLogout(t *testing.T) {
 	ts.loginAndGetToken(t)
 
 	t.Run("Logout with valid token", func(t *testing.T) {
-		resp, err := ts.makeRequest("POST", "/v1/iam/logout", nil, ts.token)
+		resp, err := ts.makeRequest("POST", "/api/v1/iam/logout", nil, ts.token)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -380,10 +423,26 @@ func TestIAMLogout(t *testing.T) {
 
 // createDefaultUser 创建默认用户（模拟安装脚本的行为）
 func (ts *TestSuite) createDefaultUser(t *testing.T) {
-	// 直接调用IAM服务的CreateDefaultUser方法
-	// 这需要访问IAM服务实例，暂时跳过
-	// 在实际测试中，可以通过环境变量或其他方式创建默认用户
-	t.Log("Skipping default user creation - would be handled by installation script")
+	db, err := gorm.Open(sqlite.Open(ts.config.DBPath), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.User{}))
+	hash, err := utils.HashPassword(testPassword)
+	require.NoError(t, err)
+	var user model.User
+	err = db.Where("email = ?", testEmail).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		require.NoError(t, db.Create(&model.User{
+			Email:    testEmail,
+			Password: hash,
+			Status:   model.UserStatusActive,
+		}).Error)
+		return
+	}
+	require.NoError(t, err)
+	require.NoError(t, db.Model(&user).Updates(map[string]any{
+		"password": hash,
+		"status":   model.UserStatusActive,
+	}).Error)
 }
 
 // loginAndGetToken 登录并获取token
@@ -392,11 +451,11 @@ func (ts *TestSuite) loginAndGetToken(t *testing.T) {
 	ts.createDefaultUser(t)
 
 	loginReq := LoginRequest{
-		Email:    "default@liaison.local",
-		Password: "default123", // 假设这是默认密码
+		Email:    testEmail,
+		Password: testPassword,
 	}
 
-	resp, err := ts.makeRequest("POST", "/v1/iam/login", loginReq, "")
+	resp, err := ts.makeRequest("POST", "/api/v1/iam/login", loginReq, "")
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
@@ -415,7 +474,8 @@ func (ts *TestSuite) loginAndGetToken(t *testing.T) {
 // TestMain 测试主函数
 func TestMain(m *testing.M) {
 	// 确保在项目根目录
-	os.Chdir("../..")
+	_ = os.Chdir("../..")
+	repoRoot, _ = os.Getwd()
 
 	// 运行测试
 	code := m.Run()
@@ -423,6 +483,9 @@ func TestMain(m *testing.M) {
 	// 清理测试配置文件
 	os.Remove("test_config.yaml")
 	os.Remove(testDB)
+	os.Remove(testDB + "-wal")
+	os.Remove(testDB + "-shm")
+	os.Remove("test_e2e.log")
 
 	os.Exit(code)
 }

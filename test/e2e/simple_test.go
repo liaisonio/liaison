@@ -12,12 +12,15 @@ import (
 
 // TestHealthCheck 测试健康检查端点
 func TestHealthCheck(t *testing.T) {
+	ts := NewTestSuite()
+	ts.Setup(t)
+	defer ts.Teardown(t)
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
 
 	t.Run("Health check endpoint requires auth", func(t *testing.T) {
-		resp, err := client.Get(baseURL + "/health")
+		resp, err := client.Get(baseURL + "/api/health")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -37,12 +40,15 @@ func TestHealthCheck(t *testing.T) {
 
 // TestIAMEndpoints 测试IAM端点（不需要认证）
 func TestIAMEndpoints(t *testing.T) {
+	ts := NewTestSuite()
+	ts.Setup(t)
+	defer ts.Teardown(t)
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
 
 	t.Run("Login endpoint accessible without auth", func(t *testing.T) {
-		resp, err := client.Post(baseURL+"/v1/iam/login", "application/json", nil)
+		resp, err := client.Post(baseURL+"/api/v1/iam/login", "application/json", nil)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -51,7 +57,7 @@ func TestIAMEndpoints(t *testing.T) {
 	})
 
 	t.Run("Logout endpoint accessible without auth", func(t *testing.T) {
-		resp, err := client.Post(baseURL+"/v1/iam/logout", "application/json", nil)
+		resp, err := client.Post(baseURL+"/api/v1/iam/logout", "application/json", nil)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -62,12 +68,15 @@ func TestIAMEndpoints(t *testing.T) {
 
 // TestProtectedEndpoints 测试受保护的端点
 func TestProtectedEndpoints(t *testing.T) {
+	ts := NewTestSuite()
+	ts.Setup(t)
+	defer ts.Teardown(t)
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 	}
 
 	t.Run("Applications endpoint requires auth", func(t *testing.T) {
-		resp, err := client.Get(baseURL + "/v1/applications")
+		resp, err := client.Get(baseURL + "/api/v1/applications")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -85,7 +94,7 @@ func TestProtectedEndpoints(t *testing.T) {
 	})
 
 	t.Run("Profile endpoint requires auth", func(t *testing.T) {
-		resp, err := client.Get(baseURL + "/v1/iam/profile")
+		resp, err := client.Get(baseURL + "/api/v1/iam/profile")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 

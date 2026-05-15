@@ -86,5 +86,8 @@ func (d *dao) DeleteProxy(id uint) error {
 	if err := d.DeleteWebDesktopCredentialByProxyID(id); err != nil {
 		return err
 	}
+	if err := d.DeleteWebDataCredentialByProxyID(id); err != nil {
+		return err
+	}
 	return d.getDB().Delete(&model.Proxy{}, id).Error
 }

@@ -465,6 +465,10 @@ func TestCreateWebOnlyProxySkipsRuntimeListener(t *testing.T) {
 		{name: "ssh", appType: model.ApplicationTypeSSH, port: 22},
 		{name: "rdp", appType: model.ApplicationTypeRDP, port: 3389},
 		{name: "vnc", appType: model.ApplicationTypeVNC, port: 5900},
+		{name: "mysql", appType: model.ApplicationTypeMySQL, port: 3306},
+		{name: "postgresql", appType: model.ApplicationTypePostgreSQL, port: 5432},
+		{name: "redis", appType: model.ApplicationTypeRedis, port: 6379},
+		{name: "mongodb", appType: model.ApplicationTypeMongoDB, port: 27017},
 	}
 
 	for _, tc := range cases {

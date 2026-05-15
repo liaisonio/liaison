@@ -139,6 +139,21 @@ type Dao interface {
 	DeleteWebDesktopCredential(proxyID, userID uint, protocol, username, domain string) error
 	DeleteWebDesktopCredentialByProxyID(proxyID uint) error
 
+	// WebDataCredential / Audit 相关方法
+	ListWebDataCredentialsByProxyAndUser(proxyID, userID uint, protocol string) ([]*model.WebDataCredential, error)
+	GetWebDataCredential(proxyID, userID uint, protocol, username, database, authDatabase string) (*model.WebDataCredential, error)
+	GetWebDataCredentialByID(id, proxyID, userID uint) (*model.WebDataCredential, error)
+	UpsertWebDataCredential(credential *model.WebDataCredential) error
+	UpdateWebDataCredential(credential *model.WebDataCredential, updatePassword bool) error
+	TouchWebDataCredential(proxyID, userID uint, protocol, username, database, authDatabase string) error
+	TouchWebDataCredentialByID(id, proxyID, userID uint) error
+	DeleteWebDataCredential(proxyID, userID uint, protocol, username, database, authDatabase string) error
+	DeleteWebDataCredentialByID(id, proxyID, userID uint) error
+	DeleteWebDataCredentialByProxyID(proxyID uint) error
+	CreateWebDataAudit(audit *model.WebDataAudit) error
+	ListWebDataAudits(query *ListWebDataAuditsQuery) ([]*model.WebDataAudit, error)
+	CountWebDataAudits(query *ListWebDataAuditsQuery) (int64, error)
+
 	// 资源清理
 	Close() error
 }
@@ -183,6 +198,9 @@ func NewDao(config *config.Configuration) (Dao, error) {
 }
 
 func (d *dao) initDB() error {
+	if err := d.resetAccessAuditSchema(); err != nil {
+		return err
+	}
 	if err := d.db.AutoMigrate(
 		&model.Edge{},
 		&model.AccessKey{},
@@ -199,10 +217,29 @@ func (d *dao) initDB() error {
 		&model.WebSSHHostKey{},
 		&model.WebSSHCredential{},
 		&model.WebDesktopCredential{},
+		&model.WebDataCredential{},
+		&model.WebDataAudit{},
 	); err != nil {
 		return err
 	}
 	return d.migrateWebSSHCredentials()
+}
+
+func (d *dao) resetAccessAuditSchema() error {
+	if d.db.Migrator().HasTable("webdata_audits") {
+		if err := d.db.Migrator().DropTable("webdata_audits"); err != nil {
+			return err
+		}
+	}
+	if d.db.Migrator().HasTable("access_audits") {
+		hasOldColumns := d.db.Migrator().HasColumn("access_audits", "database_name") ||
+			d.db.Migrator().HasColumn("access_audits", "affected_rows") ||
+			d.db.Migrator().HasColumn("access_audits", "client_ip")
+		if hasOldColumns {
+			return d.db.Migrator().DropTable("access_audits")
+		}
+	}
+	return nil
 }
 
 // Begin 开始事务 - 返回新的事务 DAO 实例
