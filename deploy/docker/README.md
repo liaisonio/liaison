@@ -107,11 +107,11 @@ docker compose up -d
 
 # 彻底删除(保留数据)— 对应离线包里的 ./uninstall.sh
 docker compose down
-docker rmi liaison/liaison:1.7.0 liaison/frontier:1.7.0 guacamole/guacd:1.5.5
+docker rmi liaison/liaison:1.8.0 liaison/frontier:1.8.0 guacamole/guacd:1.5.5
 
 # 彻底删除并清空数据(不可恢复)— 对应离线包里的 ./uninstall.sh --purge
 docker compose down
-docker rmi liaison/liaison:1.7.0 liaison/frontier:1.7.0 guacamole/guacd:1.5.5
+docker rmi liaison/liaison:1.8.0 liaison/frontier:1.8.0 guacamole/guacd:1.5.5
 rm -rf data certs logs .env
 ```
 

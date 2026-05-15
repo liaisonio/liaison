@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
-[![Version](https://img.shields.io/badge/Version-v1.7.0-green)](#)
+[![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
 [简体中文](./README.md) | English | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
@@ -55,9 +55,9 @@ Pick one of the two server deployment options, then install a connector.
 **1. Download**
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.7.0/liaison-1.7.0-linux-amd64.tar.gz
-tar -xzf liaison-1.7.0-linux-amd64.tar.gz
-cd liaison-1.7.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
+tar -xzf liaison-1.8.0-linux-amd64.tar.gz
+cd liaison-1.8.0-linux-amd64
 ```
 
 **2. Run install script**
@@ -79,9 +79,9 @@ Visit `https://your-public-ip` to access the Web console.
 Requires Docker 20.10+ with the `docker compose` plugin. The bundle ships pre-built `liaison`, `frontier`, and `guacd` images — no registry or source checkout needed.
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.7.0/liaison-1.7.0-docker-amd64.tar.gz
-tar -xzf liaison-1.7.0-docker-amd64.tar.gz
-cd liaison-1.7.0-docker-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
+tar -xzf liaison-1.8.0-docker-amd64.tar.gz
+cd liaison-1.8.0-docker-amd64
 ./load.sh
 ```
 

@@ -41,10 +41,13 @@ export async function logout() {
 
 /** 获取应用列表 GET /v1/applications */
 export async function getApplicationList(params?: API.ApplicationListParams) {
-  return request<API.Response<API.ApplicationListResult>>('/api/v1/applications', {
-    method: 'GET',
-    params,
-  });
+  return request<API.Response<API.ApplicationListResult>>(
+    '/api/v1/applications',
+    {
+      method: 'GET',
+      params,
+    },
+  );
 }
 
 /** 创建应用 POST /v1/applications */
@@ -275,12 +278,166 @@ export async function deleteWebDesktopCredential(
   });
 }
 
-/** 获取流量监控列表 GET /v1/traffic-metrics */
-export async function getTrafficMetricsList(params?: API.TrafficMetricsListParams) {
-  return request<API.Response<API.TrafficMetricsListResult>>('/api/v1/traffic-metrics', {
-    method: 'GET',
+/** 获取 WebData 目标信息 GET /v1/webdata/proxies/:id */
+export async function getWebDataTarget(id: number) {
+  return request<API.Response<API.WebDataTarget>>(
+    `/api/v1/webdata/proxies/${id}`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+/** 创建 WebData 会话 POST /v1/webdata/proxies/:id/session */
+export async function createWebDataSession(
+  id: number,
+  data: API.CreateWebDataSessionRequest,
+) {
+  return request<API.Response<API.CreateWebDataSessionResponse>>(
+    `/api/v1/webdata/proxies/${id}/session`,
+    {
+      method: 'POST',
+      data,
+    },
+  );
+}
+
+/** 测试 WebData 连接 POST /v1/webdata/proxies/:id/test */
+export async function testWebDataConnection(
+  id: number,
+  data: API.CreateWebDataSessionRequest,
+): Promise<API.Response> {
+  try {
+    return (await request<API.Response>(`/api/v1/webdata/proxies/${id}/test`, {
+      method: 'POST',
+      data,
+      skipErrorHandler: true,
+    } as any)) as unknown as API.Response;
+  } catch (error: any) {
+    return {
+      code: error?.response?.status || 500,
+      message: '连接测试失败',
+    };
+  }
+}
+
+/** 保存/更新 WebData 连接 POST /v1/webdata/proxies/:id/credential */
+export async function saveWebDataCredential(
+  id: number,
+  data: API.SaveWebDataCredentialRequest,
+) {
+  return request<API.Response<API.WebDataCredential>>(
+    `/api/v1/webdata/proxies/${id}/credential`,
+    {
+      method: data.id ? 'PUT' : 'POST',
+      data,
+    },
+  );
+}
+
+/** 执行 WebData 命令 POST /v1/webdata/sessions/:token/execute */
+export async function executeWebDataStatement(
+  token: string,
+  statement: string,
+) {
+  return request<API.Response<API.WebDataExecuteResult>>(
+    `/api/v1/webdata/sessions/${token}/execute`,
+    {
+      method: 'POST',
+      data: { statement },
+    },
+  );
+}
+
+/** 获取 WebData metadata GET /v1/webdata/sessions/:token/metadata */
+export async function getWebDataMetadata(token: string) {
+  return request<API.Response<API.WebDataMetadataResult>>(
+    `/api/v1/webdata/sessions/${token}/metadata`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+/** 获取 WebData 对象详情 GET /v1/webdata/sessions/:token/object */
+export async function getWebDataObject(
+  token: string,
+  params: API.WebDataObjectParams,
+) {
+  return request<API.Response<API.WebDataObjectResult>>(
+    `/api/v1/webdata/sessions/${token}/object`,
+    {
+      method: 'GET',
+      params,
+    },
+  );
+}
+
+/** 获取 WebData 审计列表 GET /v1/webdata/proxies/:id/audits */
+export async function getWebDataAudits(
+  id: number,
+  params?: API.WebDataAuditListParams,
+) {
+  return request<API.Response<API.WebDataAuditListResult>>(
+    `/api/v1/webdata/proxies/${id}/audits`,
+    {
+      method: 'GET',
+      params,
+    },
+  );
+}
+
+/** 获取 WebData 全局审计列表 GET /v1/audits/webdata */
+export async function getWebDataAuditList(params?: API.WebDataAuditListParams) {
+  return request<API.Response<API.WebDataAuditListResult>>(
+    '/api/v1/audits/webdata',
+    {
+      method: 'GET',
+      params,
+    },
+  );
+}
+
+/** 获取访问审计列表 GET /v1/audits/access */
+export async function getAccessAuditList(params?: API.WebDataAuditListParams) {
+  return request<API.Response<API.WebDataAuditListResult>>(
+    '/api/v1/audits/access',
+    {
+      method: 'GET',
+      params,
+    },
+  );
+}
+
+/** 关闭 WebData 会话 DELETE /v1/webdata/sessions/:token */
+export async function deleteWebDataSession(token: string) {
+  return request<API.Response>(`/api/v1/webdata/sessions/${token}`, {
+    method: 'DELETE',
+  });
+}
+
+/** 清除 WebData 保存凭据 DELETE /v1/webdata/proxies/:id/credential */
+export async function deleteWebDataCredential(
+  id: number,
+  params: API.DeleteWebDataCredentialParams,
+) {
+  return request<API.Response>(`/api/v1/webdata/proxies/${id}/credential`, {
+    method: 'DELETE',
     params,
   });
+}
+
+/** 获取流量监控列表 GET /v1/traffic-metrics */
+export async function getTrafficMetricsList(
+  params?: API.TrafficMetricsListParams,
+) {
+  return request<API.Response<API.TrafficMetricsListResult>>(
+    '/api/v1/traffic-metrics',
+    {
+      method: 'GET',
+      params,
+    },
+  );
 }
 
 /** 获取调用方的出口 IP（公开接口）GET /v1/iam/client_ip */
@@ -314,9 +471,12 @@ export async function revokeAPIToken(id: number) {
 
 /** 获取代理防火墙 GET /v1/proxies/:id/firewall */
 export async function getProxyFirewall(proxyId: number) {
-  return request<API.Response<API.ProxyFirewall>>(`/api/v1/proxies/${proxyId}/firewall`, {
-    method: 'GET',
-  });
+  return request<API.Response<API.ProxyFirewall>>(
+    `/api/v1/proxies/${proxyId}/firewall`,
+    {
+      method: 'GET',
+    },
+  );
 }
 
 /** 设置代理防火墙 PUT /v1/proxies/:id/firewall —— allowed_cidrs 为 [] 表示全部拒绝 */
@@ -324,10 +484,13 @@ export async function upsertProxyFirewall(
   proxyId: number,
   data: API.ProxyFirewallUpsertParams,
 ) {
-  return request<API.Response<API.ProxyFirewall>>(`/api/v1/proxies/${proxyId}/firewall`, {
-    method: 'PUT',
-    data,
-  });
+  return request<API.Response<API.ProxyFirewall>>(
+    `/api/v1/proxies/${proxyId}/firewall`,
+    {
+      method: 'PUT',
+      data,
+    },
+  );
 }
 
 /** 删除代理防火墙 DELETE /v1/proxies/:id/firewall —— 恢复为默认放行 */

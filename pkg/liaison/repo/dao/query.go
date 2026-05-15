@@ -47,7 +47,7 @@ type ListProxiesQuery struct {
 
 type ListEdgesQuery struct {
 	Query
-	DeviceIDs []uint  // 已废弃，保留以兼容
+	DeviceIDs []uint   // 已废弃，保留以兼容
 	EdgeIDs   []uint64 // 通过 EdgeDevice 关系表查询的 Edge IDs
 	Name      string
 }
@@ -58,4 +58,17 @@ type ListTrafficMetricsQuery struct {
 	StartTime      *time.Time
 	EndTime        *time.Time
 	Limit          int
+}
+
+type ListWebDataAuditsQuery struct {
+	UserID    uint
+	ProxyID   uint
+	Protocol  string
+	Action    string
+	Success   *bool
+	Keyword   string
+	StartTime *time.Time
+	EndTime   *time.Time
+	Limit     int
+	Offset    int
 }

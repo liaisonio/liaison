@@ -35,6 +35,7 @@ const (
 	webSSHOutputReadSize = 32 * 1024
 	webSSHOutputBatchMax = 64 * 1024
 	webSSHOutputFlush    = 4 * time.Millisecond
+	webSSHMaxAuditRunes  = 4096
 )
 
 type createWebSSHSessionRequest struct {
@@ -81,6 +82,13 @@ type webSSHServerMessage struct {
 	Status  string `json:"status,omitempty"`
 	Data    string `json:"data,omitempty"`
 	Message string `json:"message,omitempty"`
+}
+
+type webSSHCommandCollector struct {
+	mu               sync.Mutex
+	buffer           []rune
+	escapeState      int
+	suppressNextLine bool
 }
 
 type webSSHWSWriter struct {
@@ -363,15 +371,18 @@ func (web *web) handleWebSSHConnectHTTP(w http.ResponseWriter, r *http.Request) 
 	// WebSocket sessions outlive the original HTTP request timeout. The
 	// connection is closed by the websocket read loop, SSH wait, or server
 	// shutdown path instead of the short request context.
-	web.runWebSSH(context.WithoutCancel(r.Context()), writer, conn, session)
+	clientIP, clientIPSource := remoteClientIPInfo(r)
+	web.runWebSSH(context.WithoutCancel(r.Context()), writer, conn, session, clientIP, clientIPSource)
 }
 
-func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *websocket.Conn, webSession *webSSHSession) {
+func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *websocket.Conn, webSession *webSSHSession, clientIP, clientIPSource string) {
 	_ = writer.write(webSSHServerMessage{Type: "status", Status: "connecting"})
 	log.Debugf("webssh session starting: proxy_id=%d user_id=%d", webSession.proxyID, webSession.userID)
+	connectStarted := time.Now()
 	targetConn, target, err := web.controlPlane.OpenWebSSHStream(ctx, webSession.proxyID)
 	if err != nil {
 		log.Debugf("webssh stream open failed: proxy_id=%d err=%v", webSession.proxyID, err)
+		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "open_session", webSession.username, "", false, time.Since(connectStarted).Milliseconds(), err.Error())
 		_ = writer.write(webSSHServerMessage{Type: "error", Message: err.Error()})
 		return
 	}
@@ -390,7 +401,9 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	if err != nil {
 		webSession.zero()
 		log.Debugf("webssh ssh handshake failed: proxy_id=%d err=%v", webSession.proxyID, err)
-		_ = writer.write(webSSHServerMessage{Type: "error", Message: webSSHConnectionError(err)})
+		message := webSSHConnectionError(err)
+		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "open_session", webSession.username, "", false, time.Since(connectStarted).Milliseconds(), message)
+		_ = writer.write(webSSHServerMessage{Type: "error", Message: message})
 		return
 	}
 	if webSession.saveCredential {
@@ -449,15 +462,28 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	}
 	if err := terminalSession.Shell(); err != nil {
 		log.Debugf("webssh shell start failed: proxy_id=%d err=%v", webSession.proxyID, err)
+		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "open_session", webSession.username, "", false, time.Since(connectStarted).Milliseconds(), "SSH Shell 启动失败")
 		_ = writer.write(webSSHServerMessage{Type: "error", Message: "SSH Shell 启动失败"})
 		return
 	}
 	log.Debugf("webssh shell started: proxy_id=%d target=%s", webSession.proxyID, targetAddr)
 	_ = writer.write(webSSHServerMessage{Type: "status", Status: "connected"})
+	web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "open_session", webSession.username, "", true, time.Since(connectStarted).Milliseconds(), "")
+	sessionStarted := time.Now()
+	closeAudited := false
+	auditClose := func() {
+		if closeAudited {
+			return
+		}
+		closeAudited = true
+		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "close_session", webSession.username, "", true, time.Since(sessionStarted).Milliseconds(), "")
+	}
+	defer auditClose()
 
+	commandCollector := &webSSHCommandCollector{}
 	done := make(chan struct{})
-	go web.copyWebSSHOutput(writer, stdout, done)
-	go web.copyWebSSHOutput(writer, stderr, done)
+	go web.copyWebSSHOutput(writer, stdout, done, commandCollector.observeOutput)
+	go web.copyWebSSHOutput(writer, stderr, done, commandCollector.observeOutput)
 	waitDone := make(chan error, 1)
 	go func() {
 		waitDone <- terminalSession.Wait()
@@ -481,6 +507,9 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 			}
 		}
 	}()
+	recordCommand := func(command string) {
+		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "execute", webSession.username, command, true, 0, "")
+	}
 
 	for {
 		select {
@@ -503,7 +532,11 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 			switch msg.Type {
 			case "input":
 				if msg.Data != "" {
-					_, _ = io.WriteString(stdin, msg.Data)
+					if _, err := io.WriteString(stdin, msg.Data); err == nil {
+						commandCollector.feed(msg.Data, recordCommand)
+					} else {
+						log.Debugf("webssh stdin write failed: proxy_id=%d err=%v", webSession.proxyID, err)
+					}
 				}
 			case "resize":
 				cols, rows = normalizeWebSSHSize(msg.Cols, msg.Rows)
@@ -516,11 +549,191 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	}
 }
 
+func (c *webSSHCommandCollector) feed(data string, emit func(string)) {
+	if c == nil || emit == nil || data == "" {
+		return
+	}
+	commands := make([]string, 0, 1)
+	c.mu.Lock()
+	for _, r := range data {
+		if c.consumeEscape(r) {
+			continue
+		}
+		switch r {
+		case '\x1b':
+			c.escapeState = 1
+		case '\r', '\n':
+			c.flushLocked(&commands)
+		case '\b', '\x7f':
+			if len(c.buffer) > 0 {
+				c.buffer = c.buffer[:len(c.buffer)-1]
+			}
+		case '\x03', '\x15', '\x18', '\x1a':
+			c.buffer = c.buffer[:0]
+		default:
+			if r >= 0x20 && r != 0x7f && len(c.buffer) < webSSHMaxAuditRunes {
+				c.buffer = append(c.buffer, r)
+			}
+		}
+	}
+	c.mu.Unlock()
+	for _, command := range commands {
+		emit(command)
+	}
+}
+
+func (c *webSSHCommandCollector) consumeEscape(r rune) bool {
+	switch c.escapeState {
+	case 0:
+		return false
+	case 1:
+		if r == '[' || r == 'O' {
+			c.escapeState = 2
+			return true
+		}
+		c.escapeState = 0
+		return true
+	case 2:
+		if r >= 0x40 && r <= 0x7e {
+			c.escapeState = 0
+		}
+		return true
+	default:
+		c.escapeState = 0
+		return true
+	}
+}
+
+func (c *webSSHCommandCollector) observeOutput(data string) {
+	if c == nil || !webSSHOutputHasSensitivePrompt(data) {
+		return
+	}
+	c.mu.Lock()
+	c.suppressNextLine = true
+	c.mu.Unlock()
+}
+
+func (c *webSSHCommandCollector) flushLocked(commands *[]string) {
+	command := strings.TrimSpace(string(c.buffer))
+	c.buffer = c.buffer[:0]
+	if c.suppressNextLine {
+		c.suppressNextLine = false
+		return
+	}
+	if command == "" {
+		return
+	}
+	*commands = append(*commands, webSSHSanitizeAuditCommand(command))
+}
+
+func (web *web) recordWebSSHAudit(target *controlplane.WebSSHTarget, userID uint, clientIP, clientIPSource, action, username, statement string, success bool, elapsedMS int64, errText string) {
+	if target == nil || userID == 0 {
+		return
+	}
+	action = strings.TrimSpace(action)
+	if action == "" {
+		action = "execute"
+	}
+	username = strings.TrimSpace(username)
+	statement = strings.TrimSpace(statement)
+	if statement == "" {
+		statement = webSSHAuditStatement(action, username)
+	}
+	if err := web.controlPlane.RecordWebDataAudit(context.Background(), &controlplane.WebDataAudit{
+		UserID:           userID,
+		ProxyID:          target.ProxyID,
+		ProxyName:        target.ProxyName,
+		ApplicationID:    target.ApplicationID,
+		ApplicationName:  target.ApplicationName,
+		Protocol:         "ssh",
+		Action:           action,
+		Database:         username,
+		StatementPreview: webDataStatementPreview(statement),
+		StatementSHA256:  webDataStatementHash(statement),
+		Success:          success,
+		AffectedRows:     0,
+		Error:            errText,
+		ElapsedMS:        elapsedMS,
+		ClientIP:         strings.TrimSpace(clientIP),
+		Details:          map[string]any{"client_ip_source": strings.TrimSpace(clientIPSource)},
+	}); err != nil {
+		log.Warnf("webssh audit record failed: proxy_id=%d user_id=%d action=%s err=%v", target.ProxyID, userID, action, err)
+	}
+}
+
+func webSSHAuditStatement(action, username string) string {
+	var statement string
+	switch strings.TrimSpace(action) {
+	case "open_session":
+		statement = "OPEN SSH SESSION"
+	case "close_session":
+		statement = "CLOSE SSH SESSION"
+	default:
+		statement = strings.ToUpper(strings.TrimSpace(action))
+	}
+	username = strings.TrimSpace(username)
+	if username != "" {
+		return statement + " AS " + username
+	}
+	return statement
+}
+
+func webSSHOutputHasSensitivePrompt(data string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(data))
+	if normalized == "" {
+		return false
+	}
+	markers := []string{
+		"password:",
+		"password for",
+		"passphrase:",
+		"verification code:",
+		"one-time password:",
+		"请输入密码",
+		"密码:",
+		"密码：",
+	}
+	for _, marker := range markers {
+		if strings.Contains(normalized, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func webSSHSanitizeAuditCommand(command string) string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return ""
+	}
+	lower := strings.ToLower(command)
+	markers := []string{
+		"password",
+		"passwd",
+		"passphrase",
+		"secret",
+		"token",
+		"api_key",
+		"apikey",
+		"access_key",
+		"secret_key",
+		"sshpass",
+		"mysql_pwd",
+		"pgpassword",
+	}
+	for _, marker := range markers {
+		if strings.Contains(lower, marker) {
+			return "[SENSITIVE COMMAND REDACTED]"
+		}
+	}
+	return command
+}
+
 func refreshWebSSHReadDeadline(conn *websocket.Conn) {
 	_ = conn.SetReadDeadline(time.Now().Add(webSSHHeartbeatTTL))
 }
 
-func (web *web) copyWebSSHOutput(writer *webSSHWSWriter, reader io.Reader, done <-chan struct{}) {
+func (web *web) copyWebSSHOutput(writer *webSSHWSWriter, reader io.Reader, done <-chan struct{}, observe func(string)) {
 	chunks := make(chan []byte, 16)
 	quit := make(chan struct{})
 	go func() {
@@ -581,6 +794,9 @@ func (web *web) copyWebSSHOutput(writer *webSSHWSWriter, reader io.Reader, done 
 		}
 		data := string(pending)
 		pending = pending[:0]
+		if observe != nil {
+			observe(data)
+		}
 		return writer.write(webSSHServerMessage{Type: "output", Data: data}) == nil
 	}
 

@@ -51,6 +51,20 @@ type ControlPlane interface {
 	TouchWebDesktopCredential(ctx context.Context, proxyID uint, protocol, username, domain string) error
 	DeleteWebDesktopCredential(ctx context.Context, proxyID uint, protocol, username, domain string) error
 
+	GetWebDataTarget(ctx context.Context, proxyID uint) (*WebDataTarget, error)
+	OpenWebDataStream(ctx context.Context, proxyID uint) (net.Conn, *WebDataTarget, error)
+	GetWebDataCredentialSecret(ctx context.Context, proxyID uint, protocol, username, database, authDatabase string) (*WebDataCredentialSecret, error)
+	GetWebDataCredentialSecretByID(ctx context.Context, proxyID, credentialID uint) (*WebDataCredentialSecret, error)
+	SaveWebDataCredential(ctx context.Context, proxyID uint, protocol, username, database, authDatabase, encryptedPassword, nonce string) error
+	SaveWebDataCredentialProfile(ctx context.Context, proxyID uint, profile *WebDataCredentialProfile) (*WebDataCredential, error)
+	TouchWebDataCredential(ctx context.Context, proxyID uint, protocol, username, database, authDatabase string) error
+	TouchWebDataCredentialByID(ctx context.Context, proxyID, credentialID uint) error
+	DeleteWebDataCredential(ctx context.Context, proxyID uint, protocol, username, database, authDatabase string) error
+	DeleteWebDataCredentialByID(ctx context.Context, proxyID, credentialID uint) error
+	RecordWebDataAudit(ctx context.Context, audit *WebDataAudit) error
+	ListWebDataAudits(ctx context.Context, proxyID uint, limit int) ([]*WebDataAuditEntry, error)
+	ListWebDataAuditEntries(ctx context.Context, query *WebDataAuditListQuery) (*WebDataAuditList, error)
+
 	CreateEdgeScanApplicationTask(ctx context.Context, req *v1.CreateEdgeScanApplicationTaskRequest) (*v1.CreateEdgeScanApplicationTaskResponse, error)
 	GetEdgeScanApplicationTask(ctx context.Context, req *v1.GetEdgeScanApplicationTaskRequest) (*v1.GetEdgeScanApplicationTaskResponse, error)
 

@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
-[![Version](https://img.shields.io/badge/Version-v1.7.0-green)](#)
+[![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
 [简体中文](./README.md) | [English](./README_en.md) | [日本語](./README_ja.md) | 한국어 | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
@@ -55,9 +55,9 @@ Liaison 은 엔터프라이즈급 애플리케이션 접근 솔루션으로, 언
 **1. 다운로드**
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.7.0/liaison-1.7.0-linux-amd64.tar.gz
-tar -xzf liaison-1.7.0-linux-amd64.tar.gz
-cd liaison-1.7.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
+tar -xzf liaison-1.8.0-linux-amd64.tar.gz
+cd liaison-1.8.0-linux-amd64
 ```
 
 **2. 설치 스크립트 실행**
@@ -79,9 +79,9 @@ sudo ./install.sh
 Docker 20.10+ 과 `docker compose` 플러그인이 필요합니다. 번들은 `liaison`(웹 콘솔 + API)과 `frontier`(커넥터 게이트웨이) 두 컨테이너를 제공하며, 이미지가 미리 빌드되어 있어 레지스트리 pull 이나 소스 체크아웃이 필요 없습니다.
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.7.0/liaison-1.7.0-docker-amd64.tar.gz
-tar -xzf liaison-1.7.0-docker-amd64.tar.gz
-cd liaison-1.7.0-docker-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
+tar -xzf liaison-1.8.0-docker-amd64.tar.gz
+cd liaison-1.8.0-docker-amd64
 ./load.sh
 ```
 

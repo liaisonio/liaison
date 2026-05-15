@@ -302,6 +302,168 @@ declare namespace API {
     domain?: string;
   }
 
+  // ========== WebData ==========
+  interface WebDataCredential {
+    id?: number;
+    saved: boolean;
+    name?: string;
+    protocol: 'mysql' | 'postgresql' | 'redis' | 'mongodb';
+    username?: string;
+    database?: string;
+    auth_database?: string;
+    redis_db?: number;
+    tls_mode?: string;
+    schema?: string;
+    auth_mechanism?: string;
+    direct_connection?: boolean;
+    connection_params?: string;
+    last_used_at?: string;
+  }
+
+  interface WebDataTarget {
+    proxy_id: number;
+    proxy_name: string;
+    application_id: number;
+    application_name: string;
+    protocol: 'mysql' | 'postgresql' | 'redis' | 'mongodb';
+    application_type: string;
+    target_host: string;
+    target_port: number;
+    effective_status: string;
+    effective_status_message?: string;
+    credentials?: WebDataCredential[];
+  }
+
+  interface CreateWebDataSessionRequest {
+    credential_id?: number;
+    protocol?: string;
+    username?: string;
+    password?: string;
+    database?: string;
+    auth_database?: string;
+    redis_db?: number;
+    tls_mode?: string;
+    schema?: string;
+    auth_mechanism?: string;
+    direct_connection?: boolean;
+    connection_params?: string;
+    save_credential?: boolean;
+  }
+
+  interface SaveWebDataCredentialRequest {
+    id?: number;
+    name?: string;
+    protocol?: string;
+    username?: string;
+    password?: string;
+    database?: string;
+    auth_database?: string;
+    redis_db?: number;
+    tls_mode?: string;
+    schema?: string;
+    auth_mechanism?: string;
+    direct_connection?: boolean;
+    connection_params?: string;
+  }
+
+  interface CreateWebDataSessionResponse {
+    token: string;
+    expires_at: string;
+    capabilities: string[];
+  }
+
+  interface WebDataExecuteResult {
+    type: string;
+    columns?: string[];
+    rows?: Record<string, any>[];
+    affected_rows?: number;
+    message?: string;
+    elapsed_ms?: number;
+    truncated?: boolean;
+    error?: string;
+  }
+
+  interface WebDataMetadataNode {
+    key: string;
+    title: string;
+    type: string;
+    value?: string;
+    meta?: Record<string, string>;
+    children?: WebDataMetadataNode[];
+  }
+
+  interface WebDataMetadataResult {
+    nodes: WebDataMetadataNode[];
+  }
+
+  interface WebDataObjectParams {
+    type: string;
+    database?: string;
+    schema?: string;
+    name?: string;
+    key?: string;
+  }
+
+  interface WebDataObjectResult {
+    object_type: string;
+    database?: string;
+    schema?: string;
+    name?: string;
+    key?: string;
+    ddl?: string;
+    columns?: Record<string, any>[];
+    indexes?: Record<string, any>[];
+    message?: string;
+    extra?: Record<string, any>[];
+  }
+
+  interface WebDataAuditItem {
+    id: number;
+    user_id: number;
+    user_email?: string;
+    proxy_id: number;
+    proxy_name?: string;
+    application_id: number;
+    application_name?: string;
+    protocol: string;
+    action: string;
+    statement_preview: string;
+    statement_sha256: string;
+    success: boolean;
+    error?: string;
+    elapsed_ms: number;
+    details?: Record<string, any>;
+    created_at: string;
+  }
+
+  interface WebDataAuditListResult {
+    items: WebDataAuditItem[];
+    total: number;
+    page: number;
+    page_size: number;
+  }
+
+  interface WebDataAuditListParams {
+    page?: number;
+    page_size?: number;
+    limit?: number;
+    proxy_id?: number;
+    protocol?: string;
+    action?: string;
+    success?: boolean;
+    keyword?: string;
+    start_time?: string;
+    end_time?: string;
+  }
+
+  interface DeleteWebDataCredentialParams {
+    id?: number;
+    protocol?: string;
+    username?: string;
+    database?: string;
+    auth_database?: string;
+  }
+
   // ========== 流量监控 (Traffic Metric) ==========
   interface TrafficMetric {
     id: number;

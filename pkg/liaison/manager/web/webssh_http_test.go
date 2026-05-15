@@ -50,3 +50,49 @@ func TestWebSSHCredentialDecryptRejectsWrongKey(t *testing.T) {
 		t.Fatal("decryptWebSSHPassword() with wrong key succeeded")
 	}
 }
+
+func TestWebSSHCommandCollectorAuditsCompletedLines(t *testing.T) {
+	var commands []string
+	collector := &webSSHCommandCollector{}
+	emit := func(command string) {
+		commands = append(commands, command)
+	}
+
+	collector.feed("ec", emit)
+	collector.feed("ho hello\r", emit)
+	collector.feed("\x1b[Auname -a\n", emit)
+	collector.feed("abcd\b\bXY\r", emit)
+
+	want := []string{"echo hello", "uname -a", "abXY"}
+	if len(commands) != len(want) {
+		t.Fatalf("commands = %#v, want %#v", commands, want)
+	}
+	for i := range want {
+		if commands[i] != want[i] {
+			t.Fatalf("commands[%d] = %q, want %q", i, commands[i], want[i])
+		}
+	}
+}
+
+func TestWebSSHCommandCollectorSuppressesSensitiveInput(t *testing.T) {
+	var commands []string
+	collector := &webSSHCommandCollector{}
+	emit := func(command string) {
+		commands = append(commands, command)
+	}
+
+	collector.observeOutput("[sudo] password for root:")
+	collector.feed("super-secret-password\r", emit)
+	collector.feed("whoami\r", emit)
+	collector.feed("mysql --password=plain-text\r", emit)
+
+	want := []string{"whoami", "[SENSITIVE COMMAND REDACTED]"}
+	if len(commands) != len(want) {
+		t.Fatalf("commands = %#v, want %#v", commands, want)
+	}
+	for i := range want {
+		if commands[i] != want[i] {
+			t.Fatalf("commands[%d] = %q, want %q", i, commands[i], want[i])
+		}
+	}
+}

@@ -39,6 +39,7 @@ type web struct {
 	iamService      *iam.IAMService
 	webSSH          *webSSHSessionStore
 	webDesktop      *webDesktopSessionStore
+	webData         *webDataSessionStore
 	credentialKey   []byte
 	guacdAddr       string
 	guacdBridgeAddr string
@@ -72,6 +73,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 		iamService:      iamService,
 		webSSH:          newWebSSHSessionStore(),
 		webDesktop:      newWebDesktopSessionStore(),
+		webData:         newWebDataSessionStore(),
 		credentialKey:   credentialKey,
 		guacdAddr:       managerGuacdAddr(conf),
 		guacdBridgeAddr: managerGuacdBridgeAddr(conf),
@@ -110,6 +112,21 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	srv.HandleFunc("/api/v1/webdesktop/proxies/{id}/session", web.handleCreateWebDesktopSessionHTTP)
 	srv.HandleFunc("/api/v1/webdesktop/proxies/{id}/credential", web.handleWebDesktopCredentialHTTP)
 	srv.HandleFunc("/api/v1/webdesktop/sessions/{token}/connect", web.handleWebDesktopConnectHTTP)
+
+	// WebData (MySQL/PostgreSQL/Redis/MongoDB)
+	srv.HandleFunc("/api/v1/webdata/proxies/{id}", web.handleWebDataTargetHTTP)
+	srv.HandleFunc("/api/v1/webdata/proxies/{id}/session", web.handleCreateWebDataSessionHTTP)
+	srv.HandleFunc("/api/v1/webdata/proxies/{id}/test", web.handleTestWebDataConnectionHTTP)
+	srv.HandleFunc("/api/v1/webdata/proxies/{id}/credential", web.handleWebDataCredentialHTTP)
+	srv.HandleFunc("/api/v1/webdata/proxies/{id}/audits", web.handleWebDataAuditsHTTP)
+	srv.HandleFunc("/api/v1/webdata/sessions/{token}/execute", web.handleWebDataSessionHTTP)
+	srv.HandleFunc("/api/v1/webdata/sessions/{token}/metadata", web.handleWebDataMetadataHTTP)
+	srv.HandleFunc("/api/v1/webdata/sessions/{token}/object", web.handleWebDataObjectHTTP)
+	srv.HandleFunc("/api/v1/webdata/sessions/{token}", web.handleWebDataSessionHTTP)
+
+	// Audit
+	srv.HandleFunc("/api/v1/audits/access", web.handleAccessAuditListHTTP)
+	srv.HandleFunc("/api/v1/audits/webdata", web.handleWebDataAuditListHTTP)
 
 	// 文件服务
 	if err := web.serveFiles(conf, srv); err != nil {

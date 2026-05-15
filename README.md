@@ -7,7 +7,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![技术栈](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#技术栈一览)
-[![版本](https://img.shields.io/badge/Version-v1.7.0-green)](#)
+[![版本](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
 简体中文 | [English](./README_en.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
@@ -59,11 +59,11 @@ Liaison 是一个生产级应用访问解决方案，不暴露任何内网端口
 
 ```bash
 # 下载最新版本
-wget https://github.com/liaisonio/liaison/releases/download/v1.7.0/liaison-1.7.0-linux-amd64.tar.gz
+wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
 
 # 解压
-tar -xzf liaison-1.7.0-linux-amd64.tar.gz
-cd liaison-1.7.0-linux-amd64
+tar -xzf liaison-1.8.0-linux-amd64.tar.gz
+cd liaison-1.8.0-linux-amd64
 sudo ./install.sh
 ```
 
@@ -80,9 +80,9 @@ sudo ./install.sh
 需要 Docker 20.10+ 及 `docker compose` 插件。安装包内含已构建好的镜像,无需拉仓库或拉镜像。
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.7.0/liaison-1.7.0-docker-amd64.tar.gz
-tar -xzf liaison-1.7.0-docker-amd64.tar.gz
-cd liaison-1.7.0-docker-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
+tar -xzf liaison-1.8.0-docker-amd64.tar.gz
+cd liaison-1.8.0-docker-amd64
 ./load.sh
 ```
 

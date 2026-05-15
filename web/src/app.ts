@@ -1,12 +1,17 @@
-import { history, RequestConfig } from '@umijs/max';
-import { ConfigProvider, Dropdown, message, Typography } from 'antd';
-import { LogoutOutlined, SettingOutlined, BugOutlined, GlobalOutlined } from '@ant-design/icons';
-import React from 'react';
-import enUS from 'antd/locale/en_US';
-import zhCN from 'antd/locale/zh_CN';
-import { getCurrentUser, logout } from '@/services/api';
 import { APP_NAME, GITHUB_URL } from '@/constants';
 import { getLocale, setLocale, tr } from '@/i18n';
+import { getCurrentUser, logout } from '@/services/api';
+import {
+  BugOutlined,
+  GlobalOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
+import { history, RequestConfig } from '@umijs/max';
+import { ConfigProvider, Dropdown, message, Typography } from 'antd';
+import enUS from 'antd/locale/en_US';
+import zhCN from 'antd/locale/zh_CN';
+import React from 'react';
 import './global.less';
 
 const { Text, Link } = Typography;
@@ -20,6 +25,7 @@ const localizeMenuName = (path?: string, name?: string) => {
     '/resource/device': tr('设备', 'Devices'),
     '/resource/app': tr('应用', 'Applications'),
     '/connector': tr('连接器', 'Edges'),
+    '/audit': tr('审计', 'Audit'),
     '/settings': tr('设置', 'Settings'),
   };
   if (path && map[path]) {
@@ -40,7 +46,7 @@ if (process.env.NODE_ENV === 'development') {
   const shouldFilter = (args: any[]) => {
     const msg = args[0];
     if (typeof msg === 'string') {
-      return filterMessages.some(filter => msg.includes(filter));
+      return filterMessages.some((filter) => msg.includes(filter));
     }
     return false;
   };
@@ -182,7 +188,9 @@ export const layout = ({ initialState }: any) => {
         React.createElement(
           'span',
           {
-            className: `locale-switch__item ${currentLocale === 'zh-CN' ? 'is-active' : ''}`,
+            className: `locale-switch__item ${
+              currentLocale === 'zh-CN' ? 'is-active' : ''
+            }`,
             style: {
               display: 'inline-flex',
               alignItems: 'center',
@@ -195,9 +203,13 @@ export const layout = ({ initialState }: any) => {
               fontWeight: 500,
               lineHeight: '22px',
               cursor: currentLocale === 'zh-CN' ? 'default' : 'pointer',
-              color: currentLocale === 'zh-CN' ? '#1677ff' : 'rgba(0, 0, 0, 0.65)',
+              color:
+                currentLocale === 'zh-CN' ? '#1677ff' : 'rgba(0, 0, 0, 0.65)',
               background: currentLocale === 'zh-CN' ? '#e6f4ff' : 'transparent',
-              boxShadow: currentLocale === 'zh-CN' ? 'inset 0 0 0 1px rgba(22, 119, 255, 0.22)' : 'none',
+              boxShadow:
+                currentLocale === 'zh-CN'
+                  ? 'inset 0 0 0 1px rgba(22, 119, 255, 0.22)'
+                  : 'none',
               userSelect: 'none',
             },
             onClick: () => {
@@ -211,7 +223,9 @@ export const layout = ({ initialState }: any) => {
         React.createElement(
           'span',
           {
-            className: `locale-switch__item ${currentLocale === 'en-US' ? 'is-active' : ''}`,
+            className: `locale-switch__item ${
+              currentLocale === 'en-US' ? 'is-active' : ''
+            }`,
             style: {
               display: 'inline-flex',
               alignItems: 'center',
@@ -224,9 +238,13 @@ export const layout = ({ initialState }: any) => {
               fontWeight: 500,
               lineHeight: '22px',
               cursor: currentLocale === 'en-US' ? 'default' : 'pointer',
-              color: currentLocale === 'en-US' ? '#1677ff' : 'rgba(0, 0, 0, 0.65)',
+              color:
+                currentLocale === 'en-US' ? '#1677ff' : 'rgba(0, 0, 0, 0.65)',
               background: currentLocale === 'en-US' ? '#e6f4ff' : 'transparent',
-              boxShadow: currentLocale === 'en-US' ? 'inset 0 0 0 1px rgba(22, 119, 255, 0.22)' : 'none',
+              boxShadow:
+                currentLocale === 'en-US'
+                  ? 'inset 0 0 0 1px rgba(22, 119, 255, 0.22)'
+                  : 'none',
               userSelect: 'none',
             },
             onClick: () => {
@@ -274,7 +292,7 @@ export const layout = ({ initialState }: any) => {
         return React.createElement(
           Dropdown,
           { menu: { items: dropdownMenuItems } },
-          avatarChildren
+          avatarChildren,
         );
       },
     },
@@ -316,7 +334,11 @@ export const layout = ({ initialState }: any) => {
               flexWrap: 'wrap',
             },
           },
-          React.createElement(Text, { type: 'secondary', style: { fontSize: 13 } }, `© 2026 ${APP_NAME}. All rights reserved.`),
+          React.createElement(
+            Text,
+            { type: 'secondary', style: { fontSize: 13 } },
+            `© 2026 ${APP_NAME}. All rights reserved.`,
+          ),
           React.createElement(
             Link,
             {
@@ -348,9 +370,9 @@ export const layout = ({ initialState }: any) => {
                 verticalAlign: 'middle',
               },
             }),
-            React.createElement('span', null, 'Github')
-          )
-        )
+            React.createElement('span', null, 'Github'),
+          ),
+        ),
       );
     },
   };
@@ -394,14 +416,23 @@ export const request: RequestConfig = {
       const { response } = error;
       if (response?.status === 401 || response?.status === 403) {
         localStorage.removeItem('token');
-        message.error(tr('登录已过期，请重新登录', 'Session expired, please login again'));
+        message.error(
+          tr('登录已过期，请重新登录', 'Session expired, please login again'),
+        );
         history.push('/login');
       } else if (response?.status === 500) {
         // 检查是否是认证相关的500错误
-        const errorMessage = error?.response?.data?.message || error?.message || '';
-        if (errorMessage.includes('authentication') || errorMessage.includes('token') || errorMessage.includes('unauthorized')) {
+        const errorMessage =
+          error?.response?.data?.message || error?.message || '';
+        if (
+          errorMessage.includes('authentication') ||
+          errorMessage.includes('token') ||
+          errorMessage.includes('unauthorized')
+        ) {
           localStorage.removeItem('token');
-          message.error(tr('登录已过期，请重新登录', 'Session expired, please login again'));
+          message.error(
+            tr('登录已过期，请重新登录', 'Session expired, please login again'),
+          );
           history.push('/login');
         } else {
           message.error(tr('服务器错误', 'Server error'));

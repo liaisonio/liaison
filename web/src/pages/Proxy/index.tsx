@@ -50,7 +50,16 @@ import { useEffect, useRef, useState } from 'react';
 
 const { Text } = Typography;
 
-const webOnlyApplicationTypes = new Set(['ssh', 'rdp', 'vnc']);
+const webOnlyApplicationTypes = new Set([
+  'ssh',
+  'rdp',
+  'vnc',
+  'mysql',
+  'postgresql',
+  'redis',
+  'mongodb',
+  'database',
+]);
 const protocolTagColors: Record<string, string> = {
   http: 'green',
   tcp: 'blue',
@@ -739,6 +748,15 @@ const ProxyPage: React.FC = () => {
         const isWebDesktop =
           record.application?.application_type === 'rdp' ||
           record.application?.application_type === 'vnc';
+        const isWebData = [
+          'mysql',
+          'postgresql',
+          'redis',
+          'mongodb',
+          'database',
+        ].includes(
+          String(record.application?.application_type || '').toLowerCase(),
+        );
         const isActive =
           (record.effective_status ||
             (record.status === 'running' ? 'active' : 'stopped')) === 'active';
@@ -752,7 +770,7 @@ const ProxyPage: React.FC = () => {
 
         return (
           <Space>
-            {isActive && (isSSH || isWebDesktop || url) && (
+            {isActive && (isSSH || isWebDesktop || isWebData || url) && (
               <Tooltip
                 title={
                   <span style={{ fontSize: '12px' }}>
@@ -760,6 +778,8 @@ const ProxyPage: React.FC = () => {
                       ? tr('在网页终端中打开 SSH', 'Open SSH in web terminal')
                       : isWebDesktop
                       ? tr('在网页远程桌面中打开', 'Open in web desktop')
+                      : isWebData
+                      ? tr('在网页数据控制台中打开', 'Open in web data console')
                       : accessUrl}
                   </span>
                 }
@@ -775,6 +795,10 @@ const ProxyPage: React.FC = () => {
                     }
                     if (isWebDesktop) {
                       history.push(`/webdesktop/${record.id}`);
+                      return;
+                    }
+                    if (isWebData) {
+                      history.push(`/webdata/${record.id}`);
                       return;
                     }
                     if (url) {
@@ -971,8 +995,8 @@ const ProxyPage: React.FC = () => {
               'Public port exposure is controlled separately',
             )}
             description={tr(
-              '关闭时只能通过 WebSSH/WebDesktop 访问；开启时会创建公网监听端口，端口留空则自动分配。',
-              'When disabled, access is WebSSH/WebDesktop only. When enabled, a public listener is created; leave the port empty to auto-allocate.',
+              '关闭时只能通过网页控制台访问；开启时会创建公网监听端口，端口留空则自动分配。',
+              'When disabled, access is web-console only. When enabled, a public listener is created; leave the port empty to auto-allocate.',
             )}
             type="info"
             showIcon
@@ -1064,8 +1088,8 @@ const ProxyPage: React.FC = () => {
               },
             }}
             extra={tr(
-              '关闭后只能通过 WebSSH/WebDesktop 访问；开启后可通过公网端口直连',
-              'Disable for WebSSH/WebDesktop-only access; enable to allow direct public-port connections',
+              '关闭后只能通过网页控制台访问；开启后可通过公网端口直连',
+              'Disable for web-console-only access; enable to allow direct public-port connections',
             )}
           />
         )}
