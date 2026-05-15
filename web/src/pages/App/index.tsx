@@ -38,7 +38,16 @@ import { useRef, useState } from 'react';
 
 const { Text } = Typography;
 
-const webOnlyApplicationTypes = new Set(['ssh', 'rdp', 'vnc']);
+const webOnlyApplicationTypes = new Set([
+  'ssh',
+  'rdp',
+  'vnc',
+  'mysql',
+  'postgresql',
+  'redis',
+  'mongodb',
+  'database',
+]);
 
 type SelectOption = {
   label: string;
@@ -866,8 +875,8 @@ const AppPage: React.FC = () => {
               'Public port exposure is controlled separately',
             )}
             description={tr(
-              '关闭时只能通过 WebSSH/WebDesktop 访问；开启时会创建公网监听端口，端口留空则自动分配。',
-              'When disabled, access is WebSSH/WebDesktop only. When enabled, a public listener is created; leave the port empty to auto-allocate.',
+              '关闭时只能通过网页控制台访问；开启时会创建公网监听端口，端口留空则自动分配。',
+              'When disabled, access is web-console only. When enabled, a public listener is created; leave the port empty to auto-allocate.',
             )}
             type="info"
             showIcon

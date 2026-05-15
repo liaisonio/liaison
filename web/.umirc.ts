@@ -1,5 +1,7 @@
 import { defineConfig } from '@umijs/max';
 
+const apiTarget = process.env.LIAISON_API_TARGET || 'https://49.232.250.11:443';
+
 export default defineConfig({
   antd: {
     appConfig: {
@@ -21,7 +23,7 @@ export default defineConfig({
   tailwindcss: {},
   proxy: {
     '/api': {
-      target: 'https://49.232.250.11:443',
+      target: apiTarget,
       changeOrigin: true,
       secure: false, // 如果是 HTTP，设置为 false
     },
@@ -64,6 +66,11 @@ export default defineConfig({
       hideInMenu: true,
     },
     {
+      path: '/webdata/:proxyId',
+      component: './WebData',
+      hideInMenu: true,
+    },
+    {
       name: '设备/应用',
       path: '/resource',
       icon: 'AppstoreOutlined',
@@ -85,6 +92,12 @@ export default defineConfig({
       path: '/connector',
       icon: 'ApiOutlined',
       component: './Connector',
+    },
+    {
+      name: '审计',
+      path: '/audit',
+      icon: 'AuditOutlined',
+      component: './Audit',
     },
     {
       name: '设置',
