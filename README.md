@@ -209,7 +209,7 @@ Made with ❤️ by [Liaison Contributors](https://github.com/liaisonio/liaison/
 
 | 飞书群 | 微信群 |
 |:---:|:---:|
-| <img src="./web/public/feishu.png" width="220"> | <img src="./web/public/wechat-group.png" width="220"> |
+| <img src="./web/public/feishu.png" width="220"> | <img src="./web/public/wechat-group-v2.png" width="220"> |
 
 
 [GitHub](https://github.com/liaisonio/liaison) • [Issues](https://github.com/liaisonio/liaison/issues) • [Discussions](https://github.com/liaisonio/liaison/discussions)
