@@ -1,15 +1,13 @@
 import { useI18n } from '@/i18n';
+import { useSearchParams } from '@/lib/runtime';
 import { getAccessAuditList, getProxyList } from '@/services/api';
-import { defaultPagination, defaultSearch } from '@/utils/tableConfig';
+import { defaultPagination } from '@/utils/tableConfig';
 import {
-  AuditOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   CloudServerOutlined,
   DatabaseOutlined,
-  FileSearchOutlined,
   LinkOutlined,
-  ReloadOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import {
@@ -18,12 +16,13 @@ import {
   ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import { history, useSearchParams } from '@umijs/max';
 import {
   Button,
-  Empty,
+  DatePicker,
+  Form,
+  Input,
+  Select,
   Space,
-  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -62,16 +61,12 @@ const actionColors: Record<string, string> = {
 const AuditPage: React.FC = () => {
   const { tr } = useI18n();
   const actionRef = useRef<ActionType>();
-  const searchFormRef = useRef<any>();
+  const [filterForm] = Form.useForm();
+  const [filterParams, setFilterParams] = useState<Record<string, any>>({});
   const [searchParams] = useSearchParams();
   const [proxyOptions, setProxyOptions] = useState<
     { label: string; value: number }[]
   >([]);
-  const [summary, setSummary] = useState({
-    total: 0,
-    success: 0,
-    failed: 0,
-  });
 
   const initialProxyID = useMemo(() => {
     const raw = searchParams.get('proxy_id');
@@ -135,8 +130,21 @@ const AuditPage: React.FC = () => {
     [tr],
   );
 
-  const submitSearchAfterChange = () => {
-    window.setTimeout(() => searchFormRef.current?.submit?.(), 0);
+  useEffect(() => {
+    if (!initialProxyID) return;
+    filterForm.setFieldValue('proxy_id', initialProxyID);
+    setFilterParams({ proxy_id: initialProxyID });
+  }, [filterForm, initialProxyID]);
+
+  const submitFilters = (values: Record<string, any>) => {
+    setFilterParams({ ...values, submitted_at: Date.now() });
+  };
+
+  const resetFilters = () => {
+    filterForm.resetFields();
+    const initialValues = initialProxyID ? { proxy_id: initialProxyID } : {};
+    filterForm.setFieldsValue(initialValues);
+    setFilterParams({ ...initialValues, submitted_at: Date.now() });
   };
 
   const columns: ProColumns<API.WebDataAuditItem>[] = [
@@ -145,6 +153,9 @@ const AuditPage: React.FC = () => {
       dataIndex: 'time_range',
       valueType: 'dateTimeRange',
       hideInTable: true,
+      fieldProps: {
+        placeholder: [tr('开始时间', 'Start time'), tr('结束时间', 'End time')],
+      },
     },
     {
       title: tr('关键字', 'Keyword'),
@@ -169,7 +180,6 @@ const AuditPage: React.FC = () => {
         optionFilterProp: 'label',
         options: proxyOptions,
         placeholder: tr('选择访问名称', 'Select entry'),
-        onChange: submitSearchAfterChange,
       },
     },
     {
@@ -178,7 +188,7 @@ const AuditPage: React.FC = () => {
       hideInTable: true,
       fieldProps: {
         allowClear: true,
-        onChange: submitSearchAfterChange,
+        placeholder: tr('全部协议', 'All protocols'),
       },
       valueEnum: {
         ssh: { text: 'SSH' },
@@ -201,7 +211,7 @@ const AuditPage: React.FC = () => {
       },
       fieldProps: {
         allowClear: true,
-        onChange: submitSearchAfterChange,
+        placeholder: tr('全部类型', 'All actions'),
       },
       width: 122,
       render: (_, record) => (
@@ -252,7 +262,10 @@ const AuditPage: React.FC = () => {
           <button
             type="button"
             className="audit-source-link"
-            onClick={() => history.push(accessDetailPath(record))}
+            onClick={() => {
+              const path = accessDetailPath(record);
+              window.open(path, '_blank', 'noopener,noreferrer');
+            }}
           >
             <CloudServerOutlined />
             <span>{record.proxy_name || `#${record.proxy_id}`}</span>
@@ -272,7 +285,7 @@ const AuditPage: React.FC = () => {
       },
       fieldProps: {
         allowClear: true,
-        onChange: submitSearchAfterChange,
+        placeholder: tr('全部结果', 'All results'),
       },
       width: 98,
       render: (_, record) =>
@@ -309,153 +322,158 @@ const AuditPage: React.FC = () => {
 
   return (
     <PageContainer title={false} className="audit-page">
-      <div className="audit-header">
-        <div className="audit-header-main">
-          <div className="audit-header-icon">
-            <AuditOutlined />
+      <div className="audit-content">
+        <Form
+          form={filterForm}
+          className="audit-filter-bar"
+          onFinish={submitFilters}
+          initialValues={initialProxyID ? { proxy_id: initialProxyID } : {}}
+        >
+          <div className="audit-filter-field is-time">
+            <span className="audit-filter-key">{tr('时间', 'Time')}</span>
+            <Form.Item name="time_range" noStyle>
+              <DatePicker.RangePicker
+                showTime
+                allowClear
+                placeholder={[
+                  tr('开始时间', 'Start time'),
+                  tr('结束时间', 'End time'),
+                ]}
+              />
+            </Form.Item>
           </div>
-          <div>
-            <Text type="secondary">{tr('安全审计', 'Security Audit')}</Text>
-            <h1>{tr('审计中心', 'Audit Center')}</h1>
+          <div className="audit-filter-field">
+            <span className="audit-filter-key">{tr('关键词', 'Keyword')}</span>
+            <Form.Item name="keyword" noStyle>
+              <Input
+                allowClear
+                placeholder={tr(
+                  '命令 / Hash / 错误 / IP',
+                  'Command / Hash / Error / IP',
+                )}
+              />
+            </Form.Item>
           </div>
-        </div>
-      </div>
+          <div className="audit-filter-field">
+            <span className="audit-filter-key">{tr('访问', 'Entry')}</span>
+            <Form.Item name="proxy_id" noStyle>
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                options={proxyOptions}
+                placeholder={tr('全部', 'All')}
+              />
+            </Form.Item>
+          </div>
+          <div className="audit-filter-field">
+            <span className="audit-filter-key">{tr('协议', 'Protocol')}</span>
+            <Form.Item name="protocol" noStyle>
+              <Select
+                allowClear
+                placeholder={tr('全部', 'All')}
+                options={Object.entries(protocolLabels).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+              />
+            </Form.Item>
+          </div>
+          <div className="audit-filter-field">
+            <span className="audit-filter-key">{tr('类型', 'Action')}</span>
+            <Form.Item name="action" noStyle>
+              <Select
+                allowClear
+                placeholder={tr('全部', 'All')}
+                options={Object.entries(actionLabels).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+              />
+            </Form.Item>
+          </div>
+          <div className="audit-filter-field">
+            <span className="audit-filter-key">{tr('结果', 'Result')}</span>
+            <Form.Item name="success" noStyle>
+              <Select
+                allowClear
+                placeholder={tr('全部', 'All')}
+                options={[
+                  { value: 'true', label: tr('成功', 'Success') },
+                  { value: 'false', label: tr('失败', 'Failed') },
+                ]}
+              />
+            </Form.Item>
+          </div>
+          <div className="audit-filter-actions">
+            <Button htmlType="button" onClick={resetFilters}>
+              {tr('重置', 'Reset')}
+            </Button>
+            <Button type="primary" htmlType="submit">
+              {tr('查询', 'Search')}
+            </Button>
+          </div>
+        </Form>
 
-      <Tabs
-        className="audit-tabs"
-        defaultActiveKey="access"
-        items={[
-          {
-            key: 'access',
-            label: tr('访问审计', 'Access Audit'),
-            children: (
-              <div className="audit-tab-panel">
-                <Space className="audit-stats" size={12} wrap>
-                  <div className="audit-stat">
-                    <FileSearchOutlined />
-                    <span>{tr('访问记录', 'Access Records')}</span>
-                    <strong>{summary.total}</strong>
-                  </div>
-                  <div className="audit-stat">
-                    <CheckCircleOutlined />
-                    <span>{tr('本页成功', 'Page OK')}</span>
-                    <strong>{summary.success}</strong>
-                  </div>
-                  <div className="audit-stat is-danger">
-                    <CloseCircleOutlined />
-                    <span>{tr('本页失败', 'Page ERR')}</span>
-                    <strong>{summary.failed}</strong>
-                  </div>
+        <ProTable<API.WebDataAuditItem>
+          actionRef={actionRef}
+          rowKey="id"
+          className="audit-table"
+          headerTitle={tr('记录', 'Records')}
+          columns={columns}
+          search={false}
+          params={filterParams}
+          pagination={defaultPagination}
+          options={{
+            density: false,
+            fullScreen: true,
+            reload: true,
+            setting: false,
+          }}
+          request={async (params) => {
+            const query = buildAuditQuery(params);
+            try {
+              const res = await getAccessAuditList(query);
+              if (res.code !== 200 || !res.data) {
+                message.error(
+                  res.message || tr('加载审计失败', 'Failed to load audits'),
+                );
+                return { data: [], total: 0, success: false };
+              }
+              const items = res.data.items || [];
+              return {
+                data: items,
+                total: res.data.total || 0,
+                success: true,
+              };
+            } catch (err: any) {
+              message.error(
+                err?.message || tr('加载审计失败', 'Failed to load audits'),
+              );
+              return { data: [], total: 0, success: false };
+            }
+          }}
+          expandable={{
+            expandedRowRender: (record) => (
+              <div className="audit-expand">
+                <Space direction="vertical" size={6}>
+                  <Text>
+                    <LinkOutlined /> SHA256: {record.statement_sha256}
+                  </Text>
+                  <Text>
+                    <DatabaseOutlined />{' '}
+                    {record.user_email || `User #${record.user_id}`}
+                  </Text>
+                  {renderAuditDetails(record.details)}
+                  {record.error && <Text type="danger">{record.error}</Text>}
                 </Space>
-
-                <ProTable<API.WebDataAuditItem>
-                  actionRef={actionRef}
-                  formRef={searchFormRef}
-                  rowKey="id"
-                  className="audit-table"
-                  headerTitle={
-                    <Space>
-                      <DatabaseOutlined />
-                      <span>{tr('访问操作', 'Access Operations')}</span>
-                    </Space>
-                  }
-                  columns={columns}
-                  search={{
-                    ...defaultSearch,
-                    span: 6,
-                    defaultCollapsed: false,
-                    searchText: tr('查询', 'Search'),
-                    resetText: tr('重置', 'Reset'),
-                  }}
-                  pagination={defaultPagination}
-                  options={{
-                    density: true,
-                    fullScreen: true,
-                    reload: true,
-                  }}
-                  toolBarRender={() => [
-                    <Button
-                      key="refresh"
-                      icon={<ReloadOutlined />}
-                      onClick={() => actionRef.current?.reload()}
-                    >
-                      {tr('刷新', 'Refresh')}
-                    </Button>,
-                  ]}
-                  request={async (params) => {
-                    const query = buildAuditQuery(params);
-                    try {
-                      const res = await getAccessAuditList(query);
-                      if (res.code !== 200 || !res.data) {
-                        message.error(
-                          res.message ||
-                            tr('加载审计失败', 'Failed to load audits'),
-                        );
-                        setSummary({ total: 0, success: 0, failed: 0 });
-                        return { data: [], total: 0, success: false };
-                      }
-                      const items = res.data.items || [];
-                      setSummary({
-                        total: res.data.total || 0,
-                        success: items.filter((item) => item.success).length,
-                        failed: items.filter((item) => !item.success).length,
-                      });
-                      return {
-                        data: items,
-                        total: res.data.total || 0,
-                        success: true,
-                      };
-                    } catch (err: any) {
-                      message.error(
-                        err?.message ||
-                          tr('加载审计失败', 'Failed to load audits'),
-                      );
-                      setSummary({ total: 0, success: 0, failed: 0 });
-                      return { data: [], total: 0, success: false };
-                    }
-                  }}
-                  expandable={{
-                    expandedRowRender: (record) => (
-                      <div className="audit-expand">
-                        <Space direction="vertical" size={6}>
-                          <Text>
-                            <LinkOutlined /> SHA256: {record.statement_sha256}
-                          </Text>
-                          <Text>
-                            <DatabaseOutlined />{' '}
-                            {record.user_email || `User #${record.user_id}`}
-                          </Text>
-                          {renderAuditDetails(record.details)}
-                          {record.error && (
-                            <Text type="danger">{record.error}</Text>
-                          )}
-                        </Space>
-                      </div>
-                    ),
-                    rowExpandable: () => true,
-                  }}
-                  scroll={{ x: 1320 }}
-                />
               </div>
             ),
-          },
-          {
-            key: 'management',
-            label: tr('管理审计', 'Management Audit'),
-            children: (
-              <div className="audit-empty-panel">
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={tr(
-                    '管理审计暂未接入，后续会归档登录、用户、连接、配置等管理操作。',
-                    'Management audit is not connected yet. Login, user, connection, and configuration changes will appear here.',
-                  )}
-                />
-              </div>
-            ),
-          },
-        ]}
-      />
+            rowExpandable: () => true,
+          }}
+          scroll={{ x: 1320 }}
+        />
+      </div>
     </PageContainer>
   );
 };

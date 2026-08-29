@@ -1,43 +1,36 @@
+import { APP_NAME } from '@/constants';
+import { useI18n } from '@/i18n';
+import { createAPIToken, listAPITokens, revokeAPIToken } from '@/services/api';
+import { useThemeMode } from '@/store/theme';
+import { executeAction } from '@/utils/request';
+import {
+  BgColorsOutlined,
+  CopyOutlined,
+  GithubOutlined,
+  GlobalOutlined,
+  InfoCircleOutlined,
+  KeyOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import {
+  Alert,
+  App,
+  Button,
   Card,
-  Tabs,
+  Divider,
   Form,
   Input,
   InputNumber,
-  Button,
-  App,
-  Descriptions,
-  Avatar,
-  Typography,
-  Divider,
   Modal,
-  Table,
   Popconfirm,
+  Segmented,
   Space,
-  Alert,
+  Table,
+  Tabs,
+  Typography,
 } from 'antd';
-import {
-  UserOutlined,
-  LockOutlined,
-  SafetyOutlined,
-  GithubOutlined,
-  InfoCircleOutlined,
-  KeyOutlined,
-  CopyOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
 import { useEffect, useState } from 'react';
-import { useModel } from '@umijs/max';
-import {
-  changePassword,
-  createAPIToken,
-  listAPITokens,
-  revokeAPIToken,
-} from '@/services/api';
-import { executeAction } from '@/utils/request';
-import { APP_NAME } from '@/constants';
-import { useI18n } from '@/i18n';
 import './index.less';
 
 const { Title, Text, Link } = Typography;
@@ -45,10 +38,8 @@ const GITHUB_URL = 'https://github.com/liaisonio/liaison';
 
 const SettingsPage: React.FC = () => {
   const { message } = App.useApp();
-  const { initialState } = useModel('@@initialState');
-  const { tr } = useI18n();
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordForm] = Form.useForm();
+  const { tr, locale, setLocale } = useI18n();
+  const { preference, setPreference } = useThemeMode();
 
   // ── PAT state ──────────────────────────────────────────────
   const [tokens, setTokens] = useState<API.APIToken[]>([]);
@@ -67,7 +58,9 @@ const SettingsPage: React.FC = () => {
         setTokens(res.data.tokens || []);
       }
     } catch (err: any) {
-      message.error(err?.message || tr('加载 Token 失败', 'Failed to load tokens'));
+      message.error(
+        err?.message || tr('加载 Token 失败', 'Failed to load tokens'),
+      );
     } finally {
       setTokensLoading(false);
     }
@@ -78,7 +71,10 @@ const SettingsPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreateToken = async (values: { name: string; expires_in_days?: number }) => {
+  const handleCreateToken = async (values: {
+    name: string;
+    expires_in_days?: number;
+  }) => {
     setCreateLoading(true);
     try {
       const res = await createAPIToken({
@@ -108,182 +104,64 @@ const SettingsPage: React.FC = () => {
     });
   };
 
-  const handleChangePassword = async (values: {
-    oldPassword: string;
-    newPassword: string;
-    confirmPassword: string;
-  }) => {
-    if (values.newPassword !== values.confirmPassword) {
-      message.error(tr('两次输入的新密码不一致', 'New passwords do not match'));
-      return;
-    }
-
-    setPasswordLoading(true);
-    await executeAction(
-      () =>
-        changePassword({
-          old_password: values.oldPassword,
-          new_password: values.newPassword,
-        }),
-      {
-        successMessage: tr('密码修改成功', 'Password changed successfully'),
-        errorMessage: tr('密码修改失败', 'Failed to change password'),
-        onSuccess: () => passwordForm.resetFields(),
-      },
-    );
-    setPasswordLoading(false);
-  };
-
   const items = [
     {
-      key: 'account',
+      key: 'preferences',
       label: (
         <span>
-          <UserOutlined />
-          {tr('账户信息', 'Account')}
+          <BgColorsOutlined />
+          {tr('界面偏好', 'Appearance')}
         </span>
       ),
       children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <div className="user-profile">
-              <Avatar
-                size={80}
-                icon={<UserOutlined />}
-                src="/avatar.svg"
-              />
-              <div className="user-info">
-                <Title level={4}>
-                  {initialState?.currentUser?.name || 'Admin'}
-                </Title>
-                <Text type="secondary">
-                  {initialState?.currentUser?.email || 'default@liaison.local'}
-                </Text>
-              </div>
-            </div>
-            
-            <Divider />
-            
-            <Descriptions
-              column={{ xs: 1, sm: 1, md: 2 }}
-              styles={{ label: { fontWeight: 500 } }}
-            >
-              <Descriptions.Item label={tr('用户名', 'Username')}>
-                {initialState?.currentUser?.name || 'Admin'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('邮箱', 'Email')}>
-                {initialState?.currentUser?.email || 'default@liaison.local'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('角色', 'Role')}>
-                {initialState?.currentUser?.role || tr('管理员', 'Administrator')}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('注册时间', 'Created At')}>
-                {initialState?.currentUser?.created_at || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('最后登录', 'Last Login')}>
-                {initialState?.currentUser?.last_login || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('登录IP', 'Login IP')}>
-                {initialState?.currentUser?.login_ip || '-'}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-        </div>
-      ),
-    },
-    {
-      key: 'password',
-      label: (
-        <span>
-          <LockOutlined />
-          {tr('修改密码', 'Password')}
-        </span>
-      ),
-      children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <div className="password-tips">
-              <SafetyOutlined className="text-blue-500 text-xl mr-2" />
+        <div className="settings-section settings-preferences">
+          <div className="settings-preference-row">
+            <div className="settings-preference-copy">
+              <BgColorsOutlined />
               <div>
-                <Text strong>{tr('密码安全提示', 'Password Security Tips')}</Text>
-                <br />
-                <Text type="secondary">
-                  {tr('建议定期修改密码，密码长度至少8位，包含字母和数字', 'Use at least 8 characters and include letters and numbers')}
-                </Text>
+                <strong>{tr('主题', 'Theme')}</strong>
+                <span>
+                  {tr(
+                    '选择界面外观，系统模式会跟随设备设置。',
+                    'Choose an appearance. System follows your device setting.',
+                  )}
+                </span>
               </div>
             </div>
-            
-            <Divider />
-            
-            <Form
-              form={passwordForm}
-              layout="vertical"
-              onFinish={handleChangePassword}
-              className="password-form"
-              requiredMark={false}
-            >
-              <Form.Item
-                name="oldPassword"
-                label={tr('当前密码', 'Current Password')}
-                rules={[{ required: true, message: tr('请输入当前密码', 'Please input current password') }]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请输入当前密码', 'Please input current password')}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="newPassword"
-                label={tr('新密码', 'New Password')}
-                rules={[
-                  { required: true, message: tr('请输入新密码', 'Please input new password') },
-                  { min: 8, message: tr('密码长度至少8位', 'Password must be at least 8 characters') },
-                  {
-                    pattern: /^(?=.*[A-Za-z])(?=.*\d)/,
-                    message: tr('密码必须包含字母和数字', 'Password must include letters and numbers'),
-                  },
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请输入新密码', 'Please input new password')}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                label={tr('确认新密码', 'Confirm New Password')}
-                dependencies={['newPassword']}
-                rules={[
-                  { required: true, message: tr('请确认新密码', 'Please confirm new password') },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error(tr('两次输入的密码不一致', 'Passwords do not match')));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请再次输入新密码', 'Please input password again')}
-                />
-              </Form.Item>
-
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={passwordLoading}
-                >
-                  {tr('修改密码', 'Change Password')}
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
+            <Segmented
+              value={preference}
+              onChange={(value) =>
+                setPreference(value as 'system' | 'light' | 'dark')
+              }
+              options={[
+                { label: tr('跟随系统', 'System'), value: 'system' },
+                { label: tr('浅色', 'Light'), value: 'light' },
+                { label: tr('深色', 'Dark'), value: 'dark' },
+              ]}
+            />
+          </div>
+          <div className="settings-preference-row">
+            <div className="settings-preference-copy">
+              <GlobalOutlined />
+              <div>
+                <strong>{tr('语言', 'Language')}</strong>
+                <span>
+                  {tr(
+                    '切换控制台的显示语言。',
+                    'Switch the language used by the console.',
+                  )}
+                </span>
+              </div>
+            </div>
+            <Segmented
+              value={locale}
+              onChange={(value) => setLocale(value as 'zh-CN' | 'en-US')}
+              options={[
+                { label: '中文', value: 'zh-CN' },
+                { label: 'English', value: 'en-US' },
+              ]}
+            />
+          </div>
         </div>
       ),
     },
@@ -301,7 +179,9 @@ const SettingsPage: React.FC = () => {
             <div className="password-tips">
               <KeyOutlined className="text-blue-500 text-xl mr-2" />
               <div>
-                <Text strong>{tr('个人访问令牌 (PAT)', 'Personal Access Tokens')}</Text>
+                <Text strong>
+                  {tr('个人访问令牌 (PAT)', 'Personal Access Tokens')}
+                </Text>
                 <br />
                 <Text type="secondary">
                   {tr(
@@ -393,32 +273,64 @@ const SettingsPage: React.FC = () => {
       children: (
         <div className="settings-section">
           <Card variant="borderless">
-            <Title level={4}>{tr('关于', 'About')} {APP_NAME}</Title>
+            <Title level={4}>
+              {tr('关于', 'About')} {APP_NAME}
+            </Title>
             <Divider />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>{tr('产品名称:', 'Product:')}</span>
+              <div
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}
+              >
+                <span
+                  style={{
+                    fontWeight: 500,
+                    minWidth: 'fit-content',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {tr('产品名称:', 'Product:')}
+                </span>
                 <span>{APP_NAME}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>GitHub:</span>
-                <Link 
-                  href={GITHUB_URL} 
-                  target="_blank" 
+              <div
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}
+              >
+                <span
+                  style={{
+                    fontWeight: 500,
+                    minWidth: 'fit-content',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  GitHub:
+                </span>
+                <Link
+                  href={GITHUB_URL}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  style={{ 
+                  style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     wordBreak: 'break-all',
-                    flex: 1
+                    flex: 1,
                   }}
                 >
                   <GithubOutlined style={{ marginRight: 8, flexShrink: 0 }} />
                   <span>{GITHUB_URL}</span>
                 </Link>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>{tr('许可证:', 'License:')}</span>
+              <div
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}
+              >
+                <span
+                  style={{
+                    fontWeight: 500,
+                    minWidth: 'fit-content',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {tr('许可证:', 'License:')}
+                </span>
                 <span>Apache License 2.0</span>
               </div>
             </div>
@@ -429,13 +341,9 @@ const SettingsPage: React.FC = () => {
   ];
 
   return (
-    <PageContainer>
-      <Card variant="borderless">
-        <Tabs
-          items={items}
-          tabPosition="left"
-          className="settings-tabs"
-        />
+    <PageContainer className="settings-page">
+      <Card variant="borderless" className="settings-shell">
+        <Tabs items={items} tabPosition="left" className="settings-tabs" />
       </Card>
 
       {/* Create-token modal */}
@@ -449,26 +357,43 @@ const SettingsPage: React.FC = () => {
         footer={null}
         destroyOnClose
       >
-        <Form form={createForm} layout="vertical" onFinish={handleCreateToken} requiredMark={false}>
+        <Form
+          form={createForm}
+          layout="vertical"
+          onFinish={handleCreateToken}
+          requiredMark={false}
+        >
           <Form.Item
             name="name"
             label={tr('名称', 'Name')}
             rules={[
-              { required: true, message: tr('请填写名称', 'Please enter a name') },
-              { max: 64, message: tr('最长 64 个字符', 'At most 64 characters') },
+              {
+                required: true,
+                message: tr('请填写名称', 'Please enter a name'),
+              },
+              {
+                max: 64,
+                message: tr('最长 64 个字符', 'At most 64 characters'),
+              },
             ]}
           >
             <Input placeholder={tr('例如: laptop-cli', 'e.g. laptop-cli')} />
           </Form.Item>
           <Form.Item
             name="expires_in_days"
-            label={tr('过期天数（0 或留空表示永不过期）', 'Expires in days (0 or blank = never)')}
+            label={tr(
+              '过期天数（0 或留空表示永不过期）',
+              'Expires in days (0 or blank = never)',
+            )}
             rules={[
               {
                 type: 'integer',
                 min: 0,
                 max: 3650,
-                message: tr('请输入 0-3650 之间的整数', 'Enter an integer between 0 and 3650'),
+                message: tr(
+                  '请输入 0-3650 之间的整数',
+                  'Enter an integer between 0 and 3650',
+                ),
               },
             ]}
           >
@@ -485,7 +410,9 @@ const SettingsPage: React.FC = () => {
               <Button type="primary" htmlType="submit" loading={createLoading}>
                 {tr('创建', 'Create')}
               </Button>
-              <Button onClick={() => setCreateOpen(false)}>{tr('取消', 'Cancel')}</Button>
+              <Button onClick={() => setCreateOpen(false)}>
+                {tr('取消', 'Cancel')}
+              </Button>
             </Space>
           </Form.Item>
         </Form>
@@ -511,20 +438,7 @@ const SettingsPage: React.FC = () => {
           )}
           style={{ marginBottom: 12 }}
         />
-        <div
-          style={{
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-            fontSize: 13,
-            background: 'rgba(0,0,0,0.04)',
-            border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 6,
-            padding: '10px 12px',
-            wordBreak: 'break-all',
-            userSelect: 'all',
-          }}
-        >
-          {revealed}
-        </div>
+        <div className="settings-token-reveal">{revealed}</div>
         <div style={{ marginTop: 12, textAlign: 'right' }}>
           <Button
             icon={<CopyOutlined />}

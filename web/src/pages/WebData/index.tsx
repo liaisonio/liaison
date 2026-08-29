@@ -37,7 +37,7 @@ import {
   TableOutlined,
 } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
-import { history, useModel, useParams } from '@umijs/max';
+import { history, useModel, useParams } from '@/lib/runtime';
 import {
   Alert,
   Button,
@@ -176,11 +176,7 @@ const WebDataPage: React.FC = () => {
   const proxyId = Number(params.proxyId);
   const currentUserKey = useMemo(
     () => currentUserStorageKey(initialState?.currentUser),
-    [
-      initialState?.currentUser?.email,
-      initialState?.currentUser?.id,
-      initialState?.currentUser?.name,
-    ],
+    [initialState?.currentUser],
   );
   const [connectionForm] = Form.useForm();
   const [quickForm] = Form.useForm();
@@ -305,16 +301,7 @@ const WebDataPage: React.FC = () => {
         target?.protocol,
         objectDetail,
       ),
-    [
-      currentUserKey,
-      objectDetail?.database,
-      objectDetail?.key,
-      objectDetail?.name,
-      objectDetail?.object_type,
-      objectDetail?.schema,
-      proxyId,
-      target?.protocol,
-    ],
+    [currentUserKey, objectDetail, proxyId, target?.protocol],
   );
 
   useEffect(() => {

@@ -33,7 +33,7 @@ import {
   ProTable,
   StepsForm,
 } from '@ant-design/pro-components';
-import { history } from '@umijs/max';
+import { history } from '@/lib/runtime';
 import {
   Alert,
   App,
@@ -720,7 +720,7 @@ const ConnectorPage: React.FC = () => {
                               }}
                             >
                               {accessKeys.command ||
-                                `curl -k -sSL https://49.232.250.11/install.sh | bash -s -- --access-key=${accessKeys.access_key} --secret-key=${accessKeys.secret_key} --server-http-addr=49.232.250.11 --server-edge-addr=49.232.250.11:30012`}
+                                `curl -k -sSL ${window.location.origin}/install.sh | bash -s -- --access-key=${accessKeys.access_key} --secret-key=${accessKeys.secret_key} --server-http-addr=${window.location.host} --server-edge-addr=${window.location.hostname}:30012`}
                             </Paragraph>
                           </div>
                         ),
@@ -740,15 +740,15 @@ const ConnectorPage: React.FC = () => {
                             >
                               {(() => {
                                 // 从后端命令中提取服务器地址，或使用默认值
-                                let serverUrl = 'https://49.232.250.11';
-                                let httpAddr = '49.232.250.11';
-                                let edgeAddr = '49.232.250.11:30012';
+                                let serverUrl = window.location.origin;
+                                let httpAddr = window.location.host;
+                                let edgeAddr = `${window.location.hostname}:30012`;
 
                                 if (accessKeys.command) {
                                   // 从命令中提取 URL（例如：curl -k -sSL https://xxx/install.sh）
                                   const urlMatch =
                                     accessKeys.command.match(
-                                      /https?:\/\/[^\s\/]+/,
+                                      /https?:\/\/[^\s/]+/,
                                     );
                                   if (urlMatch) {
                                     serverUrl = urlMatch[0];

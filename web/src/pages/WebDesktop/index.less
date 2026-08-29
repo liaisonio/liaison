@@ -1,13 +1,13 @@
 .webdesktop-shell {
   position: relative;
   display: flex;
-  min-height: calc(100vh - 150px);
-  max-height: calc(100vh - 150px);
+  min-height: calc(100vh - 112px);
+  max-height: calc(100vh - 112px);
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 8px;
-  background: #111827;
+  border: 1px solid rgb(var(--line) / 0.78);
+  border-radius: 12px;
+  background: #0d1117;
 }
 
 body.webdesktop-page-active .ant-pro-layout-footer,
@@ -16,45 +16,159 @@ body.webdesktop-page-active .global-footer {
   pointer-events: none !important;
 }
 
-body.webdesktop-page-active .ant-pro-layout-content {
-  padding-bottom: 0 !important;
-}
-
+body.webdesktop-page-active .ant-pro-layout-content,
 body.webdesktop-page-active .ant-pro-page-container-children-container {
   padding-bottom: 0 !important;
 }
 
 .webdesktop-toolbar {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  min-height: 64px;
+  align-items: center;
+  grid-template-columns: minmax(180px, auto) minmax(320px, 1fr) auto;
+  gap: 22px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgb(var(--line) / 0.72);
+  background: rgb(var(--surface));
+}
+
+.webdesktop-identity,
+.webdesktop-toolbar-actions,
+.webdesktop-session-meta,
+.webdesktop-session-meta > div,
+.webdesktop-credential-options,
+.webdesktop-credential-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  background: #ffffff;
+}
+
+.webdesktop-identity {
+  min-width: 0;
+  gap: 10px;
+}
+
+.webdesktop-identity > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.webdesktop-identity strong {
+  overflow: hidden;
+  color: rgb(var(--ink));
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webdesktop-identity span:not(.webdesktop-screen-mark) {
+  color: rgb(var(--muted));
+  font-size: 10px;
+}
+
+.webdesktop-screen-mark {
+  display: inline-grid;
+  min-width: 38px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(var(--line));
+  border-radius: 8px;
+  background: rgb(var(--panel));
+  color: rgb(var(--ink));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.webdesktop-session-meta {
+  min-width: 0;
+  gap: 24px;
+}
+
+.webdesktop-session-meta > div {
+  min-width: 0;
+  gap: 7px;
+}
+
+.webdesktop-session-meta span,
+.webdesktop-credential-target span {
+  color: rgb(var(--muted));
+  font-size: 10px;
+}
+
+.webdesktop-session-meta strong {
+  overflow: hidden;
+  color: rgb(var(--ink));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webdesktop-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.webdesktop-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.webdesktop-status.is-connected {
+  color: #22c55e;
+}
+
+.webdesktop-status.is-ready {
+  color: rgb(var(--muted));
+}
+
+.webdesktop-status.is-error {
+  color: rgb(var(--danger));
+}
+
+.webdesktop-toolbar-actions {
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.webdesktop-toolbar-actions .ant-btn {
+  height: 32px;
+  border-color: rgb(var(--line));
+  border-radius: var(--control-radius);
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.webdesktop-toolbar-actions .ant-btn-primary {
+  border-color: rgb(var(--ink));
+  background: rgb(var(--ink));
+  color: rgb(var(--canvas));
 }
 
 .webdesktop-loading {
   position: absolute;
-  z-index: 2;
-  top: 57px;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  z-index: 5;
+  inset: 65px 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgb(13 17 23 / 0.88);
 }
 
 .webdesktop-alert {
-  margin: 12px 16px 0;
-}
-
-.webdesktop-login {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-  background: #f8fafc;
+  position: relative;
+  z-index: 4;
+  margin: 10px 12px 0;
 }
 
 .webdesktop-display {
@@ -65,29 +179,15 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: #111827;
+  background: #0d1117;
 }
 
-.webdesktop-display:fullscreen {
-  display: flex;
-  width: 100vw;
-  height: 100vh;
-  min-height: 100vh;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: #000000;
-}
-
+.webdesktop-display:fullscreen,
 .webdesktop-display:-webkit-full-screen {
-  display: flex;
   width: 100vw;
   height: 100vh;
   min-height: 100vh;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: #000000;
+  background: #000;
 }
 
 .webdesktop-display-stage {
@@ -105,7 +205,7 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   z-index: 1;
   flex: 0 0 auto;
   overflow: hidden;
-  background: #000000;
+  background: #000;
   pointer-events: none;
   will-change: transform;
 }
@@ -116,39 +216,146 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   top: 50%;
   left: 50%;
   display: block;
-  transform: translate(-50%, -50%);
-  touch-action: none;
   margin: 0 auto;
+  transform: translate(-50%, -50%);
   background: transparent;
   outline: none;
-}
-
-.webdesktop-display:fullscreen .webdesktop-input-plane {
-  max-width: 100vw;
-  max-height: 100vh;
-}
-
-.webdesktop-display:-webkit-full-screen .webdesktop-input-plane {
-  max-width: 100vw;
-  max-height: 100vh;
+  touch-action: none;
 }
 
 .webdesktop-display canvas {
   display: block;
 }
 
-@media (max-width: 768px) {
+.webdesktop-empty {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: #0d1117;
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.webdesktop-empty .webdesktop-screen-mark {
+  min-width: 46px;
+  height: 42px;
+  margin-bottom: 13px;
+  border-color: #2a3038;
+  background: #151a21;
+  color: #d1d5db;
+}
+
+.webdesktop-empty strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.webdesktop-empty p {
+  margin: 5px 0 15px;
+  color: #737b87;
+  font-size: 11px;
+}
+
+.webdesktop-empty .ant-btn-primary {
+  border-color: #e5e7eb;
+  background: #e5e7eb;
+  color: #111318;
+  box-shadow: none;
+}
+
+.webdesktop-display .session-watermark__tile {
+  color: rgb(255 255 255 / 0.055);
+  font-size: 11px;
+}
+
+.webdesktop-credential-target {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 17px;
+}
+
+.webdesktop-credential-target > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid rgb(var(--line) / 0.74);
+  border-radius: 8px;
+  background: rgb(var(--panel) / 0.52);
+}
+
+.webdesktop-credential-target strong {
+  overflow: hidden;
+  color: rgb(var(--ink));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webdesktop-credential-error {
+  margin-bottom: 15px;
+}
+
+.webdesktop-credential-options {
+  min-height: 28px;
+  justify-content: space-between;
+  margin-top: -4px;
+}
+
+.webdesktop-credential-options .ant-form-item {
+  margin-bottom: 0 !important;
+}
+
+.webdesktop-credential-options .ant-btn-link {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  color: rgb(var(--muted));
+  font-size: 11px;
+}
+
+.webdesktop-credential-actions {
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 18px -20px -4px;
+  padding: 14px 20px 0;
+  border-top: 1px solid rgb(var(--line) / 0.68);
+}
+
+@media (max-width: 980px) {
   .webdesktop-toolbar {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: minmax(160px, 1fr) auto;
   }
 
-  .webdesktop-login .ant-form {
-    display: grid;
+  .webdesktop-session-meta {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .webdesktop-shell {
+    min-height: calc(100vh - 96px);
+    max-height: calc(100vh - 96px);
+  }
+
+  .webdesktop-toolbar {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
-  .webdesktop-login .ant-form-item {
-    margin-right: 0;
+  .webdesktop-toolbar-actions {
+    justify-content: flex-start;
+  }
+
+  .webdesktop-credential-target {
+    grid-template-columns: 1fr;
   }
 }

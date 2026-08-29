@@ -1,5 +1,12 @@
 import { CreateButton, DeleteLink, EditLink } from '@/components/TableButtons';
+import {
+  ACCESS_TYPES_CHANGED_EVENT,
+  getProxyAccessType,
+  isAccessType,
+  isProxyPublicPortExposed,
+} from '@/constants/accessTypes';
 import { useI18n } from '@/i18n';
+import { useLocation, useSearchParams } from '@/lib/runtime';
 import {
   createProxy,
   deleteProxy,
@@ -24,13 +31,13 @@ import {
   PageContainer,
   ProColumns,
   ProFormDigit,
+  ProFormRadio,
   ProFormSelect,
   ProFormSwitch,
   ProFormText,
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import { history, useLocation, useSearchParams } from '@umijs/max';
 import {
   Alert,
   Button,
@@ -64,6 +71,7 @@ const protocolTagColors: Record<string, string> = {
   http: 'green',
   tcp: 'blue',
   ssh: 'purple',
+  webssh: 'purple',
   rdp: 'geekblue',
   vnc: 'cyan',
   mysql: 'volcano',
@@ -75,6 +83,7 @@ const protocolLabels: Record<string, string> = {
   http: 'HTTP',
   tcp: 'TCP',
   ssh: 'SSH',
+  webssh: 'WebSSH',
   rdp: 'RDP',
   vnc: 'VNC',
   mysql: 'MySQL',
@@ -89,6 +98,10 @@ const ProxyPage: React.FC = () => {
   const createFormRef = useRef<any>();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const routeAccessTypeParam = searchParams.get('access_type');
+  const routeAccessType = isAccessType(routeAccessTypeParam)
+    ? routeAccessTypeParam
+    : undefined;
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [currentRow, setCurrentRow] = useState<API.Proxy>();
@@ -127,6 +140,10 @@ const ProxyPage: React.FC = () => {
   const [newFirewallCIDR, setNewFirewallCIDR] = useState('');
   const [clientIP, setClientIP] = useState<string | null>(null);
   const [firewallSaving, setFirewallSaving] = useState(false);
+
+  useEffect(() => {
+    actionRef.current?.reload();
+  }, [routeAccessType]);
 
   const isValidIPv4Address = (value: string): boolean => {
     const parts = value.split('.');
@@ -486,9 +503,6 @@ const ProxyPage: React.FC = () => {
   const isWebOnlyCapableType = (type?: string) =>
     webOnlyApplicationTypes.has(String(type || '').toLowerCase());
 
-  const isProxyPublicPortExposed = (record?: API.Proxy) =>
-    Boolean(record?.expose_public_port ?? (record?.port || 0) > 0);
-
   const isWebOnlyProxy = (record?: API.Proxy) =>
     Boolean(
       record &&
@@ -512,6 +526,8 @@ const ProxyPage: React.FC = () => {
   const selectedApplicationWebOnlyCapable = isWebOnlyCapableType(
     selectedApplication?.application_type,
   );
+  const selectedApplicationIsSSH =
+    selectedApplication?.application_type === 'ssh';
 
   const effectiveStatusMeta = (record: API.Proxy) => {
     const status =
@@ -549,9 +565,12 @@ const ProxyPage: React.FC = () => {
   const handleAdd = async (values: any) => {
     const app = applicationMap.get(values.application_id);
     const webCapable = isWebOnlyCapableType(app?.application_type);
-    const exposePublicPort = webCapable
-      ? Boolean(values.expose_public_port)
-      : true;
+    const exposePublicPort =
+      app?.application_type === 'ssh'
+        ? values.access_mode === 'ssh'
+        : webCapable
+        ? Boolean(values.expose_public_port)
+        : true;
     const createPort = exposePublicPort ? values.port || undefined : 0;
 
     const result = await executeAction(
@@ -569,6 +588,7 @@ const ProxyPage: React.FC = () => {
         onSuccess: () => {
           // 如果创建时端口为空，后端会动态分配端口并在响应中返回
           // 刷新列表即可显示动态分配的端口
+          window.dispatchEvent(new Event(ACCESS_TYPES_CHANGED_EVENT));
         },
       },
     );
@@ -584,9 +604,12 @@ const ProxyPage: React.FC = () => {
     const webCapable = isWebOnlyCapableType(
       currentRow.application?.application_type,
     );
-    const exposePublicPort = webCapable
-      ? Boolean(values.expose_public_port)
-      : true;
+    const exposePublicPort =
+      currentRow.application?.application_type === 'ssh'
+        ? values.access_mode === 'ssh'
+        : webCapable
+        ? Boolean(values.expose_public_port)
+        : true;
     return executeAction(
       () =>
         updateProxy(currentRow.id, {
@@ -600,6 +623,7 @@ const ProxyPage: React.FC = () => {
         errorMessage: tr('更新失败', 'Update failed'),
         onSuccess: () => {
           setEditModalVisible(false);
+          window.dispatchEvent(new Event(ACCESS_TYPES_CHANGED_EVENT));
           reload();
         },
       },
@@ -610,7 +634,10 @@ const ProxyPage: React.FC = () => {
     await executeAction(() => deleteProxy(id), {
       successMessage: tr('删除成功', 'Deleted successfully'),
       errorMessage: tr('删除失败', 'Delete failed'),
-      onSuccess: reload,
+      onSuccess: () => {
+        window.dispatchEvent(new Event(ACCESS_TYPES_CHANGED_EVENT));
+        reload();
+      },
     });
   };
 
@@ -637,18 +664,26 @@ const ProxyPage: React.FC = () => {
       search: false,
       render: (_, record) =>
         isWebOnlyProxy(record) ? (
-          <Tag color="purple">{tr('仅 Web', 'Web only')}</Tag>
+          <Tag color="purple">
+            {record.application?.application_type === 'ssh'
+              ? 'WebSSH'
+              : tr('仅 Web', 'Web only')}
+          </Tag>
+        ) : record.application?.application_type === 'ssh' ? (
+          <Tag color="blue">SSH · {record.port}</Tag>
         ) : (
           <Tag color="blue">{record.port}</Tag>
         ),
     },
     {
-      title: tr('协议类型', 'Protocol'),
+      title: tr('访问方式', 'Access Mode'),
       dataIndex: ['application', 'application_type'],
       width: 110,
       search: false,
       render: (_, record) =>
-        renderProtocolTag(record.application?.application_type),
+        record.application?.application_type === 'ssh'
+          ? renderProtocolTag(getProxyAccessType(record))
+          : renderProtocolTag(record.application?.application_type),
     },
     {
       title: tr('关联应用', 'Application'),
@@ -740,11 +775,11 @@ const ProxyPage: React.FC = () => {
       title: tr('操作', 'Actions'),
       valueType: 'option',
       width: 240,
-      fixed: 'right',
       align: 'center',
       render: (_, record) => {
         const accessUrl = record.access_url;
         const isSSH = record.application?.application_type === 'ssh';
+        const isWebSSH = isSSH && isWebOnlyProxy(record);
         const isWebDesktop =
           record.application?.application_type === 'rdp' ||
           record.application?.application_type === 'vnc';
@@ -770,46 +805,62 @@ const ProxyPage: React.FC = () => {
 
         return (
           <Space>
-            {isActive && (isSSH || isWebDesktop || isWebData || url) && (
-              <Tooltip
-                title={
-                  <span style={{ fontSize: '12px' }}>
-                    {isSSH
-                      ? tr('在网页终端中打开 SSH', 'Open SSH in web terminal')
-                      : isWebDesktop
-                      ? tr('在网页远程桌面中打开', 'Open in web desktop')
-                      : isWebData
-                      ? tr('在网页数据控制台中打开', 'Open in web data console')
-                      : accessUrl}
-                  </span>
-                }
-              >
-                <Button
-                  type="link"
-                  size="small"
-                  style={{ padding: 0, height: 'auto' }}
-                  onClick={() => {
-                    if (isSSH) {
-                      history.push(`/webssh/${record.id}`);
-                      return;
-                    }
-                    if (isWebDesktop) {
-                      history.push(`/webdesktop/${record.id}`);
-                      return;
-                    }
-                    if (isWebData) {
-                      history.push(`/webdata/${record.id}`);
-                      return;
-                    }
-                    if (url) {
-                      window.open(url, '_blank');
-                    }
-                  }}
+            {isActive &&
+              (isWebSSH || isWebDesktop || isWebData || (!isSSH && url)) && (
+                <Tooltip
+                  title={
+                    <span style={{ fontSize: '12px' }}>
+                      {isWebSSH
+                        ? tr('在网页终端中打开 SSH', 'Open SSH in web terminal')
+                        : isWebDesktop
+                        ? tr('在网页远程桌面中打开', 'Open in web desktop')
+                        : isWebData
+                        ? tr(
+                            '在网页数据控制台中打开',
+                            'Open in web data console',
+                          )
+                        : accessUrl}
+                    </span>
+                  }
                 >
-                  {tr('去访问', 'Open')}
-                </Button>
-              </Tooltip>
-            )}
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0, height: 'auto' }}
+                    onClick={() => {
+                      if (isWebSSH) {
+                        window.open(
+                          `/webssh/${record.id}`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        );
+                        return;
+                      }
+                      if (isWebDesktop) {
+                        window.open(
+                          `/webdesktop/${record.id}`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        );
+                        return;
+                      }
+                      if (isWebData) {
+                        window.open(
+                          `/webdata/${record.id}`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        );
+                        return;
+                      }
+                      if (url) {
+                        window.open(url, '_blank');
+                      }
+                    }}
+                  >
+                    {tr('去访问', 'Open')}
+                  </Button>
+                </Tooltip>
+              )}
             {isWebOnlyProxy(record) ? (
               <Tooltip
                 title={tr(
@@ -865,6 +916,23 @@ const ProxyPage: React.FC = () => {
               params,
               ['name'],
             );
+            if (routeAccessType) {
+              const response = await getProxyList({
+                name: searchParams.name,
+                page: 1,
+                page_size: 10000,
+              });
+              const matching = (response.data?.proxies || []).filter(
+                (proxy) => getProxyAccessType(proxy) === routeAccessType,
+              );
+              const page = Number(params.current || 1);
+              const pageSize = Number(params.pageSize || 10);
+              return {
+                data: matching.slice((page - 1) * pageSize, page * pageSize),
+                total: matching.length,
+                success: response.code === 200,
+              };
+            }
             return tableRequest(() => getProxyList(searchParams), 'proxies');
           }}
           toolBarRender={() => [
@@ -907,6 +975,8 @@ const ProxyPage: React.FC = () => {
             setCreateExposePublicPort(expose);
             createFormRef.current?.setFieldsValue?.({
               expose_public_port: expose,
+              access_mode:
+                app?.application_type === 'ssh' ? 'webssh' : undefined,
             });
           }
         }}
@@ -944,6 +1014,8 @@ const ProxyPage: React.FC = () => {
               setCreateExposePublicPort(expose);
               createFormRef.current?.setFieldsValue?.({
                 expose_public_port: expose,
+                access_mode:
+                  app?.application_type === 'ssh' ? 'webssh' : undefined,
                 port: undefined,
               });
             },
@@ -988,7 +1060,36 @@ const ProxyPage: React.FC = () => {
               style={{ marginBottom: 16, padding: '8px 12px' }}
             />
           )}
-        {selectedApplicationWebOnlyCapable && (
+        {selectedApplicationIsSSH && (
+          <ProFormRadio.Group
+            name="access_mode"
+            label={tr('访问方式', 'Access Mode')}
+            initialValue="webssh"
+            options={[
+              {
+                label: 'SSH',
+                value: 'ssh',
+              },
+              { label: 'WebSSH', value: 'webssh' },
+            ]}
+            fieldProps={{
+              optionType: 'button',
+              buttonStyle: 'solid',
+              onChange: (event) => {
+                const expose = event.target.value === 'ssh';
+                setCreateExposePublicPort(expose);
+                if (!expose) {
+                  createFormRef.current?.setFieldValue?.('port', undefined);
+                }
+              },
+            }}
+            extra={tr(
+              'SSH 通过公网端口直连；WebSSH 仅通过浏览器安全访问，不开放公网端口。',
+              'SSH uses a public port; WebSSH is browser-only and does not expose a public port.',
+            )}
+          />
+        )}
+        {selectedApplicationWebOnlyCapable && !selectedApplicationIsSSH && (
           <Alert
             message={tr(
               '可独立控制是否开放公网端口',
@@ -1003,7 +1104,7 @@ const ProxyPage: React.FC = () => {
             style={{ marginBottom: 16 }}
           />
         )}
-        {selectedApplicationWebOnlyCapable && (
+        {selectedApplicationWebOnlyCapable && !selectedApplicationIsSSH && (
           <ProFormSwitch
             name="expose_public_port"
             label={tr('开放公网端口', 'Expose Public Port')}
@@ -1061,6 +1162,11 @@ const ProxyPage: React.FC = () => {
             ? currentRow?.port
             : undefined,
           expose_public_port: isProxyPublicPortExposed(currentRow),
+          access_mode:
+            currentRow?.application?.application_type === 'ssh' &&
+            isProxyPublicPortExposed(currentRow)
+              ? 'ssh'
+              : 'webssh',
         }}
         width={500}
       >
@@ -1075,24 +1181,48 @@ const ProxyPage: React.FC = () => {
             },
           ]}
         />
-        {isWebOnlyCapableType(currentRow?.application?.application_type) && (
-          <ProFormSwitch
-            name="expose_public_port"
-            label={tr('开放公网端口', 'Expose Public Port')}
-            fieldProps={{
-              onChange: (checked) => {
-                setEditExposePublicPort(Boolean(checked));
-                if (!checked) {
-                  // 关闭时后端会把端口持久化为 0。
-                }
+        {currentRow?.application?.application_type === 'ssh' && (
+          <ProFormRadio.Group
+            name="access_mode"
+            label={tr('访问方式', 'Access Mode')}
+            options={[
+              {
+                label: 'SSH',
+                value: 'ssh',
               },
+              { label: 'WebSSH', value: 'webssh' },
+            ]}
+            fieldProps={{
+              optionType: 'button',
+              buttonStyle: 'solid',
+              onChange: (event) =>
+                setEditExposePublicPort(event.target.value === 'ssh'),
             }}
             extra={tr(
-              '关闭后只能通过网页控制台访问；开启后可通过公网端口直连',
-              'Disable for web-console-only access; enable to allow direct public-port connections',
+              '切换为 WebSSH 后将关闭公网监听端口。',
+              'Switching to WebSSH disables the public listener.',
             )}
           />
         )}
+        {isWebOnlyCapableType(currentRow?.application?.application_type) &&
+          currentRow?.application?.application_type !== 'ssh' && (
+            <ProFormSwitch
+              name="expose_public_port"
+              label={tr('开放公网端口', 'Expose Public Port')}
+              fieldProps={{
+                onChange: (checked) => {
+                  setEditExposePublicPort(Boolean(checked));
+                  if (!checked) {
+                    // 关闭时后端会把端口持久化为 0。
+                  }
+                },
+              }}
+              extra={tr(
+                '关闭后只能通过网页控制台访问；开启后可通过公网端口直连',
+                'Disable for web-console-only access; enable to allow direct public-port connections',
+              )}
+            />
+          )}
         {(!isWebOnlyCapableType(currentRow?.application?.application_type) ||
           editExposePublicPort) && (
           <ProFormDigit

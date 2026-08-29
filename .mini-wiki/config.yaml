@@ -1,0 +1,20 @@
+# Mini-Wiki 配置文件
+
+# 生成选项
+generation:
+  language: zh                   # zh / en / both
+  include_diagrams: true         # 生成 Mermaid 架构图
+  include_examples: true         # 包含代码使用示例
+  link_to_source: true           # 代码块链接到源码
+  max_file_size: 100000          # 跳过大于此大小的文件（字节）
+
+# 排除规则
+exclude:
+  - node_modules
+  - .git
+  - dist
+  - build
+  - coverage
+  - __pycache__
+  - venv
+  - .venv

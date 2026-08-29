@@ -1,5 +1,12 @@
 import { CreateButton, DeleteLink } from '@/components/TableButtons';
+import { ACCESS_TYPES_CHANGED_EVENT } from '@/constants/accessTypes';
+import {
+  APPLICATION_TYPES,
+  APPLICATION_TYPES_CHANGED_EVENT,
+  isApplicationType,
+} from '@/constants/applicationTypes';
 import { useI18n } from '@/i18n';
+import { useSearchParams } from '@/lib/runtime';
 import {
   createApplication,
   createProxy,
@@ -28,13 +35,14 @@ import {
   PageContainer,
   ProColumns,
   ProFormDigit,
+  ProFormRadio,
   ProFormSelect,
   ProFormSwitch,
   ProFormText,
   ProTable,
 } from '@ant-design/pro-components';
 import { Alert, AutoComplete, Form, Space, Tag, Typography } from 'antd';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const { Text } = Typography;
 
@@ -62,6 +70,7 @@ type EdgeOption = {
 
 const AppPage: React.FC = () => {
   const { tr } = useI18n();
+  const [routeSearchParams] = useSearchParams();
   const actionRef = useRef<ActionType>();
   const formRef = useRef<any>();
   const [createForm] = Form.useForm();
@@ -85,6 +94,17 @@ const AppPage: React.FC = () => {
   const [deviceOptions, setDeviceOptions] = useState<
     { label: string; value: string }[]
   >([]);
+  const routeApplicationTypeParam = routeSearchParams.get('application_type');
+  const routeApplicationType = isApplicationType(routeApplicationTypeParam)
+    ? routeApplicationTypeParam
+    : undefined;
+
+  useEffect(() => {
+    formRef.current?.setFieldsValue({
+      application_type: routeApplicationType,
+    });
+    actionRef.current?.reload();
+  }, [routeApplicationType]);
 
   const reload = () => actionRef.current?.reload();
 
@@ -252,6 +272,7 @@ const AppPage: React.FC = () => {
         errorMessage: tr('创建失败', 'Create failed'),
         onSuccess: () => {
           setCreateModalVisible(false);
+          window.dispatchEvent(new Event(APPLICATION_TYPES_CHANGED_EVENT));
           reload();
         },
       },
@@ -277,16 +298,23 @@ const AppPage: React.FC = () => {
     await executeAction(() => deleteApplication(id), {
       successMessage: tr('删除成功', 'Deleted successfully'),
       errorMessage: tr('删除失败', 'Delete failed'),
-      onSuccess: reload,
+      onSuccess: () => {
+        window.dispatchEvent(new Event(APPLICATION_TYPES_CHANGED_EVENT));
+        window.dispatchEvent(new Event(ACCESS_TYPES_CHANGED_EVENT));
+        reload();
+      },
     });
   };
 
   const handleCreateProxy = async (values: any) => {
     if (!currentRow?.id) return false;
     const webCapable = isWebOnlyCapableType(currentRow.application_type);
-    const exposePublicPort = webCapable
-      ? Boolean(values.expose_public_port)
-      : true;
+    const exposePublicPort =
+      currentRow.application_type === 'ssh'
+        ? values.access_mode === 'ssh'
+        : webCapable
+        ? Boolean(values.expose_public_port)
+        : true;
     const createPort = exposePublicPort ? values.port || undefined : 0;
     let createdProxy: API.Proxy | null = null;
 
@@ -307,6 +335,7 @@ const AppPage: React.FC = () => {
           if (data) {
             createdProxy = data as API.Proxy;
           }
+          window.dispatchEvent(new Event(ACCESS_TYPES_CHANGED_EVENT));
         },
       },
     );
@@ -323,6 +352,7 @@ const AppPage: React.FC = () => {
     {
       title: tr('应用名称', 'Application Name'),
       dataIndex: 'name',
+      width: 220,
       ellipsis: true,
       fieldProps: {
         placeholder: tr('请输入应用名称', 'Please input application name'),
@@ -339,17 +369,9 @@ const AppPage: React.FC = () => {
       dataIndex: 'application_type',
       width: 100,
       valueType: 'select',
-      valueEnum: {
-        http: { text: 'HTTP' },
-        tcp: { text: 'TCP' },
-        ssh: { text: 'SSH' },
-        rdp: { text: 'RDP' },
-        vnc: { text: 'VNC' },
-        mysql: { text: 'MySQL' },
-        postgresql: { text: 'PostgreSQL' },
-        redis: { text: 'Redis' },
-        mongodb: { text: 'MongoDB' },
-      },
+      valueEnum: Object.fromEntries(
+        APPLICATION_TYPES.map((type) => [type.value, { text: type.label }]),
+      ),
       fieldProps: {
         placeholder: tr('请选择应用类型', 'Please select application type'),
         allowClear: true,
@@ -436,7 +458,6 @@ const AppPage: React.FC = () => {
       title: tr('操作', 'Actions'),
       valueType: 'option',
       width: 180,
-      fixed: 'right',
       align: 'center',
       render: (_, record) => (
         <Space>
@@ -476,11 +497,17 @@ const AppPage: React.FC = () => {
     <PageContainer>
       <div className="table-search-wrapper">
         <ProTable<API.Application>
+          className="application-table"
           headerTitle={tr('应用列表', 'Applications')}
           actionRef={actionRef}
           formRef={formRef}
           rowKey="id"
           columns={columns}
+          form={{
+            initialValues: {
+              application_type: routeApplicationType,
+            },
+          }}
           request={async (params) => {
             console.log('ProTable request params:', params);
             const searchParams = buildSearchParams<API.ApplicationListParams>(
@@ -511,7 +538,7 @@ const AppPage: React.FC = () => {
             ...defaultSearch,
             labelWidth: 'auto',
           }}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 1190 }}
         />
       </div>
 
@@ -529,91 +556,99 @@ const AppPage: React.FC = () => {
           }
         }}
         onFinish={handleAdd}
-        modalProps={{ destroyOnClose: true }}
+        modalProps={{
+          destroyOnClose: true,
+          className: 'application-editor-modal',
+        }}
         form={createForm}
-        width={500}
+        width={640}
       >
-        <ProFormText
-          name="name"
-          label={tr('应用名称', 'Application Name')}
-          placeholder={tr('请输入应用名称', 'Please input application name')}
-          rules={[
-            {
-              required: true,
-              message: tr('请输入应用名称', 'Please input application name'),
-            },
-          ]}
-        />
-        <ProFormSelect
-          name="edge_id"
-          label={tr('连接器', 'Edge')}
-          placeholder={tr('请先选择连接器', 'Select an edge first')}
-          rules={[
-            {
-              required: true,
-              message: tr('请选择连接器', 'Please select edge'),
-            },
-          ]}
-          request={loadCreateEdgeOptions}
-          fieldProps={{
-            showSearch: true,
-            optionFilterProp: 'label',
-            onChange: (value, option) => {
-              const edgeID = Number(value) || undefined;
-              const optionItem = Array.isArray(option) ? option[0] : option;
-              const deviceID = Number((optionItem as EdgeOption)?.deviceId);
-              setSelectedCreateEdgeId(edgeID);
-              createForm.setFieldsValue({ ip: undefined });
-              void loadCreateEdgeDeviceIps(deviceID || undefined);
-            },
-          }}
-          extra={tr(
-            '选择后，IP 输入框会列出该连接器所在设备的网卡 IP',
-            'After selection, the IP field lists interface IPs from that edge device',
-          )}
-        />
-        <ProFormSelect
-          name="application_type"
-          label={tr('应用类型', 'Application Type')}
-          placeholder={tr(
-            '请选择应用类型（不填默认为TCP）',
-            'Please select application type (default TCP)',
-          )}
-          options={[
-            { label: 'HTTP', value: 'http' },
-            { label: 'TCP', value: 'tcp' },
-            { label: 'SSH', value: 'ssh' },
-            { label: 'RDP', value: 'rdp' },
-            { label: 'VNC', value: 'vnc' },
-            { label: 'MySQL', value: 'mysql' },
-            { label: 'PostgreSQL', value: 'postgresql' },
-            { label: 'Redis', value: 'redis' },
-            { label: 'MongoDB', value: 'mongodb' },
-          ]}
-          extra={tr('不填默认为TCP', 'Default is TCP')}
-          fieldProps={{
-            onChange: (value: string) => {
-              setSelectedApplicationType(value);
-              // 根据应用类型设置默认端口
-              const defaultPorts: Record<string, number> = {
-                http: 80,
-                ssh: 22,
-                rdp: 3389,
-                vnc: 5900,
-                mysql: 3306,
-                postgresql: 5432,
-                redis: 6379,
-                mongodb: 27017,
-              };
-              const defaultPort = defaultPorts[value as string];
-              if (defaultPort) {
-                createForm.setFieldsValue({ port: defaultPort });
-              }
-            },
-          }}
-        />
-        {selectedApplicationType === 'http' && (
+        <div className="application-create-grid">
+          <ProFormText
+            name="name"
+            label={tr('应用名称', 'Application Name')}
+            placeholder={tr('请输入应用名称', 'Please input application name')}
+            formItemProps={{ className: 'application-field-name' }}
+            rules={[
+              {
+                required: true,
+                message: tr('请输入应用名称', 'Please input application name'),
+              },
+            ]}
+          />
+          <ProFormSelect
+            name="edge_id"
+            label={tr('连接器', 'Edge')}
+            placeholder={tr('请先选择连接器', 'Select an edge first')}
+            formItemProps={{ className: 'application-field-edge' }}
+            rules={[
+              {
+                required: true,
+                message: tr('请选择连接器', 'Please select edge'),
+              },
+            ]}
+            request={loadCreateEdgeOptions}
+            fieldProps={{
+              showSearch: true,
+              optionFilterProp: 'label',
+              onChange: (value, option) => {
+                const edgeID = Number(value) || undefined;
+                const optionItem = Array.isArray(option) ? option[0] : option;
+                const deviceID = Number((optionItem as EdgeOption)?.deviceId);
+                setSelectedCreateEdgeId(edgeID);
+                createForm.setFieldsValue({ ip: undefined });
+                void loadCreateEdgeDeviceIps(deviceID || undefined);
+              },
+            }}
+            extra={tr(
+              '选择后，IP 输入框会列出该连接器所在设备的网卡 IP',
+              'After selection, the IP field lists interface IPs from that edge device',
+            )}
+          />
+          <ProFormSelect
+            name="application_type"
+            label={tr('应用类型', 'Application Type')}
+            placeholder={tr(
+              '请选择应用类型（不填默认为TCP）',
+              'Please select application type (default TCP)',
+            )}
+            formItemProps={{ className: 'application-field-type' }}
+            options={[
+              { label: 'HTTP', value: 'http' },
+              { label: 'TCP', value: 'tcp' },
+              { label: 'SSH', value: 'ssh' },
+              { label: 'RDP', value: 'rdp' },
+              { label: 'VNC', value: 'vnc' },
+              { label: 'MySQL', value: 'mysql' },
+              { label: 'PostgreSQL', value: 'postgresql' },
+              { label: 'Redis', value: 'redis' },
+              { label: 'MongoDB', value: 'mongodb' },
+            ]}
+            extra={tr('不填默认为TCP', 'Default is TCP')}
+            fieldProps={{
+              onChange: (value: string) => {
+                setSelectedApplicationType(value);
+                // 根据应用类型设置默认端口
+                const defaultPorts: Record<string, number> = {
+                  http: 80,
+                  ssh: 22,
+                  rdp: 3389,
+                  vnc: 5900,
+                  mysql: 3306,
+                  postgresql: 5432,
+                  redis: 6379,
+                  mongodb: 27017,
+                };
+                const defaultPort = defaultPorts[value as string];
+                if (defaultPort) {
+                  createForm.setFieldsValue({ port: defaultPort });
+                }
+              },
+            }}
+          />
+          {selectedApplicationType === 'http' && (
           <Alert
+            className="application-field-alert"
             message={
               <span
                 style={{
@@ -648,11 +683,10 @@ const AppPage: React.FC = () => {
               />
             }
             style={{ marginBottom: 16, padding: '8px 12px' }}
-            messageStyle={{ marginBottom: 0 }}
-            descriptionStyle={{ marginTop: 0 }}
           />
-        )}
-        <Form.Item
+          )}
+          <Form.Item
+          className="application-field-ip"
           name="ip"
           label={tr('IP 地址', 'IP Address')}
           rules={[
@@ -738,11 +772,12 @@ const AppPage: React.FC = () => {
               }, 120);
             }}
           />
-        </Form.Item>
-        <ProFormDigit
+          </Form.Item>
+          <ProFormDigit
           name="port"
           label={tr('端口', 'Port')}
           placeholder={tr('请输入端口号', 'Please input port')}
+          formItemProps={{ className: 'application-field-port' }}
           min={1}
           max={65535}
           fieldProps={{ precision: 0 }}
@@ -777,7 +812,8 @@ const AppPage: React.FC = () => {
               },
             },
           ]}
-        />
+          />
+        </div>
       </ModalForm>
 
       <ModalForm
@@ -813,7 +849,7 @@ const AppPage: React.FC = () => {
         }}
         onFinish={handleCreateProxy}
         modalProps={{ destroyOnClose: true }}
-        initialValues={{ expose_public_port: false }}
+        initialValues={{ expose_public_port: false, access_mode: 'webssh' }}
         width={500}
       >
         <ProFormText
@@ -864,39 +900,63 @@ const AppPage: React.FC = () => {
               />
             }
             style={{ marginBottom: 16, padding: '8px 12px' }}
-            messageStyle={{ marginBottom: 0 }}
-            descriptionStyle={{ marginTop: 0 }}
           />
         )}
-        {isWebOnlyCapableType(currentRow?.application_type) && (
-          <Alert
-            message={tr(
-              '可独立控制是否开放公网端口',
-              'Public port exposure is controlled separately',
-            )}
-            description={tr(
-              '关闭时只能通过网页控制台访问；开启时会创建公网监听端口，端口留空则自动分配。',
-              'When disabled, access is web-console only. When enabled, a public listener is created; leave the port empty to auto-allocate.',
-            )}
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {isWebOnlyCapableType(currentRow?.application_type) && (
-          <ProFormSwitch
-            name="expose_public_port"
-            label={tr('开放公网端口', 'Expose Public Port')}
-            initialValue={false}
+        {currentRow?.application_type === 'ssh' && (
+          <ProFormRadio.Group
+            name="access_mode"
+            label={tr('访问方式', 'Access Mode')}
+            options={[
+              {
+                label: 'SSH',
+                value: 'ssh',
+              },
+              { label: 'WebSSH', value: 'webssh' },
+            ]}
             fieldProps={{
-              onChange: (checked) => setProxyExposePublicPort(Boolean(checked)),
+              optionType: 'button',
+              buttonStyle: 'solid',
+              onChange: (event) =>
+                setProxyExposePublicPort(event.target.value === 'ssh'),
             }}
             extra={tr(
-              '关闭后仅允许网页访问，不创建对外监听端口',
-              'Disable to allow web-only access without an external listener',
+              'SSH 通过公网端口直连；WebSSH 仅通过浏览器安全访问，不开放公网端口。',
+              'SSH uses a public port; WebSSH is browser-only and does not expose a public port.',
             )}
           />
         )}
+        {isWebOnlyCapableType(currentRow?.application_type) &&
+          currentRow?.application_type !== 'ssh' && (
+            <Alert
+              message={tr(
+                '可独立控制是否开放公网端口',
+                'Public port exposure is controlled separately',
+              )}
+              description={tr(
+                '关闭时只能通过网页控制台访问；开启时会创建公网监听端口，端口留空则自动分配。',
+                'When disabled, access is web-console only. When enabled, a public listener is created; leave the port empty to auto-allocate.',
+              )}
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+        {isWebOnlyCapableType(currentRow?.application_type) &&
+          currentRow?.application_type !== 'ssh' && (
+            <ProFormSwitch
+              name="expose_public_port"
+              label={tr('开放公网端口', 'Expose Public Port')}
+              initialValue={false}
+              fieldProps={{
+                onChange: (checked) =>
+                  setProxyExposePublicPort(Boolean(checked)),
+              }}
+              extra={tr(
+                '关闭后仅允许网页访问，不创建对外监听端口',
+                'Disable to allow web-only access without an external listener',
+              )}
+            />
+          )}
         {(!isWebOnlyCapableType(currentRow?.application_type) ||
           proxyExposePublicPort) && (
           <ProFormDigit

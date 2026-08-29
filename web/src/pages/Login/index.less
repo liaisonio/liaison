@@ -1,190 +1,237 @@
-.login-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.login-shell {
+  display: grid;
   min-height: 100vh;
-  background: #f0f2f5;
+  grid-template-columns: minmax(420px, 1.15fr) minmax(400px, 0.85fr);
+  background: rgb(var(--canvas));
+  color: rgb(var(--ink));
 }
 
-.login-content {
-  width: 100%;
+.login-brand-panel {
+  position: relative;
   display: flex;
+  min-height: 100vh;
   flex-direction: column;
-  align-items: center;
-  padding: 40px 20px;
+  overflow: hidden;
+  border-right: 1px solid rgb(var(--line) / 0.7);
+  padding: 42px 56px;
+  background: linear-gradient(rgb(var(--line) / 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--line) / 0.14) 1px, transparent 1px),
+    radial-gradient(
+      circle at 6% 86%,
+      rgb(var(--brand-blue) / 0.13),
+      transparent 26rem
+    ),
+    radial-gradient(
+      circle at 82% 16%,
+      rgb(var(--brand-violet) / 0.11),
+      transparent 28rem
+    ),
+    rgb(var(--surface));
+  background-size: 42px 42px, 42px 42px, auto, auto, auto;
 }
 
-.login-header {
+.login-brand-watermark {
+  position: absolute;
+  right: -20px;
+  bottom: -100px;
+  width: 440px;
+  height: 440px;
+  opacity: 0.14;
+  pointer-events: none;
+  transform: rotate(-8deg);
+}
+
+.login-brand-topline {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.login-brand-logo {
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.login-brand-wordmark {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.login-brand-message {
+  position: relative;
+  z-index: 1;
+  max-width: 650px;
+  margin: auto 0;
+}
+
+.login-kicker {
+  color: rgb(var(--brand-violet));
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+}
+
+.login-brand-message h1 {
+  max-width: 630px;
+  margin: 22px 0 18px;
+  font-size: clamp(38px, 4.2vw, 66px);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 1.07;
+}
+
+.login-brand-message p {
+  max-width: 580px;
+  margin: 0;
+  color: rgb(var(--muted));
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.login-capabilities {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  color: rgb(var(--muted));
+  font-size: 11px;
+}
+
+.login-capabilities div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.login-capabilities svg {
+  color: rgb(var(--brand-blue));
+}
+
+.login-form-panel {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 48px;
+}
+
+.login-form-card {
+  width: min(100%, 390px);
+}
+
+.login-form-heading {
+  margin-bottom: 28px;
+}
+
+.login-form-title {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  
-  @media screen and (max-height: 800px) {
-    gap: 12px;
-    margin-bottom: 12px;
-  }
+  gap: 10px;
+  margin-bottom: 0;
 }
 
-.login-logo {
-  width: 44px;
+.login-form-heading h2 {
+  margin: 0;
+  color: rgb(var(--ink));
+  font-size: 25px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.login-form-card .ant-form-item-label > label {
+  color: rgb(var(--muted));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.login-form-card .ant-input-affix-wrapper {
   height: 44px;
-  margin-right: 16px;
+  border-color: rgb(var(--line));
+  background: rgb(var(--surface));
+  box-shadow: none;
 }
 
-.login-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1677ff;
-  letter-spacing: -0.5px;
-  
-  @media screen and (max-width: 576px) {
-    font-size: 24px;
-  }
-  
-  @media screen and (max-height: 800px) {
-    font-size: 22px;
-  }
+.login-form-card .ant-input {
+  background: transparent;
 }
 
-.login-logo-img {
-  height: 60px;
-  width: auto;
-  object-fit: contain;
-  display: block;
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  
-  @media screen and (max-width: 576px) {
-    height: 48px;
-    padding: 6px;
-  }
-  
-  @media screen and (max-height: 800px) {
-    height: 48px;
-    padding: 6px;
-  }
+.login-form-card .ant-input-prefix {
+  margin-right: 10px;
+  color: rgb(var(--muted));
 }
 
-.login-footer {
-  margin-top: 32px;
-  color: rgba(0, 0, 0, 0.45);
+.login-submit-row {
+  margin-top: 30px;
+}
+
+.login-submit-row .ant-btn {
+  height: 44px;
+  border: 0;
+  background: linear-gradient(
+    100deg,
+    rgb(var(--brand-blue)),
+    rgb(var(--brand-violet))
+  );
+  box-shadow: none;
+  font-size: 13px;
+}
+
+.login-submit-row .ant-btn:hover,
+.login-submit-row .ant-btn:focus-visible {
+  background: linear-gradient(
+    100deg,
+    rgb(var(--brand-blue)),
+    rgb(var(--brand-violet))
+  ) !important;
+  filter: brightness(1.08);
+}
+
+.login-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgb(var(--line) / 0.65);
+  margin-top: 38px;
+  padding-top: 18px;
+  color: rgb(var(--muted));
   font-size: 12px;
-  text-align: center;
-  
-  @media screen and (max-height: 800px) {
-    margin-top: 16px;
-    font-size: 11px;
-  }
-  
-  a {
-    color: #1677ff;
-    text-decoration: none;
-    
-    &:hover {
-      text-decoration: underline;
-    }
-  }
+  line-height: 18px;
 }
 
-:global {
-  .ant-pro-form-login-container {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 40px 32px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    width: 100%;
-    max-width: 420px;
-    margin: 0 16px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    
-    @media screen and (max-height: 800px) {
-      padding: 24px 24px;
-      border-radius: 8px;
-    }
+.login-form-footer a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: rgb(var(--muted));
+  text-decoration: none;
+}
+
+.login-form-footer a .anticon {
+  font-size: 13px;
+}
+
+.login-form-footer a:hover {
+  color: rgb(var(--ink));
+}
+
+@media (max-width: 900px) {
+  .login-shell {
+    grid-template-columns: 1fr;
   }
-  
-  .ant-pro-form-login-main {
-    width: 100%;
+
+  .login-brand-panel {
+    display: none;
   }
-  
-  .ant-pro-form-login-container .ant-input-affix-wrapper {
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    transition: all 0.3s;
-    height: 44px;
-    
-    @media screen and (max-height: 800px) {
-      height: 40px;
-    }
-    
-    &:hover {
-      border-color: #1677ff;
-    }
-    
-    &.ant-input-affix-wrapper-focused {
-      border-color: #1677ff;
-      box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
-    }
-  }
-  
-  .ant-pro-form-login-container .ant-input {
-    font-size: 15px;
-    
-    &::placeholder {
-      color: #bfbfbf;
-    }
-  }
-  
-  .ant-pro-form-login-container .ant-btn-primary {
-    height: 44px;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 500;
-    background: #1677ff;
-    border: none;
-    transition: all 0.3s;
-    box-shadow: 0 2px 8px rgba(22, 119, 255, 0.2);
-    
-    @media screen and (max-height: 800px) {
-      height: 40px;
-      font-size: 15px;
-    }
-    
-    &:hover {
-      background: #40a9ff;
-      box-shadow: 0 4px 12px rgba(22, 119, 255, 0.3);
-      transform: translateY(-1px);
-    }
-    
-    &:active {
-      background: #0958d9;
-      transform: translateY(0);
-      box-shadow: 0 2px 6px rgba(22, 119, 255, 0.2);
-    }
-  }
-  
-  .prefixIcon {
-    color: #1890ff;
-    font-size: 16px;
-  }
-  
-  .ant-pro-form-login-container .ant-form-item {
-    margin-bottom: 24px;
-    
-    @media screen and (max-height: 800px) {
-      margin-bottom: 16px;
-    }
-    
-    &:last-child {
-      margin-bottom: 32px;
-      
-      @media screen and (max-height: 800px) {
-        margin-bottom: 20px;
-      }
-    }
+
+  .login-form-panel {
+    padding: 32px 22px;
   }
 }

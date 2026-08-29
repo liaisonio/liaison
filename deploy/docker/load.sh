@@ -104,6 +104,17 @@ else
     log "==> Wrote .env (LIAISON_PUBLIC_HOST=${PUBLIC_HOST})"
 fi
 
+# Keep JWT sessions valid across container recreation. Older bundles did not
+# persist this value, so also backfill existing .env files during upgrades.
+if ! grep -q '^JWT_SECRET=.' .env; then
+    JWT_SECRET=$(openssl rand -base64 48 | tr -d '=+/[:space:]' | cut -c1-48)
+    sed -e '/^JWT_SECRET=/d' .env > .env.tmp
+    printf 'JWT_SECRET=%s\n' "$JWT_SECRET" >> .env.tmp
+    mv .env.tmp .env
+    chmod 600 .env
+    log "==> Generated and persisted JWT signing secret"
+fi
+
 # Load the final values for post-start messages.
 # shellcheck disable=SC1091
 set -a; . ./.env; set +a

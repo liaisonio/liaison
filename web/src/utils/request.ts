@@ -19,7 +19,11 @@ export async function executeAction<T = any>(
     onSuccess?: (data?: T) => void;
   },
 ): Promise<boolean> {
-  const { successMessage = '操作成功', errorMessage = '操作失败', onSuccess } = options || {};
+  const {
+    successMessage = '操作成功',
+    errorMessage = '操作失败',
+    onSuccess,
+  } = options || {};
 
   try {
     const res = await action();
@@ -73,8 +77,3 @@ export async function tableRequest<T = any>(
     };
   }
 }
-
-/**
- * 原始请求函数导出
- */
-export { request as umiRequest } from '@umijs/max';

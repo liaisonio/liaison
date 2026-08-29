@@ -1,7 +1,7 @@
-import { createAPIToken } from '@/services/api';
+import { createAPIToken, getCurrentUser } from '@/services/api';
 import { APP_NAME } from '@/constants';
 import { useI18n } from '@/i18n';
-import { history, useModel } from '@umijs/max';
+import { history, useModel } from '@/lib/runtime';
 import { App, Button, Spin } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import './index.less';
@@ -73,7 +73,13 @@ const CliAuthPage: React.FC = () => {
       // localStorage.token synchronously before history.push, so by the time
       // we mount the token is present.
       const fetchFn = initialState?.fetchUserInfo;
-      const user = fetchFn ? await fetchFn() : undefined;
+      const user = fetchFn
+        ? await fetchFn()
+        : localStorage.getItem('token')
+          ? await getCurrentUser().then((response) =>
+              response.code === 200 ? response.data : undefined,
+            )
+          : undefined;
       if (cancelled) return;
 
       if (user) {

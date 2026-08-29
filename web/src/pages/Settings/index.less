@@ -1,82 +1,309 @@
-.settings-tabs {
-  :global {
-    .ant-tabs-nav {
-      min-width: 180px;
-      
-      @media screen and (max-width: 768px) {
-        min-width: auto;
-      }
-    }
-    
-    .ant-tabs-content-holder {
-      padding-left: 24px;
-      
-      @media screen and (max-width: 768px) {
-        padding-left: 0;
-        padding-top: 16px;
-      }
-    }
+.settings-page {
+  .ant-pro-page-container-children-content {
+    padding-block-start: 0;
   }
-  
-  @media screen and (max-width: 768px) {
-    :global {
-      .ant-tabs-nav {
-        width: 100%;
-      }
-    }
+}
+
+.settings-shell {
+  min-height: 560px;
+  overflow: hidden;
+
+  > .ant-card-body {
+    padding: 0;
+  }
+}
+
+.settings-tabs {
+  min-height: 560px;
+
+  > .ant-tabs-nav {
+    min-width: 176px;
+    margin: 0;
+    border-right: 1px solid rgb(var(--line) / 0.62);
+    padding: 12px 8px;
+  }
+
+  > .ant-tabs-nav .ant-tabs-tab {
+    margin: 2px 0 !important;
+    border-radius: 7px;
+    padding: 9px 11px !important;
+    color: rgb(var(--muted));
+    font-size: 12px;
+  }
+
+  > .ant-tabs-nav .ant-tabs-tab:hover,
+  > .ant-tabs-nav .ant-tabs-tab-active {
+    background: rgb(var(--panel));
+    color: rgb(var(--ink));
+  }
+
+  > .ant-tabs-nav .ant-tabs-tab-btn {
+    font-weight: 520;
+  }
+
+  > .ant-tabs-nav .ant-tabs-tab-btn span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  > .ant-tabs-content-holder {
+    min-width: 0;
+    padding: 18px 20px;
   }
 }
 
 .settings-section {
-  // max-width: 600px;
-  
-  :global {
-    .ant-descriptions {
-      max-width: 100%;
-    }
-    
-    .ant-descriptions-item-content {
-      max-width: none !important;
-      min-width: 0;
-      overflow: visible;
-    }
-    
-    .ant-descriptions-item-label {
-      width: 80px;
-      min-width: 80px;
-    }
+  max-width: 900px;
+  color: rgb(var(--ink));
+  font-size: 12px;
+
+  > .ant-card {
+    background: transparent;
+  }
+
+  > .ant-card > .ant-card-body {
+    padding: 0;
+  }
+
+  .ant-typography {
+    font-size: 12px;
+  }
+
+  h4.ant-typography {
+    margin: 0 0 3px !important;
+    color: rgb(var(--ink));
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
+
+  .ant-divider {
+    margin: 16px 0;
+    border-color: rgb(var(--line) / 0.62);
+  }
+
+  .ant-descriptions-item-label {
+    min-width: 84px;
+    color: rgb(var(--muted));
+    font-size: 11px;
+  }
+
+  .ant-descriptions-item-content {
+    min-width: 0;
+    color: rgb(var(--ink));
+    font-size: 12px;
+  }
+
+  .ant-form-item-label > label {
+    color: rgb(var(--muted));
+    font-size: 11px;
+    font-weight: 520;
+  }
+
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-input-number {
+    min-height: 32px;
+    border-color: rgb(var(--line) / 0.8);
+    border-radius: var(--control-radius);
+    background: rgb(var(--canvas) / 0.38);
+    box-shadow: none;
+    font-size: 12px;
+  }
+
+  .ant-btn {
+    min-height: 31px;
+    border-radius: var(--control-radius);
+    box-shadow: none;
+    font-size: 11px;
+  }
+
+  .ant-table {
+    font-size: 11px;
+  }
+
+  .ant-table-thead > tr > th {
+    color: rgb(var(--muted));
+    font-size: 11px;
+    font-weight: 600;
   }
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 24px;
-  margin-bottom: 16px;
-  
-  @media screen and (max-width: 576px) {
-    flex-direction: column;
-    text-align: center;
+  gap: 12px;
+}
+
+.user-avatar-editor {
+  position: relative;
+  flex: 0 0 auto;
+
+  .ant-avatar {
+    border: 1px solid rgb(var(--line));
+    background: rgb(var(--panel));
+    color: rgb(var(--ink));
   }
 }
 
-.user-info {
-  h4 {
-    margin-bottom: 4px !important;
+.user-avatar-edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  place-items: center;
+  border: 2px solid rgb(var(--surface));
+  border-radius: 50%;
+  background: rgb(var(--ink));
+  color: rgb(var(--canvas));
+  font-size: 10px;
+}
+
+.user-avatar-actions {
+  display: flex;
+  gap: 4px;
+  margin: 3px 0 0 -7px;
+
+  .ant-btn {
+    height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
   }
 }
 
 .password-tips {
   display: flex;
   align-items: flex-start;
-  padding: 16px;
-  background: #f0f5ff;
-  border-radius: 8px;
+  gap: 10px;
+  border: 1px solid rgb(var(--line) / 0.68);
+  border-radius: 7px;
+  background: rgb(var(--panel));
+  padding: 11px 12px;
+
+  > .anticon {
+    margin: 2px 0 0 !important;
+    color: rgb(var(--muted)) !important;
+    font-size: 15px !important;
+  }
 }
 
 .password-form {
-  max-width: 400px;
+  max-width: 420px;
+
   .ant-form-item {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
+  }
+}
+
+.settings-preferences {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(var(--line) / 0.68);
+  border-radius: 8px;
+  background: rgb(var(--surface));
+}
+
+.settings-preference-row {
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 16px;
+
+  + .settings-preference-row {
+    border-top: 1px solid rgb(var(--line) / 0.62);
+  }
+
+  .ant-segmented {
+    flex: 0 0 auto;
+    border: 1px solid rgb(var(--line) / 0.68);
+    border-radius: 7px;
+    background: rgb(var(--panel));
+    padding: 2px;
+    font-size: 11px;
+  }
+
+  .ant-segmented-item {
+    border-radius: 5px;
+  }
+
+  .ant-segmented-item-selected {
+    background: rgb(var(--surface));
+    box-shadow: 0 0 0 1px rgb(var(--line) / 0.72);
+  }
+}
+
+.settings-token-reveal {
+  border: 1px solid rgb(var(--line) / 0.72);
+  border-radius: 7px;
+  background: rgb(var(--panel) / 0.52);
+  padding: 9px 11px;
+  color: rgb(var(--ink));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.settings-preference-copy {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+
+  > .anticon {
+    margin-top: 2px;
+    color: rgb(var(--muted));
+    font-size: 15px;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: rgb(var(--ink));
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  span {
+    margin-top: 4px;
+    color: rgb(var(--muted));
+    font-size: 11px;
+    line-height: 17px;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-tabs {
+    display: block;
+
+    > .ant-tabs-nav {
+      width: 100%;
+      min-width: 0;
+      border-right: 0;
+      border-bottom: 1px solid rgb(var(--line) / 0.62);
+    }
+
+    > .ant-tabs-content-holder {
+      padding: 16px;
+    }
+  }
+
+  .settings-preference-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .settings-preference-row .ant-segmented {
+    width: 100%;
   }
 }

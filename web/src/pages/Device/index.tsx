@@ -1,9 +1,5 @@
 import { useI18n } from '@/i18n';
-import {
-  getDeviceDetail,
-  getDeviceList,
-  updateDevice,
-} from '@/services/api';
+import { getDeviceDetail, getDeviceList, updateDevice } from '@/services/api';
 import { formatMBSize } from '@/utils/format';
 import { executeAction, tableRequest } from '@/utils/request';
 import {
@@ -314,7 +310,10 @@ const DevicePage: React.FC = () => {
                               {ipv4.length > 0 ? ipv4.join(', ') : '-'}
                               {iface.mac && (
                                 <div
-                                  style={{ fontSize: '12px', color: '#999' }}
+                                  style={{
+                                    fontSize: '11px',
+                                    color: 'rgb(var(--muted))',
+                                  }}
                                 >
                                   MAC: {iface.mac}
                                 </div>

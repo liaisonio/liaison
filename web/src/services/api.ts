@@ -1,9 +1,9 @@
 /**
  * API 服务统一入口
- * 基于 Liaison 文档: http://49.232.250.11:8080
+ * 所有请求使用同源 /api，由开发代理或 Liaison Manager 路由。
  */
 
-import { request } from '@umijs/max';
+import { request } from '@/api/client';
 
 /** 登录 POST /v1/iam/login */
 export async function login(data: API.LoginParams) {

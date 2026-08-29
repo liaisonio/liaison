@@ -67,3 +67,4 @@ certs/*.crt
 
 # Local runtime state
 /local-run/
+.gstack/

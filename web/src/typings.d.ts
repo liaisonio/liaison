@@ -1,5 +1,3 @@
-/* eslint-disable */
-
 declare namespace API {
   // ========== 通用响应 ==========
   interface Response<T = any> {
