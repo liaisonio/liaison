@@ -307,3 +307,50 @@
     width: 100%;
   }
 }
+
+/* Native settings layout. Kept separate from the legacy Ant selectors above;
+   those selectors disappear as the remaining settings page is migrated. */
+.native-settings-page { position: relative; }
+.native-settings-shell { display: grid; min-height: 500px; grid-template-columns: 172px minmax(0, 1fr); overflow: hidden; border: 1px solid rgb(var(--line) / 0.72); border-radius: var(--surface-radius); background: rgb(var(--surface)); }
+.native-settings-tabs { display: flex; flex-direction: column; gap: 4px; border-right: 1px solid rgb(var(--line) / 0.65); padding: 14px 10px; background: rgb(var(--canvas) / 0.3); }
+.native-settings-tabs button { display: flex; min-height: 36px; align-items: center; gap: 8px; border: 0; border-radius: 7px; padding: 0 10px; background: transparent; color: rgb(var(--muted)); font-size: 11px; font-weight: 580; text-align: left; cursor: pointer; }
+.native-settings-tabs button:hover { background: rgb(var(--panel)); color: rgb(var(--ink)); }
+.native-settings-tabs button.is-active { background: rgb(var(--panel)); color: rgb(var(--ink)); }
+.native-settings-content { min-width: 0; padding: 20px; }
+.native-card { border: 0; padding: 0; }
+.settings-floating-notice { position: fixed; z-index: 1200; top: 70px; right: 24px; min-width: 240px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.15); }
+.native-avatar { display: grid; width: 56px; height: 56px; overflow: hidden; place-items: center; border: 1px solid rgb(var(--line)); border-radius: 50%; background: rgb(var(--panel)); color: rgb(var(--ink)); font-size: 18px; font-weight: 650; }
+.native-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.user-info h3 { margin: 0 0 3px; color: rgb(var(--ink)); font-size: 15px; }
+.user-info p { margin: 0; color: rgb(var(--muted)); font-size: 11px; }
+.native-description-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 22px 0 0; border-top: 1px solid rgb(var(--line) / 0.65); }
+.native-description-grid > div { display: grid; grid-template-columns: 100px 1fr; gap: 12px; padding: 13px 4px; border-bottom: 1px solid rgb(var(--line) / 0.5); }
+.native-description-grid dt { color: rgb(var(--muted)); font-size: 11px; }
+.native-description-grid dd { overflow: hidden; margin: 0; color: rgb(var(--ink)); font-size: 11px; text-overflow: ellipsis; }
+.password-tips div { display: grid; gap: 3px; }
+.password-tips span { color: rgb(var(--muted)); font-size: 11px; }
+.native-password-form { display: grid; max-width: 420px; gap: 16px; margin-top: 22px; padding-top: 20px; border-top: 1px solid rgb(var(--line) / 0.65); }
+.native-password-form .liaison-button { width: fit-content; margin-top: 4px; }
+.native-token-toolbar { display: flex; justify-content: flex-end; margin: 18px 0 10px; padding-top: 16px; border-top: 1px solid rgb(var(--line) / 0.65); }
+.native-table-wrap { overflow-x: auto; border: 1px solid rgb(var(--line) / 0.66); border-radius: 10px; }
+.native-table { width: 100%; min-width: 760px; border-collapse: collapse; color: rgb(var(--ink)); font-size: 11px; }
+.native-table th { height: 38px; padding: 0 12px; background: rgb(var(--panel)); color: rgb(var(--muted)); font-weight: 600; text-align: left; }
+.native-table td { height: 46px; border-top: 1px solid rgb(var(--line) / 0.58); padding: 6px 12px; }
+.native-table tbody tr:hover { background: rgb(var(--panel) / 0.55); }
+.native-table .liaison-button { min-height: 28px; padding-inline: 9px; font-size: 10px; }
+.native-table-empty { height: 100px !important; color: rgb(var(--muted)); text-align: center; }
+.native-modal-form { display: grid; gap: 18px; }
+.native-copy-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+.native-confirm-copy { margin: 2px 0 8px; color: rgb(var(--muted)); font-size: 12px; line-height: 1.65; }
+.native-about h3 { margin: 0 0 20px; font-size: 16px; }
+.native-about dl { display: grid; gap: 0; margin: 0; border-top: 1px solid rgb(var(--line) / 0.65); }
+.native-about dl > div { display: grid; grid-template-columns: 120px 1fr; padding: 14px 2px; border-bottom: 1px solid rgb(var(--line) / 0.5); }
+.native-about dt { color: rgb(var(--muted)); font-size: 11px; }
+.native-about dd { margin: 0; font-size: 11px; }
+.native-about a { display: inline-flex; align-items: center; gap: 6px; color: rgb(var(--ink)); text-decoration: none; }
+
+@media (max-width: 720px) {
+  .native-settings-shell { grid-template-columns: 1fr; }
+  .native-settings-tabs { flex-direction: row; border-right: 0; border-bottom: 1px solid rgb(var(--line) / 0.65); }
+  .native-description-grid { grid-template-columns: 1fr; }
+}

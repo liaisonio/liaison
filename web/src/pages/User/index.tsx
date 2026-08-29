@@ -1,43 +1,22 @@
+import { Button, Field, Input, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useModel } from '@/lib/runtime';
 import { changePassword } from '@/services/api';
-import {
-  getAccountLabel,
-  getAvatarIdentity,
-  useAvatarStore,
-} from '@/store/avatar';
-import { executeAction } from '@/utils/request';
-import {
-  CameraOutlined,
-  DeleteOutlined,
-  LockOutlined,
-  SafetyOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
-import {
-  App,
-  Avatar,
-  Button,
-  Card,
-  Descriptions,
-  Divider,
-  Form,
-  Input,
-  Tabs,
-  Typography,
-} from 'antd';
-import { ChangeEvent, useRef, useState } from 'react';
+import { getAccountLabel, getAvatarIdentity, useAvatarStore } from '@/store/avatar';
+import { Camera, Lock, ShieldCheck, Trash2, User } from 'lucide-react';
+import { ChangeEvent, FormEvent, useRef, useState } from 'react';
 import '../Settings/index.less';
 
-const { Title, Text } = Typography;
+type PasswordValues = { oldPassword: string; newPassword: string; confirmPassword: string };
+const emptyPasswords: PasswordValues = { oldPassword: '', newPassword: '', confirmPassword: '' };
 
 const UserPage: React.FC = () => {
-  const { message } = App.useApp();
   const { initialState } = useModel('@@initialState');
   const { tr } = useI18n();
+  const [active, setActive] = useState<'account' | 'password'>('account');
+  const [passwords, setPasswords] = useState(emptyPasswords);
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordForm] = Form.useForm();
+  const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const currentUser = initialState?.currentUser;
   const identity = getAvatarIdentity(currentUser);
@@ -47,28 +26,28 @@ const UserPage: React.FC = () => {
   const avatar = localAvatar || currentUser?.avatar;
   const accountLabel = getAccountLabel(currentUser) || tr('用户', 'User');
 
+  const showNotice = (tone: 'danger' | 'success', text: string) => {
+    setNotice({ tone, text });
+    window.setTimeout(() => setNotice(undefined), 3200);
+  };
+
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      message.error(
-        tr('请选择 JPG、PNG 或 WebP 图片', 'Choose a JPG, PNG or WebP image'),
-      );
+      showNotice('danger', tr('请选择 JPG、PNG 或 WebP 图片', 'Choose a JPG, PNG or WebP image'));
       return;
     }
     if (file.size > 3 * 1024 * 1024) {
-      message.error(tr('图片不能超过 3 MB', 'Image must be under 3 MB'));
+      showNotice('danger', tr('图片不能超过 3 MB', 'Image must be under 3 MB'));
       return;
     }
-
     const reader = new FileReader();
-    reader.onerror = () =>
-      message.error(tr('无法读取图片', 'Unable to read the image'));
+    reader.onerror = () => showNotice('danger', tr('无法读取图片', 'Unable to read the image'));
     reader.onload = () => {
       const image = new Image();
-      image.onerror = () =>
-        message.error(tr('无法处理图片', 'Unable to process the image'));
+      image.onerror = () => showNotice('danger', tr('无法处理图片', 'Unable to process the image'));
       image.onload = () => {
         const size = Math.min(image.naturalWidth, image.naturalHeight);
         const canvas = document.createElement('canvas');
@@ -76,269 +55,92 @@ const UserPage: React.FC = () => {
         canvas.height = 256;
         const context = canvas.getContext('2d');
         if (!context) return;
-        context.drawImage(
-          image,
-          (image.naturalWidth - size) / 2,
-          (image.naturalHeight - size) / 2,
-          size,
-          size,
-          0,
-          0,
-          256,
-          256,
-        );
+        context.drawImage(image, (image.naturalWidth - size) / 2, (image.naturalHeight - size) / 2, size, size, 0, 0, 256, 256);
         setAvatar(identity, canvas.toDataURL('image/jpeg', 0.9));
-        message.success(tr('头像已更新', 'Avatar updated'));
+        showNotice('success', tr('头像已更新', 'Avatar updated'));
       };
       image.src = String(reader.result);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleChangePassword = async (values: {
-    oldPassword: string;
-    newPassword: string;
-    confirmPassword: string;
-  }) => {
-    if (values.newPassword !== values.confirmPassword) {
-      message.error(tr('两次输入的新密码不一致', 'New passwords do not match'));
+  const handleChangePassword = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!passwords.oldPassword || !passwords.newPassword || !passwords.confirmPassword) {
+      showNotice('danger', tr('请填写全部密码字段', 'Complete all password fields'));
       return;
     }
-
+    if (passwords.newPassword.length < 8 || !/[A-Za-z]/.test(passwords.newPassword) || !/\d/.test(passwords.newPassword)) {
+      showNotice('danger', tr('新密码至少 8 位，并包含字母和数字', 'Use 8+ characters with letters and numbers'));
+      return;
+    }
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      showNotice('danger', tr('两次输入的新密码不一致', 'New passwords do not match'));
+      return;
+    }
     setPasswordLoading(true);
-    await executeAction(
-      () =>
-        changePassword({
-          old_password: values.oldPassword,
-          new_password: values.newPassword,
-        }),
-      {
-        successMessage: tr('密码修改成功', 'Password changed successfully'),
-        errorMessage: tr('密码修改失败', 'Failed to change password'),
-        onSuccess: () => passwordForm.resetFields(),
-      },
-    );
-    setPasswordLoading(false);
+    try {
+      const response = await changePassword({ old_password: passwords.oldPassword, new_password: passwords.newPassword });
+      if (response.code !== 200) throw new Error(response.message);
+      setPasswords(emptyPasswords);
+      showNotice('success', tr('密码修改成功', 'Password changed successfully'));
+    } catch (error: any) {
+      showNotice('danger', error?.message || tr('密码修改失败', 'Failed to change password'));
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
-  const items = [
-    {
-      key: 'account',
-      label: (
-        <span>
-          <UserOutlined />
-          {tr('账户信息', 'Account')}
-        </span>
-      ),
-      children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <div className="user-profile">
-              <div className="user-avatar-editor">
-                <Avatar size={56} icon={<UserOutlined />} src={avatar}>
-                  {accountLabel.slice(0, 1).toUpperCase()}
-                </Avatar>
-                <button
-                  type="button"
-                  className="user-avatar-edit"
-                  aria-label={tr('更换头像', 'Change avatar')}
-                  title={tr('更换头像', 'Change avatar')}
-                  onClick={() => avatarInputRef.current?.click()}
-                >
-                  <CameraOutlined />
-                </button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  hidden
-                  onChange={handleAvatarChange}
-                />
-              </div>
-              <div className="user-info">
-                <Title level={4}>{accountLabel}</Title>
-                <Text type="secondary">{currentUser?.email || '-'}</Text>
-                <div className="user-avatar-actions">
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<CameraOutlined />}
-                    onClick={() => avatarInputRef.current?.click()}
-                  >
-                    {tr('更换头像', 'Change avatar')}
-                  </Button>
-                  {avatar && (
-                    <Button
-                      type="link"
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeAvatar(identity)}
-                    >
-                      {tr('移除', 'Remove')}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <Divider />
-
-            <Descriptions
-              column={{ xs: 1, sm: 1, md: 2 }}
-              styles={{ label: { fontWeight: 500 } }}
-            >
-              <Descriptions.Item label={tr('用户名', 'Username')}>
-                {accountLabel}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('邮箱', 'Email')}>
-                {currentUser?.email || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('角色', 'Role')}>
-                {initialState?.currentUser?.role || tr('用户', 'User')}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('注册时间', 'Created At')}>
-                {initialState?.currentUser?.created_at || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('最后登录', 'Last Login')}>
-                {initialState?.currentUser?.last_login_at || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('登录 IP', 'Login IP')}>
-                {initialState?.currentUser?.last_login_ip || '-'}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-        </div>
-      ),
-    },
-    {
-      key: 'password',
-      label: (
-        <span>
-          <LockOutlined />
-          {tr('修改密码', 'Password')}
-        </span>
-      ),
-      children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <div className="password-tips">
-              <SafetyOutlined />
-              <div>
-                <Text strong>{tr('密码安全', 'Password security')}</Text>
-                <br />
-                <Text type="secondary">
-                  {tr(
-                    '密码至少 8 位，并同时包含字母和数字。',
-                    'Use at least 8 characters with both letters and numbers.',
-                  )}
-                </Text>
-              </div>
-            </div>
-
-            <Divider />
-
-            <Form
-              form={passwordForm}
-              layout="vertical"
-              onFinish={handleChangePassword}
-              className="password-form"
-              requiredMark={false}
-            >
-              <Form.Item
-                name="oldPassword"
-                label={tr('当前密码', 'Current password')}
-                rules={[
-                  {
-                    required: true,
-                    message: tr('请输入当前密码', 'Enter the current password'),
-                  },
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请输入当前密码', 'Current password')}
-                />
-              </Form.Item>
-              <Form.Item
-                name="newPassword"
-                label={tr('新密码', 'New password')}
-                rules={[
-                  {
-                    required: true,
-                    message: tr('请输入新密码', 'Enter a new password'),
-                  },
-                  {
-                    min: 8,
-                    message: tr(
-                      '密码长度至少 8 位',
-                      'Use at least 8 characters',
-                    ),
-                  },
-                  {
-                    pattern: /^(?=.*[A-Za-z])(?=.*\d)/,
-                    message: tr(
-                      '密码必须包含字母和数字',
-                      'Include both letters and numbers',
-                    ),
-                  },
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请输入新密码', 'New password')}
-                />
-              </Form.Item>
-              <Form.Item
-                name="confirmPassword"
-                label={tr('确认新密码', 'Confirm new password')}
-                dependencies={['newPassword']}
-                rules={[
-                  {
-                    required: true,
-                    message: tr('请确认新密码', 'Confirm the new password'),
-                  },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(
-                        new Error(
-                          tr('两次输入的密码不一致', 'Passwords do not match'),
-                        ),
-                      );
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请再次输入新密码', 'Confirm new password')}
-                />
-              </Form.Item>
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={passwordLoading}
-                >
-                  {tr('修改密码', 'Change password')}
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-        </div>
-      ),
-    },
+  const details = [
+    [tr('用户名', 'Username'), accountLabel],
+    [tr('邮箱', 'Email'), currentUser?.email || '-'],
+    [tr('角色', 'Role'), currentUser?.role || tr('用户', 'User')],
+    [tr('注册时间', 'Created At'), currentUser?.created_at || '-'],
+    [tr('最后登录', 'Last Login'), currentUser?.last_login_at || '-'],
+    [tr('登录 IP', 'Login IP'), currentUser?.last_login_ip || '-'],
   ];
 
   return (
-    <PageContainer className="settings-page">
-      <Card variant="borderless" className="settings-shell">
-        <Tabs items={items} tabPosition="left" className="settings-tabs" />
-      </Card>
-    </PageContainer>
+    <div className="settings-page native-settings-page">
+      {notice ? <div className="settings-floating-notice"><Notice tone={notice.tone}>{notice.text}</Notice></div> : null}
+      <div className="settings-shell native-settings-shell">
+        <aside className="native-settings-tabs">
+          <button className={active === 'account' ? 'is-active' : ''} onClick={() => setActive('account')}><User size={15} />{tr('账户信息', 'Account')}</button>
+          <button className={active === 'password' ? 'is-active' : ''} onClick={() => setActive('password')}><Lock size={15} />{tr('修改密码', 'Password')}</button>
+        </aside>
+        <main className="native-settings-content">
+          {active === 'account' ? (
+            <section className="settings-section native-card">
+              <div className="user-profile">
+                <div className="user-avatar-editor">
+                  <div className="native-avatar">{avatar ? <img src={avatar} alt="" /> : accountLabel.slice(0, 1).toUpperCase()}</div>
+                  <button type="button" className="user-avatar-edit" onClick={() => avatarInputRef.current?.click()}><Camera size={13} /></button>
+                  <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={handleAvatarChange} />
+                </div>
+                <div className="user-info">
+                  <h3>{accountLabel}</h3><p>{currentUser?.email || '-'}</p>
+                  <div className="user-avatar-actions">
+                    <Button variant="ghost" onClick={() => avatarInputRef.current?.click()}><Camera size={14} />{tr('更换头像', 'Change avatar')}</Button>
+                    {avatar ? <Button variant="ghost" onClick={() => removeAvatar(identity)}><Trash2 size={14} />{tr('移除', 'Remove')}</Button> : null}
+                  </div>
+                </div>
+              </div>
+              <dl className="native-description-grid">{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+            </section>
+          ) : (
+            <section className="settings-section native-card">
+              <div className="password-tips"><ShieldCheck size={20} /><div><strong>{tr('密码安全', 'Password security')}</strong><span>{tr('密码至少 8 位，并同时包含字母和数字。', 'Use at least 8 characters with both letters and numbers.')}</span></div></div>
+              <form className="native-password-form" onSubmit={handleChangePassword}>
+                <Field label={tr('当前密码', 'Current password')} required><Input type="password" value={passwords.oldPassword} onChange={(event) => setPasswords((value) => ({ ...value, oldPassword: event.target.value }))} /></Field>
+                <Field label={tr('新密码', 'New password')} required><Input type="password" value={passwords.newPassword} onChange={(event) => setPasswords((value) => ({ ...value, newPassword: event.target.value }))} /></Field>
+                <Field label={tr('确认新密码', 'Confirm new password')} required><Input type="password" value={passwords.confirmPassword} onChange={(event) => setPasswords((value) => ({ ...value, confirmPassword: event.target.value }))} /></Field>
+                <Button type="submit" variant="primary" disabled={passwordLoading}>{passwordLoading ? tr('提交中…', 'Saving…') : tr('修改密码', 'Change password')}</Button>
+              </form>
+            </section>
+          )}
+        </main>
+      </div>
+    </div>
   );
 };
 
