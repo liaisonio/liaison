@@ -1,9 +1,3 @@
-.overview-page {
-  .ant-pro-page-container-children-content {
-    padding-block-start: 0;
-  }
-}
-
 .overview-content {
   display: flex;
   flex-direction: column;
@@ -174,6 +168,51 @@
 
 .overview-traffic > div:not(.overview-traffic-empty) {
   padding: 0 10px 8px;
+}
+
+.overview-chart {
+  position: relative;
+  min-height: 260px;
+}
+
+.overview-chart-legend {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 0 8px;
+  color: rgb(var(--muted));
+  font-size: 10px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  i {
+    width: 12px;
+    height: 2px;
+    border-radius: 999px;
+  }
+}
+
+.overview-chart svg {
+  display: block;
+  width: 100%;
+  height: 230px;
+  overflow: visible;
+
+  text {
+    fill: rgb(var(--muted));
+    font-size: 10px;
+  }
+}
+
+.overview-chart-grid {
+  stroke: rgb(var(--line) / 0.58);
+  stroke-width: 1;
 }
 
 .overview-traffic-empty {

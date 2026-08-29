@@ -6,9 +6,6 @@ import {
   getEdgeList,
   getTrafficMetricsList,
 } from '@/services/api';
-import { useThemeMode } from '@/store/theme';
-import { Line } from '@ant-design/plots';
-import { PageContainer } from '@ant-design/pro-components';
 import {
   Activity,
   AppWindow,
@@ -21,6 +18,8 @@ import './index.less';
 
 type DistributionItem = { type: string; value: number };
 type TrafficPoint = { time: Date; application: string; value: number };
+
+const chartColors = ['#0f82ff', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'];
 
 const applicationLabels = Object.fromEntries(
   APPLICATION_TYPES.map((type) => [type.value, type.label]),
@@ -116,9 +115,43 @@ function DistributionPanel({
   );
 }
 
+function TrafficChart({ data }: { data: TrafficPoint[] }) {
+  const width = 1000;
+  const height = 250;
+  const padding = { left: 58, right: 18, top: 24, bottom: 34 };
+  const minTime = Math.min(...data.map((item) => item.time.getTime()));
+  const maxTime = Math.max(...data.map((item) => item.time.getTime()));
+  const maxValue = Math.max(1, ...data.map((item) => item.value));
+  const applications = [...new Set(data.map((item) => item.application))];
+  const x = (time: number) => padding.left + ((time - minTime) / Math.max(1, maxTime - minTime)) * (width - padding.left - padding.right);
+  const y = (value: number) => height - padding.bottom - (value / maxValue) * (height - padding.top - padding.bottom);
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+
+  return (
+    <div className="overview-chart">
+      <div className="overview-chart-legend">
+        {applications.map((application, index) => (
+          <span key={application}><i style={{ background: chartColors[index % chartColors.length] }} />{application}</span>
+        ))}
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Application traffic chart">
+        {ticks.map((tick) => {
+          const tickY = y(maxValue * tick);
+          return <g key={tick}><line x1={padding.left} x2={width - padding.right} y1={tickY} y2={tickY} className="overview-chart-grid" /><text x={padding.left - 10} y={tickY + 4} textAnchor="end">{formatTraffic(maxValue * tick)}</text></g>;
+        })}
+        {applications.map((application, index) => {
+          const points = data.filter((item) => item.application === application).map((item) => `${x(item.time.getTime())},${y(item.value)}`).join(' ');
+          return <polyline key={application} points={points} fill="none" stroke={chartColors[index % chartColors.length]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />;
+        })}
+        <text x={padding.left} y={height - 10}>{new Date(minTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</text>
+        <text x={width - padding.right} y={height - 10} textAnchor="end">{new Date(maxTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</text>
+      </svg>
+    </div>
+  );
+}
+
 const DashboardPage: React.FC = () => {
   const { tr } = useI18n();
-  const { resolved } = useThemeMode();
   const [loading, setLoading] = useState(true);
   const [deviceData, setDeviceData] = useState<DistributionItem[]>([]);
   const [applicationData, setApplicationData] = useState<DistributionItem[]>(
@@ -252,11 +285,8 @@ const DashboardPage: React.FC = () => {
     [edgeData],
   );
   const onlineEdges = edgeData[0]?.value || 0;
-  const axisColor = resolved === 'dark' ? '#71717a' : '#64748b';
-  const gridColor = resolved === 'dark' ? '#292933' : '#e2e8f0';
-
   return (
-    <PageContainer title={false} className="overview-page">
+    <div className="overview-page">
       <div className={`overview-content${loading ? ' is-loading' : ''}`}>
         <div className="overview-metrics">
           <MetricCard
@@ -319,37 +349,7 @@ const DashboardPage: React.FC = () => {
             </div>
           </header>
           {trafficData.length > 0 ? (
-            <Line
-              data={trafficData}
-              xField="time"
-              yField="value"
-              colorField="application"
-              height={260}
-              point={false}
-              smooth
-              style={{ lineWidth: 1.6, opacity: 0.9 }}
-              legend={{ position: 'top-right' }}
-              scale={{ value: { min: 0, nice: true } }}
-              axis={{
-                x: {
-                  labelAutoHide: 'greedy',
-                  labelFill: axisColor,
-                  line: false,
-                  tick: false,
-                },
-                y: {
-                  labelFill: axisColor,
-                  labelFormatter: (value: number) => formatTraffic(value),
-                  gridStroke: gridColor,
-                  line: false,
-                  tick: false,
-                },
-              }}
-              tooltip={{
-                shared: true,
-                valueFormatter: (value: number) => formatTraffic(value),
-              }}
-            />
+            <TrafficChart data={trafficData} />
           ) : (
             <div className="overview-traffic-empty">
               <Activity size={18} strokeWidth={1.7} />
@@ -360,7 +360,7 @@ const DashboardPage: React.FC = () => {
           )}
         </section>
       </div>
-    </PageContainer>
+    </div>
   );
 };
 

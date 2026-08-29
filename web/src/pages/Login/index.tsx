@@ -4,24 +4,33 @@ import { useI18n } from '@/i18n';
 import { history } from '@/lib/runtime';
 import { login } from '@/services/api';
 import { useSession } from '@/store/session';
-import { GithubOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
-import { App, Button, Form, Input } from 'antd';
-import { Activity, Cable, ShieldCheck } from 'lucide-react';
+import { Activity, Cable, Github, Lock, ShieldCheck, User } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 import './index.less';
 
 type LoginValues = { email: string; password: string };
 
 const Login: React.FC = () => {
-  const { message } = App.useApp();
   const { tr } = useI18n();
   const setToken = useSession((state) => state.setToken);
   const setInitialState = useSession((state) => state.setInitialState);
 
-  const handleSubmit = async (values: LoginValues) => {
+  const [values, setValues] = useState<LoginValues>({ email: '', password: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!values.email.trim() || !values.password) {
+      setError(tr('请输入邮箱和密码', 'Enter your email and password'));
+      return;
+    }
+    setSubmitting(true);
+    setError('');
     try {
       const result = await login(values);
       if (result.code !== 200 || !result.data?.token) {
-        message.error(result.message || tr('登录失败', 'Login failed'));
+        setError(result.message || tr('登录失败', 'Login failed'));
         return;
       }
 
@@ -30,18 +39,19 @@ const Login: React.FC = () => {
         ...state,
         currentUser: result.data?.user,
       }));
-      message.success(tr('登录成功', 'Signed in'));
       const redirect = new URL(window.location.href).searchParams.get(
         'redirect',
       );
       history.replace(redirect || '/dashboard');
     } catch (error: any) {
       const backendMessage = error?.response?.data?.message;
-      message.error(
+      setError(
         backendMessage ||
           error?.message ||
           tr('登录失败，请重试', 'Login failed, please retry'),
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -92,60 +102,42 @@ const Login: React.FC = () => {
               <h2>Liaison</h2>
             </div>
           </div>
-          <Form<LoginValues>
-            layout="vertical"
-            requiredMark={false}
-            onFinish={handleSubmit}
-            autoComplete="on"
-          >
-            <Form.Item
-              name="email"
-              label={tr('邮箱', 'Email')}
-              rules={[
-                {
-                  required: true,
-                  message: tr('请输入邮箱', 'Enter your email'),
-                },
-                {
-                  type: 'email',
-                  message: tr('请输入有效邮箱', 'Enter a valid email'),
-                },
-              ]}
-            >
-              <Input
-                size="large"
-                prefix={<UserOutlined />}
-                placeholder="name@example.com"
-                autoComplete="username"
-              />
-            </Form.Item>
-            <Form.Item
-              name="password"
-              label={tr('密码', 'Password')}
-              rules={[
-                {
-                  required: true,
-                  message: tr('请输入密码', 'Enter your password'),
-                },
-              ]}
-            >
-              <Input.Password
-                size="large"
-                prefix={<LockOutlined />}
-                placeholder={tr('输入登录密码', 'Enter password')}
-                autoComplete="current-password"
-              />
-            </Form.Item>
-            <Form.Item className="login-submit-row">
-              <Button type="primary" htmlType="submit" size="large" block>
-                {tr('登录', 'Sign in')}
-              </Button>
-            </Form.Item>
-          </Form>
+          <form className="login-native-form" onSubmit={handleSubmit} autoComplete="on">
+            <label className="login-field">
+              <span>{tr('邮箱', 'Email')}</span>
+              <span className="login-control">
+                <User size={17} strokeWidth={1.7} />
+                <input
+                  type="email"
+                  value={values.email}
+                  onChange={(event) => setValues((current) => ({ ...current, email: event.target.value }))}
+                  placeholder="name@example.com"
+                  autoComplete="username"
+                />
+              </span>
+            </label>
+            <label className="login-field">
+              <span>{tr('密码', 'Password')}</span>
+              <span className="login-control">
+                <Lock size={17} strokeWidth={1.7} />
+                <input
+                  type="password"
+                  value={values.password}
+                  onChange={(event) => setValues((current) => ({ ...current, password: event.target.value }))}
+                  placeholder={tr('输入登录密码', 'Enter password')}
+                  autoComplete="current-password"
+                />
+              </span>
+            </label>
+            {error ? <p className="login-error" role="alert">{error}</p> : null}
+            <button className="login-submit" type="submit" disabled={submitting}>
+              {submitting ? tr('登录中…', 'Signing in…') : tr('登录', 'Sign in')}
+            </button>
+          </form>
           <div className="login-form-footer">
             <span>© 2026 Liaison</span>
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-              <GithubOutlined /> GitHub
+              <Github size={14} /> GitHub
             </a>
           </div>
         </div>

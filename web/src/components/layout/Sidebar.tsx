@@ -10,14 +10,15 @@ import {
 import { useI18n } from '@/i18n';
 import { getApplicationList } from '@/services/api';
 import { useUi } from '@/store/ui';
-import { AppstoreOutlined, FileSearchOutlined } from '@ant-design/icons';
 import type { LucideIcon, LucideProps } from 'lucide-react';
 import {
+  AppWindow,
   Boxes,
   Cable,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  FileSearch,
   Gauge,
   Globe2,
   Settings,
@@ -34,14 +35,11 @@ type NavItem = {
 };
 
 const CloudApplicationsIcon = ({ size = 17, className }: LucideProps) => (
-  <AppstoreOutlined className={className} style={{ fontSize: Number(size) }} />
+  <AppWindow className={className} size={size} strokeWidth={1.8} />
 );
 
 const CloudAuditIcon = ({ size = 17, className }: LucideProps) => (
-  <FileSearchOutlined
-    className={className}
-    style={{ fontSize: Number(size) }}
-  />
+  <FileSearch className={className} size={size} strokeWidth={1.8} />
 );
 
 export function Sidebar() {

@@ -146,52 +146,94 @@
   letter-spacing: -0.035em;
 }
 
-.login-form-card .ant-form-item-label > label {
+.login-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.login-field > span:first-child {
   color: rgb(var(--muted));
   font-size: 11px;
   font-weight: 600;
 }
 
-.login-form-card .ant-input-affix-wrapper {
+.login-control {
+  display: flex;
   height: 44px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgb(var(--line));
+  border-radius: 8px;
+  padding: 0 13px;
   border-color: rgb(var(--line));
   background: rgb(var(--surface));
-  box-shadow: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.login-form-card .ant-input {
+.login-control:focus-within {
+  border-color: rgb(var(--ink) / 0.5);
+  box-shadow: 0 0 0 3px rgb(var(--ink) / 0.06);
+}
+
+.login-control input {
+  width: 100%;
+  height: 42px;
+  border: 0;
+  outline: 0;
   background: transparent;
+  color: rgb(var(--ink));
+  font-size: 13px;
+  line-height: 42px;
 }
 
-.login-form-card .ant-input-prefix {
-  margin-right: 10px;
+.login-control input::placeholder {
+  color: rgb(var(--muted) / 0.65);
+}
+
+.login-control svg {
+  flex: 0 0 auto;
   color: rgb(var(--muted));
 }
 
-.login-submit-row {
-  margin-top: 30px;
+.login-error {
+  margin: -4px 0 14px;
+  color: rgb(var(--danger));
+  font-size: 11px;
+  line-height: 1.5;
 }
 
-.login-submit-row .ant-btn {
+.login-submit {
+  width: 100%;
   height: 44px;
+  margin-top: 12px;
   border: 0;
+  border-radius: 8px;
   background: linear-gradient(
     100deg,
     rgb(var(--brand-blue)),
     rgb(var(--brand-violet))
   );
   box-shadow: none;
+  color: #fff;
   font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
 }
 
-.login-submit-row .ant-btn:hover,
-.login-submit-row .ant-btn:focus-visible {
+.login-submit:hover,
+.login-submit:focus-visible {
   background: linear-gradient(
     100deg,
     rgb(var(--brand-blue)),
     rgb(var(--brand-violet))
-  ) !important;
+  );
   filter: brightness(1.08);
+}
+
+.login-submit:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .login-form-footer {
@@ -212,10 +254,6 @@
   gap: 5px;
   color: rgb(var(--muted));
   text-decoration: none;
-}
-
-.login-form-footer a .anticon {
-  font-size: 13px;
 }
 
 .login-form-footer a:hover {
