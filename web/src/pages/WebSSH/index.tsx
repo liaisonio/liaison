@@ -2,6 +2,7 @@ import SessionWatermark, {
   buildSessionWatermarkLabel,
   useSessionWatermarkTime,
 } from '@/components/SessionWatermark';
+import { Button, Field, Input, Modal, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { history, useModel, useParams } from '@/lib/runtime';
 import {
@@ -10,30 +11,10 @@ import {
   deleteWebSSHHostKey,
   getWebSSHTarget,
 } from '@/services/api';
-import {
-  ArrowLeftOutlined,
-  ClockCircleOutlined,
-  DisconnectOutlined,
-  FullscreenExitOutlined,
-  FullscreenOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import {
-  Alert,
-  AutoComplete,
-  Button,
-  Checkbox,
-  Form,
-  Input,
-  message,
-  Modal,
-  Popconfirm,
-  Spin,
-} from 'antd';
+import { ArrowLeft, Clock3, Fullscreen, Minimize, PlugZap, Send } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.less';
 
@@ -52,8 +33,8 @@ const WebSSHPage: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const params = useParams();
   const proxyId = Number(params.proxyId);
-  const [form] = Form.useForm<API.CreateWebSSHSessionRequest>();
-  const watchedUsername = Form.useWatch('username', form);
+  const [credentials, setCredentials] = useState<API.CreateWebSSHSessionRequest>({ username: '', password: '', save_credential: false });
+  const watchedUsername = credentials.username;
   const [target, setTarget] = useState<API.WebSSHTarget>();
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -256,9 +237,7 @@ const WebSSHPage: React.FC = () => {
       scheduleTerminalFit(true);
       focusTerminal();
     } catch (e: any) {
-      message.error(
-        e?.message || tr('无法进入全屏', 'Unable to enter fullscreen'),
-      );
+      setError(e?.message || tr('无法进入全屏', 'Unable to enter fullscreen'));
     }
   }, [connected, focusTerminal, scheduleTerminalFit, tr]);
 
@@ -329,19 +308,15 @@ const WebSSHPage: React.FC = () => {
       const res = await getWebSSHTarget(proxyId);
       if (res.code === 200 && res.data) {
         setTarget(res.data);
-        const credentials = res.data.credentials || [];
-        if (credentials.length > 0) {
-          const currentUsername = form.getFieldValue('username');
+        const savedCredentials = res.data.credentials || [];
+        if (savedCredentials.length > 0) {
+          const currentUsername = credentials.username;
           const username =
-            credentials.find((item) => item.username === currentUsername)
-              ?.username || credentials[0].username;
-          form.setFieldsValue({
-            username,
-            password: '',
-            save_credential: false,
-          });
+            savedCredentials.find((item) => item.username === currentUsername)
+              ?.username || savedCredentials[0].username;
+          setCredentials({ username, password: '', save_credential: false });
         } else {
-          form.setFieldsValue({ save_credential: false });
+          setCredentials((value) => ({ ...value, save_credential: false }));
         }
         setError('');
       } else {
@@ -357,7 +332,7 @@ const WebSSHPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [form, proxyId, tr]);
+  }, [credentials.username, proxyId, tr]);
 
   useEffect(() => {
     loadTarget();
@@ -378,7 +353,7 @@ const WebSSHPage: React.FC = () => {
     document.body.classList.add('webssh-page-active');
     const footerElements = Array.from(
       document.querySelectorAll<HTMLElement>(
-        '.ant-pro-layout-footer, .global-footer',
+        '.global-footer',
       ),
     );
     const previousFooterStyles = footerElements.map((element) => ({
@@ -509,7 +484,7 @@ const WebSSHPage: React.FC = () => {
         cols: terminalRef.current?.cols,
         rows: terminalRef.current?.rows,
       });
-      form.setFieldValue('password', '');
+      setCredentials((value) => ({ ...value, password: '' }));
       if (res.code !== 200 || !res.data?.ws_url) {
         throw new Error(
           res.message ||
@@ -534,17 +509,10 @@ const WebSSHPage: React.FC = () => {
             return;
           } else if (msg.type === 'credential_saved') {
             pendingCredentialSaveRef.current = false;
-            message.success(tr('已保存 SSH 密码', 'SSH password saved'));
             loadTarget();
           } else if (msg.type === 'credential_error') {
             pendingCredentialSaveRef.current = false;
-            message.warning(
-              msg.message ||
-                tr(
-                  'SSH 已连接，但保存密码失败',
-                  'SSH connected, but saving password failed',
-                ),
-            );
+            setError(msg.message || tr('SSH 已连接，但保存密码失败', 'SSH connected, but saving password failed'));
           } else if (msg.type === 'status') {
             if (msg.status === 'connected') {
               sessionStartedAtRef.current = Date.now();
@@ -615,46 +583,38 @@ const WebSSHPage: React.FC = () => {
   const resetHostKey = async () => {
     try {
       await deleteWebSSHHostKey(proxyId);
-      message.success(tr('已重置信任指纹', 'Trusted fingerprint reset'));
       loadTarget();
     } catch (e: any) {
-      message.error(
-        e?.response?.data?.message || tr('重置失败', 'Reset failed'),
-      );
+      setError(e?.response?.data?.message || tr('重置失败', 'Reset failed'));
     }
   };
 
   const clearCredential = async () => {
-    const username = String(form.getFieldValue('username') || '').trim();
+    const username = String(credentials.username || '').trim();
     if (!username) {
-      message.warning(tr('请选择保存用户', 'Select a saved user'));
+      setError(tr('请选择保存用户', 'Select a saved user'));
       return;
     }
     try {
       await deleteWebSSHCredential(proxyId, username);
-      message.success(tr('已清除保存密码', 'Saved password cleared'));
-      form.setFieldsValue({ password: '', save_credential: false });
+      setCredentials((value) => ({ ...value, password: '', save_credential: false }));
       loadTarget();
     } catch (e: any) {
-      message.error(
-        e?.response?.data?.message ||
-          tr('清除保存密码失败', 'Failed to clear saved password'),
-      );
+      setError(e?.response?.data?.message || tr('清除保存密码失败', 'Failed to clear saved password'));
     }
   };
 
   return (
-    <PageContainer title={false}>
+    <>
       <div className="webssh-shell">
         <header className="webssh-toolbar">
           <div className="webssh-identity">
             <Button
               className="webssh-back-button"
-              type="text"
-              icon={<ArrowLeftOutlined />}
+              variant="ghost"
               aria-label={tr('返回访问', 'Back to access')}
               onClick={returnToAccess}
-            />
+            ><ArrowLeft size={16} /></Button>
             <span className="webssh-terminal-mark" aria-hidden="true">
               &gt;_
             </span>
@@ -697,30 +657,28 @@ const WebSSHPage: React.FC = () => {
           <div className="webssh-toolbar-actions">
             {!connected && (
               <Button
-                type="primary"
-                icon={<SendOutlined />}
+                variant="primary"
                 disabled={!active || loading}
                 onClick={() => setCredentialOpen(true)}
               >
+                <Send size={14} />
                 {tr('连接', 'Connect')}
               </Button>
             )}
             <Button
-              icon={
-                fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
-              }
               disabled={!connected}
               onClick={toggleFullscreen}
             >
+              {fullscreen ? <Minimize size={14} /> : <Fullscreen size={14} />}
               {fullscreen
                 ? tr('退出全屏', 'Exit fullscreen')
                 : tr('全屏', 'Fullscreen')}
             </Button>
             {connected && (
               <Button
-                icon={<DisconnectOutlined />}
                 onClick={disconnectAndSummarize}
               >
+                <PlugZap size={14} />
                 {tr('断开', 'Disconnect')}
               </Button>
             )}
@@ -729,34 +687,14 @@ const WebSSHPage: React.FC = () => {
 
         {loading && (
           <div className="webssh-loading">
-            <Spin />
+            <span className="webssh-native-spinner" />
           </div>
         )}
         {!loading && !active && (
-          <Alert
-            className="webssh-alert"
-            type="warning"
-            showIcon
-            message={
-              target?.effective_status_message ||
-              tr('当前 SSH 访问不可用', 'SSH entry unavailable')
-            }
-          />
+          <Notice tone="warning">{target?.effective_status_message || tr('当前 SSH 访问不可用', 'SSH entry unavailable')}</Notice>
         )}
         {!loading && error && !credentialOpen && (
-          <Alert
-            className="webssh-alert"
-            type="error"
-            showIcon
-            message={error}
-            action={
-              error.includes('指纹变化') ? (
-                <Button size="small" danger onClick={resetHostKey}>
-                  {tr('重置指纹', 'Reset fingerprint')}
-                </Button>
-              ) : undefined
-            }
-          />
+          <div className="webssh-alert"><Notice tone="danger">{error}{error.includes('指纹变化') ? <Button variant="danger" onClick={resetHostKey}>{tr('重置指纹', 'Reset fingerprint')}</Button> : null}</Notice></div>
         )}
 
         <div
@@ -772,7 +710,7 @@ const WebSSHPage: React.FC = () => {
               {sessionDurationSeconds !== null ? (
                 <>
                   <span className="webssh-session-finished-icon" aria-hidden="true">
-                    <ClockCircleOutlined />
+                    <Clock3 size={22} />
                   </span>
                   <strong>{tr('本次会话已结束', 'Session ended')}</strong>
                   <p className="webssh-session-duration">
@@ -784,7 +722,7 @@ const WebSSHPage: React.FC = () => {
                       {tr('返回访问', 'Back to access')}
                     </Button>
                     <Button
-                      type="primary"
+                      variant="primary"
                       disabled={!active}
                       onClick={() => setCredentialOpen(true)}
                     >
@@ -805,7 +743,7 @@ const WebSSHPage: React.FC = () => {
                     )}
                   </p>
                   <Button
-                    type="primary"
+                    variant="primary"
                     disabled={!active}
                     onClick={() => setCredentialOpen(true)}
                   >
@@ -820,16 +758,11 @@ const WebSSHPage: React.FC = () => {
       </div>
 
       <Modal
-        className="webssh-credential-modal"
         title={tr('连接 WebSSH', 'Connect to WebSSH')}
         open={credentialOpen}
-        footer={null}
         width={440}
-        centered
-        destroyOnClose={false}
-        maskClosable={!connecting}
-        closable={!connecting}
-        onCancel={returnToAccess}
+        closeOnMask={!connecting}
+        onClose={returnToAccess}
       >
         <div className="webssh-credential-target">
           <div>
@@ -845,103 +778,28 @@ const WebSSHPage: React.FC = () => {
         </div>
 
         {error && (
-          <Alert
-            className="webssh-credential-error"
-            type="error"
-            showIcon
-            message={error}
-            action={
-              error.includes('指纹变化') ? (
-                <Button size="small" danger onClick={resetHostKey}>
-                  {tr('重置指纹', 'Reset fingerprint')}
-                </Button>
-              ) : undefined
-            }
-          />
+          <Notice tone="danger">{error}{error.includes('指纹变化') ? <Button variant="danger" onClick={resetHostKey}>{tr('重置指纹', 'Reset fingerprint')}</Button> : null}</Notice>
         )}
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={connect}
-          disabled={connecting || connected || loading}
-        >
-          <Form.Item
-            name="username"
-            label={tr('用户名', 'Username')}
-            rules={[
-              {
-                required: true,
-                message: tr('请输入用户名', 'Username is required'),
-              },
-            ]}
-          >
-            <AutoComplete
-              allowClear
-              defaultActiveFirstOption={false}
-              options={savedUsernameOptions}
-              filterOption={(input, option) =>
-                String(option?.value || '')
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-            >
-              <Input
-                autoFocus
-                autoComplete="username"
-                placeholder={tr('输入 SSH 用户名', 'Enter SSH username')}
-              />
-            </AutoComplete>
-          </Form.Item>
-          <Form.Item
-            name="password"
-            label={tr('密码', 'Password')}
-            rules={[
-              {
-                validator: async (_, value) => {
-                  if (!selectedSavedCredential && !value) {
-                    throw new Error(tr('请输入密码', 'Password is required'));
-                  }
-                },
-              },
-            ]}
-          >
-            <Input.Password
-              autoComplete="current-password"
-              placeholder={
-                selectedSavedCredential
-                  ? tr(
-                      '留空使用该用户保存密码',
-                      'Leave blank to use the saved password',
-                    )
-                  : tr('输入 SSH 密码', 'Enter SSH password')
-              }
-              onPressEnter={() => form.submit()}
-            />
-          </Form.Item>
+        <form className="webssh-native-form" onSubmit={(event) => { event.preventDefault(); if (!credentials.username?.trim()) { setError(tr('请输入用户名', 'Username is required')); return; } if (!selectedSavedCredential && !credentials.password) { setError(tr('请输入密码', 'Password is required')); return; } void connect(credentials); }}>
+          <Field label={tr('用户名', 'Username')} required>
+            <Input autoFocus autoComplete="username" list="webssh-saved-users" value={credentials.username || ''} onChange={(event) => setCredentials((value) => ({ ...value, username: event.target.value }))} placeholder={tr('输入 SSH 用户名', 'Enter SSH username')} />
+            <datalist id="webssh-saved-users">{savedUsernameOptions.map((option) => <option key={option.value} value={option.value} />)}</datalist>
+          </Field>
+          <Field label={tr('密码', 'Password')}>
+            <Input type="password" autoComplete="current-password" value={credentials.password || ''} onChange={(event) => setCredentials((value) => ({ ...value, password: event.target.value }))} placeholder={selectedSavedCredential ? tr('留空使用该用户保存密码', 'Leave blank to use the saved password') : tr('输入 SSH 密码', 'Enter SSH password')} />
+          </Field>
 
           <div className="webssh-credential-options">
-            <Form.Item name="save_credential" valuePropName="checked">
-              <Checkbox>
+            <label className="liaison-checkbox"><input type="checkbox" checked={Boolean(credentials.save_credential)} onChange={(event) => setCredentials((value) => ({ ...value, save_credential: event.target.checked }))} /><span>
                 {credentialSaved
                   ? tr('保存或更新密码', 'Save or update password')
                   : tr('保存密码', 'Save password')}
-              </Checkbox>
-            </Form.Item>
+              </span></label>
             {selectedSavedCredential && (
-              <Popconfirm
-                title={tr(
-                  '清除当前用户保存密码？',
-                  'Clear saved password for this user?',
-                )}
-                okText={tr('清除', 'Clear')}
-                cancelText={tr('取消', 'Cancel')}
-                onConfirm={clearCredential}
-              >
-                <Button type="link" disabled={connecting || connected}>
+                <Button variant="ghost" disabled={connecting || connected} onClick={() => { if (window.confirm(tr('清除当前用户保存密码？', 'Clear saved password for this user?'))) void clearCredential(); }}>
                   {tr('清除保存密码', 'Clear saved password')}
                 </Button>
-              </Popconfirm>
             )}
           </div>
 
@@ -960,18 +818,17 @@ const WebSSHPage: React.FC = () => {
               {tr('取消', 'Cancel')}
             </Button>
             <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SendOutlined />}
-              loading={connecting}
+              variant="primary"
+              type="submit"
               disabled={!active || loading}
             >
+              <Send size={14} />
               {tr('连接', 'Connect')}
             </Button>
           </div>
-        </Form>
+        </form>
       </Modal>
-    </PageContainer>
+    </>
   );
 };
 

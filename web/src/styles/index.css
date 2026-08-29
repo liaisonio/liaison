@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root.dark {
-  --control-radius: 6px;
-  --surface-radius: 10px;
-  --dialog-radius: 14px;
+  --control-radius: 12px;
+  --surface-radius: 16px;
+  --dialog-radius: 20px;
   --canvas: 11 11 17;
   --surface: 18 18 25;
   --panel: 23 23 32;
@@ -24,9 +24,9 @@
 }
 
 :root.light {
-  --control-radius: 6px;
-  --surface-radius: 10px;
-  --dialog-radius: 14px;
+  --control-radius: 12px;
+  --surface-radius: 16px;
+  --dialog-radius: 20px;
   --canvas: 244 245 248;
   --surface: 255 255 255;
   --panel: 250 250 252;
@@ -77,8 +77,7 @@ button {
   color: inherit;
 }
 
-/* Liaison native controls. These are intentionally independent from Ant's
-   DOM and token system so pages can migrate without inherited geometry. */
+/* Liaison native controls share one geometry and token system. */
 .liaison-button {
   display: inline-flex;
   min-height: 34px;
@@ -86,7 +85,7 @@ button {
   justify-content: center;
   gap: 7px;
   border: 1px solid rgb(var(--line));
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   padding: 0 13px;
   background: rgb(var(--surface));
   color: rgb(var(--ink));
@@ -111,7 +110,7 @@ button {
   width: 100%;
   height: 36px;
   border: 1px solid rgb(var(--line));
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   outline: 0;
   padding: 0 11px;
   background: rgb(var(--canvas) / 0.42);
@@ -124,51 +123,136 @@ button {
 .liaison-input:focus { border-color: rgb(var(--ink) / 0.55); box-shadow: 0 0 0 3px rgb(var(--ink) / 0.06); }
 .liaison-select { appearance: auto; line-height: normal; }
 
-.liaison-segmented { display: inline-flex; gap: 2px; border: 1px solid rgb(var(--line)); border-radius: 9px; padding: 3px; background: rgb(var(--canvas) / 0.5); }
-.liaison-segmented button { min-height: 28px; border: 0; border-radius: 6px; padding: 0 10px; background: transparent; color: rgb(var(--muted)); font-size: 11px; cursor: pointer; }
+.liaison-segmented { display: inline-flex; gap: 2px; border: 1px solid rgb(var(--line)); border-radius: calc(var(--control-radius) + 2px); padding: 3px; background: rgb(var(--canvas) / 0.5); }
+.liaison-segmented button { min-height: 28px; border: 0; border-radius: calc(var(--control-radius) - 3px); padding: 0 10px; background: transparent; color: rgb(var(--muted)); font-size: 11px; cursor: pointer; }
 .liaison-segmented button.is-active { background: rgb(var(--surface)); color: rgb(var(--ink)); box-shadow: 0 1px 3px rgb(0 0 0 / 0.09); }
 
 .liaison-modal-root { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; }
 .liaison-modal-mask { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgb(0 0 0 / 0.58); backdrop-filter: blur(3px); }
-.liaison-modal { position: relative; display: flex; max-width: calc(100vw - 32px); max-height: min(760px, calc(100vh - 48px)); flex-direction: column; overflow: hidden; border: 1px solid rgb(var(--line)); border-radius: 14px; background: rgb(var(--surface)); box-shadow: 0 24px 70px rgb(0 0 0 / 0.24); }
+.liaison-modal { position: relative; display: flex; max-width: calc(100vw - 32px); max-height: min(760px, calc(100vh - 48px)); flex-direction: column; overflow: hidden; border: 1px solid rgb(var(--line)); border-radius: var(--dialog-radius); background: rgb(var(--surface)); box-shadow: 0 24px 70px rgb(0 0 0 / 0.24); }
 .liaison-modal > header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; padding: 20px 22px 8px; }
 .liaison-modal > header h2 { margin: 0; font-size: 17px; font-weight: 680; letter-spacing: -0.02em; }
-.liaison-modal > header button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
+.liaison-modal > header button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 10px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
 .liaison-modal > header button:hover { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 .liaison-modal-body { min-height: 0; overflow-y: auto; padding: 16px 22px; }
 .liaison-modal > footer { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 9px; padding: 8px 22px 20px; }
 
-.liaison-notice { border: 1px solid rgb(var(--line)); border-radius: 8px; padding: 10px 12px; background: rgb(var(--panel)); color: rgb(var(--muted)); font-size: 11px; line-height: 1.55; }
+.liaison-notice { border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 10px 12px; background: rgb(var(--panel)); color: rgb(var(--muted)); font-size: 11px; line-height: 1.55; }
 .liaison-notice.is-danger { border-color: rgb(var(--danger) / 0.35); color: rgb(var(--danger)); }
 .liaison-notice.is-success { border-color: rgb(16 185 129 / 0.35); color: rgb(5 150 105); }
 .liaison-notice.is-warning { border-color: rgb(245 158 11 / 0.35); color: rgb(180 83 9); }
 
-/* Composite controls have one visual owner. Ant renders clearable inputs,
-   passwords and AutoComplete as an outer control containing another Input;
-   the nested Input must never draw a second border or focus ring. */
-body .ant-input-affix-wrapper > input.ant-input,
-body .ant-input-affix-wrapper > input.ant-input:hover,
-body .ant-input-affix-wrapper > input.ant-input:focus,
-body
-  .ant-select-auto-complete
-  .ant-select-selector
-  input.ant-input,
-body
-  .ant-select-auto-complete
-  .ant-select-selector
-  input.ant-input:hover,
-body
-  .ant-select-auto-complete
-  .ant-select-selector
-  input.ant-input:focus {
-  padding-block: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  outline: 0 !important;
-  transition: none !important;
-}
+.liaison-page-stack { display: grid; gap: 12px; }
+.liaison-filter-bar { display: flex; min-height: 60px; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid rgb(var(--line) / 0.7); border-radius: var(--surface-radius); padding: 12px 14px; background: rgb(var(--surface)); }
+.liaison-compound { display: flex; min-width: 210px; height: 34px; overflow: hidden; align-items: center; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); background: rgb(var(--canvas) / 0.42); }
+.liaison-compound > span { display: flex; height: 32px; flex: 0 0 auto; align-items: center; border-right: 1px solid rgb(var(--line)); padding: 0 10px; color: rgb(var(--muted)); font-size: 11px; font-weight: 600; }
+.liaison-compound :is(input, select) { min-width: 0; height: 32px; flex: 1; border: 0; outline: 0; padding: 0 10px; background: transparent; color: rgb(var(--ink)); font-size: 11px; line-height: 32px; }
+.liaison-compound:focus-within { border-color: rgb(var(--ink) / 0.55); box-shadow: 0 0 0 3px rgb(var(--ink) / 0.05); }
+.liaison-filter-actions { display: flex; gap: 8px; margin-left: auto; }
+.liaison-list-panel { overflow: hidden; border: 1px solid rgb(var(--line) / 0.66); border-radius: var(--surface-radius); background: rgb(var(--surface)); }
+.liaison-list-header { display: flex; min-height: 56px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; }
+.liaison-list-header h2 { margin: 0; font-size: 12px; font-weight: 650; }
+.liaison-list-actions { display: flex; gap: 8px; }
+.liaison-table-scroll { overflow-x: auto; }
+.liaison-table { width: 100%; min-width: 820px; border-collapse: collapse; table-layout: fixed; color: rgb(var(--ink)); font-size: 11px; }
+.liaison-table th { height: 38px; padding: 0 12px; background: rgb(var(--panel)); color: rgb(var(--muted)); font-weight: 600; text-align: left; }
+.liaison-table td { height: 46px; overflow: hidden; border-top: 1px solid rgb(var(--line) / 0.55); padding: 7px 12px; text-overflow: ellipsis; white-space: nowrap; }
+.liaison-table tbody tr:hover { background: rgb(var(--panel) / 0.5); }
+.liaison-row-expand { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid rgb(var(--line)); border-radius: 8px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
+.liaison-row-expand:disabled { opacity: 0.28; cursor: default; }
+.liaison-expanded-row { height: auto !important; padding: 12px 16px !important; background: rgb(var(--panel) / 0.45); white-space: normal !important; }
+.liaison-table-empty { height: 130px !important; color: rgb(var(--muted)); text-align: center; }
+.liaison-table-actions { display: flex; align-items: center; gap: 10px; }
+.liaison-table-link { border: 0; padding: 0; background: transparent; color: rgb(var(--info)); font-size: 11px; cursor: pointer; }
+.liaison-table-link.is-danger { color: rgb(var(--danger)); }
+.liaison-pager { display: flex; min-height: 48px; align-items: center; justify-content: flex-end; gap: 4px; border-top: 1px solid rgb(var(--line) / 0.55); padding: 8px 12px; color: rgb(var(--muted)); font-size: 10px; }
+.liaison-pager .liaison-button { min-width: 28px; min-height: 28px; padding: 0; }
+.liaison-pager b { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid rgb(var(--line)); border-radius: 9px; color: rgb(var(--ink)); }
+.liaison-status { display: inline-flex; min-height: 22px; align-items: center; border: 1px solid rgb(var(--line)); border-radius: 9px; padding: 0 7px; color: rgb(var(--muted)); font-size: 10px; }
+.liaison-status.is-success { border-color: rgb(16 185 129 / 0.4); color: rgb(5 150 105); background: rgb(16 185 129 / 0.07); }
+.liaison-status.is-danger { border-color: rgb(var(--danger) / 0.4); color: rgb(var(--danger)); background: rgb(var(--danger) / 0.06); }
+.liaison-status.is-info { border-color: rgb(var(--info) / 0.4); color: rgb(var(--info)); background: rgb(var(--info) / 0.06); }
+.liaison-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
+.liaison-form-grid .is-full { grid-column: 1 / -1; }
+.liaison-drawer-root { position: fixed; inset: 0; z-index: 950; }
+.liaison-drawer-mask { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgb(0 0 0 / 0.45); }
+.liaison-drawer { position: absolute; top: 12px; right: 12px; width: min(520px, calc(92vw - 24px)); height: calc(100% - 24px); overflow: hidden; border: 1px solid rgb(var(--line)); border-radius: var(--dialog-radius); background: rgb(var(--surface)); box-shadow: -18px 0 50px rgb(0 0 0 / 0.16); }
+.liaison-drawer > header { display: flex; height: 62px; align-items: center; justify-content: space-between; padding: 0 20px; }
+.liaison-drawer > header h2 { margin: 0; font-size: 15px; }
+.liaison-drawer > header button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
+.liaison-drawer > div, .liaison-drawer-body { height: calc(100% - 62px); overflow-y: auto; padding: 4px 20px 20px; }
+.liaison-drawer > footer { display: flex; justify-content: flex-end; padding: 10px 20px 18px; }
+.liaison-detail-list { display: grid; gap: 0; margin: 0; }
+.liaison-detail-list > div { display: grid; grid-template-columns: 130px 1fr; gap: 14px; border-bottom: 1px solid rgb(var(--line) / 0.52); padding: 12px 0; }
+.liaison-detail-list dt { color: rgb(var(--muted)); font-size: 11px; }
+.liaison-detail-list dd { margin: 0; color: rgb(var(--ink)); font-size: 11px; word-break: break-word; }
+.liaison-inline-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.liaison-detail-section { margin-top: 22px; }
+.liaison-detail-section h3 { margin: 0 0 8px; font-size: 12px; }
+.liaison-detail-section > div { display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px; border-top: 1px solid rgb(var(--line) / 0.52); padding: 10px 0; font-size: 11px; }
+.liaison-detail-section small { grid-column: 2; color: rgb(var(--muted)); }
+.liaison-choice-row { display: inline-flex; width: fit-content; overflow: hidden; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 3px; background: rgb(var(--canvas) / 0.42); }
+.liaison-choice-row button { min-height: 30px; border: 0; border-radius: calc(var(--control-radius) - 3px); padding: 0 14px; background: transparent; color: rgb(var(--muted)); font-size: 12px; cursor: pointer; }
+.liaison-choice-row button.is-active { background: rgb(var(--ink)); color: rgb(var(--surface)); }
+.liaison-firewall-current { width: 100%; margin-top: 14px; }
+.liaison-firewall-add { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
+.liaison-cidr-list { display: grid; gap: 7px; margin-top: 14px; }
+.liaison-cidr-list > div { display: flex; min-height: 36px; align-items: center; justify-content: space-between; border: 1px solid rgb(var(--line) / 0.7); border-radius: var(--control-radius); padding: 0 10px; background: rgb(var(--panel)); }
+.liaison-cidr-list button { border: 0; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
+.liaison-cidr-list p { padding: 30px 0; color: rgb(var(--muted)); font-size: 11px; text-align: center; }
+.liaison-drawer-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.liaison-switch { display: inline-flex; height: 26px; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 0 8px 0 4px; background: rgb(var(--line)); color: rgb(var(--muted)); font-size: 10px; cursor: pointer; }
+.liaison-switch i { width: 18px; height: 18px; border-radius: 50%; background: rgb(var(--surface)); transition: transform 120ms ease; }
+.liaison-switch.is-on { background: rgb(16 185 129 / 0.18); color: rgb(5 150 105); }
+.liaison-install { display: grid; gap: 14px; }
+.liaison-secret { display: grid; grid-template-columns: 80px 1fr 30px; align-items: center; gap: 10px; border: 1px solid rgb(var(--line) / 0.72); border-radius: var(--control-radius); padding: 10px 12px; background: rgb(var(--panel)); }
+.liaison-secret span { color: rgb(var(--muted)); font-size: 10px; }
+.liaison-secret code { overflow: hidden; font-size: 11px; text-overflow: ellipsis; }
+.liaison-secret button, .liaison-command button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
+.liaison-command { display: grid; grid-template-columns: 1fr 30px; align-items: start; gap: 10px; border: 1px solid rgb(var(--line) / 0.72); border-radius: var(--control-radius); padding: 12px; background: rgb(var(--canvas)); }
+.liaison-command code { overflow-wrap: anywhere; color: rgb(var(--ink)); font-size: 10px; line-height: 1.65; }
+.liaison-scan-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.liaison-scan-list { display: grid; gap: 8px; }
+.liaison-scan-list > div { display: flex; min-height: 54px; align-items: center; justify-content: space-between; border: 1px solid rgb(var(--line) / 0.65); border-radius: var(--control-radius); padding: 8px 10px; }
+.liaison-scan-list > div > div { display: grid; gap: 3px; }
+.liaison-scan-list span { color: rgb(var(--muted)); font-size: 10px; }
+.liaison-scan-list p { padding: 36px 0; color: rgb(var(--muted)); font-size: 11px; text-align: center; }
+@media (max-width: 680px) { .liaison-form-grid { grid-template-columns: 1fr; } .liaison-form-grid .is-full { grid-column: auto; } }
+
+.liaison-form { display: grid; gap: 16px; }
+.liaison-input-wrap { display: flex; height: 36px; align-items: center; gap: 8px; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 0 11px; background: rgb(var(--canvas) / 0.42); }
+.liaison-input-wrap .liaison-input { height: 34px; border: 0; padding: 0; background: transparent; box-shadow: none; }
+.liaison-textarea { min-height: 88px; padding-block: 9px; line-height: 1.55; resize: vertical; }
+.liaison-space { display: flex; align-items: center; gap: 8px; }
+.liaison-space.is-vertical { flex-direction: column; align-items: stretch; }
+.liaison-space.is-wrap { flex-wrap: wrap; }
+.liaison-empty { display: grid; min-height: 130px; place-items: center; gap: 12px; padding: 24px; color: rgb(var(--muted)); font-size: 11px; text-align: center; }
+.liaison-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.liaison-collapse details { border-top: 1px solid rgb(var(--line) / 0.6); }
+.liaison-collapse summary { display: flex; min-height: 42px; align-items: center; justify-content: space-between; cursor: pointer; font-size: 12px; font-weight: 620; list-style: none; }
+.liaison-collapse details > div { padding: 4px 0 12px; }
+.liaison-tabs > nav { display: flex; gap: 4px; border-bottom: 1px solid rgb(var(--line)); }
+.liaison-tabs > nav button { min-height: 34px; border: 0; border-bottom: 2px solid transparent; padding: 0 10px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
+.liaison-tabs > nav button.is-active { border-color: rgb(var(--ink)); color: rgb(var(--ink)); }
+.liaison-tabs > div { padding-top: 12px; }
+.liaison-descriptions { display: grid; grid-template-columns: minmax(100px, auto) 1fr; margin: 0; font-size: 11px; }
+.liaison-descriptions :is(dt, dd) { margin: 0; border-bottom: 1px solid rgb(var(--line) / 0.5); padding: 9px 0; }
+.liaison-descriptions dt { color: rgb(var(--muted)); }
+.liaison-tree ul { margin: 0; padding-left: 15px; list-style: none; }
+.liaison-tree > ul { padding-left: 0; }
+.liaison-tree button { width: 100%; min-height: 28px; overflow: hidden; border: 0; border-radius: 8px; padding: 0 7px; background: transparent; color: rgb(var(--ink)); font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.liaison-tree button:hover { background: rgb(var(--panel)); }
+.liaison-spin-wrap { position: relative; }
+.liaison-spin-wrap.is-spinning { opacity: 0.7; }
+.ui-spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgb(var(--line)); border-top-color: currentColor; border-radius: 50%; animation: liaison-spin 700ms linear infinite; }
+.ui-check { display: inline-flex; align-items: center; gap: 8px; color: rgb(var(--ink)); font-size: 12px; cursor: pointer; }
+.ui-check input { width: 16px; height: 16px; accent-color: rgb(var(--ink)); }
+.liaison-toast { position: fixed; top: 68px; left: 50%; z-index: 1400; max-width: min(460px, calc(100vw - 32px)); transform: translate(-50%, -8px); opacity: 0; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 10px 14px; background: rgb(var(--surface)); box-shadow: 0 12px 40px rgb(0 0 0 / 0.18); color: rgb(var(--ink)); font-size: 12px; transition: 160ms ease; }
+.liaison-toast.is-visible { transform: translate(-50%, 0); opacity: 1; }
+.liaison-toast.is-danger { border-color: rgb(var(--danger) / 0.45); }
+.is-strong { font-weight: 650; }
+.is-secondary { color: rgb(var(--muted)); }
+.is-danger-text { color: rgb(var(--danger)); }
 
 * {
   box-sizing: border-box;
@@ -724,761 +808,6 @@ body
   }
 }
 
-/* Ant Design/Pro is retained as the business widget layer, but every page
-   now inherits one neutral operator-console surface instead of page-local skins. */
-.liaison-workspace .ant-pro-page-container {
-  min-height: 100%;
-  background: transparent !important;
-}
-
-.liaison-workspace .ant-pro-page-container-children-container {
-  padding: 18px 24px 30px !important;
-}
-
-.liaison-workspace .ant-pro-page-container-warp-page-header {
-  display: none;
-}
-
-.liaison-workspace .ant-page-header-heading-title {
-  font-size: 16px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-
-.liaison-workspace .ant-pro-card,
-.liaison-workspace .ant-card,
-.liaison-workspace .ant-pro-table-search,
-.liaison-workspace .ant-table-wrapper {
-  box-shadow: none !important;
-}
-
-.liaison-workspace .ant-pro-card,
-.liaison-workspace .ant-card {
-  border-color: rgb(var(--line) / 0.72) !important;
-  border-radius: var(--surface-radius) !important;
-}
-
-.liaison-workspace .ant-pro-table-list-toolbar {
-  min-height: 54px;
-  padding-inline: 16px;
-}
-
-.liaison-workspace .ant-pro-table-list-toolbar-title {
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.liaison-workspace .ant-pro-table-search {
-  margin-bottom: 12px;
-  padding: 11px 13px !important;
-  border: 1px solid rgb(var(--line) / 0.72);
-  border-radius: var(--surface-radius);
-  background: rgb(var(--surface));
-}
-
-.liaison-workspace .ant-pro-table-search .ant-pro-query-filter {
-  padding: 0 !important;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-row {
-  row-gap: 9px !important;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-form-item {
-  margin-bottom: 0 !important;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-form-item-label {
-  padding-inline-end: 7px;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-form-item-label > label {
-  height: 32px;
-  color: rgb(var(--muted));
-  font-size: 11px;
-  font-weight: 520;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-input,
-.liaison-workspace .ant-pro-table-search .ant-input-affix-wrapper,
-.liaison-workspace .ant-pro-table-search .ant-input-number,
-.liaison-workspace .ant-pro-table-search .ant-picker,
-.liaison-workspace .ant-pro-table-search .ant-select-selector {
-  height: 32px !important;
-  min-height: 32px !important;
-  border-color: rgb(var(--line) / 0.82) !important;
-  border-radius: 7px !important;
-  background: rgb(var(--canvas) / 0.42) !important;
-  color: rgb(var(--ink)) !important;
-  box-shadow: none !important;
-  font-size: 11px !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-input-affix-wrapper
-  > input.ant-input,
-.liaison-workspace .ant-pro-table-search .ant-input-number-input {
-  height: 28px !important;
-  min-height: 28px !important;
-  background: transparent !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-select-single
-  .ant-select-selector {
-  padding-inline: 9px !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-select-single
-  .ant-select-selection-item,
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-select-single
-  .ant-select-selection-placeholder {
-  line-height: 30px !important;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-input::placeholder,
-.liaison-workspace .ant-pro-table-search .ant-select-selection-placeholder,
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-picker-input
-  > input::placeholder {
-  color: rgb(var(--muted) / 0.76) !important;
-  font-size: 11px !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item-control-input-content
-  > .ant-input:hover,
-.liaison-workspace .ant-pro-table-search .ant-input-affix-wrapper:hover,
-.liaison-workspace .ant-pro-table-search .ant-input-number:hover,
-.liaison-workspace .ant-pro-table-search .ant-picker:hover,
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-select:hover
-  .ant-select-selector {
-  border-color: rgb(var(--muted) / 0.72) !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item-control-input-content
-  > .ant-input:focus,
-.liaison-workspace .ant-pro-table-search .ant-input-affix-wrapper-focused,
-.liaison-workspace .ant-pro-table-search .ant-input-number-focused,
-.liaison-workspace .ant-pro-table-search .ant-picker-focused,
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-select-focused
-  .ant-select-selector {
-  border-color: rgb(var(--ink) / 0.52) !important;
-  box-shadow: 0 0 0 2px rgb(var(--ink) / 0.05) !important;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-btn {
-  height: 32px;
-  border-radius: 7px;
-  box-shadow: none !important;
-  font-size: 11px;
-}
-
-.liaison-workspace .ant-pro-table-search .ant-btn-primary {
-  border-color: rgb(var(--ink)) !important;
-  background: rgb(var(--ink)) !important;
-  color: rgb(var(--canvas)) !important;
-}
-
-.liaison-workspace .ant-table-thead > tr > th {
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.025em;
-}
-
-.liaison-workspace
-  .ant-table-thead
-  > tr
-  > th:not(:last-child):not(.ant-table-selection-column)::before {
-  background-color: rgb(var(--line)) !important;
-}
-
-.liaison-workspace .ant-table-tbody > tr > td {
-  font-size: 12px;
-}
-
-.liaison-workspace .ant-btn {
-  box-shadow: none !important;
-}
-
-.liaison-workspace .ant-btn-primary:hover {
-  transform: none !important;
-}
-
-.liaison-workspace .table-search-wrapper {
-  width: 100%;
-  max-width: none;
-}
-
-.liaison-workspace .application-table .ant-table-content {
-  overflow-x: scroll !important;
-  scrollbar-color: rgb(var(--muted) / 0.52) transparent;
-  scrollbar-width: thin;
-  scrollbar-gutter: stable;
-}
-
-.liaison-workspace .application-table .ant-table-content::-webkit-scrollbar {
-  height: 10px;
-  background: rgb(var(--panel));
-}
-
-.liaison-workspace
-  .application-table
-  .ant-table-content::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background: rgb(var(--panel));
-}
-
-.liaison-workspace
-  .application-table
-  .ant-table-content::-webkit-scrollbar-thumb {
-  min-width: 80px;
-  border: 2px solid rgb(var(--panel));
-  border-radius: 999px;
-  background: rgb(var(--muted) / 0.62);
-  background-clip: padding-box;
-}
-
-.liaison-workspace .ant-table-container::before,
-.liaison-workspace .ant-table-container::after,
-.liaison-workspace .ant-table-cell-fix-left-last::after,
-.liaison-workspace .ant-table-cell-fix-right-first::after,
-.liaison-workspace .ant-table-cell-fix-right-last::after {
-  display: none !important;
-  box-shadow: none !important;
-}
-
-/* Unified overlays and form controls. Ant Design portals render outside the
-   workspace, so these rules intentionally live at the document level. */
-.ant-modal-root .ant-modal-mask,
-.ant-drawer-root .ant-drawer-mask {
-  background: rgb(0 0 0 / 0.62) !important;
-  backdrop-filter: blur(3px);
-}
-
-.ant-modal-root .ant-modal-wrap {
-  display: flex;
-  overflow: hidden;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.ant-modal-root .ant-modal {
-  top: auto;
-  max-height: calc(100vh - 48px);
-  margin: 0;
-  padding-bottom: 0;
-}
-
-.ant-modal-root .ant-modal-content {
-  display: flex;
-  overflow: hidden;
-  max-height: calc(100vh - 48px);
-  flex-direction: column;
-  padding: 0 !important;
-  border: 1px solid rgb(var(--line) / 0.9);
-  border-radius: var(--dialog-radius) !important;
-  background: rgb(var(--surface)) !important;
-  box-shadow: 0 22px 64px rgb(0 0 0 / 0.34) !important;
-}
-
-.ant-modal-root .ant-modal-header {
-  margin: 0 !important;
-  padding: 15px 18px 13px !important;
-  border-bottom: 1px solid rgb(var(--line) / 0.78);
-  background: transparent !important;
-}
-
-.ant-modal-root .ant-modal-title,
-.ant-modal-root .ant-modal-confirm-title {
-  background: transparent !important;
-  color: rgb(var(--ink)) !important;
-  font-size: 14px !important;
-  font-weight: 650 !important;
-  line-height: 20px !important;
-}
-
-.ant-modal-root .ant-modal-close {
-  top: 10px !important;
-  right: 12px !important;
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: var(--control-radius) !important;
-  color: rgb(var(--muted)) !important;
-}
-
-.ant-modal-root .ant-modal-close:hover {
-  background: rgb(var(--panel)) !important;
-  color: rgb(var(--ink)) !important;
-}
-
-.ant-modal-root .ant-modal-body {
-  overflow-y: auto;
-  min-height: 0;
-  padding: 15px 18px 2px !important;
-}
-
-.ant-modal-root .ant-modal-confirm-body-wrapper {
-  padding: 20px;
-}
-
-.ant-modal-root .ant-modal-confirm-body {
-  align-items: flex-start;
-}
-
-.ant-modal-root .ant-modal-footer {
-  margin: 0 !important;
-  padding: 12px 18px 14px !important;
-  border-top: 0 !important;
-}
-
-.ant-modal-root .ant-form-item {
-  margin-bottom: 13px !important;
-}
-
-.ant-modal-root .ant-form-item-label {
-  padding-bottom: 4px !important;
-}
-
-.ant-modal-root .ant-form-item-label > label {
-  height: auto !important;
-  color: rgb(var(--ink)) !important;
-  font-size: 11px !important;
-  font-weight: 540 !important;
-}
-
-.ant-modal-root .ant-form-item-extra,
-.ant-modal-root .ant-form-item-explain,
-.ant-modal-root .ant-form-item-explain-error {
-  min-height: 0 !important;
-  margin-top: 6px;
-  color: rgb(var(--muted)) !important;
-  font-size: 10px !important;
-  line-height: 1.45 !important;
-}
-
-.ant-modal-root .ant-form-item-explain-error {
-  color: rgb(var(--danger)) !important;
-}
-
-.ant-modal-root .ant-input,
-.ant-modal-root .ant-input-affix-wrapper,
-.ant-modal-root .ant-input-number,
-.ant-modal-root .ant-picker,
-.ant-modal-root .ant-select-selector {
-  height: 36px !important;
-  min-height: 36px !important;
-  border-color: rgb(var(--line)) !important;
-  border-radius: 8px !important;
-  background: rgb(var(--canvas) / 0.54) !important;
-  color: rgb(var(--ink)) !important;
-  box-shadow: none !important;
-  font-size: 12px !important;
-}
-
-.ant-modal-root textarea.ant-input {
-  height: auto !important;
-  min-height: 68px !important;
-  padding: 8px 10px !important;
-  line-height: 1.5 !important;
-  resize: vertical;
-}
-
-.ant-modal-root .ant-input-affix-wrapper > input.ant-input,
-.ant-modal-root .ant-input-number-input {
-  height: 32px !important;
-  min-height: 32px !important;
-  background: transparent !important;
-}
-
-.ant-modal-root input.ant-input,
-.ant-modal-root .ant-input-number-input {
-  padding-block: 0 !important;
-  line-height: 32px !important;
-}
-
-.ant-modal-root
-  .ant-select-auto-complete
-  .ant-select-selector
-  input.ant-input {
-  height: 32px !important;
-  min-height: 32px !important;
-  padding: 0 !important;
-  line-height: 32px !important;
-}
-
-.application-editor-modal .application-create-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 16px;
-}
-
-.application-editor-modal .application-field-name {
-  order: 1;
-}
-
-.application-editor-modal .application-field-type {
-  order: 2;
-}
-
-.application-editor-modal .application-field-edge {
-  order: 3;
-  grid-column: 1 / -1;
-}
-
-.application-editor-modal .application-field-alert {
-  order: 4;
-  grid-column: 1 / -1;
-}
-
-.application-editor-modal .application-field-ip {
-  order: 5;
-}
-
-.application-editor-modal .application-field-port {
-  order: 6;
-}
-
-@media (max-width: 640px) {
-  .application-editor-modal .application-create-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .application-editor-modal .application-create-grid > * {
-    grid-column: 1 !important;
-  }
-}
-
-.ant-modal-root .ant-select-single .ant-select-selector {
-  height: 36px !important;
-  padding-inline: 10px !important;
-}
-
-.ant-modal-root .ant-select-single .ant-select-selection-item,
-.ant-modal-root .ant-select-single .ant-select-selection-placeholder {
-  line-height: 34px !important;
-}
-
-.ant-modal-root
-  .ant-form-item-control-input-content
-  > .ant-input:hover,
-.ant-modal-root .ant-input-affix-wrapper:hover,
-.ant-modal-root .ant-input-number:hover,
-.ant-modal-root .ant-picker:hover,
-.ant-modal-root .ant-select:hover .ant-select-selector {
-  border-color: rgb(var(--muted) / 0.72) !important;
-}
-
-.ant-modal-root
-  .ant-form-item-control-input-content
-  > .ant-input:focus,
-.ant-modal-root .ant-input-affix-wrapper-focused,
-.ant-modal-root .ant-input-number-focused,
-.ant-modal-root .ant-picker-focused,
-.ant-modal-root .ant-select-focused .ant-select-selector {
-  border-color: rgb(var(--ink) / 0.58) !important;
-  box-shadow: 0 0 0 2px rgb(var(--ink) / 0.06) !important;
-}
-
-.ant-modal-root .ant-radio-group {
-  display: inline-flex;
-  padding: 2px;
-  border: 1px solid rgb(var(--line) / 0.88);
-  border-radius: 9px;
-  background: rgb(var(--canvas) / 0.48);
-}
-
-.ant-modal-root .ant-radio-button-wrapper {
-  height: 32px !important;
-  border: 0 !important;
-  border-radius: 7px !important;
-  background: transparent !important;
-  padding-inline: 14px;
-  color: rgb(var(--muted)) !important;
-  line-height: 32px !important;
-  box-shadow: none !important;
-}
-
-.ant-modal-root .ant-radio-button-wrapper::before {
-  display: none !important;
-}
-
-.ant-modal-root .ant-radio-button-wrapper:hover {
-  color: rgb(var(--ink)) !important;
-}
-
-.ant-modal-root
-  .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
-  background: rgb(var(--ink)) !important;
-  color: rgb(var(--canvas)) !important;
-  box-shadow: none !important;
-}
-
-.ant-modal-root .ant-checkbox-checked .ant-checkbox-inner,
-.ant-modal-root .ant-switch-checked {
-  border-color: rgb(var(--ink)) !important;
-  background: rgb(var(--ink)) !important;
-}
-
-.ant-modal-root .ant-btn {
-  min-width: 68px;
-  height: 34px;
-  border-radius: 7px;
-  box-shadow: none !important;
-  font-size: 12px;
-}
-
-.ant-modal-root .ant-btn-default {
-  border-color: rgb(var(--line)) !important;
-  background: transparent !important;
-  color: rgb(var(--ink)) !important;
-}
-
-.ant-modal-root .ant-btn-default:hover {
-  border-color: rgb(var(--muted)) !important;
-  background: rgb(var(--panel)) !important;
-}
-
-.ant-modal-root .ant-btn-primary:not(.ant-btn-dangerous) {
-  border-color: rgb(var(--ink)) !important;
-  background: rgb(var(--ink)) !important;
-  color: rgb(var(--canvas)) !important;
-}
-
-.ant-modal-root .ant-btn-primary:not(.ant-btn-dangerous):hover {
-  border-color: rgb(var(--ink) / 0.82) !important;
-  background: rgb(var(--ink) / 0.82) !important;
-}
-
-.ant-select-dropdown,
-.ant-dropdown-menu,
-.ant-picker-dropdown .ant-picker-panel-container {
-  border: 1px solid rgb(var(--line) / 0.9) !important;
-  border-radius: var(--surface-radius) !important;
-  background: rgb(var(--surface)) !important;
-  box-shadow: 0 16px 42px rgb(0 0 0 / 0.28) !important;
-}
-
-.ant-select-dropdown .ant-select-item {
-  min-height: 34px;
-  border-radius: 7px;
-  color: rgb(var(--ink));
-  font-size: 12px;
-}
-
-.ant-select-dropdown
-  .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-  background: rgb(var(--panel)) !important;
-}
-
-.ant-select-dropdown
-  .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: rgb(var(--panel)) !important;
-  color: rgb(var(--ink)) !important;
-  font-weight: 650;
-}
-
-.ant-drawer-root .ant-drawer-content,
-.ant-drawer-root .ant-drawer-header,
-.ant-drawer-root .ant-drawer-footer {
-  background: rgb(var(--surface)) !important;
-}
-
-.ant-drawer-root .ant-drawer-content-wrapper {
-  box-shadow: -18px 0 52px rgb(0 0 0 / 0.28) !important;
-}
-
-.ant-drawer-root .ant-drawer-header {
-  padding: 17px 20px 14px !important;
-  border-bottom-color: rgb(var(--line) / 0.78) !important;
-}
-
-.ant-drawer-root .ant-drawer-title {
-  color: rgb(var(--ink)) !important;
-  font-size: 14px !important;
-  font-weight: 650 !important;
-}
-
-.ant-drawer-root .ant-drawer-body {
-  padding: 18px 20px !important;
-}
-
-.ant-drawer-root .ant-drawer-footer {
-  padding: 14px 20px 18px !important;
-  border-top-color: rgb(var(--line) / 0.68) !important;
-}
-
-/* One geometry for every interactive field. Structural surfaces such as
-   cards, drawers and dialogs keep their larger container radii. */
-.liaison-workspace .ant-input,
-.liaison-workspace .ant-input-affix-wrapper,
-.liaison-workspace .ant-input-number,
-.liaison-workspace .ant-picker,
-.liaison-workspace .ant-select-selector,
-.ant-modal-root .ant-input,
-.ant-modal-root .ant-input-affix-wrapper,
-.ant-modal-root .ant-input-number,
-.ant-modal-root .ant-picker,
-.ant-modal-root .ant-select-selector,
-.login-form-card .ant-input-affix-wrapper {
-  border-radius: var(--control-radius) !important;
-}
-
-.liaison-workspace .ant-btn:not(.ant-btn-circle),
-.ant-modal-root .ant-btn:not(.ant-btn-circle),
-.login-form-card .ant-btn:not(.ant-btn-circle),
-.webssh-toolbar-actions .ant-btn:not(.ant-btn-circle),
-.webdesktop-toolbar-actions .ant-btn:not(.ant-btn-circle) {
-  border-radius: var(--control-radius) !important;
-}
-
-.ant-modal-root .ant-radio-group {
-  border-radius: calc(var(--control-radius) + 1px) !important;
-}
-
-.ant-modal-root .ant-radio-button-wrapper,
-.ant-select-dropdown .ant-select-item {
-  border-radius: calc(var(--control-radius) - 1px) !important;
-}
-
-/* Table filters use one determinate compound frame: key on the left,
-   separator in the middle, value control on the right. */
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  .ant-form-item-row {
-  display: flex;
-  overflow: hidden;
-  height: 32px;
-  flex-wrap: nowrap;
-  align-items: center;
-  border: 1px solid rgb(var(--line) / 0.82);
-  border-radius: var(--control-radius);
-  background: rgb(var(--canvas) / 0.42);
-  transition: border-color 120ms ease, box-shadow 120ms ease;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  .ant-form-item-row:focus-within {
-  border-color: rgb(var(--ink) / 0.52);
-  box-shadow: 0 0 0 2px rgb(var(--ink) / 0.05);
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  .ant-form-item-label {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  padding: 0 !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  .ant-form-item-label
-  > label {
-  height: 30px;
-  align-items: center;
-  border-right: 1px solid rgb(var(--line) / 0.82);
-  padding-inline: 9px;
-  white-space: nowrap;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item-label
-  > label::after {
-  display: none !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  .ant-form-item-control {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  :is(.ant-form-item-control-input, .ant-form-item-control-input-content) {
-  height: 30px;
-  min-height: 30px;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  .ant-form-item-control-input-content {
-  display: flex;
-  align-items: center;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  :is(
-    .ant-input,
-    .ant-input-affix-wrapper,
-    .ant-input-number,
-    .ant-picker,
-    .ant-select-selector
-  ) {
-  height: 30px !important;
-  min-height: 30px !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.liaison-workspace
-  .ant-pro-table-search
-  .ant-form-item:not(.ant-pro-query-filter-actions):has(
-    .ant-form-item-label > label:not(:empty)
-  )
-  :is(.ant-input, .ant-input-number-input, .ant-picker-input > input) {
-  height: 30px !important;
-  padding-block: 0 !important;
-  line-height: 30px !important;
-}
-
 @media (max-width: 860px) {
   .liaison-sidebar {
     width: 64px;
@@ -1499,10 +828,6 @@ body
 
   .liaison-sidebar .liaison-nav-children {
     display: none;
-  }
-
-  .liaison-workspace .ant-pro-page-container-children-container {
-    padding: 14px 16px 16px !important;
   }
 
   .liaison-header-user-copy,

@@ -9,26 +9,9 @@ import {
   deleteWebDesktopCredential,
   getWebDesktopTarget,
 } from '@/services/api';
-import {
-  DisconnectOutlined,
-  FullscreenExitOutlined,
-  FullscreenOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
-import {
-  Alert,
-  AutoComplete,
-  Button,
-  Checkbox,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Spin,
-  message,
-} from 'antd';
+import { Button, Field, Input, Modal, Notice } from '@/components/ui';
 import Guacamole from 'guacamole-common-js';
+import { Fullscreen, Minimize, PlugZap, Send } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.less';
 
@@ -40,9 +23,13 @@ const WebDesktopPage: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const params = useParams();
   const proxyId = Number(params.proxyId);
-  const [form] = Form.useForm<API.CreateWebDesktopSessionRequest>();
-  const watchedUsername = Form.useWatch('username', form);
-  const watchedDomain = Form.useWatch('domain', form);
+  const [credentials, setCredentials] =
+    useState<API.CreateWebDesktopSessionRequest>({
+      username: '',
+      domain: '',
+      password: '',
+      save_credential: false,
+    });
   const [target, setTarget] = useState<API.WebDesktopTarget>();
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -64,7 +51,7 @@ const WebDesktopPage: React.FC = () => {
   const selectedSavedCredential = savedCredentials.some(
     (item) =>
       credentialKey(item.username, item.domain) ===
-      credentialKey(watchedUsername, watchedDomain),
+      credentialKey(credentials.username, credentials.domain),
   );
   const savedOptions = savedCredentials.map((item) => {
     const key = credentialKey(item.username, item.domain);
@@ -151,9 +138,7 @@ const WebDesktopPage: React.FC = () => {
       await host.requestFullscreen();
       window.setTimeout(focusRemoteCanvas, 0);
     } catch (e: any) {
-      message.error(
-        e?.message || tr('无法进入全屏', 'Unable to enter fullscreen'),
-      );
+      setError(e?.message || tr('无法进入全屏', 'Unable to enter fullscreen'));
     }
   }, [connected, focusRemoteCanvas, tr]);
 
@@ -171,14 +156,14 @@ const WebDesktopPage: React.FC = () => {
         const credentials = res.data.credentials || [];
         if (credentials.length > 0) {
           const item = credentials[0];
-          form.setFieldsValue({
+          setCredentials({
             username: item.username || '',
             domain: item.domain || '',
             password: '',
             save_credential: false,
           });
         } else {
-          form.setFieldsValue({ save_credential: false });
+          setCredentials((value) => ({ ...value, save_credential: false }));
         }
         setError('');
       } else {
@@ -195,7 +180,7 @@ const WebDesktopPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [form, proxyId, tr]);
+  }, [proxyId, tr]);
 
   useEffect(() => {
     loadTarget();
@@ -217,7 +202,7 @@ const WebDesktopPage: React.FC = () => {
     document.body.classList.add('webdesktop-page-active');
     const footerElements = Array.from(
       document.querySelectorAll<HTMLElement>(
-        '.ant-pro-layout-footer, .global-footer',
+        '.global-footer',
       ),
     );
     const previousFooterStyles = footerElements.map((element) => ({
@@ -265,7 +250,7 @@ const WebDesktopPage: React.FC = () => {
         credentialKey(candidate.username, candidate.domain) === value,
     );
     if (!item) return;
-    form.setFieldsValue({
+    setCredentials({
       username: item.username || '',
       domain: item.domain || '',
       password: '',
@@ -298,7 +283,7 @@ const WebDesktopPage: React.FC = () => {
         height,
         dpi: 96,
       });
-      form.setFieldValue('password', '');
+      setCredentials((value) => ({ ...value, password: '' }));
       if (res.code !== 200 || !res.data?.ws_url) {
         throw new Error(
           res.message ||
@@ -553,14 +538,17 @@ const WebDesktopPage: React.FC = () => {
     try {
       await deleteWebDesktopCredential(proxyId, {
         protocol,
-        username: String(form.getFieldValue('username') || '').trim(),
-        domain: String(form.getFieldValue('domain') || '').trim(),
+        username: String(credentials.username || '').trim(),
+        domain: String(credentials.domain || '').trim(),
       });
-      message.success(tr('已清除保存密码', 'Saved password cleared'));
-      form.setFieldsValue({ password: '', save_credential: false });
+      setCredentials((value) => ({
+        ...value,
+        password: '',
+        save_credential: false,
+      }));
       loadTarget();
     } catch (e: any) {
-      message.error(
+      setError(
         e?.response?.data?.message ||
           tr('清除保存密码失败', 'Failed to clear saved password'),
       );
@@ -568,7 +556,7 @@ const WebDesktopPage: React.FC = () => {
   };
 
   return (
-    <PageContainer title={false}>
+    <>
       <div className="webdesktop-shell">
         <header className="webdesktop-toolbar">
           <div className="webdesktop-identity">
@@ -615,30 +603,26 @@ const WebDesktopPage: React.FC = () => {
           <div className="webdesktop-toolbar-actions">
             {!connected && (
               <Button
-                type="primary"
-                icon={<SendOutlined />}
+                variant="primary"
                 disabled={!active || loading}
                 onClick={() => setCredentialOpen(true)}
               >
+                <Send size={16} />
                 {tr('连接', 'Connect')}
               </Button>
             )}
             <Button
-              icon={
-                fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
-              }
               disabled={!connected}
               onClick={toggleFullscreen}
             >
+              {fullscreen ? <Minimize size={16} /> : <Fullscreen size={16} />}
               {fullscreen
                 ? tr('退出全屏', 'Exit fullscreen')
                 : tr('全屏', 'Fullscreen')}
             </Button>
             {connected && (
-              <Button
-                icon={<DisconnectOutlined />}
-                onClick={disconnectAndPrompt}
-              >
+              <Button onClick={disconnectAndPrompt}>
+                <PlugZap size={16} />
                 {tr('断开', 'Disconnect')}
               </Button>
             )}
@@ -647,27 +631,23 @@ const WebDesktopPage: React.FC = () => {
 
         {loading && (
           <div className="webdesktop-loading">
-            <Spin />
+            <span className="ui-spinner" aria-label={tr('加载中', 'Loading')} />
           </div>
         )}
         {!loading && !active && (
-          <Alert
+          <Notice
             className="webdesktop-alert"
-            type="warning"
-            showIcon
-            message={
-              target?.effective_status_message ||
-              tr('当前远程桌面访问不可用', 'Remote desktop entry unavailable')
-            }
-          />
+            tone="warning"
+          >
+            {target?.effective_status_message ||
+              tr('当前远程桌面访问不可用', 'Remote desktop entry unavailable')}
+          </Notice>
         )}
         {!loading && error && !credentialOpen && (
-          <Alert
+          <Notice
             className="webdesktop-alert"
-            type="error"
-            showIcon
-            message={error}
-          />
+            tone="danger"
+          >{error}</Notice>
         )}
 
         <div className="webdesktop-display" ref={displayHostRef}>
@@ -687,7 +667,7 @@ const WebDesktopPage: React.FC = () => {
                 )}
               </p>
               <Button
-                type="primary"
+                variant="primary"
                 disabled={!active}
                 onClick={() => setCredentialOpen(true)}
               >
@@ -700,16 +680,10 @@ const WebDesktopPage: React.FC = () => {
       </div>
 
       <Modal
-        className="webdesktop-credential-modal"
         title={tr('连接远程桌面', 'Connect remote desktop')}
         open={credentialOpen}
-        footer={null}
-        width={440}
-        centered
-        destroyOnClose={false}
-        maskClosable={!connecting}
-        closable={!connecting}
-        onCancel={() => setCredentialOpen(false)}
+        onClose={() => setCredentialOpen(false)}
+        width={520}
       >
         <div className="webdesktop-credential-target">
           <div>
@@ -725,90 +699,63 @@ const WebDesktopPage: React.FC = () => {
         </div>
 
         {error && (
-          <Alert
+          <Notice
             className="webdesktop-credential-error"
-            type="error"
-            showIcon
-            message={error}
-          />
+            tone="danger"
+          >{error}</Notice>
         )}
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={connect}
-          disabled={connecting || connected || loading}
+        <form
+          className="webdesktop-credential-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (protocol === 'rdp' && !credentials.username?.trim()) {
+              setError(tr('请输入用户名', 'Username is required'));
+              return;
+            }
+            if (!selectedSavedCredential && !credentials.password) {
+              setError(tr('请输入密码', 'Password is required'));
+              return;
+            }
+            void connect(credentials);
+          }}
         >
           {protocol === 'rdp' && (
             <>
-              <Form.Item name="domain" label={tr('域', 'Domain')}>
-                <Input placeholder={tr('可选', 'Optional')} />
-              </Form.Item>
-              <Form.Item
-                name="username"
-                label={tr('用户名', 'Username')}
-                rules={[
-                  {
-                    required: true,
-                    message: tr('请输入用户名', 'Username is required'),
-                  },
-                ]}
-              >
-                <AutoComplete
-                  allowClear
-                  defaultActiveFirstOption={false}
-                  options={savedOptions}
-                  onSelect={applySelectedCredential}
-                >
-                  <Input
-                    autoFocus
-                    autoComplete="username"
-                    placeholder={tr('输入用户名', 'Enter username')}
-                  />
-                </AutoComplete>
-              </Form.Item>
+              <Field label={tr('域', 'Domain')}>
+                <Input value={credentials.domain || ''} placeholder={tr('可选', 'Optional')} onChange={(event) => setCredentials((value) => ({ ...value, domain: event.target.value }))} />
+              </Field>
+              <Field label={tr('用户名', 'Username')} required>
+                <Input list="webdesktop-saved-credentials" autoFocus autoComplete="username" value={credentials.username || ''} placeholder={tr('输入用户名', 'Enter username')} onChange={(event) => setCredentials((value) => ({ ...value, username: event.target.value }))} />
+                <datalist id="webdesktop-saved-credentials">
+                  {savedOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </datalist>
+              </Field>
             </>
           )}
-          <Form.Item
-            name="password"
-            label={tr('密码', 'Password')}
-            rules={[
-              {
-                validator: async (_, value) => {
-                  if (!selectedSavedCredential && !value) {
-                    throw new Error(tr('请输入密码', 'Password is required'));
-                  }
-                },
-              },
-            ]}
-          >
-            <Input.Password
+          <Field label={tr('密码', 'Password')} required={!selectedSavedCredential}>
+            <Input
+              type="password"
               autoFocus={protocol !== 'rdp'}
               autoComplete="current-password"
+              value={credentials.password || ''}
               placeholder={
                 selectedSavedCredential
                   ? tr('留空使用保存密码', 'Leave blank to use saved password')
                   : tr('输入访问密码', 'Enter password')
               }
-              onPressEnter={() => form.submit()}
+              onChange={(event) => setCredentials((value) => ({ ...value, password: event.target.value }))}
             />
-          </Form.Item>
+          </Field>
 
           <div className="webdesktop-credential-options">
-            <Form.Item name="save_credential" valuePropName="checked">
-              <Checkbox>{tr('保存密码', 'Save password')}</Checkbox>
-            </Form.Item>
+            <label className="ui-check"><input type="checkbox" checked={Boolean(credentials.save_credential)} onChange={(event) => setCredentials((value) => ({ ...value, save_credential: event.target.checked }))} />{tr('保存密码', 'Save password')}</label>
             {selectedSavedCredential && (
-              <Popconfirm
-                title={tr('清除当前保存密码？', 'Clear this saved password?')}
-                okText={tr('清除', 'Clear')}
-                cancelText={tr('取消', 'Cancel')}
-                onConfirm={clearCredential}
-              >
-                <Button type="link" disabled={connecting || connected}>
+                <Button variant="ghost" disabled={connecting || connected} onClick={() => {
+                  if (window.confirm(tr('清除当前保存密码？', 'Clear this saved password?'))) void clearCredential();
+                }}>
                   {tr('清除保存密码', 'Clear saved password')}
                 </Button>
-              </Popconfirm>
             )}
           </div>
 
@@ -820,18 +767,18 @@ const WebDesktopPage: React.FC = () => {
               {tr('取消', 'Cancel')}
             </Button>
             <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SendOutlined />}
+              variant="primary"
+              type="submit"
               loading={connecting}
               disabled={!active || loading}
             >
+              <Send size={16} />
               {tr('连接', 'Connect')}
             </Button>
           </div>
-        </Form>
+        </form>
       </Modal>
-    </PageContainer>
+    </>
   );
 };
 

@@ -11,32 +11,6 @@ import {
   saveWebDataCredential,
   testWebDataConnection,
 } from '@/services/api';
-import {
-  ApiOutlined,
-  AuditOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloudServerOutlined,
-  ClusterOutlined,
-  CopyOutlined,
-  DatabaseOutlined,
-  DeleteOutlined,
-  DisconnectOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  FileSearchOutlined,
-  FileTextOutlined,
-  KeyOutlined,
-  LoginOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SaveOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  TableOutlined,
-} from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
 import { history, useModel, useParams } from '@/lib/runtime';
 import {
   Alert,
@@ -60,7 +34,32 @@ import {
   Tree,
   Typography,
   message,
-} from 'antd';
+} from '@/components/ui/complex';
+import {
+  Cable as ApiOutlined,
+  ScrollText as AuditOutlined,
+  CircleCheck as CheckCircleOutlined,
+  Clock3 as ClockCircleOutlined,
+  Server as CloudServerOutlined,
+  Network as ClusterOutlined,
+  Copy as CopyOutlined,
+  Database as DatabaseOutlined,
+  Trash2 as DeleteOutlined,
+  Unplug as DisconnectOutlined,
+  Download as DownloadOutlined,
+  Pencil as EditOutlined,
+  SearchCode as FileSearchOutlined,
+  FileText as FileTextOutlined,
+  KeyRound as KeyOutlined,
+  LogIn as LoginOutlined,
+  CirclePlay as PlayCircleOutlined,
+  Plus as PlusOutlined,
+  RefreshCw as ReloadOutlined,
+  Save as SaveOutlined,
+  Search as SearchOutlined,
+  Settings as SettingOutlined,
+  Table2 as TableOutlined,
+} from 'lucide-react';
 import type { ChangeEvent, KeyboardEvent, UIEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { renderWebDataAuditDetails } from './auditDetails';
@@ -168,6 +167,8 @@ import type {
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
+
+const PageContainer = ({ children }: any) => <>{children}</>;
 
 const WebDataPage: React.FC = () => {
   const { tr } = useI18n();
@@ -1447,16 +1448,16 @@ const WebDataPage: React.FC = () => {
           className="webdata-cell-input"
           value={inlineCellEdit.value}
           disabled={inlineCellSaving}
-          onChange={(event) =>
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
             setInlineCellEdit((prev) =>
               prev ? { ...prev, value: event.target.value } : prev,
             )
           }
-          onPressEnter={(event) => {
+          onPressEnter={(event: KeyboardEvent<HTMLInputElement>) => {
             event.preventDefault();
             saveInlineCellEdit().catch(() => {});
           }}
-          onKeyDown={(event) => {
+          onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
             if (event.key === 'Escape') {
               event.preventDefault();
               setInlineCellEdit(undefined);
@@ -1619,7 +1620,7 @@ const WebDataPage: React.FC = () => {
       <Table
         className="webdata-table"
         size="small"
-        rowKey={(_, index) => String(index)}
+        rowKey={(_: Record<string, any>, index: number) => String(index)}
         columns={buildGenericColumns(rows)}
         dataSource={rows}
         pagination={{ pageSize: 20, showSizeChanger: true }}
@@ -1703,7 +1704,7 @@ const WebDataPage: React.FC = () => {
               max={1000}
               precision={0}
               value={objectFilter.limit}
-              onChange={(limit) =>
+              onChange={(limit: number) =>
                 setObjectFilter((prev) => ({
                   ...prev,
                   limit: Number(limit || 100),
@@ -1737,7 +1738,7 @@ const WebDataPage: React.FC = () => {
                   options={fieldOptions}
                   optionFilterProp="label"
                   popupMatchSelectWidth={false}
-                  onChange={(nextField) =>
+                  onChange={(nextField: string) =>
                     updateConditionField(condition, nextField)
                   }
                 />
@@ -1746,7 +1747,7 @@ const WebDataPage: React.FC = () => {
                   className="webdata-filter-operator"
                   value={operator}
                   options={objectFilterOperatorOptions(tr, fieldKind)}
-                  onChange={(nextOperator) =>
+                  onChange={(nextOperator: string) =>
                     updateCondition(condition.id, {
                       operator: nextOperator,
                       value: filterOperatorNeedsValue(nextOperator)
@@ -1765,7 +1766,7 @@ const WebDataPage: React.FC = () => {
                       ? objectFilterValuePlaceholder(fieldKind, tr)
                       : '-'
                   }
-                  onChange={(event) =>
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
                     updateCondition(condition.id, {
                       value: event.target.value,
                     })
@@ -2185,14 +2186,14 @@ const WebDataPage: React.FC = () => {
           },
         ]}
         expandable={{
-          expandedRowRender: (record) => (
+          expandedRowRender: (record: API.WebDataAuditItem) => (
             <Space direction="vertical" size={4}>
               <Text type="secondary">SHA256: {record.statement_sha256}</Text>
               {renderWebDataAuditDetails(record.details)}
               {record.error && <Text type="danger">{record.error}</Text>}
             </Space>
           ),
-          rowExpandable: (record) =>
+          rowExpandable: (record: API.WebDataAuditItem) =>
             Boolean(record.error || record.statement_sha256),
         }}
       />
@@ -2859,7 +2860,7 @@ const WebDataPage: React.FC = () => {
                   className="webdata-object-search"
                   placeholder={tr('搜索库、表、字段', 'Search objects')}
                   value={treeSearch}
-                  onChange={(event) => setTreeSearch(event.target.value)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => setTreeSearch(event.target.value)}
                 />
                 <div className="webdata-object-stats">
                   <span>

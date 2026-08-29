@@ -1,7 +1,8 @@
-import type { DataNode } from 'antd/es/tree';
 import type { Key } from 'react';
 
-export type MetadataTreeNode = DataNode & {
+export type MetadataTreeNode = {
+  key: Key;
+  title: React.ReactNode;
   source?: API.WebDataMetadataNode;
   children?: MetadataTreeNode[];
 };

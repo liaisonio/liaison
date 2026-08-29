@@ -1,4 +1,4 @@
-import { Tooltip } from 'antd';
+import { Tooltip } from '@/components/ui/complex';
 import type { ReactNode } from 'react';
 import type { MetadataSummary, MetadataTreeNode } from './types';
 

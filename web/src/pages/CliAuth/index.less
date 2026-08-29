@@ -101,7 +101,7 @@
   justify-content: flex-end;
   gap: 8px;
 
-  .ant-btn {
+  .liaison-button {
     min-width: 76px;
     height: 34px;
     border-radius: 7px;
@@ -115,6 +115,17 @@
   background: rgb(var(--ink)) !important;
   color: rgb(var(--canvas)) !important;
 }
+
+.cli-auth-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgb(var(--line));
+  border-top-color: rgb(var(--ink));
+  border-radius: 50%;
+  animation: cli-auth-spin 700ms linear infinite;
+}
+
+@keyframes cli-auth-spin { to { transform: rotate(360deg); } }
 
 .cli-auth-state {
   padding: 16px 4px 4px;

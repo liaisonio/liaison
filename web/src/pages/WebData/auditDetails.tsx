@@ -1,4 +1,4 @@
-import { Space, Tag } from 'antd';
+import { Space, Tag } from '@/components/ui/complex';
 
 export const webDataAuditDetailLabels: Record<string, string> = {
   database: '数据库',

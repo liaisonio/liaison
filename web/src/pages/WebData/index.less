@@ -29,7 +29,7 @@
   --webdata-code-operator: #cbd5e1;
 }
 
-.webdata-shell .ant-btn {
+.webdata-shell .liaison-button {
   transition: border-color 160ms var(--webdata-ease-out),
     background-color 160ms var(--webdata-ease-out),
     color 160ms var(--webdata-ease-out),
@@ -37,7 +37,7 @@
     transform 140ms var(--webdata-ease-out);
 }
 
-.webdata-shell .ant-btn:active {
+.webdata-shell .liaison-button:active {
   transform: scale(0.98);
 }
 
@@ -276,12 +276,12 @@
   background: var(--webdata-panel);
 }
 
-.webdata-advanced-collapse .ant-collapse-header {
+.webdata-advanced-collapse summary {
   align-items: center !important;
   padding: 10px 12px !important;
 }
 
-.webdata-advanced-collapse .ant-collapse-content-box {
+.webdata-advanced-collapse details > div {
   padding: 2px 12px 12px !important;
 }
 
@@ -353,19 +353,16 @@
   overscroll-behavior: contain;
 }
 
-.webdata-object-tree .ant-spin-nested-loading,
-.webdata-object-tree .ant-spin-container {
+.webdata-object-tree .liaison-spin-wrap {
   min-height: 100%;
 }
 
-.webdata-object-tree .ant-tree-treenode,
-.webdata-object-tree .ant-tree-node-content-wrapper,
-.webdata-object-tree .ant-tree-title {
+.webdata-object-tree .liaison-tree li {
   max-width: 100%;
   min-width: 0;
 }
 
-.webdata-object-tree .ant-tree-node-content-wrapper {
+.webdata-object-tree .liaison-tree button {
   overflow: hidden;
 }
 
@@ -724,7 +721,7 @@
   width: 100%;
 }
 
-.webdata-inspector-drawer .ant-drawer-body {
+.webdata-inspector-drawer .liaison-drawer-body {
   padding: 16px;
   background: var(--webdata-page);
 }
@@ -768,11 +765,11 @@
   padding-bottom: 4px;
 }
 
-.webdata-inspector-drawer-body .ant-tabs-content-holder {
+.webdata-inspector-drawer-body .liaison-tabs > div {
   min-width: 0;
 }
 
-.webdata-inspector-drawer-body .ant-descriptions-item-label {
+.webdata-inspector-drawer-body .liaison-descriptions dt {
   width: 76px;
 }
 
@@ -784,12 +781,12 @@
   justify-content: flex-end;
 }
 
-.webdata-table .ant-table {
+.webdata-table .liaison-table {
   border: 1px solid var(--webdata-border-soft);
   border-radius: 8px;
 }
 
-.webdata-table .ant-table-thead > tr > th {
+.webdata-table .liaison-table th {
   background: rgb(var(--panel));
   color: rgb(var(--muted));
   font-weight: 600;
@@ -904,7 +901,7 @@
     flex-direction: column;
   }
 
-  .webdata-inspector-drawer .ant-drawer-content-wrapper {
+  .webdata-inspector-drawer .liaison-drawer {
     width: calc(100vw - 16px) !important;
   }
 }

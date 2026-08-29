@@ -1,9 +1,9 @@
 import {
-  DatabaseOutlined,
-  FileTextOutlined,
-  KeyOutlined,
-  TableOutlined,
-} from '@ant-design/icons';
+  Database as DatabaseOutlined,
+  FileText as FileTextOutlined,
+  KeyRound as KeyOutlined,
+  Table2 as TableOutlined,
+} from 'lucide-react';
 import { quoteRedisArg } from './objectCommands';
 import { isSQLProtocol } from './protocol';
 import type {

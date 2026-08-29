@@ -6,18 +6,17 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgb(var(--line) / 0.78);
-  border-radius: 12px;
+  border-radius: var(--surface-radius);
   background: #0d1117;
 }
 
-body.webdesktop-page-active .ant-pro-layout-footer,
+body.webdesktop-page-active .global-footer,
 body.webdesktop-page-active .global-footer {
   display: none !important;
   pointer-events: none !important;
 }
 
-body.webdesktop-page-active .ant-pro-layout-content,
-body.webdesktop-page-active .ant-pro-page-container-children-container {
+body.webdesktop-page-active .liaison-page-body {
   padding-bottom: 0 !important;
 }
 
@@ -77,7 +76,7 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid rgb(var(--line));
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   background: rgb(var(--panel));
   color: rgb(var(--ink));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -141,7 +140,7 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   gap: 7px;
 }
 
-.webdesktop-toolbar-actions .ant-btn {
+.webdesktop-toolbar-actions .liaison-button {
   height: 32px;
   border-color: rgb(var(--line));
   border-radius: var(--control-radius);
@@ -149,7 +148,7 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   font-size: 11px;
 }
 
-.webdesktop-toolbar-actions .ant-btn-primary {
+.webdesktop-toolbar-actions .liaison-button-primary {
   border-color: rgb(var(--ink));
   background: rgb(var(--ink));
   color: rgb(var(--canvas));
@@ -260,7 +259,7 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   font-size: 11px;
 }
 
-.webdesktop-empty .ant-btn-primary {
+.webdesktop-empty .liaison-button-primary {
   border-color: #e5e7eb;
   background: #e5e7eb;
   color: #111318;
@@ -286,7 +285,7 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   gap: 3px;
   padding: 9px 10px;
   border: 1px solid rgb(var(--line) / 0.74);
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   background: rgb(var(--panel) / 0.52);
 }
 
@@ -310,11 +309,11 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
   margin-top: -4px;
 }
 
-.webdesktop-credential-options .ant-form-item {
+.webdesktop-credential-options .liaison-field {
   margin-bottom: 0 !important;
 }
 
-.webdesktop-credential-options .ant-btn-link {
+.webdesktop-credential-options .liaison-button-link {
   min-width: 0;
   height: auto;
   padding: 0;
@@ -325,9 +324,8 @@ body.webdesktop-page-active .ant-pro-page-container-children-container {
 .webdesktop-credential-actions {
   justify-content: flex-end;
   gap: 8px;
-  margin: 18px -20px -4px;
-  padding: 14px 20px 0;
-  border-top: 1px solid rgb(var(--line) / 0.68);
+  margin: 18px 0 0;
+  padding: 0;
 }
 
 @media (max-width: 980px) {

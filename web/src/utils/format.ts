@@ -35,46 +35,6 @@ export function formatMBSize(mb: number): string {
   return `${tb.toFixed(2)} TB`;
 }
 
-/**
- * 复制文本到剪贴板
- * @param text 要复制的文本
- * @param successMessage 复制成功提示消息
- */
-export async function copyToClipboard(text: string, successMessage = '已复制到剪贴板'): Promise<boolean> {
-  const { message } = await import('antd');
-  
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      message.success(successMessage);
-      return true;
-    }
-    
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-9999px';
-    textArea.style.top = '-9999px';
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    
-    const successful = document.execCommand('copy');
-    document.body.removeChild(textArea);
-    
-    if (successful) {
-      message.success(successMessage);
-      return true;
-    } else {
-      message.error('复制失败，请手动复制');
-      return false;
-    }
-  } catch (err) {
-    console.error('复制失败:', err);
-    message.error('复制失败，请手动复制');
-    return false;
-  }
-}
 
 /**
  * 去除字符串首尾空格

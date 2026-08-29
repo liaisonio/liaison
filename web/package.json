@@ -14,12 +14,8 @@
     "start": "pnpm dev"
   },
   "dependencies": {
-    "@ant-design/icons": "^5.0.1",
-    "@ant-design/plots": "^2.6.8",
-    "@ant-design/pro-components": "^2.8.10",
     "@xterm/addon-fit": "0.10.0",
     "@xterm/xterm": "5.5.0",
-    "antd": "^5.4.0",
     "guacamole-common-js": "^1.5.0",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
