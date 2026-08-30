@@ -1,8 +1,8 @@
 .webssh-shell {
   position: relative;
   display: flex;
-  min-height: calc(100vh - 112px);
-  max-height: calc(100vh - 112px);
+  min-height: calc(100vh - 138px);
+  max-height: calc(100vh - 138px);
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgb(var(--line) / 0.78);
@@ -10,7 +10,6 @@
   background: #0d1117;
 }
 
-body.webssh-page-active .global-footer,
 body.webssh-page-active .global-footer {
   display: none !important;
   pointer-events: none !important;
@@ -43,7 +42,7 @@ body.webssh-page-active .liaison-page-body {
   align-items: center;
 }
 
-.webssh-native-form { display: grid; gap: 16px; margin-top: 16px; }
+.webssh-native-form { display: grid; gap: 12px; margin-top: 12px; }
 .webssh-native-spinner { width: 28px; height: 28px; border: 2px solid rgb(var(--line)); border-top-color: rgb(var(--ink)); border-radius: 50%; animation: webssh-spin 700ms linear infinite; }
 .liaison-checkbox { display: inline-flex; align-items: center; gap: 8px; color: rgb(var(--ink)); font-size: 11px; cursor: pointer; }
 .liaison-checkbox input { width: 16px; height: 16px; accent-color: rgb(var(--ink)); }
@@ -116,8 +115,7 @@ body.webssh-page-active .liaison-page-body {
 }
 
 .webssh-session-meta span,
-.webssh-credential-target span,
-.webssh-host-key > span {
+.webssh-credential-target span {
   flex: 0 0 auto;
   color: rgb(var(--muted));
   font-size: 10px;
@@ -320,7 +318,7 @@ body.webssh-page-active .liaison-page-body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 17px;
+  margin-bottom: 13px;
 }
 
 .webssh-credential-target > div {
@@ -328,7 +326,7 @@ body.webssh-page-active .liaison-page-body {
   min-width: 0;
   flex-direction: column;
   gap: 3px;
-  padding: 9px 10px;
+  padding: 7px 9px;
   border: 1px solid rgb(var(--line) / 0.74);
   border-radius: var(--control-radius);
   background: rgb(var(--panel) / 0.52);
@@ -354,6 +352,15 @@ body.webssh-page-active .liaison-page-body {
   margin-top: -4px;
 }
 
+.webssh-credential-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(5 150 105);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .webssh-credential-options .liaison-field {
   margin-bottom: 0 !important;
 }
@@ -367,34 +374,16 @@ body.webssh-page-active .liaison-page-body {
   font-size: 11px;
 }
 
-.webssh-host-key {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 13px;
-  border-radius: var(--control-radius);
-  padding: 10px 12px;
-  background: rgb(var(--panel) / 0.56);
-}
-
-.webssh-host-key code {
-  overflow: hidden;
-  color: rgb(var(--muted));
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .webssh-credential-actions {
   justify-content: flex-end;
   gap: 8px;
-  margin: 18px 0 0;
+  margin: 14px 0 0;
   padding: 0;
 }
 
-.liaison-modal .liaison-modal-body {
+.webssh-credential-modal .liaison-modal-body {
   overflow: hidden !important;
+  padding: 20px 28px 10px;
 }
 
 @media (max-width: 980px) {
@@ -408,7 +397,7 @@ body.webssh-page-active .liaison-page-body {
 }
 
 @media (max-width: 640px) {
-  .liaison-modal .liaison-modal-body {
+  .webssh-credential-modal .liaison-modal-body {
     overflow-y: auto !important;
   }
 

@@ -56,7 +56,9 @@ const UserPage: React.FC = () => {
         const context = canvas.getContext('2d');
         if (!context) return;
         context.drawImage(image, (image.naturalWidth - size) / 2, (image.naturalHeight - size) / 2, size, size, 0, 0, 256, 256);
-        setAvatar(identity, canvas.toDataURL('image/jpeg', 0.9));
+        // Preserve transparency. Encoding an uploaded PNG as JPEG turns its
+        // transparent edge black, which is especially visible in light mode.
+        setAvatar(identity, canvas.toDataURL('image/png'));
         showNotice('success', tr('头像已更新', 'Avatar updated'));
       };
       image.src = String(reader.result);
@@ -91,10 +93,9 @@ const UserPage: React.FC = () => {
     }
   };
 
+  const roleLabel = currentUser?.role || tr('用户', 'User');
   const details = [
-    [tr('用户名', 'Username'), accountLabel],
-    [tr('邮箱', 'Email'), currentUser?.email || '-'],
-    [tr('角色', 'Role'), currentUser?.role || tr('用户', 'User')],
+    [tr('角色', 'Role'), roleLabel],
     [tr('注册时间', 'Created At'), currentUser?.created_at || '-'],
     [tr('最后登录', 'Last Login'), currentUser?.last_login_at || '-'],
     [tr('登录 IP', 'Login IP'), currentUser?.last_login_ip || '-'],
@@ -114,15 +115,17 @@ const UserPage: React.FC = () => {
               <div className="user-profile">
                 <div className="user-avatar-editor">
                   <div className="native-avatar">{avatar ? <img src={avatar} alt="" /> : accountLabel.slice(0, 1).toUpperCase()}</div>
-                  <button type="button" className="user-avatar-edit" onClick={() => avatarInputRef.current?.click()}><Camera size={13} /></button>
+                  <button type="button" className="user-avatar-edit" aria-label={tr('更换头像', 'Change avatar')} onClick={() => avatarInputRef.current?.click()}><Camera size={13} /></button>
                   <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={handleAvatarChange} />
                 </div>
                 <div className="user-info">
-                  <h3>{accountLabel}</h3><p>{currentUser?.email || '-'}</p>
-                  <div className="user-avatar-actions">
-                    <Button variant="ghost" onClick={() => avatarInputRef.current?.click()}><Camera size={14} />{tr('更换头像', 'Change avatar')}</Button>
-                    {avatar ? <Button variant="ghost" onClick={() => removeAvatar(identity)}><Trash2 size={14} />{tr('移除', 'Remove')}</Button> : null}
-                  </div>
+                  <div className="user-name-row"><h3>{accountLabel}</h3><span>{roleLabel}</span></div>
+                  <p>{currentUser?.email || '-'}</p>
+                  <small>{tr('用于登录 Liaison 与识别操作记录', 'Used to sign in and identify account activity')}</small>
+                </div>
+                <div className="user-avatar-actions">
+                  <Button variant="ghost" onClick={() => avatarInputRef.current?.click()}><Camera size={14} />{tr('更换头像', 'Change avatar')}</Button>
+                  {avatar ? <Button variant="ghost" onClick={() => removeAvatar(identity)}><Trash2 size={14} />{tr('移除', 'Remove')}</Button> : null}
                 </div>
               </div>
               <dl className="native-description-grid">{details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>

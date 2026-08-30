@@ -4,7 +4,7 @@ import SessionWatermark, {
 } from '@/components/SessionWatermark';
 import { Button, Field, Input, Modal, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
-import { history, useModel, useParams } from '@/lib/runtime';
+import { history, useModel, useParams, useSearchParams } from '@/lib/runtime';
 import {
   createWebSSHSession,
   deleteWebSSHCredential,
@@ -14,7 +14,7 @@ import {
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { ArrowLeft, Clock3, Fullscreen, Minimize, PlugZap, Send } from 'lucide-react';
+import { ArrowLeft, Check, Clock3, Fullscreen, Minimize, PlugZap, Send } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.less';
 
@@ -32,6 +32,7 @@ const WebSSHPage: React.FC = () => {
   const { tr } = useI18n();
   const { initialState } = useModel('@@initialState');
   const params = useParams();
+  const [routeSearch] = useSearchParams();
   const proxyId = Number(params.proxyId);
   const [credentials, setCredentials] = useState<API.CreateWebSSHSessionRequest>({ username: '', password: '', save_credential: false });
   const watchedUsername = credentials.username;
@@ -114,10 +115,15 @@ const WebSSHPage: React.FC = () => {
     sessionStartedAtRef.current = undefined;
   }, []);
 
+  const requestedReturnPath = routeSearch.get('from') || '';
+  const returnPath = requestedReturnPath.startsWith('/proxy') && !requestedReturnPath.startsWith('//')
+    ? requestedReturnPath
+    : '/proxy?access_type=webssh';
+
   const returnToAccess = useCallback(() => {
     window.close();
-    window.setTimeout(() => history.replace('/proxy'), 120);
-  }, []);
+    window.setTimeout(() => history.replace(returnPath), 120);
+  }, [returnPath]);
 
   const flushTerminalInput = useCallback(() => {
     inputFlushQueuedRef.current = false;
@@ -760,7 +766,8 @@ const WebSSHPage: React.FC = () => {
       <Modal
         title={tr('连接 WebSSH', 'Connect to WebSSH')}
         open={credentialOpen}
-        width={440}
+        width={400}
+        className="webssh-credential-modal"
         closeOnMask={!connecting}
         onClose={returnToAccess}
       >
@@ -787,28 +794,25 @@ const WebSSHPage: React.FC = () => {
             <datalist id="webssh-saved-users">{savedUsernameOptions.map((option) => <option key={option.value} value={option.value} />)}</datalist>
           </Field>
           <Field label={tr('密码', 'Password')}>
-            <Input type="password" autoComplete="current-password" value={credentials.password || ''} onChange={(event) => setCredentials((value) => ({ ...value, password: event.target.value }))} placeholder={selectedSavedCredential ? tr('留空使用该用户保存密码', 'Leave blank to use the saved password') : tr('输入 SSH 密码', 'Enter SSH password')} />
+            <Input type="password" autoComplete="new-password" value={credentials.password || ''} onChange={(event) => { const password = event.target.value; setCredentials((value) => ({ ...value, password, save_credential: selectedSavedCredential && password ? true : value.save_credential })); }} placeholder={selectedSavedCredential ? tr('密码已保存，留空直接连接', 'Password saved; leave blank to connect') : tr('输入 SSH 密码', 'Enter SSH password')} />
           </Field>
 
           <div className="webssh-credential-options">
-            <label className="liaison-checkbox"><input type="checkbox" checked={Boolean(credentials.save_credential)} onChange={(event) => setCredentials((value) => ({ ...value, save_credential: event.target.checked }))} /><span>
-                {credentialSaved
-                  ? tr('保存或更新密码', 'Save or update password')
-                  : tr('保存密码', 'Save password')}
-              </span></label>
+            {selectedSavedCredential && !credentials.password ? (
+              <span className="webssh-credential-saved"><Check size={13} />{tr('密码已保存', 'Password saved')}</span>
+            ) : (
+              <label className="liaison-checkbox"><input type="checkbox" checked={Boolean(credentials.save_credential)} onChange={(event) => setCredentials((value) => ({ ...value, save_credential: event.target.checked }))} /><span>
+                  {credentialSaved
+                    ? tr('更新保存密码', 'Update saved password')
+                    : tr('保存密码', 'Save password')}
+                </span></label>
+            )}
             {selectedSavedCredential && (
                 <Button variant="ghost" disabled={connecting || connected} onClick={() => { if (window.confirm(tr('清除当前用户保存密码？', 'Clear saved password for this user?'))) void clearCredential(); }}>
                   {tr('清除保存密码', 'Clear saved password')}
                 </Button>
             )}
           </div>
-
-          {target?.host_key?.trusted && (
-            <div className="webssh-host-key">
-              <span>{tr('主机指纹', 'Host fingerprint')}</span>
-              <code>{target.host_key.fingerprint_sha256}</code>
-            </div>
-          )}
 
           <div className="webssh-credential-actions">
             <Button

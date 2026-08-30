@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { CalendarDays, TriangleAlert, X } from 'lucide-react';
 import {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -63,6 +63,54 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className={`liaison-input liaison-select ${props.className || ''}`.trim()} {...props} />;
 }
 
+export function DateRangeField({
+  label,
+  start,
+  end,
+  startPlaceholder,
+  endPlaceholder,
+  onStartChange,
+  onEndChange,
+  className = '',
+}: {
+  label: ReactNode;
+  start: string;
+  end: string;
+  startPlaceholder: string;
+  endPlaceholder: string;
+  onStartChange: (value: string) => void;
+  onEndChange: (value: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={`liaison-date-range ${className}`.trim()}>
+      <span className="liaison-date-range-key">{label}</span>
+      <div className="liaison-date-range-values">
+        <label className={`liaison-date-range-input${start ? ' has-value' : ''}`}>
+          {!start ? <span>{startPlaceholder}</span> : null}
+          <input
+            type="datetime-local"
+            aria-label={startPlaceholder}
+            value={start}
+            onChange={(event) => onStartChange(event.target.value)}
+          />
+        </label>
+        <i aria-hidden>–</i>
+        <label className={`liaison-date-range-input${end ? ' has-value' : ''}`}>
+          {!end ? <span>{endPlaceholder}</span> : null}
+          <input
+            type="datetime-local"
+            aria-label={endPlaceholder}
+            value={end}
+            onChange={(event) => onEndChange(event.target.value)}
+          />
+        </label>
+        <CalendarDays size={15} aria-hidden />
+      </div>
+    </div>
+  );
+}
+
 export function Segmented<T extends string>({
   value,
   options,
@@ -94,8 +142,9 @@ export function Modal({
   onClose,
   children,
   footer,
-  width = 560,
+  width = 500,
   closeOnMask = true,
+  className = '',
 }: {
   open: boolean;
   title: ReactNode;
@@ -104,6 +153,7 @@ export function Modal({
   footer?: ReactNode;
   width?: number;
   closeOnMask?: boolean;
+  className?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -128,7 +178,7 @@ export function Modal({
         aria-label="Close dialog"
         onClick={closeOnMask ? onClose : undefined}
       />
-      <section className="liaison-modal" style={{ width }}>
+      <section className={`liaison-modal ${className}`.trim()} style={{ width }}>
         <header>
           <h2>{title}</h2>
           <button type="button" onClick={onClose} aria-label="Close">
@@ -138,6 +188,24 @@ export function Modal({
         <div className="liaison-modal-body">{children}</div>
         {footer ? <footer>{footer}</footer> : null}
       </section>
+    </div>
+  );
+}
+
+export function DangerConfirm({
+  title,
+  description,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+}) {
+  return (
+    <div className="native-confirm-copy">
+      <span className="native-confirm-icon"><TriangleAlert size={17} /></span>
+      <div>
+        <strong>{title}</strong>
+        {description ? <p>{description}</p> : null}
+      </div>
     </div>
   );
 }
@@ -158,8 +226,15 @@ export type Column<T> = {
   key: string;
   title: ReactNode;
   width?: number | string;
+  fixed?: 'left' | 'right';
   render: (row: T) => ReactNode;
 };
+
+export function Timestamp({ value }: { value?: string }) {
+  const raw = String(value || '').trim();
+  const display = raw.replace('T', ' ');
+  return <time className="liaison-time-cell" dateTime={raw || undefined} title={display}>{display || '-'}</time>;
+}
 
 export function DataTable<T>({
   columns,
@@ -177,9 +252,9 @@ export function DataTable<T>({
   return (
     <div className="liaison-table-scroll">
       <table className="liaison-table">
-        <thead><tr>{columns.map((column) => <th key={column.key} style={{ width: column.width }}>{column.title}</th>)}</tr></thead>
+        <thead><tr>{columns.map((column) => <th key={column.key} className={column.fixed ? `is-fixed-${column.fixed}` : undefined} style={{ width: column.width }}>{column.title}</th>)}</tr></thead>
         <tbody>
-          {rows.map((row) => <tr key={rowKey(row)}>{columns.map((column) => <td key={column.key}>{column.render(row)}</td>)}</tr>)}
+          {rows.map((row) => <tr key={rowKey(row)}>{columns.map((column) => <td key={column.key} className={column.fixed ? `is-fixed-${column.fixed}` : undefined}>{column.render(row)}</td>)}</tr>)}
           {!loading && rows.length === 0 ? <tr><td className="liaison-table-empty" colSpan={columns.length}>{emptyText}</td></tr> : null}
           {loading ? <tr><td className="liaison-table-empty" colSpan={columns.length}>…</td></tr> : null}
         </tbody>

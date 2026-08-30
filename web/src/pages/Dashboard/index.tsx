@@ -8,7 +8,6 @@ import {
 } from '@/services/api';
 import {
   Activity,
-  AppWindow,
   Cable,
   HardDrive,
   type LucideIcon,
@@ -19,7 +18,7 @@ import './index.less';
 type DistributionItem = { type: string; value: number };
 type TrafficPoint = { time: Date; application: string; value: number };
 
-const chartColors = ['#0f82ff', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4'];
+const chartColors = ['rgb(var(--chart-1))', 'rgb(var(--chart-2))', 'rgb(var(--chart-3))', 'rgb(var(--chart-4))', 'rgb(var(--chart-5))', 'rgb(var(--chart-6))'];
 
 const applicationLabels = Object.fromEntries(
   APPLICATION_TYPES.map((type) => [type.value, type.label]),
@@ -39,6 +38,9 @@ const formatLocalTime = (date: Date) => {
   )}`;
 };
 
+const formatChartTime = (date: Date) =>
+  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
 const formatTraffic = (bitsPerSecond: number) => {
   if (bitsPerSecond >= 1_000_000_000)
     return `${(bitsPerSecond / 1_000_000_000).toFixed(1)} Gbps`;
@@ -49,102 +51,136 @@ const formatTraffic = (bitsPerSecond: number) => {
   return `${Math.round(bitsPerSecond)} bps`;
 };
 
-function MetricCard({
+const formatBytes = (bytes: number) => {
+  if (bytes >= 1_000_000_000)
+    return `${(bytes / 1_000_000_000).toFixed(2)} GB`;
+  if (bytes >= 1_000_000)
+    return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  if (bytes >= 1_000)
+    return `${(bytes / 1_000).toFixed(1)} KB`;
+  return `${Math.round(bytes)} B`;
+};
+
+function SummaryCard({
   icon: Icon,
   label,
   value,
-  hint,
+  unit,
+  progress,
+  details,
 }: {
   icon: LucideIcon;
   label: string;
   value: string | number;
-  hint: string;
+  unit?: string;
+  progress?: number;
+  details: Array<{ label: string; value: string | number }>;
 }) {
   return (
-    <div className="overview-metric">
-      <div className="overview-metric-icon">
-        <Icon size={16} strokeWidth={1.8} />
-      </div>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{hint}</small>
-    </div>
-  );
-}
-
-function DistributionPanel({
-  title,
-  hint,
-  items,
-  emptyText,
-}: {
-  title: string;
-  hint: string;
-  items: DistributionItem[];
-  emptyText: string;
-}) {
-  const max = Math.max(1, ...items.map((item) => item.value));
-
-  return (
-    <section className="overview-panel overview-distribution">
+    <section className="overview-summary-card">
       <header>
-        <div>
-          <h2>{title}</h2>
-          <p>{hint}</p>
-        </div>
-        <span>{items.reduce((total, item) => total + item.value, 0)}</span>
+        <span className="overview-summary-icon">
+          <Icon size={17} strokeWidth={1.8} />
+        </span>
+        <h2>{label}</h2>
       </header>
-      <div className="overview-distribution-list">
-        {items.length > 0 ? (
-          items.map((item) => (
-            <div className="overview-distribution-row" key={item.type}>
-              <div className="overview-distribution-meta">
-                <span>{item.type}</span>
-                <strong>{item.value}</strong>
-              </div>
-              <div className="overview-distribution-track">
-                <span style={{ width: `${(item.value / max) * 100}%` }} />
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="overview-empty">{emptyText}</div>
-        )}
+      <div className="overview-summary-value">
+        <strong>{value}</strong>
+        {unit ? <span>{unit}</span> : null}
       </div>
+      {typeof progress === 'number' ? (
+        <div className="overview-summary-progress" aria-hidden="true">
+          <span style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+        </div>
+      ) : null}
+      <dl>
+        {details.map((detail) => (
+          <div key={detail.label}>
+            <dt>{detail.label}</dt>
+            <dd>{detail.value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
 
-function TrafficChart({ data }: { data: TrafficPoint[] }) {
+function TrafficChart({
+  data,
+  emptyText,
+  chartId,
+  colorOffset = 0,
+}: {
+  data: TrafficPoint[];
+  emptyText: string;
+  chartId: string;
+  colorOffset?: number;
+}) {
   const width = 1000;
   const height = 250;
-  const padding = { left: 58, right: 18, top: 24, bottom: 34 };
-  const minTime = Math.min(...data.map((item) => item.time.getTime()));
-  const maxTime = Math.max(...data.map((item) => item.time.getTime()));
+  const padding = { left: 64, right: 20, top: 24, bottom: 42 };
+  const now = Date.now();
+  const minTime = now - 24 * 60 * 60 * 1000;
+  const maxTime = now;
   const maxValue = Math.max(1, ...data.map((item) => item.value));
   const applications = [...new Set(data.map((item) => item.application))];
   const x = (time: number) => padding.left + ((time - minTime) / Math.max(1, maxTime - minTime)) * (width - padding.left - padding.right);
   const y = (value: number) => height - padding.bottom - (value / maxValue) * (height - padding.top - padding.bottom);
-  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+  const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+  const seriesColor = (index: number) =>
+    chartColors[(index + colorOffset) % chartColors.length];
 
   return (
     <div className="overview-chart">
       <div className="overview-chart-legend">
         {applications.map((application, index) => (
-          <span key={application}><i style={{ background: chartColors[index % chartColors.length] }} />{application}</span>
+          <span key={application}><i style={{ background: seriesColor(index) }} />{application}</span>
         ))}
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Application traffic chart">
-        {ticks.map((tick) => {
+        <defs>
+          {applications.map((application, index) => (
+            <linearGradient key={application} id={`${chartId}-fill-${index}`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={seriesColor(index)} stopOpacity="0.24" />
+              <stop offset="100%" stopColor={seriesColor(index)} stopOpacity="0" />
+            </linearGradient>
+          ))}
+        </defs>
+        <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} className="overview-chart-axis" />
+        {yTicks.map((tick) => {
           const tickY = y(maxValue * tick);
           return <g key={tick}><line x1={padding.left} x2={width - padding.right} y1={tickY} y2={tickY} className="overview-chart-grid" /><text x={padding.left - 10} y={tickY + 4} textAnchor="end">{formatTraffic(maxValue * tick)}</text></g>;
         })}
-        {applications.map((application, index) => {
-          const points = data.filter((item) => item.application === application).map((item) => `${x(item.time.getTime())},${y(item.value)}`).join(' ');
-          return <polyline key={application} points={points} fill="none" stroke={chartColors[index % chartColors.length]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />;
+        {xTicks.map((tick) => {
+          const tickTime = minTime + (maxTime - minTime) * tick;
+          const tickX = x(tickTime);
+          return <g key={`x-${tick}`}><line x1={tickX} x2={tickX} y1={height - padding.bottom} y2={height - padding.bottom + 5} className="overview-chart-axis" /><text x={tickX} y={height - 15} textAnchor={tick === 0 ? 'start' : tick === 1 ? 'end' : 'middle'}>{formatChartTime(new Date(tickTime))}</text></g>;
         })}
-        <text x={padding.left} y={height - 10}>{new Date(minTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</text>
-        <text x={width - padding.right} y={height - 10} textAnchor="end">{new Date(maxTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</text>
+        {applications.map((application, index) => {
+          const applicationData = data.filter((item) => item.application === application);
+          const points = applicationData.map((item) => `${x(item.time.getTime())},${y(item.value)}`).join(' ');
+          const areaPoints = applicationData.length
+            ? `${x(applicationData[0].time.getTime())},${height - padding.bottom} ${points} ${x(applicationData[applicationData.length - 1].time.getTime())},${height - padding.bottom}`
+            : '';
+          return (
+            <g key={application}>
+              {areaPoints ? <polygon points={areaPoints} fill={`url(#${chartId}-fill-${index})`} /> : null}
+              <polyline points={points} fill="none" stroke={seriesColor(index)} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+              {applicationData.length === 1 ? (
+                <circle
+                  cx={x(applicationData[0].time.getTime())}
+                  cy={y(applicationData[0].value)}
+                  r="4"
+                  fill={seriesColor(index)}
+                  stroke="rgb(var(--surface))"
+                  strokeWidth="2"
+                />
+              ) : null}
+            </g>
+          );
+        })}
+        {!data.length ? <text className="overview-chart-empty-label" x={(padding.left + width - padding.right) / 2} y={(padding.top + height - padding.bottom) / 2} textAnchor="middle">{emptyText}</text> : null}
       </svg>
     </div>
   );
@@ -285,80 +321,67 @@ const DashboardPage: React.FC = () => {
     [edgeData],
   );
   const onlineEdges = edgeData[0]?.value || 0;
+  const totalTrafficData = useMemo(() => {
+    const totals = new Map<number, number>();
+    trafficData.forEach((point) => {
+      const timestamp = point.time.getTime();
+      totals.set(timestamp, (totals.get(timestamp) || 0) + point.value);
+    });
+    return [...totals]
+      .map(([timestamp, value]) => ({
+        time: new Date(timestamp),
+        application: tr('总流量', 'Total traffic'),
+        value,
+      }))
+      .sort((left, right) => left.time.getTime() - right.time.getTime());
+  }, [trafficData, tr]);
+
   return (
     <div className="overview-page">
       <div className={`overview-content${loading ? ' is-loading' : ''}`}>
-        <div className="overview-metrics">
-          <MetricCard
+        <div className="overview-summaries">
+          <SummaryCard
             icon={HardDrive}
-            label={tr('设备', 'Devices')}
-            value={deviceTotal}
-            hint={tr('已纳管终端', 'Managed endpoints')}
+            label={tr('资源概览', 'Resource overview')}
+            value={deviceTotal + applicationTotal}
+            unit={tr('项资源', 'resources')}
+            details={[
+              { label: tr('设备', 'Devices'), value: deviceTotal },
+              { label: tr('应用', 'Applications'), value: applicationTotal },
+            ]}
           />
-          <MetricCard
-            icon={AppWindow}
-            label={tr('应用', 'Applications')}
-            value={applicationTotal}
-            hint={tr('私有服务', 'Private services')}
-          />
-          <MetricCard
+          <SummaryCard
             icon={Cable}
-            label={tr('连接器', 'Connectors')}
+            label={tr('连接器可用性', 'Connector availability')}
             value={`${onlineEdges} / ${edgeTotal}`}
-            hint={tr('在线 / 总数', 'Online / total')}
+            progress={edgeTotal ? (onlineEdges / edgeTotal) * 100 : 0}
+            details={[
+              { label: tr('在线', 'Online'), value: onlineEdges },
+              { label: tr('离线', 'Offline'), value: Math.max(0, edgeTotal - onlineEdges) },
+            ]}
           />
-          <MetricCard
+          <SummaryCard
             icon={Activity}
             label={tr('24 小时流量', '24h traffic')}
             value={formatTraffic((trafficBytes * 8) / (24 * 60 * 60))}
-            hint={tr('平均吞吐', 'Average throughput')}
+            details={[
+              { label: tr('累计传输', 'Transferred'), value: formatBytes(trafficBytes) },
+              { label: tr('采样数据', 'Data points'), value: trafficData.length },
+            ]}
           />
         </div>
 
-        <div className="overview-distributions">
-          <DistributionPanel
-            title={tr('设备系统', 'Device OS')}
-            hint={tr('按操作系统分布', 'Distribution by operating system')}
-            items={deviceData}
-            emptyText={tr('暂无设备', 'No devices')}
-          />
-          <DistributionPanel
-            title={tr('应用类型', 'Application types')}
-            hint={tr('按协议分布', 'Distribution by protocol')}
-            items={applicationData}
-            emptyText={tr('暂无应用', 'No applications')}
-          />
-          <DistributionPanel
-            title={tr('连接器状态', 'Connector status')}
-            hint={tr('当前在线状态', 'Current availability')}
-            items={edgeData}
-            emptyText={tr('暂无连接器', 'No connectors')}
-          />
-        </div>
+        <div className="overview-main-grid">
+          <section className="overview-panel overview-traffic">
+            <header><div><h2>{tr('应用流量', 'Application traffic')}</h2><p>{tr('最近 24 小时，10 分钟粒度', 'Last 24 hours, 10-minute intervals')}</p></div></header>
+            <TrafficChart chartId="application-traffic" data={trafficData} emptyText={tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')} />
+          </section>
 
-        <section className="overview-panel overview-traffic">
-          <header>
-            <div>
-              <h2>{tr('应用流量', 'Application traffic')}</h2>
-              <p>
-                {tr(
-                  '最近 24 小时，10 分钟粒度',
-                  'Last 24 hours, 10-minute intervals',
-                )}
-              </p>
-            </div>
-          </header>
-          {trafficData.length > 0 ? (
-            <TrafficChart data={trafficData} />
-          ) : (
-            <div className="overview-traffic-empty">
-              <Activity size={18} strokeWidth={1.7} />
-              <span>
-                {tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')}
-              </span>
-            </div>
-          )}
-        </section>
+          <section className="overview-panel overview-traffic overview-total-traffic">
+            <header><div><h2>{tr('总流量', 'Total traffic')}</h2><p>{tr('全部应用流量的聚合趋势', 'Aggregated traffic across all applications')}</p></div></header>
+            <TrafficChart chartId="total-traffic" colorOffset={1} data={totalTrafficData} emptyText={tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')} />
+          </section>
+        </div>
       </div>
     </div>
   );

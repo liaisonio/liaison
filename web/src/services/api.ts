@@ -409,6 +409,14 @@ export async function getAccessAuditList(params?: API.WebDataAuditListParams) {
   );
 }
 
+/** 获取管理日志 GET /v1/audits/management */
+export async function getManagementAuditList(params?: API.ManagementAuditListParams) {
+  return request<API.Response<API.ManagementAuditListResult>>(
+    '/api/v1/audits/management',
+    { method: 'GET', params },
+  );
+}
+
 /** 关闭 WebData 会话 DELETE /v1/webdata/sessions/:token */
 export async function deleteWebDataSession(token: string) {
   return request<API.Response>(`/api/v1/webdata/sessions/${token}`, {

@@ -154,6 +154,11 @@ type Dao interface {
 	ListWebDataAudits(query *ListWebDataAuditsQuery) ([]*model.WebDataAudit, error)
 	CountWebDataAudits(query *ListWebDataAuditsQuery) (int64, error)
 
+	// ManagementAudit 相关方法
+	CreateManagementAudit(audit *model.ManagementAudit) error
+	ListManagementAudits(query *ListManagementAuditsQuery) ([]*model.ManagementAudit, error)
+	CountManagementAudits(query *ListManagementAuditsQuery) (int64, error)
+
 	// 资源清理
 	Close() error
 }
@@ -219,10 +224,43 @@ func (d *dao) initDB() error {
 		&model.WebDesktopCredential{},
 		&model.WebDataCredential{},
 		&model.WebDataAudit{},
+		&model.ManagementAudit{},
 	); err != nil {
 		return err
 	}
+	if err := d.backfillProxyAccessProtocols(); err != nil {
+		return err
+	}
+	if err := d.backfillWebSSHAuditProtocols(); err != nil {
+		return err
+	}
 	return d.migrateWebSSHCredentials()
+}
+
+func (d *dao) backfillProxyAccessProtocols() error {
+	return d.db.Exec(`
+		UPDATE proxies
+		SET access_protocol = CASE
+			WHEN application_id IN (SELECT id FROM applications WHERE application_type = 'http') THEN 'http'
+			WHEN port = 0 AND application_id IN (SELECT id FROM applications WHERE application_type = 'ssh') THEN 'webssh'
+			WHEN port = 0 THEN 'web'
+			ELSE 'tcp'
+		END
+		WHERE access_protocol IS NULL OR access_protocol = ''
+	`).Error
+}
+
+func (d *dao) backfillWebSSHAuditProtocols() error {
+	// Browser WebSSH audits were historically stored as "ssh". Only migrate
+	// rows carrying the WebSSH-only client_ip_source marker so native SSH
+	// history is never reclassified by guesswork. The update is idempotent.
+	return d.db.Exec(`
+		UPDATE access_audits
+		SET protocol = 'webssh'
+		WHERE protocol = 'ssh'
+		  AND user_id > 0
+		  AND details LIKE '%"client_ip_source"%'
+	`).Error
 }
 
 func (d *dao) resetAccessAuditSchema() error {

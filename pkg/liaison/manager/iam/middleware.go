@@ -91,7 +91,6 @@ func ExtractClientIP(r *http.Request) string {
 func isIAMEndpoint(path string) bool {
 	noAuthPaths := []string{
 		"/api/v1/iam/login",
-		"/api/v1/iam/logout",
 		"/api/v1/iam/client_ip",
 		"/install.sh",
 		"/install.ps1",
@@ -101,14 +100,6 @@ func isIAMEndpoint(path string) bool {
 	}
 
 	if strings.HasPrefix(path, "/packages/") {
-		return true
-	}
-	// PAT management — handler authenticates itself (session or PAT).
-	if path == "/api/v1/iam/tokens" || strings.HasPrefix(path, "/api/v1/iam/tokens/") {
-		return true
-	}
-	// Per-proxy firewall — handler authenticates itself.
-	if strings.HasPrefix(path, "/api/v1/proxies/") && strings.HasSuffix(path, "/firewall") {
 		return true
 	}
 	// WebSSH WebSocket upgrades are authorized by one-time session tokens

@@ -73,6 +73,7 @@ func (d *dao) UpdateProxy(proxy *model.Proxy) error {
 		updates["description"] = proxy.Description
 	}
 	updates["port"] = proxy.Port
+	updates["access_protocol"] = proxy.AccessProtocol
 	return d.getDB().Model(&model.Proxy{}).Where("id = ?", proxy.ID).Updates(updates).Error
 }
 

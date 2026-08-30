@@ -47,6 +47,9 @@ type Manager struct {
 	FrontierEdgePort int           `yaml:"frontier_edge_port,omitempty" json:"frontier_edge_port"` // Edge 和 Frontier 之间的通信端口
 	JWTSecret        string        `yaml:"jwt_secret,omitempty" json:"jwt_secret"`                 // JWT 密钥（必需，至少32字符）
 	CredentialSecret string        `yaml:"credential_secret,omitempty" json:"credential_secret"`   // WebSSH 凭据加密密钥；为空时回退使用 JWTSecret
+	SSHHostKeyFile   string        `yaml:"ssh_host_key_file,omitempty" json:"ssh_host_key_file"`   // 原生 SSH Gateway 的持久化 Host Key
+	SSHIdleTimeout   time.Duration `yaml:"ssh_idle_timeout,omitempty" json:"ssh_idle_timeout"`     // 原生 SSH 会话空闲超时
+	SSHMaxDuration   time.Duration `yaml:"ssh_max_duration,omitempty" json:"ssh_max_duration"`     // 原生 SSH 会话最长持续时间
 	GuacdAddr        string        `yaml:"guacd_addr,omitempty" json:"guacd_addr"`                 // guacd 地址，用于 WebDesktop
 	GuacdBridgeAddr  string        `yaml:"guacd_bridge_addr,omitempty" json:"guacd_bridge_addr"`   // manager 本地临时桥接监听地址
 	GuacdBridgeHost  string        `yaml:"guacd_bridge_host,omitempty" json:"guacd_bridge_host"`   // guacd 回连 manager 临时桥接端口时使用的主机名
@@ -121,6 +124,15 @@ func initConf() error {
 	}
 	if Conf.Manager.GuacdBridgeAddr == "" {
 		Conf.Manager.GuacdBridgeAddr = "127.0.0.1:0"
+	}
+	if Conf.Manager.SSHHostKeyFile == "" {
+		Conf.Manager.SSHHostKeyFile = "/opt/liaison/data/ssh_host_ed25519_key"
+	}
+	if Conf.Manager.SSHIdleTimeout == 0 {
+		Conf.Manager.SSHIdleTimeout = 30 * time.Minute
+	}
+	if Conf.Manager.SSHMaxDuration == 0 {
+		Conf.Manager.SSHMaxDuration = 8 * time.Hour
 	}
 	return nil
 }

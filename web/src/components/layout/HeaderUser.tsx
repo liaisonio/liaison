@@ -55,7 +55,7 @@ export function HeaderUser() {
         aria-expanded={open}
         aria-label={tr('打开用户菜单', 'Open user menu')}
       >
-        <span className="liaison-avatar">
+        <span className={`liaison-avatar${avatar ? ' is-image' : ''}`}>
           {avatar ? (
             <img src={avatar} alt="" />
           ) : (

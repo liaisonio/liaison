@@ -1,14 +1,14 @@
 import {
   ACCESS_TYPES,
   ACCESS_TYPES_CHANGED_EVENT,
+  getProxyAccessType,
   isAccessType,
 } from '@/constants/accessTypes';
 import {
   APPLICATION_TYPES_CHANGED_EVENT,
-  isApplicationType,
 } from '@/constants/applicationTypes';
 import { useI18n } from '@/i18n';
-import { getApplicationList } from '@/services/api';
+import { getProxyList } from '@/services/api';
 import { useUi } from '@/store/ui';
 import type { LucideIcon, LucideProps } from 'lucide-react';
 import {
@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  FileClock,
   FileSearch,
   Gauge,
   Globe2,
@@ -48,21 +49,17 @@ export function Sidebar() {
   const toggleSidebar = useUi((state) => state.toggleSidebar);
   const location = useLocation();
   const [accessOpen, setAccessOpen] = useState(location.pathname === '/proxy');
+  const [logsOpen, setLogsOpen] = useState(location.pathname.startsWith('/logs/'));
   const [availableAccessTypes, setAvailableAccessTypes] = useState<Set<string>>(
     new Set(),
   );
 
   const primary: NavItem[] = [
     { to: '/dashboard', label: tr('总览', 'Overview'), icon: Gauge },
-    { to: '/resource/device', label: tr('设备', 'Devices'), icon: Boxes },
     { to: '/connector', label: tr('连接器', 'Connectors'), icon: Cable },
+    { to: '/resource/device', label: tr('设备', 'Devices'), icon: Boxes },
   ];
   const lowerNav: NavItem[] = [
-    {
-      to: '/audit',
-      label: tr('日志与审计', 'Logs & Audit'),
-      icon: CloudAuditIcon as LucideIcon,
-    },
     { to: '/users', label: tr('用户管理', 'Users'), icon: Users },
     { to: '/settings', label: tr('设置', 'Settings'), icon: Settings },
   ];
@@ -75,13 +72,11 @@ export function Sidebar() {
 
   const loadAccessTypes = useCallback(async () => {
     try {
-      const response = await getApplicationList({ page_size: 1000 });
+      const response = await getProxyList({ page_size: 1000 });
       const types = new Set<string>();
-      for (const application of response.data?.applications || []) {
-        const type = String(application.application_type || '').toLowerCase();
-        if (!isApplicationType(type)) continue;
-        types.add(type);
-        if (type === 'ssh') types.add('webssh');
+      for (const proxy of response.data?.proxies || []) {
+        const type = getProxyAccessType(proxy);
+        if (type) types.add(type);
       }
       setAvailableAccessTypes(types);
     } catch {
@@ -109,6 +104,10 @@ export function Sidebar() {
     }
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (location.pathname.startsWith('/logs/')) setLogsOpen(true);
+  }, [location.pathname]);
+
   const renderItems = (items: NavItem[]) =>
     items.map(({ to, label, icon: Icon, end }) => (
       <NavLink
@@ -128,22 +127,14 @@ export function Sidebar() {
   return (
     <aside className={`liaison-sidebar${collapsed ? ' is-collapsed' : ''}`}>
       <button
-        className="liaison-sidebar-collapse"
+        type="button"
+        className="liaison-sidebar-boundary-toggle"
         onClick={toggleSidebar}
-        aria-label={
-          collapsed
-            ? tr('展开侧栏', 'Expand sidebar')
-            : tr('收起侧栏', 'Collapse sidebar')
-        }
-        title={
-          collapsed
-            ? tr('展开菜单', 'Expand menu')
-            : tr('收起菜单', 'Collapse menu')
-        }
+        aria-label={collapsed ? tr('展开侧栏', 'Expand sidebar') : tr('收起侧栏', 'Collapse sidebar')}
+        title={collapsed ? tr('展开菜单', 'Expand menu') : tr('收起菜单', 'Collapse menu')}
       >
-        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
       </button>
-
       <nav className="liaison-nav">
         <div className="liaison-nav-primary">
           {renderItems(primary.slice(0, 1))}
@@ -228,6 +219,23 @@ export function Sidebar() {
 
       <div className="liaison-sidebar-bottom">
         <nav className="liaison-nav-lower" aria-label={tr('系统', 'System')}>
+          {collapsed ? (
+            <NavLink to="/logs/management" title={tr('日志与审计', 'Logs & Audit')} className={({ isActive }) => `liaison-nav-item${isActive || location.pathname.startsWith('/logs/') ? ' is-active' : ''}`}>
+              <CloudAuditIcon size={17} />
+            </NavLink>
+          ) : (
+            <div className={`liaison-nav-expandable${location.pathname.startsWith('/logs/') ? ' is-active' : ''}`}>
+              <button type="button" className="liaison-nav-item liaison-nav-toggle" onClick={() => setLogsOpen((open) => !open)} aria-expanded={logsOpen}>
+                <CloudAuditIcon size={17} />
+                <span>{tr('日志与审计', 'Logs & Audit')}</span>
+                <ChevronDown className={`liaison-nav-chevron${logsOpen ? ' is-open' : ''}`} size={15} />
+              </button>
+              {logsOpen ? <div className="liaison-nav-children">
+                <Link to="/logs/management" className={`liaison-nav-child${location.pathname === '/logs/management' ? ' is-active' : ''}`}><FileClock size={13} /><span>{tr('管理日志', 'Management logs')}</span></Link>
+                <Link to="/logs/audit" className={`liaison-nav-child${location.pathname === '/logs/audit' ? ' is-active' : ''}`}><FileSearch size={13} /><span>{tr('审计日志', 'Audit logs')}</span></Link>
+              </div> : null}
+            </div>
+          )}
           {renderItems(lowerNav)}
         </nav>
       </div>

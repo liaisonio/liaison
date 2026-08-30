@@ -12,6 +12,7 @@ const Device = lazy(() => import('@/pages/Device'));
 const Application = lazy(() => import('@/pages/App'));
 const Connector = lazy(() => import('@/pages/Connector'));
 const Audit = lazy(() => import('@/pages/Audit'));
+const ManagementLog = lazy(() => import('@/pages/ManagementLog'));
 const User = lazy(() => import('@/pages/User'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const WebSSH = lazy(() => import('@/pages/WebSSH'));
@@ -72,7 +73,9 @@ export default function App() {
             <Route path="/resource/device" element={<Device />} />
             <Route path="/resource/app" element={<Application />} />
             <Route path="/connector" element={<Connector />} />
-            <Route path="/audit" element={<Audit />} />
+            <Route path="/logs/management" element={<ManagementLog />} />
+            <Route path="/logs/audit" element={<Audit />} />
+            <Route path="/audit" element={<Navigate to="/logs/audit" replace />} />
             <Route path="/users" element={<User />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/webssh/:proxyId" element={<WebSSH />} />

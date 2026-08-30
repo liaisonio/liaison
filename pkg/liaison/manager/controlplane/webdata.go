@@ -372,6 +372,12 @@ func (cp *controlPlane) RecordWebDataAudit(_ context.Context, audit *WebDataAudi
 		action = "execute"
 	}
 	protocol := normalizeWebDataProtocol(audit.Protocol)
+	// TCP is an opaque L4 byte stream. Without protocol semantics there is no
+	// reliable command/session content to audit, so do not create misleading
+	// access-audit rows for it.
+	if protocol == "tcp" {
+		return nil
+	}
 	userEmail := strings.TrimSpace(audit.UserEmail)
 	if userEmail == "" && audit.UserID > 0 {
 		if user, err := cp.repo.GetUserByID(audit.UserID); err == nil && user != nil {
@@ -426,7 +432,7 @@ func normalizeAccessAuditDetails(protocol string, audit *WebDataAudit) map[strin
 		details[key] = value
 	}
 	if value := strings.TrimSpace(audit.Database); value != "" {
-		if protocol == "ssh" {
+		if protocol == "ssh" || protocol == "webssh" {
 			details["ssh_user"] = value
 		} else {
 			details["database"] = value
@@ -514,33 +520,38 @@ func (cp *controlPlane) ListWebDataAuditEntries(ctx context.Context, query *WebD
 	if query.Protocol != "" && !isAccessAuditProtocol(normalizedProtocol) {
 		return nil, errors.New("访问审计协议类型不支持")
 	}
-	action := normalizeWebDataAuditAction(query.Action)
-	if query.Action != "" && action == "" {
-		return nil, errors.New("访问审计类型不支持")
+	action := ""
+	if strings.TrimSpace(query.Action) != "" {
+		action = normalizeWebDataAuditAction(query.Action)
+		if action == "" {
+			return nil, errors.New("访问审计类型不支持")
+		}
 	}
 	auditQuery := &dao.ListWebDataAuditsQuery{
-		UserID:    userID,
-		ProxyID:   query.ProxyID,
-		Protocol:  normalizedProtocol,
-		Action:    action,
-		Success:   query.Success,
-		Keyword:   strings.TrimSpace(query.Keyword),
-		StartTime: query.StartTime,
-		EndTime:   query.EndTime,
-		Limit:     pageSize,
-		Offset:    (page - 1) * pageSize,
+		UserID:        userID,
+		IncludeSystem: normalizedProtocol == "ssh",
+		ProxyID:       query.ProxyID,
+		Protocol:      normalizedProtocol,
+		Action:        action,
+		Success:       query.Success,
+		Keyword:       strings.TrimSpace(query.Keyword),
+		StartTime:     query.StartTime,
+		EndTime:       query.EndTime,
+		Limit:         pageSize,
+		Offset:        (page - 1) * pageSize,
 	}
 	audits, err := cp.repo.ListWebDataAudits(&dao.ListWebDataAuditsQuery{
-		UserID:    auditQuery.UserID,
-		ProxyID:   auditQuery.ProxyID,
-		Protocol:  auditQuery.Protocol,
-		Action:    auditQuery.Action,
-		Success:   auditQuery.Success,
-		Keyword:   auditQuery.Keyword,
-		StartTime: auditQuery.StartTime,
-		EndTime:   auditQuery.EndTime,
-		Limit:     auditQuery.Limit,
-		Offset:    auditQuery.Offset,
+		UserID:        auditQuery.UserID,
+		IncludeSystem: auditQuery.IncludeSystem,
+		ProxyID:       auditQuery.ProxyID,
+		Protocol:      auditQuery.Protocol,
+		Action:        auditQuery.Action,
+		Success:       auditQuery.Success,
+		Keyword:       auditQuery.Keyword,
+		StartTime:     auditQuery.StartTime,
+		EndTime:       auditQuery.EndTime,
+		Limit:         auditQuery.Limit,
+		Offset:        auditQuery.Offset,
 	})
 	if err != nil {
 		return nil, err
@@ -725,7 +736,7 @@ func isWebDataProtocol(protocol string) bool {
 
 func isAccessAuditProtocol(protocol string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "ssh":
+	case "ssh", "webssh":
 		return true
 	default:
 		return isWebDataProtocol(protocol)

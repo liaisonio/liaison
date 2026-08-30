@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -9,6 +10,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+func TestWebDataHTTPStatusTreatsUnsupportedProtocolAsBadRequest(t *testing.T) {
+	if status := webDataHTTPStatus(errors.New("访问审计协议类型不支持")); status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+	}
+}
 
 func TestWebDataShouldAuditExecuteSQL(t *testing.T) {
 	tests := []struct {

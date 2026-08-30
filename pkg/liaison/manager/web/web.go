@@ -83,8 +83,11 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	authMiddleware := iam.AuthMiddleware(web.iamService)
 
 	opts := []kratoshttp.ServerOption{
-		kratoshttp.Middleware(recovery.Recovery()),
-		kratoshttp.Middleware(authMiddleware),
+		kratoshttp.Middleware(
+			recovery.Recovery(),
+			authMiddleware,
+			managementAuditMiddleware(controlPlane),
+		),
 		kratoshttp.Listener(ln),
 	}
 	srv := kratoshttp.NewServer(opts...)
@@ -127,6 +130,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	// Audit
 	srv.HandleFunc("/api/v1/audits/access", web.handleAccessAuditListHTTP)
 	srv.HandleFunc("/api/v1/audits/webdata", web.handleWebDataAuditListHTTP)
+	srv.HandleFunc("/api/v1/audits/management", web.handleManagementAuditListHTTP)
 
 	// 文件服务
 	if err := web.serveFiles(conf, srv); err != nil {

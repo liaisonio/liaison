@@ -61,14 +61,15 @@ type ListTrafficMetricsQuery struct {
 }
 
 type ListWebDataAuditsQuery struct {
-	UserID    uint
-	ProxyID   uint
-	Protocol  string
-	Action    string
-	Success   *bool
-	Keyword   string
-	StartTime *time.Time
-	EndTime   *time.Time
-	Limit     int
-	Offset    int
+	UserID        uint
+	IncludeSystem bool
+	ProxyID       uint
+	Protocol      string
+	Action        string
+	Success       *bool
+	Keyword       string
+	StartTime     *time.Time
+	EndTime       *time.Time
+	Limit         int
+	Offset        int
 }

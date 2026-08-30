@@ -263,7 +263,7 @@ func TestListAccessAuditsAllowsSSHProtocol(t *testing.T) {
 	}
 
 	if err := cp.RecordWebDataAudit(context.Background(), &WebDataAudit{
-		UserID:           1,
+		UserID:           0,
 		ProxyID:          proxy.ID,
 		ApplicationID:    application.ID,
 		Protocol:         "ssh",
@@ -272,6 +272,7 @@ func TestListAccessAuditsAllowsSSHProtocol(t *testing.T) {
 		StatementPreview: "uptime",
 		StatementSHA256:  strings.Repeat("d", 64),
 		Success:          true,
+		Details:          map[string]any{"auth_method": "agent", "public_key_fingerprint": "SHA256:test"},
 	}); err != nil {
 		t.Fatalf("RecordWebDataAudit: %v", err)
 	}
@@ -289,7 +290,87 @@ func TestListAccessAuditsAllowsSSHProtocol(t *testing.T) {
 		t.Fatalf("result = %+v, want one ssh audit", result)
 	}
 	item := result.Items[0]
-	if item.Protocol != "ssh" || item.StatementPreview != "uptime" || item.Details["ssh_user"] != "root" {
+	if item.Protocol != "ssh" || item.StatementPreview != "uptime" || item.Details["ssh_user"] != "root" || item.Details["auth_method"] != "agent" || item.Details["public_key_fingerprint"] != "SHA256:test" {
 		t.Fatalf("item = %+v, want ssh uptime audit", item)
+	}
+}
+
+func TestAccessAuditsSeparateSSHAndWebSSHAndIgnoreTCP(t *testing.T) {
+	cp, r := newTestControlPlane(t)
+	defer r.Close()
+	_, application := createTestEdgeApplication(t, r)
+	proxy := &model.Proxy{
+		Name:          "separate-ssh-audits",
+		ApplicationID: application.ID,
+		Status:        model.ProxyStatusRunning,
+	}
+	if err := r.CreateProxy(proxy); err != nil {
+		t.Fatal(err)
+	}
+
+	records := []*WebDataAudit{
+		{UserID: 0, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "ssh", Action: "execute", Database: "native", StatementPreview: "uptime", Success: true},
+		{UserID: 1, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "webssh", Action: "execute", Database: "browser", StatementPreview: "whoami", Success: true},
+		{UserID: 1, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "tcp", Action: "open_session", StatementPreview: "opaque bytes", Success: true},
+	}
+	for _, audit := range records {
+		if err := cp.RecordWebDataAudit(context.Background(), audit); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	ctx := context.WithValue(context.Background(), "user_id", uint(1))
+	sshResult, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{ProxyID: proxy.ID, Protocol: "ssh", PageSize: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sshResult.Total != 1 || len(sshResult.Items) != 1 || sshResult.Items[0].Protocol != "ssh" || sshResult.Items[0].Details["ssh_user"] != "native" {
+		t.Fatalf("ssh result = %+v, want only native SSH audit", sshResult)
+	}
+
+	webSSHResult, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{ProxyID: proxy.ID, Protocol: "webssh", PageSize: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webSSHResult.Total != 1 || len(webSSHResult.Items) != 1 || webSSHResult.Items[0].Protocol != "webssh" || webSSHResult.Items[0].Details["ssh_user"] != "browser" {
+		t.Fatalf("webssh result = %+v, want only browser WebSSH audit", webSSHResult)
+	}
+
+	if _, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{ProxyID: proxy.ID, Protocol: "tcp", PageSize: 20}); err == nil {
+		t.Fatal("TCP must not be an access-audit protocol")
+	}
+	allResult, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{ProxyID: proxy.ID, PageSize: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allResult.Total != 1 {
+		t.Fatalf("user-scoped result total = %d, want WebSSH only and no TCP row", allResult.Total)
+	}
+}
+
+func TestListAccessAuditsWithoutActionIncludesSessionLifecycle(t *testing.T) {
+	cp, r := newTestControlPlane(t)
+	defer r.Close()
+	_, application := createTestEdgeApplication(t, r)
+	application.ApplicationType = model.ApplicationTypeSSH
+	application.Port = 22
+	if err := r.UpdateApplication(application); err != nil {
+		t.Fatal(err)
+	}
+	proxy := &model.Proxy{Name: "ssh-lifecycle", ApplicationID: application.ID, Status: model.ProxyStatusRunning}
+	if err := r.CreateProxy(proxy); err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"open_session", "execute", "close_session"} {
+		if err := cp.RecordWebDataAudit(context.Background(), &WebDataAudit{UserID: 0, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "ssh", Action: action, Database: "root", Success: true, Details: map[string]any{"auth_method": "password"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := cp.ListWebDataAuditEntries(context.WithValue(context.Background(), "user_id", uint(1)), &WebDataAuditListQuery{ProxyID: proxy.ID, Protocol: "ssh", PageSize: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Total != 3 || len(result.Items) != 3 {
+		t.Fatalf("result = %+v, want all three lifecycle actions", result)
 	}
 }

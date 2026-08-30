@@ -42,6 +42,7 @@ declare namespace API {
   interface Application {
     id: number;
     name: string;
+    description?: string;
     application_type: string;
     ip: string;
     port: number;
@@ -66,6 +67,7 @@ declare namespace API {
 
   interface ApplicationCreateParams {
     name: string;
+    description?: string;
     application_type: string;
     ip: string;
     port: number;
@@ -75,6 +77,7 @@ declare namespace API {
 
   interface ApplicationUpdateParams {
     name?: string;
+    description?: string;
   }
 
   // ========== 设备 (Device) ==========
@@ -189,6 +192,7 @@ declare namespace API {
     updated_at: string;
     access_url?: string;
     expose_public_port?: boolean;
+    access_protocol?: string;
   }
 
   interface ProxyListResult {
@@ -206,6 +210,7 @@ declare namespace API {
     port?: number;
     expose_public_port?: boolean;
     application_id: number;
+    access_protocol?: string;
   }
 
   interface ProxyUpdateParams {
@@ -214,6 +219,7 @@ declare namespace API {
     port?: number;
     expose_public_port?: boolean;
     status?: string;
+    access_protocol?: string;
   }
 
   // ========== WebSSH ==========
@@ -447,6 +453,39 @@ declare namespace API {
     limit?: number;
     proxy_id?: number;
     protocol?: string;
+    action?: string;
+    success?: boolean;
+    keyword?: string;
+    start_time?: string;
+    end_time?: string;
+  }
+
+  interface ManagementAuditItem {
+    id: number;
+    user_id: number;
+    user_email: string;
+    module: string;
+    action: string;
+    resource: string;
+    method: string;
+    client_ip: string;
+    success: boolean;
+    status_code: number;
+    elapsed_ms: number;
+    created_at: string;
+  }
+
+  interface ManagementAuditListResult {
+    items: ManagementAuditItem[];
+    total: number;
+    page: number;
+    page_size: number;
+  }
+
+  interface ManagementAuditListParams {
+    page?: number;
+    page_size?: number;
+    module?: string;
     action?: string;
     success?: boolean;
     keyword?: string;

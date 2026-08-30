@@ -2,6 +2,7 @@ import { LiaisonLogo } from '@/components/LiaisonLogo';
 import { useI18n } from '@/i18n';
 import { getCurrentUser } from '@/services/api';
 import { useSession } from '@/store/session';
+import { useUi } from '@/store/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { HeaderQuickSettings } from './HeaderQuickSettings';
@@ -15,6 +16,7 @@ export function AppLayout() {
   const token = useSession((state) => state.token);
   const setInitialState = useSession((state) => state.setInitialState);
   const clear = useSession((state) => state.clear);
+  const sidebarCollapsed = useUi((state) => state.sidebarCollapsed);
   const [loading, setLoading] = useState(!initialState.currentUser);
   const [connectionRetry, setConnectionRetry] = useState(0);
 
@@ -54,11 +56,18 @@ export function AppLayout() {
         'Manage secure connection nodes in private networks',
       ),
     },
-    '/audit': {
-      title: tr('日志与审计', 'Logs & Audit'),
+    '/logs/management': {
+      title: tr('管理日志', 'Management logs'),
       description: tr(
-        '统一查看访问记录与关键操作留痕',
-        'Review access records and critical operations',
+        '查看用户在控制台中的管理操作留痕',
+        'Review user control-plane operations',
+      ),
+    },
+    '/logs/audit': {
+      title: tr('审计日志', 'Audit logs'),
+      description: tr(
+        '按协议查看访问会话中的操作记录',
+        'Review access-session activity by protocol',
       ),
     },
     '/settings': {
@@ -142,15 +151,16 @@ export function AppLayout() {
   return (
     <div className="liaison-app-frame">
       <header className="liaison-global-header">
-        <Link to="/dashboard" className="liaison-brand-link">
-          <span className="liaison-brand-mark">
-            <LiaisonLogo size={30} />
-          </span>
-          <span className="liaison-brand-copy">
-            <strong>Liaison</strong>
-            <small>Zero Trust Access</small>
-          </span>
-        </Link>
+        <div className={`liaison-global-left${sidebarCollapsed ? ' is-collapsed' : ''}`}>
+          <Link to="/dashboard" className="liaison-brand-link">
+            <span className="liaison-brand-mark">
+              <LiaisonLogo size={30} />
+            </span>
+            {!sidebarCollapsed && <span className="liaison-brand-copy">
+              <strong>Liaison</strong>
+            </span>}
+          </Link>
+        </div>
         <div className="liaison-global-actions">
           <HeaderQuickSettings />
           <HeaderUser />

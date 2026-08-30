@@ -1,15 +1,16 @@
+.audit-protocol-tabs { display: flex; min-height: 38px; align-items: stretch; gap: 22px; overflow-x: auto; border-bottom: 1px solid rgb(var(--line) / 0.66); scrollbar-width: thin; }
+.audit-protocol-tabs button { position: relative; flex: 0 0 auto; border: 0; padding: 0 2px 10px; background: transparent; color: rgb(var(--muted)); font-size: 11px; font-weight: 620; letter-spacing: 0.01em; cursor: pointer; }
+.audit-protocol-tabs button::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; border-radius: 2px 2px 0 0; background: transparent; content: ''; }
+.audit-protocol-tabs button:hover { color: rgb(var(--ink)); }
+.audit-protocol-tabs button.is-active { color: rgb(var(--ink)); }
+.audit-protocol-tabs button.is-active::after { background: rgb(var(--ink)); }
 .audit-native-filter { gap: 8px; }
 .audit-native-filter .liaison-compound { min-width: 126px; flex: 1 1 126px; }
-.audit-native-filter .audit-native-time { min-width: 210px; flex-basis: 210px; }
+.audit-native-filter .audit-native-time { min-width: 360px; flex: 1.7 1 360px; }
 .audit-native-filter .liaison-filter-actions { flex: 0 0 auto; }
-.audit-native-expand { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid rgb(var(--line) / 0.7); border-radius: 8px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
-.audit-native-object { display: grid; gap: 3px; }
-.audit-native-object strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; }
-.audit-native-object small { overflow: hidden; color: rgb(var(--muted)); font-size: 10px; text-overflow: ellipsis; }
-.audit-native-detail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; border-top: 1px solid rgb(var(--line) / 0.55); padding: 14px 16px; background: rgb(var(--panel) / 0.55); }
-.audit-native-detail > div { display: grid; min-width: 0; gap: 5px; }
-.audit-native-detail span { color: rgb(var(--muted)); font-size: 10px; }
-.audit-native-detail code, .audit-native-detail strong { overflow: hidden; color: rgb(var(--ink)); font-size: 11px; text-overflow: ellipsis; }
-.audit-native-detail .is-full { grid-column: 1 / -1; }
-.audit-native-detail pre { max-height: 160px; overflow: auto; margin: 0; border-radius: var(--control-radius); padding: 10px; background: rgb(var(--canvas)); color: rgb(var(--ink)); font-size: 10px; }
-@media (max-width: 800px) { .audit-native-detail { grid-template-columns: 1fr; } .audit-native-detail .is-full { grid-column: auto; } }
+.audit-ssh-user, .audit-native-reference { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-ssh-user { font-size: 10px; font-weight: 580; }
+.audit-native-reference { color: rgb(var(--ink) / 0.82); font-size: 10px; }
+.audit-native-statement { display: block; width: 100%; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-status-note { color: rgb(var(--muted)); font-size: 10px; font-weight: 450; }
+.audit-status-hint { display: inline-flex; cursor: help; }

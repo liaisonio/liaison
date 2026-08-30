@@ -17,6 +17,8 @@ type Proxy struct {
 	Dst string
 	// 应用类型（用于决定使用 HTTP 还是 TCP 代理）
 	ApplicationType string
+	// 访问协议决定数据面终止或透传哪一种协议。
+	AccessProtocol string
 	// 是否使用 HTTPS（仅对 HTTP 应用有效）
 	UseHTTPS bool
 }

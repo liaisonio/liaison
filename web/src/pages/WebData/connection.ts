@@ -27,20 +27,25 @@ export const connectionSubtitle = (credential: API.WebDataCredential) => {
   return credential.database || 'default';
 };
 
-export const connectionMeta = (credential: API.WebDataCredential) => {
+export const connectionMeta = (
+  credential: API.WebDataCredential,
+  tr: (zh: string, en: string) => string = (_zh, en) => en,
+) => {
   const items = [
-    credential.username ? `user: ${credential.username}` : 'no user',
+    credential.username
+      ? `${tr('用户', 'User')}：${credential.username}`
+      : tr('无用户名', 'No user'),
   ];
   if (credential.protocol === 'redis') {
-    items.splice(1, 0, `db: ${credential.redis_db ?? 0}`);
+    items.splice(1, 0, `${tr('数据库', 'DB')}：${credential.redis_db ?? 0}`);
   } else if (credential.database) {
-    items.splice(1, 0, `db: ${credential.database}`);
+    items.splice(1, 0, `${tr('数据库', 'DB')}：${credential.database}`);
   }
   if (isSQLProtocol(credential.protocol)) {
     items.push(
       credential.tls_mode && credential.tls_mode !== 'disable'
         ? `TLS: ${credential.tls_mode}`
-        : 'TLS: off',
+        : `TLS：${tr('关闭', 'Off')}`,
     );
     if (credential.schema) {
       items.push(`schema: ${credential.schema}`);
@@ -50,7 +55,7 @@ export const connectionMeta = (credential: API.WebDataCredential) => {
     items.push(
       credential.tls_mode && credential.tls_mode !== 'disable'
         ? `TLS: ${credential.tls_mode}`
-        : 'TLS: off',
+        : `TLS：${tr('关闭', 'Off')}`,
     );
   }
   if (credential.protocol === 'mongodb') {
@@ -63,7 +68,7 @@ export const connectionMeta = (credential: API.WebDataCredential) => {
     items.push(
       credential.tls_mode && credential.tls_mode !== 'disable'
         ? `TLS: ${credential.tls_mode}`
-        : 'TLS: off',
+        : `TLS：${tr('关闭', 'Off')}`,
     );
   }
   if (credential.connection_params) {

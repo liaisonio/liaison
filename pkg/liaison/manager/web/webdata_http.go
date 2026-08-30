@@ -2947,7 +2947,7 @@ func webDataHTTPStatus(err error) int {
 		return http.StatusNotFound
 	}
 	msg := err.Error()
-	if strings.Contains(msg, "仅 MySQL") || strings.Contains(msg, "不能为空") || strings.Contains(msg, "无效") {
+	if strings.Contains(msg, "仅 MySQL") || strings.Contains(msg, "不能为空") || strings.Contains(msg, "无效") || strings.Contains(msg, "不支持") {
 		return http.StatusBadRequest
 	}
 	if strings.Contains(msg, "不可用") || strings.Contains(msg, "离线") || strings.Contains(msg, "禁用") {

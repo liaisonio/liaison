@@ -63,6 +63,7 @@ const DevicePage: React.FC = () => {
     { key: 'memory', title: tr('内存', 'Memory'), width: 90, render: (row) => formatMBSize(row.memory) },
     { key: 'interfaces', title: tr('网卡', 'Interfaces'), width: 220, render: (row) => row.interfaces?.map((item) => `${item.name}: ${(item.ip || []).filter((ip) => !ip.includes(':')).join(', ') || '-'}`).join(' · ') || '-' },
     { key: 'updated', title: tr('更新时间', 'Updated'), width: 150, render: (row) => row.updated_at || '-' },
+    { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
     { key: 'actions', title: tr('操作', 'Actions'), width: 100, render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" onClick={() => void openDetail(row)}>{tr('详情', 'Detail')}</button><button className="liaison-table-link" onClick={() => openEdit(row)}>{tr('编辑', 'Edit')}</button></span> },
   ];
 

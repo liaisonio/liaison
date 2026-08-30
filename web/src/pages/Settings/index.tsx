@@ -1,9 +1,9 @@
-import { Button, Field, Input, Modal, Notice, Segmented } from '@/components/ui';
+import { Button, DangerConfirm, Field, Input, Modal, Notice, Segmented } from '@/components/ui';
 import { APP_NAME } from '@/constants';
 import { useI18n } from '@/i18n';
 import { createAPIToken, listAPITokens, revokeAPIToken } from '@/services/api';
-import { useThemeMode } from '@/store/theme';
-import { Copy, Github, Globe2, Info, KeyRound, Palette, Plus } from 'lucide-react';
+import { ACCENT_PRESETS, useAccentColor, useThemeMode } from '@/store/theme';
+import { Check, Copy, Github, Globe2, Info, KeyRound, Palette, Plus, Sun } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import './index.less';
 
@@ -12,6 +12,7 @@ const GITHUB_URL = 'https://github.com/liaisonio/liaison';
 const SettingsPage: React.FC = () => {
   const { tr, locale, setLocale } = useI18n();
   const { preference, setPreference } = useThemeMode();
+  const { accentId, setAccentId } = useAccentColor();
   const [active, setActive] = useState<'preferences' | 'tokens' | 'about'>('preferences');
   const [tokens, setTokens] = useState<API.APIToken[]>([]);
   const [tokensLoading, setTokensLoading] = useState(false);
@@ -95,8 +96,25 @@ const SettingsPage: React.FC = () => {
         <main className="native-settings-content">
           {active === 'preferences' ? (
             <section className="settings-section settings-preferences">
-              <div className="settings-preference-row"><div className="settings-preference-copy"><Palette size={18} /><div><strong>{tr('主题', 'Theme')}</strong><span>{tr('选择界面外观，系统模式会跟随设备设置。', 'Choose an appearance. System follows your device setting.')}</span></div></div><Segmented value={preference} onChange={setPreference} options={[{ label: tr('跟随系统', 'System'), value: 'system' }, { label: tr('浅色', 'Light'), value: 'light' }, { label: tr('深色', 'Dark'), value: 'dark' }]} /></div>
-              <div className="settings-preference-row"><div className="settings-preference-copy"><Globe2 size={18} /><div><strong>{tr('语言', 'Language')}</strong><span>{tr('切换控制台的显示语言。', 'Switch the language used by the console.')}</span></div></div><Segmented value={locale} onChange={setLocale} options={[{ label: '中文', value: 'zh-CN' }, { label: 'English', value: 'en-US' }]} /></div>
+              <header className="settings-section-heading">
+                <h2>{tr('产品偏好', 'Product preferences')}</h2>
+                <p>{tr('调整当前浏览器中的外观与交互偏好。', 'Customize appearance and interaction preferences for this browser.')}</p>
+              </header>
+              <div className="settings-preference-row">
+                <div className="settings-preference-copy"><Sun size={17} /><div><strong>{tr('主题', 'Theme')}</strong><span>{tr('系统模式会跟随设备外观。', 'System mode follows your device appearance.')}</span></div></div>
+                <Segmented value={preference} onChange={setPreference} options={[{ label: tr('跟随系统', 'System'), value: 'system' }, { label: tr('浅色', 'Light'), value: 'light' }, { label: tr('深色', 'Dark'), value: 'dark' }]} />
+              </div>
+              <div className="settings-preference-row">
+                <div className="settings-preference-copy"><Globe2 size={17} /><div><strong>{tr('语言', 'Language')}</strong><span>{tr('切换控制台的显示语言。', 'Switch the language used by the console.')}</span></div></div>
+                <Segmented value={locale} onChange={setLocale} options={[{ label: '中文', value: 'zh-CN' }, { label: 'English', value: 'en-US' }]} />
+              </div>
+              <div className="settings-accent-section">
+                <div className="settings-preference-copy"><Palette size={17} /><div><strong>{tr('颜色偏好', 'Accent color')}</strong><span>{tr('用于主要按钮、选中态和关键操作。', 'Used for primary actions, selection, and highlights.')}</span></div></div>
+                <div className="settings-accent-options">
+                  {ACCENT_PRESETS.map((preset) => <button key={preset.id} type="button" className={preset.id === accentId ? 'is-active' : ''} title={`${locale === 'zh-CN' ? preset.zh : preset.en} · ${preset.hex}`} onClick={() => setAccentId(preset.id)}><i style={{ backgroundColor: preset.hex }} /><span>{locale === 'zh-CN' ? preset.zh : preset.en}</span>{preset.id === accentId ? <Check size={12} /> : null}</button>)}
+                </div>
+                <div className="settings-accent-preview"><Button variant="primary">{tr('主要按钮', 'Primary button')}</Button><span>{tr('当前选中', 'Selected')}</span><a>{tr('链接文字', 'Link text')}</a></div>
+              </div>
             </section>
           ) : null}
 
@@ -137,7 +155,7 @@ const SettingsPage: React.FC = () => {
       </Modal>
 
       <Modal open={!!revokeTarget} title={tr('撤销 Token', 'Revoke token')} onClose={() => setRevokeTarget(undefined)} width={440} footer={<><Button onClick={() => setRevokeTarget(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={handleRevoke}>{tr('撤销', 'Revoke')}</Button></>}>
-        <p className="native-confirm-copy">{tr('撤销后使用此 Token 的客户端将立即失效。', 'Clients using this token will stop working immediately.')}</p>
+        <DangerConfirm title={tr('确认撤销这个 Token？', 'Revoke this token?')} description={tr('使用此 Token 的客户端将立即失效，此操作无法撤销。', 'Clients using this token will stop working immediately. This cannot be undone.')} />
       </Modal>
     </div>
   );

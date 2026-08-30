@@ -698,7 +698,7 @@ func (web *web) recordWebSSHAudit(target *controlplane.WebSSHTarget, userID uint
 		ProxyName:        target.ProxyName,
 		ApplicationID:    target.ApplicationID,
 		ApplicationName:  target.ApplicationName,
-		Protocol:         "ssh",
+		Protocol:         "webssh",
 		Action:           action,
 		Database:         username,
 		StatementPreview: webDataStatementPreview(statement),

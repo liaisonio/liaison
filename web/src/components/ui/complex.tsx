@@ -94,7 +94,7 @@ function FormRoot({ form, onFinish, children, className = '' }: any) {
   );
 }
 
-function FormItem({ name, label, extra, children, valuePropName = 'value', rules = [] }: any) {
+function FormItem({ name, label, extra, children, valuePropName = 'value', rules = [], className = '' }: any) {
   const form = useContext(FormContext);
   const [, render] = useState(0);
   useEffect(() => form?.subscribe(() => render((value) => value + 1)), [form]);
@@ -115,7 +115,7 @@ function FormItem({ name, label, extra, children, valuePropName = 'value', rules
         },
       })
     : child;
-  return <label className="liaison-field"><span className="liaison-field-label">{required ? <i>*</i> : null}{label}</span>{controlled}{extra ? <small>{extra}</small> : null}</label>;
+  return <label className={`liaison-field ${className}`.trim()}><span className="liaison-field-label">{required ? <i>*</i> : null}{label}</span>{controlled}{extra ? <small>{extra}</small> : null}</label>;
 }
 
 export const Form: any = Object.assign(FormRoot, {
@@ -162,9 +162,9 @@ export function Table({ columns = [], dataSource = [], rowKey, className = '', e
   return <div className={`liaison-table-scroll ${className}`.trim()}><table className="liaison-table"><thead><tr>{expandable ? <th aria-label="Expand" /> : null}{columns.map((column: any, index: number) => <th key={column.key || column.dataIndex || index} style={{ width: column.width }}>{column.title}</th>)}</tr></thead><tbody>{dataSource.map((row: any, rowIndex: number) => { const rawKey = keyOf(row, rowIndex); const key = String(rawKey); const canExpand = expandable?.rowExpandable ? expandable.rowExpandable(row) : Boolean(expandable); const expanded = expandedKeys.has(key); return <React.Fragment key={key}><tr>{expandable ? <td><button type="button" className="liaison-row-expand" disabled={!canExpand} onClick={() => setExpandedKeys((current) => { const next = new Set(current); expanded ? next.delete(key) : next.add(key); return next; })}>{expanded ? '−' : '+'}</button></td> : null}{columns.map((column: any, colIndex: number) => { const value = row[column.dataIndex]; return <td key={column.key || column.dataIndex || colIndex}>{column.render ? column.render(value, row, rowIndex) : String(value ?? '')}</td>; })}</tr>{expanded ? <tr><td colSpan={columns.length + 1} className="liaison-expanded-row">{expandable.expandedRowRender(row)}</td></tr> : null}</React.Fragment>; })}</tbody></table></div>;
 }
 
-function ModalRoot({ open, title, onCancel, onOk, confirmLoading, okText = 'OK', cancelText = 'Cancel', footer, children, width }: any) {
+function ModalRoot({ open, title, onCancel, onOk, confirmLoading, okText = 'OK', cancelText = 'Cancel', footer, children, width, className }: any) {
   const modalFooter = footer === null ? undefined : footer || <div className="liaison-modal-actions"><NativeButton onClick={onCancel}>{cancelText}</NativeButton><NativeButton variant="primary" loading={confirmLoading} onClick={onOk}>{okText}</NativeButton></div>;
-  return <NativeModal open={open} title={title} onClose={onCancel} footer={modalFooter} width={width}>{children}</NativeModal>;
+  return <NativeModal open={open} title={title} onClose={onCancel} footer={modalFooter} width={width} className={className}>{children}</NativeModal>;
 }
 export const Modal: any = Object.assign(ModalRoot, {
   confirm: ({ title, content, onOk }: any) => {

@@ -50,11 +50,11 @@ func detectApplicationTypeByPort(port int) string {
 }
 
 func (cp *controlPlane) CreateApplication(_ context.Context, req *v1.CreateApplicationRequest) (*v1.CreateApplicationResponse, error) {
-	name := strings.TrimSpace(req.Name)
-	ip := strings.TrimSpace(req.Ip)
-	if name == "" {
-		return nil, badRequest("APPLICATION_NAME_REQUIRED", "应用名称不能为空")
+	name, err := normalizeResourceName(req.Name, "App")
+	if err != nil {
+		return nil, err
 	}
+	ip := strings.TrimSpace(req.Ip)
 	if !isValidApplicationHost(ip) {
 		return nil, badRequest("APPLICATION_IP_INVALID", "请输入合法的应用 IPv4、localhost 或主机名")
 	}
@@ -62,7 +62,7 @@ func (cp *controlPlane) CreateApplication(_ context.Context, req *v1.CreateAppli
 		return nil, badRequest("EDGE_ID_REQUIRED", "连接器不能为空")
 	}
 	// 验证 edge 是否存在
-	_, err := cp.repo.GetEdge(req.EdgeId)
+	_, err = cp.repo.GetEdge(req.EdgeId)
 	if err != nil {
 		return nil, mapRecordNotFound(err, "EDGE_NOT_FOUND", "连接器不存在")
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 
@@ -345,20 +346,29 @@ func (web *web) Login(ctx context.Context, req *v1.LoginRequest) (*v1.LoginRespo
 
 	resp, err := web.iamService.Login(iamReq, loginIP)
 	if err != nil {
+		statusCode := http.StatusInternalServerError
 		// 根据错误类型返回适当的 HTTP 状态码
 		errMsg := err.Error()
 		if errMsg == "invalid password" || errMsg == "密码错误" {
+			statusCode = http.StatusUnauthorized
+			web.recordLoginManagementAudit(ctx, req.Email, 0, loginIP, false, statusCode)
 			return nil, kratoserrors.New(401, "INVALID_PASSWORD", "密码错误")
 		}
 		if errMsg == "user not found" || errMsg == "用户不存在" {
+			statusCode = http.StatusUnauthorized
+			web.recordLoginManagementAudit(ctx, req.Email, 0, loginIP, false, statusCode)
 			return nil, kratoserrors.New(401, "USER_NOT_FOUND", "用户不存在")
 		}
 		if errMsg == "user account is disabled" || errMsg == "用户账户已禁用" {
+			statusCode = http.StatusForbidden
+			web.recordLoginManagementAudit(ctx, req.Email, 0, loginIP, false, statusCode)
 			return nil, kratoserrors.New(403, "ACCOUNT_DISABLED", "用户账户已禁用")
 		}
+		web.recordLoginManagementAudit(ctx, req.Email, 0, loginIP, false, statusCode)
 		// 其他错误返回 500
 		return nil, err
 	}
+	web.recordLoginManagementAudit(ctx, resp.User.Email, resp.User.ID, loginIP, true, http.StatusOK)
 
 	// 转换响应类型
 	userV1 := &v1.User{

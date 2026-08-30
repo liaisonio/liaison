@@ -18,9 +18,9 @@ import (
 )
 
 func (cp *controlPlane) CreateEdge(_ context.Context, req *v1.CreateEdgeRequest) (*v1.CreateEdgeResponse, error) {
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return nil, badRequest("EDGE_NAME_REQUIRED", "连接器名称不能为空")
+	name, err := normalizeResourceName(req.Name, "Connector")
+	if err != nil {
+		return nil, err
 	}
 	// 在事务中创建edge和ak/sk
 	tx := cp.repo.Begin()
@@ -32,7 +32,7 @@ func (cp *controlPlane) CreateEdge(_ context.Context, req *v1.CreateEdgeRequest)
 		Online:      model.EdgeOnlineStatusOffline,
 	}
 
-	err := tx.CreateEdge(edge)
+	err = tx.CreateEdge(edge)
 	if err != nil {
 		tx.Rollback()
 		return nil, err
