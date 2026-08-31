@@ -345,6 +345,7 @@ export async function executeWebDataStatement(
     {
       method: 'POST',
       data: { statement },
+      preserveLoginOnUnauthorized: true,
     },
   );
 }
@@ -355,6 +356,7 @@ export async function getWebDataMetadata(token: string) {
     `/api/v1/webdata/sessions/${token}/metadata`,
     {
       method: 'GET',
+      preserveLoginOnUnauthorized: true,
     },
   );
 }
@@ -369,6 +371,7 @@ export async function getWebDataObject(
     {
       method: 'GET',
       params,
+      preserveLoginOnUnauthorized: true,
     },
   );
 }
@@ -421,6 +424,7 @@ export async function getManagementAuditList(params?: API.ManagementAuditListPar
 export async function deleteWebDataSession(token: string) {
   return request<API.Response>(`/api/v1/webdata/sessions/${token}`, {
     method: 'DELETE',
+    preserveLoginOnUnauthorized: true,
   });
 }
 

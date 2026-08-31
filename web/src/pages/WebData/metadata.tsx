@@ -1,4 +1,5 @@
 import { Tooltip } from '@/components/ui/complex';
+import { Braces, Columns3, Database, KeyRound, Table2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { MetadataSummary, MetadataTreeNode } from './types';
 
@@ -70,20 +71,25 @@ export const mapMetadataTree = (
   }));
 
 export const renderNodeTitle = (node: API.WebDataMetadataNode) => {
-  const icon =
-    node.type === 'table' || node.type === 'collection'
-      ? '▦'
-      : node.type === 'column'
-      ? '·'
-      : node.type === 'key'
-      ? '◆'
+  const Icon = node.type === 'database'
+    ? Database
+    : node.type === 'table'
+      ? Table2
+      : node.type === 'collection'
+        ? Braces
+        : node.type === 'key'
+          ? KeyRound
+          : Columns3;
+  const distinctValue =
+    node.value && node.value.trim().toLowerCase() !== node.title.trim().toLowerCase()
+      ? node.value
       : '';
-  const label = `${icon ? `${icon} ` : ''}${node.title}${
-    node.value ? ` (${node.value})` : ''
+  const label = `${node.title}${
+    distinctValue ? ` (${distinctValue})` : ''
   }`;
   return (
     <Tooltip title={label}>
-      <span className="webdata-tree-title">{label}</span>
+      <span className="webdata-tree-title"><Icon size={13} />{label}</span>
     </Tooltip>
   );
 };

@@ -9,6 +9,7 @@ type RequestOptions = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   skipErrorHandler?: boolean;
+  preserveLoginOnUnauthorized?: boolean;
 };
 
 export class RequestError extends Error {
@@ -78,7 +79,11 @@ export async function request<T>(
       payload && typeof payload === 'object' && 'message' in payload
         ? String((payload as { message?: unknown }).message || `HTTP ${response.status}`)
         : `HTTP ${response.status}`;
-    if (response.status === 401 && !path.endsWith('/iam/login')) {
+    if (
+      response.status === 401 &&
+      !path.endsWith('/iam/login') &&
+      !options.preserveLoginOnUnauthorized
+    ) {
       useSession.getState().clear();
       history.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
     }
@@ -90,7 +95,8 @@ export async function request<T>(
     typeof payload === 'object' &&
     'code' in payload &&
     Number((payload as { code?: unknown }).code) === 401 &&
-    !path.endsWith('/iam/login')
+    !path.endsWith('/iam/login') &&
+    !options.preserveLoginOnUnauthorized
   ) {
     useSession.getState().clear();
     history.replace('/login');

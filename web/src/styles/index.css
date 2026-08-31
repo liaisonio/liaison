@@ -411,6 +411,8 @@ button {
 .liaison-drawer { position: absolute; top: 12px; right: 12px; width: min(520px, calc(92vw - 24px)); height: calc(100% - 24px); overflow: hidden; border: 1px solid rgb(var(--line)); border-radius: var(--dialog-radius); background: rgb(var(--surface)); box-shadow: -18px 0 50px rgb(0 0 0 / 0.16); }
 .liaison-drawer > header { display: flex; height: 62px; align-items: center; justify-content: space-between; padding: 0 20px; }
 .liaison-drawer > header h2 { margin: 0; font-size: 15px; }
+.liaison-drawer-heading { display: flex; min-width: 0; flex: 1; align-items: center; justify-content: space-between; gap: 12px; }
+.liaison-drawer-extra { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .liaison-drawer > header button { display: grid; width: 30px; height: 30px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
 .liaison-drawer > div, .liaison-drawer-body { height: calc(100% - 62px); overflow-y: auto; padding: 4px 20px 20px; }
 .liaison-drawer > footer { display: flex; justify-content: flex-end; padding: 10px 20px 18px; }
@@ -538,10 +540,14 @@ button {
 .liaison-descriptions { display: grid; grid-template-columns: minmax(100px, auto) 1fr; margin: 0; font-size: 11px; }
 .liaison-descriptions :is(dt, dd) { margin: 0; border-bottom: 1px solid rgb(var(--line) / 0.5); padding: 9px 0; }
 .liaison-descriptions dt { color: rgb(var(--muted)); }
-.liaison-tree ul { margin: 0; padding-left: 15px; list-style: none; }
+.liaison-tree ul { margin: 0; padding-left: 16px; list-style: none; }
 .liaison-tree > ul { padding-left: 0; }
-.liaison-tree button { width: 100%; min-height: 28px; overflow: hidden; border: 0; border-radius: 8px; padding: 0 7px; background: transparent; color: rgb(var(--ink)); font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.liaison-tree button:hover { background: rgb(var(--panel)); }
+.liaison-tree-row { display: flex; align-items: center; min-width: 0; min-height: 27px; border-radius: 6px; color: rgb(var(--ink)); }
+.liaison-tree-row:hover { background: rgb(var(--canvas)); }
+.liaison-tree-row.is-selected { background: rgb(var(--accent) / .09); color: rgb(var(--accent)); }
+.liaison-tree .liaison-tree-toggle { display: grid; flex: 0 0 22px; width: 22px; min-height: 27px; place-items: center; overflow: visible; border: 0; padding: 0; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
+.liaison-tree-toggle-placeholder { flex: 0 0 22px; width: 22px; }
+.liaison-tree .liaison-tree-label { flex: 1; width: auto; min-width: 0; min-height: 27px; overflow: hidden; border: 0; padding: 0 6px 0 0; background: transparent; color: inherit; font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .liaison-spin-wrap { position: relative; }
 .liaison-spin-wrap.is-spinning { opacity: 0.7; }
 .ui-spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgb(var(--line)); border-top-color: currentColor; border-radius: 50%; animation: liaison-spin 700ms linear infinite; }
@@ -1106,6 +1112,16 @@ button {
   padding: 18px 24px 4px;
 }
 
+.liaison-page-header.is-context-only {
+  min-height: 0;
+  padding-top: 12px;
+  padding-bottom: 0;
+}
+
+.liaison-page-header.is-context-only .liaison-page-back {
+  margin-bottom: 0;
+}
+
 .liaison-header-user {
   position: relative;
 }
@@ -1146,6 +1162,21 @@ button {
 
 .liaison-page-header-copy {
   min-width: 0;
+}
+
+.liaison-page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 7px;
+  color: rgb(var(--muted));
+  font-size: 11px;
+  font-weight: 560;
+  text-decoration: none;
+}
+
+.liaison-page-back:hover {
+  color: rgb(var(--ink));
 }
 
 .liaison-page-header h1 {

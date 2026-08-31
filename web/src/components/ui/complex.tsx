@@ -1,4 +1,4 @@
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import React, {
   Children,
   cloneElement,
@@ -174,15 +174,89 @@ export const Modal: any = Object.assign(ModalRoot, {
   },
 });
 
-export function Drawer({ open, title, onClose, footer, children, width = 560 }: any) {
+export function Drawer({ open, title, onClose, footer, children, width = 560, className = '', extra }: any) {
   if (!open) return null;
-  return <div className="liaison-drawer-root"><button className="liaison-drawer-mask" onClick={onClose} /><aside className="liaison-drawer" style={{ width }}><header><h2>{title}</h2><button onClick={onClose}><X size={19} /></button></header><div className="liaison-drawer-body">{children}</div>{footer ? <footer>{footer}</footer> : null}</aside></div>;
+  return <div className={`liaison-drawer-root ${className}`.trim()}><button className="liaison-drawer-mask" onClick={onClose} aria-label="Close" /><aside className="liaison-drawer" style={{ width }}><header><div className="liaison-drawer-heading"><h2>{title}</h2>{extra ? <div className="liaison-drawer-extra">{extra}</div> : null}</div><button onClick={onClose} aria-label="Close"><X size={19} /></button></header><div className="liaison-drawer-body">{children}</div>{footer ? <footer>{footer}</footer> : null}</aside></div>;
 }
 
 export function Collapse({ items = [] }: any) { return <div className="liaison-collapse">{items.map((item: any) => <details key={item.key}><summary>{item.label}<ChevronDown size={16} /></summary><div>{item.children}</div></details>)}</div>; }
 export function Tabs({ items = [] }: any) { const [active, setActive] = useState(items[0]?.key); const item = items.find((entry: any) => entry.key === active) || items[0]; return <div className="liaison-tabs"><nav>{items.map((entry: any) => <button key={entry.key} className={entry.key === item?.key ? 'is-active' : ''} onClick={() => setActive(entry.key)}>{entry.label}</button>)}</nav><div>{item?.children}</div></div>; }
 export function Descriptions({ items = [] }: any) { return <dl className="liaison-descriptions">{items.map((item: any) => <React.Fragment key={item.key}><dt>{item.label}</dt><dd>{item.children}</dd></React.Fragment>)}</dl>; }
-export function Tree({ treeData = [], onSelect }: any) { const render = (nodes: any[]) => <ul>{nodes.map((node) => <li key={node.key}><button onClick={() => onSelect?.([node.key], { node })}>{node.title}</button>{node.children?.length ? render(node.children) : null}</li>)}</ul>; return <div className="liaison-tree">{render(treeData)}</div>; }
+export function Tree({
+  treeData = [],
+  onSelect,
+  selectedKeys = [],
+  defaultExpandAll = false,
+  defaultExpandedKeys = [],
+}: any) {
+  const allExpandableKeys = useMemo(() => {
+    const keys: string[] = [];
+    const walk = (nodes: any[]) => nodes.forEach((node) => {
+      if (node.children?.length) {
+        keys.push(String(node.key));
+        walk(node.children);
+      }
+    });
+    walk(treeData);
+    return keys;
+  }, [treeData]);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
+    () => new Set((defaultExpandAll ? allExpandableKeys : defaultExpandedKeys).map(String)),
+  );
+  const defaultsAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (defaultExpandAll) {
+      setExpandedKeys(new Set(allExpandableKeys));
+      defaultsAppliedRef.current = true;
+    } else if (!defaultsAppliedRef.current && defaultExpandedKeys.length) {
+      defaultsAppliedRef.current = true;
+      setExpandedKeys(new Set(defaultExpandedKeys.map(String)));
+    }
+  }, [defaultExpandAll, defaultExpandedKeys, allExpandableKeys]);
+
+  const toggle = (key: string) => setExpandedKeys((current) => {
+    const next = new Set(current);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
+  const selected = new Set(selectedKeys.map(String));
+  const render = (nodes: any[]) => (
+    <ul>
+      {nodes.map((node) => {
+        const key = String(node.key);
+        const expandable = Boolean(node.children?.length);
+        const expanded = expandedKeys.has(key);
+        return (
+          <li key={key}>
+            <div className={`liaison-tree-row${selected.has(key) ? ' is-selected' : ''}`}>
+              {expandable ? (
+                <button
+                  type="button"
+                  className="liaison-tree-toggle"
+                  aria-label={expanded ? 'Collapse' : 'Expand'}
+                  aria-expanded={expanded}
+                  onClick={() => toggle(key)}
+                >
+                  {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                </button>
+              ) : <span className="liaison-tree-toggle-placeholder" />}
+              <button
+                type="button"
+                className="liaison-tree-label"
+                onClick={() => onSelect?.([node.key], { node })}
+              >
+                {node.title}
+              </button>
+            </div>
+            {expandable && expanded ? render(node.children) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+  return <div className="liaison-tree">{render(treeData)}</div>;
+}
 
 const Text = ({ children, strong, type, className = '' }: any) => <span className={`${strong ? 'is-strong' : ''} ${type === 'secondary' ? 'is-secondary' : ''} ${type === 'danger' ? 'is-danger-text' : ''} ${className}`.trim()}>{children}</span>;
 const Title = ({ children, level = 2, className = '' }: any) => React.createElement(`h${Math.min(6, Math.max(1, level))}`, { className }, children);

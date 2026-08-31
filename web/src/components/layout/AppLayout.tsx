@@ -3,6 +3,7 @@ import { useI18n } from '@/i18n';
 import { getCurrentUser } from '@/services/api';
 import { useSession } from '@/store/session';
 import { useUi } from '@/store/ui';
+import { ArrowLeft } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { HeaderQuickSettings } from './HeaderQuickSettings';
@@ -85,7 +86,30 @@ export function AppLayout() {
       ),
     },
   };
-  const page = pages[location.pathname];
+  const page = location.pathname.startsWith('/webdata/')
+    ? {
+        title: tr('数据访问', 'Data access'),
+        description: tr('数据库连接与查询控制台', 'Database connection and query console'),
+      }
+    : pages[location.pathname];
+  const webDataRoute = location.pathname.match(
+    /^\/webdata\/(\d+)(?:\/connections\/(\d+))?$/,
+  );
+  const isWebDataPage = Boolean(webDataRoute);
+  const webDataReturn = (() => {
+    if (!webDataRoute) return undefined;
+    if (webDataRoute[2]) {
+      return {
+        href: `/webdata/${webDataRoute[1]}${location.search}`,
+        label: tr('返回连接', 'Back to connections'),
+      };
+    }
+    const from = new URLSearchParams(location.search).get('from') || '';
+    return {
+      href: from.startsWith('/proxy') && !from.startsWith('//') ? from : '/proxy',
+      label: tr('返回访问', 'Back to access'),
+    };
+  })();
 
   const fetchUserInfo = useCallback(async () => {
     const response = await getCurrentUser();
@@ -170,10 +194,22 @@ export function AppLayout() {
         <Sidebar />
         <main className="liaison-workspace">
           {page && (
-            <header className="liaison-page-header">
+            <header
+              className={`liaison-page-header${isWebDataPage ? ' is-context-only' : ''}`}
+            >
               <div className="liaison-page-header-copy">
-                <h1>{page.title}</h1>
-                <p>{page.description}</p>
+                {webDataReturn && (
+                  <Link className="liaison-page-back" to={webDataReturn.href}>
+                    <ArrowLeft size={13} />
+                    {webDataReturn.label}
+                  </Link>
+                )}
+                {!isWebDataPage && (
+                  <>
+                    <h1>{page.title}</h1>
+                    <p>{page.description}</p>
+                  </>
+                )}
               </div>
             </header>
           )}

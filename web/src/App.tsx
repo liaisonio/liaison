@@ -81,6 +81,10 @@ export default function App() {
             <Route path="/webssh/:proxyId" element={<WebSSH />} />
             <Route path="/webdesktop/:proxyId" element={<WebDesktop />} />
             <Route path="/webdata/:proxyId" element={<WebData />} />
+            <Route
+              path="/webdata/:proxyId/connections/:credentialId"
+              element={<WebData />}
+            />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
