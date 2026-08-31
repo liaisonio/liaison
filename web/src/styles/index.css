@@ -951,20 +951,21 @@ button {
 .liaison-nav-children {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin: 5px 0 8px;
+  gap: 2px;
+  margin: 4px 0 8px 27px;
 }
 
 .liaison-nav-child {
   display: flex;
-  min-height: 34px;
+  min-height: 29px;
   align-items: center;
-  gap: 8px;
-  border-radius: var(--control-radius);
-  padding: 0 11px 0 42px;
-  color: rgb(var(--muted));
-  font-size: 12px;
+  gap: 7px;
+  border-radius: 7px;
+  padding: 0 10px 0 14px;
+  color: rgb(var(--muted) / 0.9);
+  font-size: 11.5px;
   font-weight: 500;
+  line-height: 1.25;
   text-decoration: none;
   transition: background-color 120ms ease, color 120ms ease;
 }

@@ -16,6 +16,7 @@ import (
 )
 
 type WebDesktopCredential struct {
+	ID         uint   `json:"id"`
 	Saved      bool   `json:"saved"`
 	Protocol   string `json:"protocol"`
 	Username   string `json:"username,omitempty"`
@@ -220,6 +221,7 @@ func (cp *controlPlane) loadWebDesktopCredentials(proxyID, userID uint, protocol
 	credentials := make([]*WebDesktopCredential, 0, len(saved))
 	for _, item := range saved {
 		credential := &WebDesktopCredential{
+			ID:       item.ID,
 			Saved:    true,
 			Protocol: item.Protocol,
 			Username: item.Username,

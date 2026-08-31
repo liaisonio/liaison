@@ -18,9 +18,9 @@ export const protocolWorkspaceCopy = (
     case 'redis':
       return {
         navigatorTitle: tr('键空间', 'Keyspace'),
-        searchPlaceholder: tr('搜索数据库或键', 'Search databases or keys'),
-        editorTitle: tr('Redis 命令', 'Redis Command'),
-        resultTitle: tr('执行结果', 'Execution Result'),
+        searchPlaceholder: tr('搜索键名', 'Search keys'),
+        editorTitle: tr('命令编辑器', 'Command Editor'),
+        resultTitle: tr('命令结果', 'Command Result'),
       };
     case 'mongodb':
       return {

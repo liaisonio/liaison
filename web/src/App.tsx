@@ -79,7 +79,17 @@ export default function App() {
             <Route path="/users" element={<User />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/webssh/:proxyId" element={<WebSSH />} />
+            <Route
+              path="/webssh/:proxyId/connections/:credentialId"
+              element={<WebSSH />}
+            />
+            <Route path="/webssh/:proxyId/session" element={<WebSSH />} />
             <Route path="/webdesktop/:proxyId" element={<WebDesktop />} />
+            <Route
+              path="/webdesktop/:proxyId/connections/:credentialId"
+              element={<WebDesktop />}
+            />
+            <Route path="/webdesktop/:proxyId/session" element={<WebDesktop />} />
             <Route path="/webdata/:proxyId" element={<WebData />} />
             <Route
               path="/webdata/:proxyId/connections/:credentialId"

@@ -23,6 +23,7 @@ type WebSSHHostKey struct {
 }
 
 type WebSSHCredential struct {
+	ID         uint   `json:"id"`
 	Saved      bool   `json:"saved"`
 	Username   string `json:"username,omitempty"`
 	LastUsedAt string `json:"last_used_at,omitempty"`
@@ -276,6 +277,7 @@ func (cp *controlPlane) loadWebSSHCredentials(proxyID, userID uint) ([]*WebSSHCr
 	credentials := make([]*WebSSHCredential, 0, len(saved))
 	for _, item := range saved {
 		credential := &WebSSHCredential{
+			ID:       item.ID,
 			Saved:    true,
 			Username: item.Username,
 		}

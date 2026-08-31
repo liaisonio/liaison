@@ -3,6 +3,7 @@ import React, {
   Children,
   cloneElement,
   createContext,
+  forwardRef,
   isValidElement,
   ReactNode,
   useContext,
@@ -138,7 +139,20 @@ function TextInput({ prefix, onPressEnter, size: _size, autoSize: _autoSize, ...
   return prefix ? <span className="liaison-input-wrap">{prefix}{input}</span> : input;
 }
 function PasswordInput(props: any) { return <TextInput {...props} type="password" />; }
-function TextAreaInput({ autoSize: _autoSize, onPressEnter, ...props }: any) { return <textarea {...props} className={`liaison-input liaison-textarea ${props.className || ''}`.trim()} onKeyDown={(event) => { props.onKeyDown?.(event); if (event.key === 'Enter') onPressEnter?.(event); }} />; }
+const TextAreaInput = forwardRef<HTMLTextAreaElement, any>(
+  ({ autoSize: _autoSize, onPressEnter, ...props }, ref) => (
+    <textarea
+      {...props}
+      ref={ref}
+      className={`liaison-input liaison-textarea ${props.className || ''}`.trim()}
+      onKeyDown={(event) => {
+        props.onKeyDown?.(event);
+        if (event.key === 'Enter') onPressEnter?.(event);
+      }}
+    />
+  ),
+);
+TextAreaInput.displayName = 'TextAreaInput';
 export const Input: any = Object.assign(TextInput, { Password: PasswordInput, TextArea: TextAreaInput });
 export const InputNumber = ({ min, max, precision: _precision, onChange, ...props }: any) => <TextInput {...props} type="number" min={min} max={max} onChange={(event: React.ChangeEvent<HTMLInputElement>) => onChange?.(event.target.value === '' ? undefined : Number(event.target.value))} />;
 

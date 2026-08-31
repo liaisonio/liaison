@@ -1,5 +1,15 @@
 import { Tooltip } from '@/components/ui/complex';
-import { Braces, Columns3, Database, KeyRound, Table2 } from 'lucide-react';
+import {
+  Braces,
+  Columns3,
+  Database,
+  KeyRound,
+  Layers3,
+  List,
+  Table2,
+  Type,
+  Waves,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { MetadataSummary, MetadataTreeNode } from './types';
 
@@ -52,6 +62,56 @@ export const summarizeMetadata = (
   return summary;
 };
 
+export const buildRedisMetadataView = (
+  nodes: API.WebDataMetadataNode[],
+  database = 0,
+): API.WebDataMetadataNode[] => {
+  const keys: API.WebDataMetadataNode[] = [];
+  const collectKeys = (items: API.WebDataMetadataNode[]) => {
+    items.forEach((node) => {
+      if (node.type === 'key') keys.push(node);
+      if (node.children?.length) collectKeys(node.children);
+    });
+  };
+  collectKeys(nodes);
+
+  const grouped = new Map<string, API.WebDataMetadataNode[]>();
+  keys.forEach((node) => {
+    const type = String(node.value || 'key').split(/\s+/)[0].toLowerCase();
+    const label = {
+      string: 'String',
+      hash: 'Hash',
+      list: 'List',
+      set: 'Set',
+      zset: 'Sorted Set',
+      stream: 'Stream',
+    }[type] || 'Other';
+    const ttl = String(node.value || '').match(/ttl=(.+)$/)?.[1];
+    const item = { ...node, value: ttl ? `TTL ${ttl}` : undefined };
+    grouped.set(label, [...(grouped.get(label) || []), item]);
+  });
+
+  const typeOrder = ['String', 'Hash', 'List', 'Set', 'Sorted Set', 'Stream', 'Other'];
+  const children = typeOrder
+    .filter((label) => grouped.has(label))
+    .map((label) => ({
+      key: `redis-db-${database}-${label.toLowerCase().replace(/\s+/g, '-')}`,
+      title: label,
+      type: 'group',
+      children: (grouped.get(label) || []).sort((a, b) =>
+        a.title.localeCompare(b.title),
+      ),
+    }));
+
+  return [{
+    key: `redis-db-${database}`,
+    title: `DB ${database}`,
+    type: 'database',
+    meta: { database: String(database) },
+    children,
+  }];
+};
+
 export const summarizeResult = (result?: API.WebDataExecuteResult) => {
   const rows = result?.rows?.length || 0;
   const columns = result?.columns?.length
@@ -71,7 +131,17 @@ export const mapMetadataTree = (
   }));
 
 export const renderNodeTitle = (node: API.WebDataMetadataNode) => {
-  const Icon = node.type === 'database'
+  const redisGroupIcon = node.type === 'group'
+    ? ({
+        String: Type,
+        Hash: Braces,
+        List,
+        Set: Layers3,
+        'Sorted Set': Layers3,
+        Stream: Waves,
+      }[node.title])
+    : undefined;
+  const Icon = redisGroupIcon || (node.type === 'database'
     ? Database
     : node.type === 'table'
       ? Table2
@@ -79,7 +149,7 @@ export const renderNodeTitle = (node: API.WebDataMetadataNode) => {
         ? Braces
         : node.type === 'key'
           ? KeyRound
-          : Columns3;
+          : Columns3);
   const distinctValue =
     node.value && node.value.trim().toLowerCase() !== node.title.trim().toLowerCase()
       ? node.value

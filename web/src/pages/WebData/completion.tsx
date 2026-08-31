@@ -535,7 +535,9 @@ export const renderStatementHighlight = (
 export const getStatementTextArea = (
   ref: any,
 ): HTMLTextAreaElement | undefined =>
-  ref?.resizableTextArea?.textArea || ref?.textArea || ref?.nativeElement;
+  ref instanceof HTMLTextAreaElement
+    ? ref
+    : ref?.resizableTextArea?.textArea || ref?.textArea || ref?.nativeElement;
 
 export const getTextareaCompletionPosition = (
   textarea: HTMLTextAreaElement,

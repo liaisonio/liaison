@@ -1,4 +1,5 @@
 import { useI18n } from '@/i18n';
+import { AuditLogIcon } from '@/components/icons/AuditLogIcon';
 import {
   createWebDataSession,
   deleteWebDataCredential,
@@ -37,7 +38,6 @@ import {
   message,
 } from '@/components/ui/complex';
 import {
-  FileSearch as AuditOutlined,
   CircleCheck as CheckCircleOutlined,
   Clock3 as ClockCircleOutlined,
   Copy as CopyOutlined,
@@ -82,6 +82,7 @@ import {
 import './index.less';
 import {
   buildGenericColumns,
+  buildRedisMetadataView,
   buildObjectParams,
   buildResultColumns,
   editableCellValue,
@@ -326,8 +327,14 @@ const WebDataPage: React.FC = () => {
   }, [connectionForm, proxyId, tr]);
 
   const filteredMetadata = useMemo(
-    () => filterMetadataNodes(metadata, treeSearch),
-    [metadata, treeSearch],
+    () => {
+      const redisDB = target?.credentials?.find((item) => item.id === credentialId)?.redis_db ?? 0;
+      const source = target?.protocol === 'redis'
+        ? buildRedisMetadataView(metadata, redisDB)
+        : metadata;
+      return filterMetadataNodes(source, treeSearch);
+    },
+    [credentialId, metadata, target?.credentials, target?.protocol, treeSearch],
   );
 
   const treeData = useMemo<MetadataTreeNode[]>(
@@ -339,6 +346,9 @@ const WebDataPage: React.FC = () => {
     () => summarizeMetadata(metadata),
     [metadata],
   );
+  const activeRedisDB = target?.credentials?.find(
+    (item) => item.id === credentialId,
+  )?.redis_db ?? 0;
 
   const resultSummary = useMemo(() => summarizeResult(result), [result]);
   const workspaceCopy = useMemo(
@@ -2840,7 +2850,7 @@ const WebDataPage: React.FC = () => {
                 <Button
                   type="link"
                   className="webdata-audit-button"
-                  icon={<AuditOutlined />}
+                  icon={<AuditLogIcon size={14} />}
                   onClick={() => history.push(`/logs/audit?proxy_id=${proxyId}`)}
                 >
                   {tr('审计日志', 'Audit Log')}
@@ -2902,22 +2912,40 @@ const WebDataPage: React.FC = () => {
                   onChange={(event: ChangeEvent<HTMLInputElement>) => setTreeSearch(event.target.value)}
                 />
                 <div className="webdata-object-stats">
-                  <span>
-                    <strong>{metadataSummary.databases}</strong>
-                    {tr('库', 'DB')}
-                  </span>
-                  <span>
-                    <strong>
-                      {metadataSummary.tables +
-                        metadataSummary.collections +
-                        metadataSummary.keys}
-                    </strong>
-                    {tr('对象', 'Objects')}
-                  </span>
-                  <span>
-                    <strong>{metadataSummary.columns}</strong>
-                    {tr('字段', 'Fields')}
-                  </span>
+                  {target?.protocol === 'redis' ? (
+                    <>
+                      <span><strong>DB {activeRedisDB}</strong></span>
+                      <span>
+                        <strong>{metadataSummary.keys}</strong>
+                        {tr('键', 'Keys')}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        <strong>
+                          {target?.protocol === 'postgresql'
+                            ? metadataSummary.schemas
+                            : metadataSummary.databases}
+                        </strong>
+                        {target?.protocol === 'postgresql'
+                          ? 'Schema'
+                          : tr('库', 'DB')}
+                      </span>
+                      <span>
+                        <strong>
+                          {metadataSummary.tables +
+                            metadataSummary.collections +
+                            metadataSummary.keys}
+                        </strong>
+                        {tr('对象', 'Objects')}
+                      </span>
+                      <span>
+                        <strong>{metadataSummary.columns}</strong>
+                        {tr('字段', 'Fields')}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <div className="webdata-object-tree">
                   <Spin spinning={metadataLoading}>
@@ -2962,6 +2990,9 @@ const WebDataPage: React.FC = () => {
                 <div className="webdata-editor-toolbar">
                   <div className="webdata-editor-title">
                     <Text strong>{workspaceCopy.editorTitle}</Text>
+                    {target?.protocol === 'redis' && (
+                      <span className="webdata-editor-context">Redis · DB {activeRedisDB}</span>
+                    )}
                   </div>
                   <Space wrap className="webdata-editor-actions">
                     <Tooltip

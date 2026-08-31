@@ -39,11 +39,12 @@ const (
 )
 
 type createWebSSHSessionRequest struct {
-	Username       string `json:"username"`
-	Password       string `json:"password"`
-	SaveCredential bool   `json:"save_credential"`
-	Cols           int    `json:"cols"`
-	Rows           int    `json:"rows"`
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+	SaveCredential     bool   `json:"save_credential"`
+	UseSavedCredential bool   `json:"use_saved_credential"`
+	Cols               int    `json:"cols"`
+	Rows               int    `json:"rows"`
 }
 
 type createWebSSHSessionResponse struct {
@@ -257,6 +258,11 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
+	if err := validateWebSSHSessionCredentials(req); err != nil {
+		req.Password = ""
+		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": err.Error()})
+		return
+	}
 	cols, rows := normalizeWebSSHSize(req.Cols, req.Rows)
 	ctx := context.WithValue(r.Context(), "user_id", user.ID)
 	target, err := web.controlPlane.GetWebSSHTarget(ctx, proxyID)
@@ -272,10 +278,6 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 	password := []byte(req.Password)
 	savedCredential := false
 	if len(password) == 0 {
-		if req.Username == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "请选择已保存用户或输入密码"})
-			return
-		}
 		credential, err := web.controlPlane.GetWebSSHCredentialSecret(ctx, proxyID, req.Username)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -293,19 +295,6 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 		}
 		req.Username = credential.Username
 		savedCredential = true
-	} else if req.Username == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "SSH 用户名不能为空"})
-		for i := range password {
-			password[i] = 0
-		}
-		return
-	}
-	if req.Username == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "SSH 用户名不能为空"})
-		for i := range password {
-			password[i] = 0
-		}
-		return
 	}
 	saveCredential := req.SaveCredential && !savedCredential
 	if saveCredential && web.credentialKey == nil {
@@ -334,6 +323,16 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 			ExpiresAt: session.expiresAt.Format(time.RFC3339),
 		},
 	})
+}
+
+func validateWebSSHSessionCredentials(req createWebSSHSessionRequest) error {
+	if strings.TrimSpace(req.Username) == "" {
+		return errors.New("SSH 用户名不能为空")
+	}
+	if req.Password == "" && !req.UseSavedCredential {
+		return errors.New("SSH 密码不能为空")
+	}
+	return nil
 }
 
 func (web *web) handleWebSSHCredentialHTTP(w http.ResponseWriter, r *http.Request) {

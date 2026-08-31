@@ -7,6 +7,7 @@ import {
 import {
   APPLICATION_TYPES_CHANGED_EVENT,
 } from '@/constants/applicationTypes';
+import { AuditLogIcon } from '@/components/icons/AuditLogIcon';
 import { useI18n } from '@/i18n';
 import { getProxyList } from '@/services/api';
 import { useUi } from '@/store/ui';
@@ -19,7 +20,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FileClock,
-  FileSearch,
   Gauge,
   Globe2,
   Settings,
@@ -37,10 +37,6 @@ type NavItem = {
 
 const CloudApplicationsIcon = ({ size = 17, className }: LucideProps) => (
   <AppWindow className={className} size={size} strokeWidth={1.8} />
-);
-
-const CloudAuditIcon = ({ size = 17, className }: LucideProps) => (
-  <FileSearch className={className} size={size} strokeWidth={1.8} />
 );
 
 export function Sidebar() {
@@ -221,18 +217,18 @@ export function Sidebar() {
         <nav className="liaison-nav-lower" aria-label={tr('系统', 'System')}>
           {collapsed ? (
             <NavLink to="/logs/management" title={tr('日志与审计', 'Logs & Audit')} className={({ isActive }) => `liaison-nav-item${isActive || location.pathname.startsWith('/logs/') ? ' is-active' : ''}`}>
-              <CloudAuditIcon size={17} />
+              <AuditLogIcon size={17} />
             </NavLink>
           ) : (
             <div className={`liaison-nav-expandable${location.pathname.startsWith('/logs/') ? ' is-active' : ''}`}>
               <button type="button" className="liaison-nav-item liaison-nav-toggle" onClick={() => setLogsOpen((open) => !open)} aria-expanded={logsOpen}>
-                <CloudAuditIcon size={17} />
+                <AuditLogIcon size={17} />
                 <span>{tr('日志与审计', 'Logs & Audit')}</span>
                 <ChevronDown className={`liaison-nav-chevron${logsOpen ? ' is-open' : ''}`} size={15} />
               </button>
               {logsOpen ? <div className="liaison-nav-children">
                 <Link to="/logs/management" className={`liaison-nav-child${location.pathname === '/logs/management' ? ' is-active' : ''}`}><FileClock size={13} /><span>{tr('管理日志', 'Management logs')}</span></Link>
-                <Link to="/logs/audit" className={`liaison-nav-child${location.pathname === '/logs/audit' ? ' is-active' : ''}`}><FileSearch size={13} /><span>{tr('审计日志', 'Audit logs')}</span></Link>
+                <Link to="/logs/audit" className={`liaison-nav-child${location.pathname === '/logs/audit' ? ' is-active' : ''}`}><AuditLogIcon size={13} /><span>{tr('审计日志', 'Audit logs')}</span></Link>
               </div> : null}
             </div>
           )}

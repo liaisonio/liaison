@@ -4,7 +4,7 @@ import SessionWatermark, {
 } from '@/components/SessionWatermark';
 import { Button, Field, Input, Modal, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
-import { history, useModel, useParams, useSearchParams } from '@/lib/runtime';
+import { history, useLocation, useModel, useParams, useSearchParams } from '@/lib/runtime';
 import {
   createWebSSHSession,
   deleteWebSSHCredential,
@@ -14,13 +14,21 @@ import {
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { ArrowLeft, Check, Clock3, Fullscreen, Minimize, PlugZap, Send } from 'lucide-react';
+import { ArrowLeft, Check, Clock3, Fullscreen, LogIn, Minimize, Plus, PlugZap, Send, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.less';
 
 const webSSHHeartbeatIntervalMs = 25_000;
 const webSSHHeartbeatTimeoutMs = 75_000;
 const webSSHOutputFlushDelayMs = 8;
+
+const formatWebSSHTime = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.replace('T', ' ').replace(/Z$/, '');
+  const part = (item: number) => String(item).padStart(2, '0');
+  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())} ${part(date.getHours())}:${part(date.getMinutes())}:${part(date.getSeconds())}`;
+};
 
 const isTerminalAtBottom = (terminal?: Terminal) => {
   if (!terminal) return true;
@@ -32,9 +40,14 @@ const WebSSHPage: React.FC = () => {
   const { tr } = useI18n();
   const { initialState } = useModel('@@initialState');
   const params = useParams();
+  const location = useLocation();
   const [routeSearch] = useSearchParams();
   const proxyId = Number(params.proxyId);
+  const credentialId = Number(params.credentialId || 0);
+  const isTemporarySession = location.pathname.endsWith('/session');
+  const isTerminalView = isTemporarySession || credentialId > 0;
   const [credentials, setCredentials] = useState<API.CreateWebSSHSessionRequest>({ username: '', password: '', save_credential: false });
+  const [pendingSessionCredentials, setPendingSessionCredentials] = useState<API.CreateWebSSHSessionRequest>();
   const watchedUsername = credentials.username;
   const [target, setTarget] = useState<API.WebSSHTarget>();
   const [loading, setLoading] = useState(true);
@@ -61,18 +74,14 @@ const WebSSHPage: React.FC = () => {
   const outputFlushTimerRef = useRef<number>();
   const outputStickToBottomRef = useRef(true);
   const initialCredentialPromptRef = useRef(false);
+  const initialSavedConnectRef = useRef<number>();
   const sessionStartedAtRef = useRef<number>();
 
   const active = target?.effective_status === 'active';
   const savedCredentials = target?.credentials || [];
-  const credentialSaved = savedCredentials.length > 0;
-  const selectedSavedCredential = savedCredentials.some(
-    (item) => item.username === watchedUsername,
+  const selectedSavedCredential = credentialId > 0 && savedCredentials.some(
+    (item) => item.id === credentialId && item.username === watchedUsername,
   );
-  const savedUsernameOptions = savedCredentials.map((item) => ({
-    label: item.username,
-    value: item.username,
-  }));
   const watermarkTime = useSessionWatermarkTime();
   const watermarkUser =
     initialState?.currentUser?.email ||
@@ -116,14 +125,50 @@ const WebSSHPage: React.FC = () => {
   }, []);
 
   const requestedReturnPath = routeSearch.get('from') || '';
-  const returnPath = requestedReturnPath.startsWith('/proxy') && !requestedReturnPath.startsWith('//')
+  const accessReturnPath = requestedReturnPath.startsWith('/proxy') && !requestedReturnPath.startsWith('//')
     ? requestedReturnPath
     : '/proxy?access_type=webssh';
 
+  const connectionListPath = `/webssh/${proxyId}${
+    requestedReturnPath ? `?from=${encodeURIComponent(accessReturnPath)}` : ''
+  }`;
+  const temporarySessionPath = `/webssh/${proxyId}/session${
+    requestedReturnPath ? `?from=${encodeURIComponent(accessReturnPath)}` : ''
+  }`;
+
   const returnToAccess = useCallback(() => {
-    window.close();
-    window.setTimeout(() => history.replace(returnPath), 120);
-  }, [returnPath]);
+    history.push(accessReturnPath);
+  }, [accessReturnPath]);
+
+  const returnToConnections = useCallback(() => {
+    history.push(connectionListPath);
+  }, [connectionListPath]);
+
+  const openNewConnection = useCallback(() => {
+    initialCredentialPromptRef.current = false;
+    setError('');
+    setCredentials({ username: '', password: '', save_credential: false });
+    setCredentialOpen(true);
+  }, []);
+
+  const closeCredentialModal = useCallback(() => {
+    setError('');
+    setCredentialOpen(false);
+    if (isTerminalView) returnToConnections();
+  }, [isTerminalView, returnToConnections]);
+
+  const openSavedConnection = useCallback(
+    (credential: API.WebSSHCredential) => {
+      if (!credential.id) return;
+      initialSavedConnectRef.current = undefined;
+      history.push(
+        `/webssh/${proxyId}/connections/${credential.id}${
+          requestedReturnPath ? `?from=${encodeURIComponent(accessReturnPath)}` : ''
+        }`,
+      );
+    },
+    [accessReturnPath, proxyId, requestedReturnPath],
+  );
 
   const flushTerminalInput = useCallback(() => {
     inputFlushQueuedRef.current = false;
@@ -315,14 +360,24 @@ const WebSSHPage: React.FC = () => {
       if (res.code === 200 && res.data) {
         setTarget(res.data);
         const savedCredentials = res.data.credentials || [];
-        if (savedCredentials.length > 0) {
-          const currentUsername = credentials.username;
-          const username =
-            savedCredentials.find((item) => item.username === currentUsername)
-              ?.username || savedCredentials[0].username;
-          setCredentials({ username, password: '', save_credential: false });
-        } else {
-          setCredentials((value) => ({ ...value, save_credential: false }));
+        if (credentialId > 0) {
+          const selected = savedCredentials.find(
+            (item) => item.id === credentialId,
+          );
+          if (selected?.username) {
+            setCredentials({
+              username: selected.username,
+              password: '',
+              save_credential: false,
+            });
+          } else {
+            setError(
+              tr('保存的 SSH 连接不存在或已删除', 'Saved SSH connection no longer exists'),
+            );
+            return;
+          }
+        } else if (!isTemporarySession) {
+          setCredentials({ username: '', password: '', save_credential: false });
         }
         setError('');
       } else {
@@ -338,7 +393,7 @@ const WebSSHPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [credentials.username, proxyId, tr]);
+  }, [credentialId, isTemporarySession, proxyId, tr]);
 
   useEffect(() => {
     loadTarget();
@@ -346,6 +401,7 @@ const WebSSHPage: React.FC = () => {
 
   useEffect(() => {
     if (
+      isTemporarySession &&
       !loading &&
       active &&
       !connected &&
@@ -354,8 +410,9 @@ const WebSSHPage: React.FC = () => {
       initialCredentialPromptRef.current = true;
       setCredentialOpen(true);
     }
-  }, [active, connected, loading]);
+  }, [active, connected, isTemporarySession, loading]);
   useEffect(() => {
+    if (!isTerminalView) return;
     document.body.classList.add('webssh-page-active');
     const footerElements = Array.from(
       document.querySelectorAll<HTMLElement>(
@@ -378,10 +435,10 @@ const WebSSHPage: React.FC = () => {
         element.style.pointerEvents = pointerEvents;
       });
     };
-  }, []);
+  }, [isTerminalView]);
 
   useEffect(() => {
-    if (!terminalHostRef.current || terminalRef.current) return;
+    if (!isTerminalView || !terminalHostRef.current || terminalRef.current) return;
     const terminal = new Terminal({
       cursorBlink: true,
       convertEol: true,
@@ -426,7 +483,7 @@ const WebSSHPage: React.FC = () => {
       terminalRef.current = undefined;
       fitAddonRef.current = undefined;
     };
-  }, [fitTerminal, scheduleTerminalFit, sendTerminalInput, stopHeartbeat]);
+  }, [fitTerminal, isTerminalView, scheduleTerminalFit, sendTerminalInput, stopHeartbeat]);
 
   const disconnect = useCallback(() => {
     recordSessionEnd();
@@ -469,6 +526,7 @@ const WebSSHPage: React.FC = () => {
     if (!target || !active) return;
     disconnect();
     setSessionDurationSeconds(null);
+    setCredentialOpen(false);
     setConnecting(true);
     setError('');
     fitTerminal(true);
@@ -487,6 +545,7 @@ const WebSSHPage: React.FC = () => {
         username: values.username?.trim(),
         password,
         save_credential: shouldSaveCredential,
+        use_saved_credential: Boolean(credentialId > 0 && !password),
         cols: terminalRef.current?.cols,
         rows: terminalRef.current?.rows,
       });
@@ -586,6 +645,21 @@ const WebSSHPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (
+      !pendingSessionCredentials ||
+      !isTemporarySession ||
+      loading ||
+      !active ||
+      !terminalRef.current
+    ) {
+      return;
+    }
+    const values = pendingSessionCredentials;
+    setPendingSessionCredentials(undefined);
+    void connect(values);
+  }, [active, isTemporarySession, loading, pendingSessionCredentials]);
+
   const resetHostKey = async () => {
     try {
       await deleteWebSSHHostKey(proxyId);
@@ -610,16 +684,242 @@ const WebSSHPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (
+      !isTerminalView ||
+      isTemporarySession ||
+      credentialId <= 0 ||
+      loading ||
+      !active ||
+      connected ||
+      connecting ||
+      initialSavedConnectRef.current === credentialId
+    ) {
+      return;
+    }
+    const saved = target?.credentials?.find((item) => item.id === credentialId);
+    if (!saved?.username) return;
+    initialSavedConnectRef.current = credentialId;
+    void connect({
+      username: saved.username,
+      password: '',
+      save_credential: false,
+    });
+  }, [active, connected, connecting, credentialId, isTemporarySession, isTerminalView, loading, target]);
+
+  const isNewCredentialFlow = !isTerminalView || isTemporarySession;
+  const submitCredentialConnection = () => {
+    const username = credentials.username?.trim();
+    if (!username) {
+      setError(tr('请输入用户名', 'Username is required'));
+      return;
+    }
+    if (!selectedSavedCredential && !credentials.password) {
+      setError(tr('请输入密码', 'Password is required'));
+      return;
+    }
+    const values = { ...credentials, username };
+    if (!isTerminalView) {
+      initialCredentialPromptRef.current = true;
+      setPendingSessionCredentials(values);
+      history.push(temporarySessionPath);
+      return;
+    }
+    void connect(values);
+  };
+
+  const credentialModal = (
+    <Modal
+      title={isNewCredentialFlow
+        ? tr('新建 SSH 连接', 'New SSH Connection')
+        : tr('SSH 连接', 'SSH Connection')}
+      open={credentialOpen}
+      width={400}
+      className="webssh-credential-modal"
+      closeOnMask={!connecting}
+      onClose={closeCredentialModal}
+    >
+      {error && (
+        <Notice tone="danger">{error}{error.includes('指纹变化') ? <Button variant="danger" onClick={resetHostKey}>{tr('重置指纹', 'Reset fingerprint')}</Button> : null}</Notice>
+      )}
+
+      <form className="webssh-native-form" onSubmit={(event) => { event.preventDefault(); submitCredentialConnection(); }}>
+        <Field label={tr('用户名', 'Username')} required>
+          <Input autoFocus autoComplete="username" value={credentials.username || ''} onChange={(event) => setCredentials((value) => ({ ...value, username: event.target.value }))} placeholder={tr('输入 SSH 用户名', 'Enter SSH username')} />
+        </Field>
+        <Field label={tr('密码', 'Password')} required={isNewCredentialFlow}>
+          <Input type="password" autoComplete="new-password" value={credentials.password || ''} onChange={(event) => { const password = event.target.value; setCredentials((value) => ({ ...value, password })); }} placeholder={selectedSavedCredential ? tr('密码已保存，留空直接连接', 'Password saved; leave blank to connect') : tr('输入 SSH 密码', 'Enter SSH password')} />
+        </Field>
+
+        <div className="webssh-credential-options">
+          {selectedSavedCredential && !credentials.password ? (
+            <span className="webssh-credential-saved"><Check size={13} />{tr('密码已保存', 'Password saved')}</span>
+          ) : (
+            <label className="liaison-checkbox"><input type="checkbox" checked={Boolean(credentials.save_credential)} onChange={(event) => setCredentials((value) => ({ ...value, save_credential: event.target.checked }))} /><span>
+                {selectedSavedCredential
+                  ? tr('更新保存密码', 'Update saved password')
+                  : tr('保存密码', 'Save password')}
+              </span></label>
+          )}
+          {selectedSavedCredential && (
+              <Button variant="ghost" disabled={connecting || connected} onClick={() => { if (window.confirm(tr('清除当前用户保存密码？', 'Clear saved password for this user?'))) void clearCredential(); }}>
+                {tr('清除保存密码', 'Clear saved password')}
+              </Button>
+          )}
+        </div>
+
+        <div className="webssh-credential-actions">
+          <Button
+            onClick={closeCredentialModal}
+            disabled={connecting}
+          >
+            {tr('取消', 'Cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={!active || loading || connecting}
+          >
+            <Send size={14} />
+            {tr('连接', 'Connect')}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+
+  if (!isTerminalView) {
+    const savedCredentials = target?.credentials || [];
+    return (
+      <section className="webssh-connections-page">
+        <div className="webssh-connections-header">
+          <button
+            type="button"
+            className="webssh-connections-back"
+            onClick={returnToAccess}
+          >
+            <ArrowLeft size={14} />
+            {tr('返回访问', 'Back to access')}
+          </button>
+          <nav className="webssh-connections-breadcrumb" aria-label={tr('页面层级', 'Breadcrumb')}>
+            <span>{tr('访问', 'Access')}</span><i>/</i>
+            <span>Web SSH</span><i>/</i>
+            <strong>{target?.proxy_name || tr('连接', 'Connections')}</strong>
+          </nav>
+          {target && (
+            <span className="webssh-connections-target">
+              {target.target_host}:{target.target_port}
+            </span>
+          )}
+        </div>
+
+        <div className="webssh-connections-heading">
+          <div>
+            <h2>{tr('SSH 连接', 'SSH Connections')}</h2>
+            <p>
+              {savedCredentials.length
+                ? tr('选择已保存连接可直接进入终端，也可以新建连接。', 'Choose a saved connection to enter the terminal, or create one.')
+                : tr('还没有保存的连接，先新建一个连接配置。', 'No saved connection yet. Create one first.')}
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            disabled={!active || loading}
+            onClick={openNewConnection}
+          >
+            <Plus size={15} />
+            {tr('新建连接', 'New connection')}
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="webssh-connections-loading">
+            <span className="webssh-native-spinner" />
+          </div>
+        ) : !active ? (
+          <Notice tone="warning">
+            {target?.effective_status_message ||
+              tr('当前 WebSSH 访问不可用', 'WebSSH entry unavailable')}
+          </Notice>
+        ) : savedCredentials.length ? (
+          <div className="webssh-connection-list">
+            {savedCredentials.map((credential) => (
+              <article className="webssh-connection-card" key={credential.id}>
+                <div className="webssh-connection-card-identity">
+                  <span className="webssh-terminal-mark" aria-hidden="true">&gt;_</span>
+                  <span>{tr('用户：', 'User:')}</span>
+                  <strong>{credential.username}</strong>
+                </div>
+                <div className="webssh-connection-card-meta">
+                  <span className="webssh-connection-protocol">SSH</span>
+                  <span>{tr('应用：', 'Application:')}{target?.application_name || '-'}</span>
+                  <span>{tr('目标：', 'Target:')}{target ? `${target.target_host}:${target.target_port}` : '-'}</span>
+                  <span className="webssh-connection-password-state">
+                    <Check size={12} />
+                    {credential.saved
+                      ? tr('密码已保存', 'Password saved')
+                      : tr('密码未保存', 'Password not saved')}
+                  </span>
+                </div>
+                <div className="webssh-connection-card-used">
+                  <span>{tr('最近使用：', 'Last used:')}</span>
+                  <time>
+                    <Clock3 size={13} />
+                    {credential.last_used_at
+                      ? formatWebSSHTime(credential.last_used_at)
+                      : tr('尚未使用', 'Never')}
+                  </time>
+                </div>
+                <div className="webssh-connection-card-actions">
+                  <Button
+                    variant="primary"
+                    disabled={!active}
+                    onClick={() => openSavedConnection(credential)}
+                  >
+                    <LogIn size={14} />
+                    {tr('进入', 'Enter')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    aria-label={tr('删除连接', 'Delete connection')}
+                    onClick={() => {
+                      if (!window.confirm(tr(`删除 ${credential.username} 的保存连接？`, `Delete the saved connection for ${credential.username}?`))) return;
+                      setCredentials({ username: credential.username || '', password: '', save_credential: false });
+                      void deleteWebSSHCredential(proxyId, credential.username).then(loadTarget);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="webssh-connections-empty">
+            <span className="webssh-terminal-mark" aria-hidden="true">&gt;_</span>
+            <strong>{tr('还没有保存的 SSH 连接', 'No saved SSH connections')}</strong>
+            <p>{tr('新建连接后可以选择保存密码，之后直接进入终端。', 'Save credentials when creating a connection to enter the terminal directly next time.')}</p>
+            <Button variant="primary" onClick={openNewConnection}>
+              <Plus size={15} />
+              {tr('新建连接', 'New connection')}
+            </Button>
+          </div>
+        )}
+        {credentialModal}
+      </section>
+    );
+  }
+
   return (
     <>
-      <div className="webssh-shell">
+      <div className={`webssh-shell ${credentialOpen && !connected ? 'is-credential-setup' : ''}`}>
         <header className="webssh-toolbar">
           <div className="webssh-identity">
             <Button
               className="webssh-back-button"
               variant="ghost"
-              aria-label={tr('返回访问', 'Back to access')}
-              onClick={returnToAccess}
+              aria-label={tr('返回连接', 'Back to connections')}
+              onClick={returnToConnections}
             ><ArrowLeft size={16} /></Button>
             <span className="webssh-terminal-mark" aria-hidden="true">
               &gt;_
@@ -647,12 +947,20 @@ const WebSSHPage: React.FC = () => {
               <span>{tr('状态', 'Status')}</span>
               <strong
                 className={`webssh-status ${
-                  connected ? 'is-connected' : active ? 'is-ready' : 'is-error'
+                  connected
+                    ? 'is-connected'
+                    : connecting
+                    ? 'is-connecting'
+                    : active
+                    ? 'is-ready'
+                    : 'is-error'
                 }`}
               >
                 <i />
                 {connected
                   ? tr('已连接', 'Connected')
+                  : connecting
+                  ? tr('连接中', 'Connecting')
                   : active
                   ? tr('待连接', 'Ready')
                   : tr('不可用', 'Unavailable')}
@@ -664,11 +972,13 @@ const WebSSHPage: React.FC = () => {
             {!connected && (
               <Button
                 variant="primary"
-                disabled={!active || loading}
+                disabled={!active || loading || connecting}
                 onClick={() => setCredentialOpen(true)}
               >
                 <Send size={14} />
-                {tr('连接', 'Connect')}
+                {connecting
+                  ? tr('连接中', 'Connecting')
+                  : tr('连接', 'Connect')}
               </Button>
             )}
             <Button
@@ -711,6 +1021,18 @@ const WebSSHPage: React.FC = () => {
           onMouseDown={focusTerminal}
         >
           <div className="webssh-terminal-screen" ref={terminalHostRef} />
+          {connecting && !connected && !loading && (
+            <div className="webssh-connecting-state" role="status" aria-live="polite">
+              <span className="webssh-connecting-spinner" aria-hidden="true" />
+              <strong>{tr('正在建立安全连接', 'Establishing secure connection')}</strong>
+              <p>
+                <span>{credentials.username || '-'}</span>
+                <i aria-hidden="true">→</i>
+                <span>{target ? `${target.target_host}:${target.target_port}` : '-'}</span>
+              </p>
+              <small>{tr('正在验证凭据并初始化终端', 'Verifying credentials and initializing terminal')}</small>
+            </div>
+          )}
           {!connected && !connecting && !loading && (
             <div className="webssh-terminal-empty">
               {sessionDurationSeconds !== null ? (
@@ -724,8 +1046,8 @@ const WebSSHPage: React.FC = () => {
                     <b>{formatSessionDuration(sessionDurationSeconds)}</b>
                   </p>
                   <div className="webssh-session-end-actions">
-                    <Button onClick={returnToAccess}>
-                      {tr('返回访问', 'Back to access')}
+                    <Button onClick={returnToConnections}>
+                      {tr('返回连接', 'Back to connections')}
                     </Button>
                     <Button
                       variant="primary"
@@ -763,75 +1085,7 @@ const WebSSHPage: React.FC = () => {
         </div>
       </div>
 
-      <Modal
-        title={tr('连接 WebSSH', 'Connect to WebSSH')}
-        open={credentialOpen}
-        width={400}
-        className="webssh-credential-modal"
-        closeOnMask={!connecting}
-        onClose={returnToAccess}
-      >
-        <div className="webssh-credential-target">
-          <div>
-            <span>{tr('应用', 'Application')}</span>
-            <strong>{target?.application_name || '-'}</strong>
-          </div>
-          <div>
-            <span>{tr('目标', 'Target')}</span>
-            <strong>
-              {target ? `${target.target_host}:${target.target_port}` : '-'}
-            </strong>
-          </div>
-        </div>
-
-        {error && (
-          <Notice tone="danger">{error}{error.includes('指纹变化') ? <Button variant="danger" onClick={resetHostKey}>{tr('重置指纹', 'Reset fingerprint')}</Button> : null}</Notice>
-        )}
-
-        <form className="webssh-native-form" onSubmit={(event) => { event.preventDefault(); if (!credentials.username?.trim()) { setError(tr('请输入用户名', 'Username is required')); return; } if (!selectedSavedCredential && !credentials.password) { setError(tr('请输入密码', 'Password is required')); return; } void connect(credentials); }}>
-          <Field label={tr('用户名', 'Username')} required>
-            <Input autoFocus autoComplete="username" list="webssh-saved-users" value={credentials.username || ''} onChange={(event) => setCredentials((value) => ({ ...value, username: event.target.value }))} placeholder={tr('输入 SSH 用户名', 'Enter SSH username')} />
-            <datalist id="webssh-saved-users">{savedUsernameOptions.map((option) => <option key={option.value} value={option.value} />)}</datalist>
-          </Field>
-          <Field label={tr('密码', 'Password')}>
-            <Input type="password" autoComplete="new-password" value={credentials.password || ''} onChange={(event) => { const password = event.target.value; setCredentials((value) => ({ ...value, password, save_credential: selectedSavedCredential && password ? true : value.save_credential })); }} placeholder={selectedSavedCredential ? tr('密码已保存，留空直接连接', 'Password saved; leave blank to connect') : tr('输入 SSH 密码', 'Enter SSH password')} />
-          </Field>
-
-          <div className="webssh-credential-options">
-            {selectedSavedCredential && !credentials.password ? (
-              <span className="webssh-credential-saved"><Check size={13} />{tr('密码已保存', 'Password saved')}</span>
-            ) : (
-              <label className="liaison-checkbox"><input type="checkbox" checked={Boolean(credentials.save_credential)} onChange={(event) => setCredentials((value) => ({ ...value, save_credential: event.target.checked }))} /><span>
-                  {credentialSaved
-                    ? tr('更新保存密码', 'Update saved password')
-                    : tr('保存密码', 'Save password')}
-                </span></label>
-            )}
-            {selectedSavedCredential && (
-                <Button variant="ghost" disabled={connecting || connected} onClick={() => { if (window.confirm(tr('清除当前用户保存密码？', 'Clear saved password for this user?'))) void clearCredential(); }}>
-                  {tr('清除保存密码', 'Clear saved password')}
-                </Button>
-            )}
-          </div>
-
-          <div className="webssh-credential-actions">
-            <Button
-              onClick={returnToAccess}
-              disabled={connecting}
-            >
-              {tr('取消', 'Cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              type="submit"
-              disabled={!active || loading}
-            >
-              <Send size={14} />
-              {tr('连接', 'Connect')}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {credentialModal}
     </>
   );
 };

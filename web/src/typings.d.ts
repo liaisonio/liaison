@@ -230,6 +230,7 @@ declare namespace API {
   }
 
   interface WebSSHCredential {
+    id: number;
     saved: boolean;
     username?: string;
     last_used_at?: string;
@@ -252,6 +253,7 @@ declare namespace API {
     username?: string;
     password?: string;
     save_credential?: boolean;
+    use_saved_credential?: boolean;
     cols?: number;
     rows?: number;
   }
@@ -264,6 +266,7 @@ declare namespace API {
 
   // ========== WebDesktop ==========
   interface WebDesktopCredential {
+    id: number;
     saved: boolean;
     protocol: string;
     username?: string;
