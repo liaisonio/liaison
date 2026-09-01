@@ -17,9 +17,15 @@ export function HeaderUser() {
   const localAvatar = useAvatarStore((state) => state.avatars[identity]);
   const clear = useSession((state) => state.clear);
   const [open, setOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const accountLabel = getAccountLabel(user) || tr('用户', 'User');
   const avatar = localAvatar || user?.avatar;
+  const showAvatar = Boolean(avatar && !avatarFailed);
+
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatar]);
 
   useEffect(() => {
     if (!open) return;
@@ -55,9 +61,9 @@ export function HeaderUser() {
         aria-expanded={open}
         aria-label={tr('打开用户菜单', 'Open user menu')}
       >
-        <span className={`liaison-avatar${avatar ? ' is-image' : ''}`}>
-          {avatar ? (
-            <img src={avatar} alt="" />
+        <span className={`liaison-avatar${showAvatar ? ' is-image' : ''}`}>
+          {showAvatar ? (
+            <img src={avatar} alt="" onError={() => setAvatarFailed(true)} />
           ) : (
             accountLabel.slice(0, 1).toUpperCase()
           )}

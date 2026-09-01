@@ -24,18 +24,18 @@ func TestWebDataShouldAuditExecuteSQL(t *testing.T) {
 		statement string
 		want      bool
 	}{
-		{name: "select is query", protocol: "mysql", statement: "SELECT * FROM users", want: false},
-		{name: "show is query", protocol: "mysql", statement: "SHOW TABLES", want: false},
-		{name: "explain is query", protocol: "postgresql", statement: "EXPLAIN UPDATE users SET name = 'a'", want: false},
-		{name: "explain analyze select is query", protocol: "postgresql", statement: "EXPLAIN ANALYZE SELECT * FROM users", want: false},
+		{name: "select is audited", protocol: "mysql", statement: "SELECT * FROM users", want: true},
+		{name: "show is audited", protocol: "mysql", statement: "SHOW TABLES", want: true},
+		{name: "explain is audited", protocol: "postgresql", statement: "EXPLAIN UPDATE users SET name = 'a'", want: true},
+		{name: "explain analyze select is audited", protocol: "postgresql", statement: "EXPLAIN ANALYZE SELECT * FROM users", want: true},
 		{name: "explain analyze update is audited", protocol: "postgresql", statement: "EXPLAIN ANALYZE UPDATE users SET name = 'a'", want: true},
 		{name: "explain analyze option update is audited", protocol: "postgresql", statement: "EXPLAIN (ANALYZE, BUFFERS) DELETE FROM users WHERE id = 1", want: true},
-		{name: "explain literal analyze update is query", protocol: "postgresql", statement: "EXPLAIN SELECT 'analyze update users'", want: false},
-		{name: "with select is query", protocol: "postgresql", statement: "WITH q AS (SELECT 1) SELECT * FROM q", want: false},
-		{name: "multi select is query", protocol: "mysql", statement: "SELECT 1; SELECT 2", want: false},
+		{name: "explain literal is audited", protocol: "postgresql", statement: "EXPLAIN SELECT 'analyze update users'", want: true},
+		{name: "with select is audited", protocol: "postgresql", statement: "WITH q AS (SELECT 1) SELECT * FROM q", want: true},
+		{name: "multi select is audited", protocol: "mysql", statement: "SELECT 1; SELECT 2", want: true},
 		{name: "select then update is audited", protocol: "mysql", statement: "SELECT 1; UPDATE users SET name = 'a'", want: true},
 		{name: "select then drop is audited with literal semicolon", protocol: "mysql", statement: "SELECT ';'; DROP TABLE users", want: true},
-		{name: "select with literal write word is query", protocol: "mysql", statement: "SELECT 'update users set name = a'", want: false},
+		{name: "select with literal write word is audited", protocol: "mysql", statement: "SELECT 'update users set name = a'", want: true},
 		{name: "insert is audited", protocol: "mysql", statement: "INSERT INTO users(id) VALUES (1)", want: true},
 		{name: "update returning is audited", protocol: "postgresql", statement: "UPDATE users SET name = 'a' RETURNING *", want: true},
 		{name: "with delete is audited", protocol: "postgresql", statement: "WITH deleted AS (DELETE FROM users RETURNING *) SELECT * FROM deleted", want: true},
@@ -203,9 +203,9 @@ func TestWebDataShouldAuditExecuteRedis(t *testing.T) {
 		statement string
 		want      bool
 	}{
-		{name: "get is query", statement: "GET user:1", want: false},
-		{name: "scan is query", statement: "SCAN 0", want: false},
-		{name: "hgetall is query", statement: "HGETALL user:1", want: false},
+		{name: "get is audited", statement: "GET user:1", want: true},
+		{name: "scan is audited", statement: "SCAN 0", want: true},
+		{name: "hgetall is audited", statement: "HGETALL user:1", want: true},
 		{name: "set is audited", statement: "SET user:1 alice", want: true},
 		{name: "del is audited", statement: "DEL user:1", want: true},
 		{name: "config set is audited", statement: "CONFIG SET maxmemory 1mb", want: true},
@@ -225,9 +225,9 @@ func TestWebDataShouldAuditExecuteMongo(t *testing.T) {
 		statement string
 		want      bool
 	}{
-		{name: "find is query", statement: `{ "find": "users", "filter": {} }`, want: false},
-		{name: "count is query", statement: `{ "count": "users" }`, want: false},
-		{name: "aggregate read is query", statement: `{ "aggregate": "users", "pipeline": [], "cursor": {} }`, want: false},
+		{name: "find is audited", statement: `{ "find": "users", "filter": {} }`, want: true},
+		{name: "count is audited", statement: `{ "count": "users" }`, want: true},
+		{name: "aggregate read is audited", statement: `{ "aggregate": "users", "pipeline": [], "cursor": {} }`, want: true},
 		{name: "aggregate out is audited", statement: `{ "aggregate": "users", "pipeline": [{ "$out": "users_copy" }], "cursor": {} }`, want: true},
 		{name: "insert is audited", statement: `{ "insert": "users", "documents": [{ "name": "alice" }] }`, want: true},
 		{name: "update is audited", statement: `{ "update": "users", "updates": [] }`, want: true},

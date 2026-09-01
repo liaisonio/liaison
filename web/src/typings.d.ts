@@ -397,10 +397,18 @@ declare namespace API {
     value?: string;
     meta?: Record<string, string>;
     children?: WebDataMetadataNode[];
+    has_children?: boolean;
   }
 
   interface WebDataMetadataResult {
     nodes: WebDataMetadataNode[];
+  }
+
+  interface WebDataMetadataParams {
+    type: string;
+    database?: string;
+    schema?: string;
+    name?: string;
   }
 
   interface WebDataObjectParams {

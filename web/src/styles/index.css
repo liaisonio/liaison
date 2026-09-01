@@ -162,7 +162,7 @@ button {
 
 .liaison-notice { border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 10px 12px; background: rgb(var(--panel)); color: rgb(var(--muted)); font-size: 11px; line-height: 1.55; }
 .liaison-notice.is-danger { border-color: rgb(var(--danger) / 0.35); color: rgb(var(--danger)); }
-.liaison-notice.is-success { border-color: rgb(16 185 129 / 0.35); color: rgb(5 150 105); }
+.liaison-notice.is-success { border-color: rgb(var(--accent) / 0.35); color: rgb(var(--accent)); }
 .liaison-notice.is-warning { border-color: rgb(245 158 11 / 0.35); color: rgb(180 83 9); }
 
 .native-confirm-copy {
@@ -251,13 +251,22 @@ button {
 .liaison-compound:focus-within { border-color: rgb(var(--accent) / 0.62); box-shadow: 0 0 0 3px rgb(var(--accent) / 0.09); }
 
 .liaison-date-range {
+  position: relative;
   display: flex;
   min-width: 360px;
   height: 34px;
-  overflow: hidden;
+  overflow: visible;
   align-items: center;
-  border: 1px solid rgb(var(--line));
-  border-radius: var(--control-radius);
+  border: 1px solid rgb(var(--line) / 0.82);
+  border-radius: 10px;
+  background: rgb(var(--panel) / 0.5);
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.liaison-date-range.is-open { z-index: 60; }
+
+.liaison-date-range:hover {
+  border-color: rgb(var(--ink) / 0.22);
   background: rgb(var(--surface));
 }
 
@@ -271,76 +280,161 @@ button {
   height: 32px;
   flex: 0 0 auto;
   align-items: center;
-  border-right: 1px solid rgb(var(--line));
-  padding: 0 11px;
+  border-right: 1px solid rgb(var(--line) / 0.68);
+  border-radius: 9px 0 0 9px;
+  padding: 0 12px;
+  background: rgb(var(--surface) / 0.72);
   color: rgb(var(--ink));
   font-size: 11px;
-  font-weight: 620;
+  font-weight: 650;
 }
 
 .liaison-date-range-values {
   display: grid;
+  width: 100%;
   min-width: 0;
   height: 32px;
   flex: 1;
-  grid-template-columns: minmax(116px, 1fr) 12px minmax(116px, 1fr) 24px;
+  cursor: pointer;
+  border: 0;
+  border-radius: 0 9px 9px 0;
+  grid-template-columns: minmax(116px, 1fr) 22px minmax(116px, 1fr) 30px;
   align-items: center;
-  background: rgb(var(--panel) / 0.76);
+  background: transparent;
+  color: rgb(var(--ink));
+  font: inherit;
+  text-align: left;
 }
 
-.liaison-date-range-values > i {
+.liaison-date-range-values:hover { background: rgb(var(--surface) / 0.68); }
+
+.liaison-date-range-value {
+  overflow: hidden;
+  padding: 0 10px;
   color: rgb(var(--muted));
   font-size: 11px;
-  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.liaison-date-range-value.has-value {
+  color: rgb(var(--ink));
+  font-variant-numeric: tabular-nums;
+  font-weight: 540;
+}
+
+.liaison-date-range-arrow {
+  color: rgb(var(--muted));
+  justify-self: center;
+  opacity: 0.72;
+}
+
+.liaison-date-range-calendar {
+  color: rgb(var(--muted));
+  justify-self: center;
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.liaison-date-range-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 80;
+  width: min(540px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid rgb(var(--line) / 0.84);
+  border-radius: 12px;
+  background: rgb(var(--surface));
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.16);
+}
+
+.liaison-date-range-popup > header {
+  display: grid;
+  height: 44px;
+  align-items: center;
+  border-bottom: 1px solid rgb(var(--line) / 0.62);
+  grid-template-columns: 66px 1fr 1fr 66px;
+  padding: 0 8px;
+}
+
+.liaison-date-range-popup > header strong {
+  color: rgb(var(--ink));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
   text-align: center;
 }
 
-.liaison-date-range-values > svg {
-  color: rgb(var(--muted));
-  pointer-events: none;
-}
-
-.liaison-date-range-input {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  height: 32px;
-  align-items: center;
-}
-
-.liaison-date-range-input > span {
-  position: absolute;
-  left: 10px;
-  z-index: 1;
-  color: rgb(var(--muted));
-  font-size: 11px;
-  pointer-events: none;
-}
-
-.liaison-date-range-input > input {
-  width: 100%;
-  min-width: 0;
-  height: 32px;
+.liaison-calendar-nav { display: flex; justify-content: center; gap: 2px; }
+.liaison-calendar-nav button {
+  display: grid;
+  width: 25px;
+  height: 25px;
   cursor: pointer;
+  place-items: center;
   border: 0;
-  outline: 0;
-  padding: 0 8px 0 10px;
+  border-radius: 7px;
   background: transparent;
-  color: transparent;
+  color: rgb(var(--muted));
+}
+.liaison-calendar-nav button:hover { background: rgb(var(--panel)); color: rgb(var(--ink)); }
+
+.liaison-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 10px 14px 12px;
+}
+
+.liaison-calendar-month { min-width: 0; }
+.liaison-calendar-weekdays,
+.liaison-calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.liaison-calendar-weekdays { margin-bottom: 3px; }
+.liaison-calendar-weekdays span {
+  display: grid;
+  height: 21px;
+  place-items: center;
+  color: rgb(var(--muted));
+  font-size: 10px;
+  font-weight: 580;
+}
+.liaison-calendar-days button {
+  position: relative;
+  display: grid;
+  height: 27px;
+  cursor: pointer;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(var(--ink) / 0.82);
   font: inherit;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
+.liaison-calendar-days button:hover { background: rgb(var(--panel)); color: rgb(var(--ink)); }
+.liaison-calendar-days button.is-outside { color: rgb(var(--muted) / 0.34); }
+.liaison-calendar-days button.is-in-range { border-radius: 0; background: rgb(var(--accent) / 0.08); color: rgb(var(--ink)); }
+.liaison-calendar-days button:is(.is-start, .is-end) { background: rgb(var(--accent)); color: white; font-weight: 680; }
+.liaison-date-range-popup > footer {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgb(var(--line) / 0.55);
+  padding: 5px 12px;
+}
+.liaison-date-range-popup > footer span { display: inline-flex; align-items: center; gap: 7px; color: rgb(var(--muted)); font-size: 10px; font-variant-numeric: tabular-nums; }
+.liaison-date-range-popup > footer button { cursor: pointer; border: 0; border-radius: 7px; background: transparent; padding: 6px 8px; color: rgb(var(--muted)); font: inherit; font-size: 10px; }
+.liaison-date-range-popup > footer button:hover { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 
-.liaison-date-range-input.has-value > input,
-.liaison-date-range-input:focus-within > input { color: rgb(var(--ink)); }
-.liaison-date-range-input:focus-within > span { opacity: 0; }
-.liaison-date-range-input input::-webkit-calendar-picker-indicator {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  opacity: 0;
+@media (max-width: 760px) {
+  .liaison-date-range-popup { width: min(330px, calc(100vw - 24px)); }
+  .liaison-calendar-grid { grid-template-columns: 1fr; }
+  .liaison-calendar-month:nth-child(2) { display: none; }
+  .liaison-date-range-popup > header { grid-template-columns: 74px 1fr 74px; }
+  .liaison-date-range-popup > header strong:nth-of-type(2) { display: none; }
 }
 .liaison-filter-actions { display: flex; gap: 8px; margin-left: auto; }
 .liaison-list-panel { overflow: hidden; border: 1px solid rgb(var(--line) / 0.66); border-radius: var(--surface-radius); background: rgb(var(--surface)); }
@@ -373,13 +467,22 @@ button {
 .liaison-connection-tooltip > span { color: rgb(var(--surface) / 0.68); font-size: 9px; font-weight: 650; letter-spacing: 0.04em; }
 .liaison-connection-tooltip code { overflow-wrap: anywhere; font-size: 10px; line-height: 1.55; }
 .liaison-connection-tooltip small { display: inline-flex; align-items: center; gap: 5px; color: rgb(var(--surface) / 0.62); font-size: 9px; }
-.liaison-pager { display: flex; min-height: 48px; align-items: center; justify-content: flex-end; gap: 4px; border-top: 1px solid rgb(var(--line) / 0.55); padding: 8px 12px; color: rgb(var(--muted)); font-size: 10px; }
-.liaison-pager .liaison-button { min-width: 28px; min-height: 28px; padding: 0; }
-.liaison-pager b { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid rgb(var(--line)); border-radius: 9px; color: rgb(var(--ink)); }
+.liaison-pager { display: flex; min-height: 50px; align-items: center; justify-content: flex-end; gap: 10px; border-top: 1px solid rgb(var(--line) / 0.5); padding: 8px 14px; color: rgb(var(--muted)); font-size: 10px; }
+.liaison-pager > span:first-child { color: rgb(var(--muted) / 0.84); font-variant-numeric: tabular-nums; }
+.liaison-pager-navigation { display: flex; height: 28px; align-items: center; gap: 2px; }
+.liaison-pager-pages { display: flex; align-items: center; gap: 1px; }
+.liaison-pager-pages button,
+.liaison-pager-arrow { display: grid; width: 24px; height: 26px; cursor: pointer; place-items: center; border: 0; border-radius: 6px; background: transparent; color: rgb(var(--muted)); font: inherit; font-weight: 570; transition: background-color 120ms ease, color 120ms ease; }
+.liaison-pager-pages button:hover,
+.liaison-pager-arrow:hover:not(:disabled) { background: rgb(var(--panel)); color: rgb(var(--ink)); }
+.liaison-pager-pages button.is-current { background: rgb(var(--accent) / 0.1); color: rgb(var(--accent)); font-weight: 700; }
+.liaison-pager-arrow { color: rgb(var(--ink) / 0.72); font-size: 16px; line-height: 1; }
+.liaison-pager-arrow:disabled { cursor: default; color: rgb(var(--muted) / 0.32); }
+.liaison-pager-ellipsis { display: grid; width: 18px; height: 26px; place-items: center; color: rgb(var(--muted) / 0.62); }
 .liaison-status { display: inline-flex; min-height: 22px; align-items: center; border: 1px solid rgb(var(--line)); border-radius: 9px; padding: 0 7px; color: rgb(var(--muted)); font-size: 10px; }
-.liaison-status.is-success { border-color: rgb(16 185 129 / 0.4); color: rgb(5 150 105); background: rgb(16 185 129 / 0.07); }
+.liaison-status.is-success { border-color: rgb(var(--accent) / 0.38); color: rgb(var(--accent)); background: rgb(var(--accent) / 0.08); }
 .liaison-status.is-danger { border-color: rgb(var(--danger) / 0.4); color: rgb(var(--danger)); background: rgb(var(--danger) / 0.06); }
-.liaison-status.is-info { border-color: rgb(var(--info) / 0.4); color: rgb(var(--info)); background: rgb(var(--info) / 0.06); }
+.liaison-status.is-info { border-color: rgb(var(--accent) / 0.32); color: rgb(var(--accent)); background: rgb(var(--accent) / 0.07); }
 .liaison-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
 .liaison-form-grid .is-full { grid-column: 1 / -1; }
 .liaison-application-form { max-width: 434px; grid-template-columns: minmax(0, 1fr) 128px; margin: 0 auto; gap: 16px; }
@@ -400,7 +503,7 @@ button {
 .liaison-connector-steps small { display: block; color: rgb(var(--muted)); font-size: 12px; line-height: 20px; }
 .liaison-connector-steps > div.is-active { border-color: rgb(var(--accent) / 0.55); background: rgb(var(--accent) / 0.18); }
 .liaison-connector-steps > div.is-active b { background: rgb(var(--accent)); color: rgb(var(--accent-ink)); }
-.liaison-connector-steps > div.is-complete b { background: rgb(16 185 129 / 0.16); color: rgb(5 150 105); }
+.liaison-connector-steps > div.is-complete b { background: rgb(var(--accent) / 0.16); color: rgb(var(--accent)); }
 .liaison-connector-create-step { display: grid; gap: 16px; padding: 0 0 4px; }
 .liaison-connector-create-step > p, .liaison-install-intro { margin: 0; color: rgb(var(--muted)); font-size: 13px; line-height: 22px; }
 .liaison-connector-create-form { width: 100%; max-width: 320px; margin: 0; }
@@ -435,7 +538,7 @@ button {
 .liaison-firewall-overview strong { display: block; font-size: 11px; font-weight: 680; }
 .liaison-firewall-overview p { margin: 3px 0 0; color: rgb(var(--muted)); font-size: 9px; line-height: 1.5; }
 .liaison-firewall-overview > span { border-radius: 999px; padding: 4px 7px; font-size: 9px; font-weight: 650; }
-.liaison-firewall-overview > span.is-open { background: rgb(16 185 129 / 0.1); color: rgb(5 150 105); }
+.liaison-firewall-overview > span.is-open { background: rgb(var(--accent) / 0.1); color: rgb(var(--accent)); }
 .liaison-firewall-overview > span.is-restricted { background: rgb(var(--info) / 0.1); color: rgb(var(--info)); }
 .liaison-firewall-overview > span.is-pending { background: rgb(245 158 11 / 0.12); color: rgb(180 83 9); }
 .liaison-firewall-summary { display: grid; grid-template-columns: minmax(0, 1.7fr) 0.65fr 0.65fr; margin: 0; border-bottom: 1px solid rgb(var(--line) / 0.58); padding: 14px 0; }
@@ -450,7 +553,7 @@ button {
 .liaison-firewall-current code { font-size: 11px; font-weight: 650; }
 .liaison-firewall-current button, .liaison-firewall-current > .is-added { display: inline-flex; min-height: 28px; align-items: center; gap: 5px; border: 0; border-radius: 8px; padding: 0 9px; background: rgb(var(--surface)); color: rgb(var(--info)); font-size: 9px; font-weight: 650; }
 .liaison-firewall-current button { cursor: pointer; }
-.liaison-firewall-current > .is-added { background: rgb(16 185 129 / 0.09); color: rgb(5 150 105); }
+.liaison-firewall-current > .is-added { background: rgb(var(--accent) / 0.09); color: rgb(var(--accent)); }
 .liaison-firewall-rules { margin-top: 22px; }
 .liaison-firewall-rules > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .liaison-firewall-rules > header h3 { margin: 0; font-size: 12px; font-weight: 680; }
@@ -464,7 +567,7 @@ button {
 .liaison-firewall-rule-head { min-height: 31px; padding: 0 9px; background: rgb(var(--panel) / 0.72); color: rgb(var(--muted)); font-size: 8px; font-weight: 650; }
 .liaison-firewall-rule-row { min-height: 40px; border-top: 1px solid rgb(var(--line) / 0.52); padding: 0 9px; color: rgb(var(--muted)); font-size: 9px; }
 .liaison-firewall-rule-row code { overflow: hidden; color: rgb(var(--ink)); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.liaison-firewall-rule-row .is-allow { color: rgb(5 150 105); }
+.liaison-firewall-rule-row .is-allow { color: rgb(var(--accent)); }
 .liaison-firewall-rule-row button { display: grid; width: 24px; height: 24px; place-items: center; border: 0; border-radius: 7px; background: transparent; color: rgb(var(--muted)); cursor: pointer; }
 .liaison-firewall-rule-row button:hover { background: rgb(var(--danger) / 0.08); color: rgb(var(--danger)); }
 .liaison-firewall-empty { display: grid; min-height: 116px; place-items: center; align-content: center; gap: 5px; padding: 16px; color: rgb(var(--muted)); text-align: center; }
@@ -475,7 +578,7 @@ button {
 .liaison-drawer-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 4px; }
 .liaison-switch { display: inline-flex; height: 26px; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 0 8px 0 4px; background: rgb(var(--line)); color: rgb(var(--muted)); font-size: 10px; cursor: pointer; }
 .liaison-switch i { width: 18px; height: 18px; border-radius: 50%; background: rgb(var(--surface)); transition: transform 120ms ease; }
-.liaison-switch.is-on { background: rgb(16 185 129 / 0.18); color: rgb(5 150 105); }
+.liaison-switch.is-on { background: rgb(var(--accent) / 0.18); color: rgb(var(--accent)); }
 .liaison-install-loading { display: grid; min-height: 180px; place-items: center; align-content: center; gap: 8px; text-align: center; }
 .liaison-install-loading .ui-spinner { width: 22px; height: 22px; margin-bottom: 6px; }
 .liaison-install-loading strong { font-size: 12px; font-weight: 650; }
@@ -552,7 +655,7 @@ button {
 .liaison-spin-wrap.is-spinning { opacity: 0.7; }
 .ui-spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgb(var(--line)); border-top-color: currentColor; border-radius: 50%; animation: liaison-spin 700ms linear infinite; }
 .ui-check { display: inline-flex; align-items: center; gap: 8px; color: rgb(var(--ink)); font-size: 12px; cursor: pointer; }
-.ui-check input { width: 16px; height: 16px; accent-color: rgb(var(--ink)); }
+.ui-check input { width: 16px; height: 16px; accent-color: rgb(var(--accent)); }
 .liaison-toast { position: fixed; top: 68px; left: 50%; z-index: 1400; max-width: min(460px, calc(100vw - 32px)); transform: translate(-50%, -8px); opacity: 0; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 10px 14px; background: rgb(var(--surface)); box-shadow: 0 12px 40px rgb(0 0 0 / 0.18); color: rgb(var(--ink)); font-size: 12px; transition: 160ms ease; }
 .liaison-toast.is-visible { transform: translate(-50%, 0); opacity: 1; }
 .liaison-toast.is-danger { border-color: rgb(var(--danger) / 0.45); }
@@ -1125,6 +1228,19 @@ button {
 
 .liaison-header-user {
   position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: 2px;
+  padding-left: 12px;
+}
+
+.liaison-header-user::before {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 22px;
+  background: rgb(var(--line) / 0.72);
+  content: '';
 }
 
 .liaison-header-user-trigger {

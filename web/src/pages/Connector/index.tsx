@@ -2,6 +2,7 @@ import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, 
 import { accessProtocolForType, accessTypesForApplication, isWebAccessType, type AccessType } from '@/constants/accessTypes';
 import { APPLICATION_TYPES } from '@/constants/applicationTypes';
 import { useI18n } from '@/i18n';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { createApplication, createEdge, createEdgeScanTask, createProxy, deleteEdge, getEdgeList, getEdgeScanTask, updateEdge } from '@/services/api';
 import { Check, Copy, Plus, Radar, Server } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,7 +29,9 @@ const ConnectorPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ name: '', device_name: '' });
-  const [applied, setApplied] = useState(filters);
+  const debouncedName = useDebouncedValue(filters.name);
+  const debouncedDeviceName = useDebouncedValue(filters.device_name);
+  const applied = useMemo(() => ({ name: debouncedName, device_name: debouncedDeviceName }), [debouncedDeviceName, debouncedName]);
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState('');
   const [suggestedConnectorName, setSuggestedConnectorName] = useState(defaultConnectorName);
@@ -155,7 +158,7 @@ const ConnectorPage: React.FC = () => {
 
   return <div className="liaison-page-stack">
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
-    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('连接器名称', 'Connector')}</span><input value={filters.name} onChange={(event) => setFilters((value) => ({ ...value, name: event.target.value }))} placeholder={tr('输入连接器名称', 'Connector name')} /></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => setFilters((value) => ({ ...value, device_name: event.target.value }))} placeholder={tr('输入设备名称', 'Device name')} /></label><div className="liaison-filter-actions"><Button onClick={() => { const reset = { name: '', device_name: '' }; setFilters(reset); setApplied(reset); setPage(1); }}>{tr('重置', 'Reset')}</Button><Button variant="primary" onClick={() => { setApplied(filters); setPage(1); }}>{tr('查询', 'Search')}</Button></div></div>
+    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('连接器名称', 'Connector')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入连接器名称', 'Connector name')} /></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => { setFilters((value) => ({ ...value, device_name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', device_name: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
     <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('连接器列表', 'Connectors')}</h2><Button variant="primary" onClick={openCreate} disabled={saving}><Plus size={14} />{tr('新建连接器', 'Create connector')}</Button></header><DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无连接器', 'No connectors')} /><Pager page={page} pageSize={pageSize} total={total} onPageChange={setPage} /></section>
     <Modal open={createOpen} title={`${tr('新建连接器', 'Create connector')} · ${keys ? '2 / 2' : '1 / 2'}`} onClose={closeCreate} width={560} className="is-connector-wizard" closeOnMask={false} footer={keys ? <Button variant="primary" onClick={closeCreate}><Check size={14} />{tr('完成', 'Done')}</Button> : createError ? <><Button onClick={closeCreate}>{tr('关闭', 'Close')}</Button><Button variant="primary" onClick={() => void createConnector(createName)}>{tr('重试', 'Try again')}</Button></> : saving ? undefined : <><Button onClick={closeCreate}>{tr('取消', 'Cancel')}</Button><Button variant="primary" onClick={() => void createConnector(createName)}>{tr('下一步', 'Next')}</Button></>}>
       <div className="liaison-connector-wizard">

@@ -353,11 +353,21 @@ func (web *web) handleWebSSHCredentialHTTP(w http.ResponseWriter, r *http.Reques
 	}
 	ctx := context.WithValue(r.Context(), "user_id", user.ID)
 	if r.Method == http.MethodDelete {
-		if err := web.controlPlane.DeleteWebSSHCredential(ctx, proxyID, r.URL.Query().Get("username")); err != nil {
+		target, targetErr := web.controlPlane.GetWebSSHTarget(ctx, proxyID)
+		if targetErr != nil {
+			status := webSSHHTTPStatus(targetErr)
+			writeJSON(w, status, map[string]any{"code": status, "message": targetErr.Error()})
+			return
+		}
+		username := r.URL.Query().Get("username")
+		clientIP, clientIPSource := remoteClientIPInfo(r)
+		if err := web.controlPlane.DeleteWebSSHCredential(ctx, proxyID, username); err != nil {
+			web.recordWebSSHAudit(target, user.ID, clientIP, clientIPSource, "delete_credential", username, "", false, 0, err.Error())
 			status := webSSHHTTPStatus(err)
 			writeJSON(w, status, map[string]any{"code": status, "message": err.Error()})
 			return
 		}
+		web.recordWebSSHAudit(target, user.ID, clientIP, clientIPSource, "delete_credential", username, "", true, 0, "")
 		writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success"})
 		return
 	}
@@ -463,11 +473,14 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 		sessionCtx := context.WithValue(context.Background(), "user_id", webSession.userID)
 		if err != nil {
 			log.Errorf("webssh credential encrypt failed: proxy_id=%d err=%v", webSession.proxyID, err)
+			web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "save_credential", webSession.username, "", false, 0, err.Error())
 			_ = writer.write(webSSHServerMessage{Type: "credential_error", Message: "SSH 已连接，但保存密码失败"})
 		} else if err := web.controlPlane.SaveWebSSHCredential(sessionCtx, webSession.proxyID, webSession.username, encryptedPassword, nonce); err != nil {
 			log.Errorf("webssh credential save failed: proxy_id=%d err=%v", webSession.proxyID, err)
+			web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "save_credential", webSession.username, "", false, 0, err.Error())
 			_ = writer.write(webSSHServerMessage{Type: "credential_error", Message: "SSH 已连接，但保存密码失败"})
 		} else {
+			web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "save_credential", webSession.username, "", true, 0, "")
 			_ = writer.write(webSSHServerMessage{Type: "credential_saved"})
 		}
 	} else if webSession.savedCredential {
@@ -720,6 +733,10 @@ func webSSHAuditStatement(action, username string) string {
 		statement = "OPEN SSH SESSION"
 	case "close_session":
 		statement = "CLOSE SSH SESSION"
+	case "save_credential":
+		statement = "SAVE SSH CONNECTION"
+	case "delete_credential":
+		statement = "DELETE SSH CONNECTION"
 	default:
 		statement = strings.ToUpper(strings.TrimSpace(action))
 	}

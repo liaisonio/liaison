@@ -6,7 +6,7 @@
 .audit-protocol-tabs button.is-active::after { background: rgb(var(--ink)); }
 .audit-native-filter { gap: 8px; }
 .audit-native-filter .liaison-compound { min-width: 126px; flex: 1 1 126px; }
-.audit-native-filter .audit-native-time { min-width: 360px; flex: 1.7 1 360px; }
+.audit-native-filter .audit-native-time { width: 390px; min-width: 390px; flex: 0 1 390px; }
 .audit-native-filter .liaison-filter-actions { flex: 0 0 auto; }
 .audit-ssh-user, .audit-native-reference { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .audit-ssh-user { font-size: 10px; font-weight: 580; }
@@ -14,3 +14,4 @@
 .audit-native-statement { display: block; width: 100%; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .audit-status-note { color: rgb(var(--muted)); font-size: 10px; font-weight: 450; }
 .audit-status-hint { display: inline-flex; cursor: help; }
+@media (max-width: 760px) { .audit-native-filter .audit-native-time { width: 100%; min-width: 0; flex: 1 1 100%; } }

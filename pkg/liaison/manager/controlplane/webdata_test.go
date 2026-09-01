@@ -311,6 +311,8 @@ func TestAccessAuditsSeparateSSHAndWebSSHAndIgnoreTCP(t *testing.T) {
 	records := []*WebDataAudit{
 		{UserID: 0, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "ssh", Action: "execute", Database: "native", StatementPreview: "uptime", Success: true},
 		{UserID: 1, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "webssh", Action: "execute", Database: "browser", StatementPreview: "whoami", Success: true},
+		{UserID: 1, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "rdp", Action: "open_session", StatementPreview: "OPEN SESSION", Success: true},
+		{UserID: 1, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "vnc", Action: "close_session", StatementPreview: "CLOSE SESSION", Success: true},
 		{UserID: 1, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "tcp", Action: "open_session", StatementPreview: "opaque bytes", Success: true},
 	}
 	for _, audit := range records {
@@ -339,12 +341,21 @@ func TestAccessAuditsSeparateSSHAndWebSSHAndIgnoreTCP(t *testing.T) {
 	if _, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{ProxyID: proxy.ID, Protocol: "tcp", PageSize: 20}); err == nil {
 		t.Fatal("TCP must not be an access-audit protocol")
 	}
+	for _, protocol := range []string{"rdp", "vnc"} {
+		result, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{ProxyID: proxy.ID, Protocol: protocol, PageSize: 20})
+		if err != nil {
+			t.Fatalf("list %s audit: %v", protocol, err)
+		}
+		if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Protocol != protocol {
+			t.Fatalf("%s result = %+v, want one browser desktop audit", protocol, result)
+		}
+	}
 	allResult, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{ProxyID: proxy.ID, PageSize: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if allResult.Total != 1 {
-		t.Fatalf("user-scoped result total = %d, want WebSSH only and no TCP row", allResult.Total)
+	if allResult.Total != 3 {
+		t.Fatalf("user-scoped result total = %d, want WebSSH/RDP/VNC and no TCP row", allResult.Total)
 	}
 }
 

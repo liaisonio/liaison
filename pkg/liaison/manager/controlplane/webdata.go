@@ -736,7 +736,7 @@ func isWebDataProtocol(protocol string) bool {
 
 func isAccessAuditProtocol(protocol string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "ssh", "webssh":
+	case "ssh", "webssh", "rdp", "vnc":
 		return true
 	default:
 		return isWebDataProtocol(protocol)

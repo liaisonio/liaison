@@ -290,7 +290,7 @@ body.webssh-page-active .liaison-page-body {
 .webssh-native-form { display: grid; gap: 12px; margin-top: 12px; }
 .webssh-native-spinner { width: 28px; height: 28px; border: 2px solid rgb(var(--line)); border-top-color: rgb(var(--ink)); border-radius: 50%; animation: webssh-spin 700ms linear infinite; }
 .liaison-checkbox { display: inline-flex; align-items: center; gap: 8px; color: rgb(var(--ink)); font-size: 11px; cursor: pointer; }
-.liaison-checkbox input { width: 16px; height: 16px; accent-color: rgb(var(--ink)); }
+.liaison-checkbox input { width: 16px; height: 16px; accent-color: rgb(var(--accent)); }
 .webssh-alert .liaison-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 @keyframes webssh-spin { to { transform: rotate(360deg); } }
 
@@ -394,11 +394,11 @@ body.webssh-page-active .liaison-page-body {
 }
 
 .webssh-status.is-connected {
-  color: #22c55e;
+  color: rgb(var(--accent));
 }
 
 .webssh-status.is-connecting {
-  color: #60a5fa;
+  color: rgb(var(--accent));
 }
 
 .webssh-status.is-connecting i {
@@ -654,7 +654,7 @@ body.webssh-page-active .liaison-page-body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: rgb(5 150 105);
+  color: rgb(var(--accent));
   font-size: 11px;
   font-weight: 600;
 }

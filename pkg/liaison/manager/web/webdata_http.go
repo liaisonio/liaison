@@ -138,16 +138,24 @@ type webDataExecuteResponse struct {
 }
 
 type webDataMetadataNode struct {
-	Key      string                `json:"key"`
-	Title    string                `json:"title"`
-	Type     string                `json:"type"`
-	Value    string                `json:"value,omitempty"`
-	Meta     map[string]string     `json:"meta,omitempty"`
-	Children []webDataMetadataNode `json:"children,omitempty"`
+	Key         string                `json:"key"`
+	Title       string                `json:"title"`
+	Type        string                `json:"type"`
+	Value       string                `json:"value,omitempty"`
+	Meta        map[string]string     `json:"meta,omitempty"`
+	Children    []webDataMetadataNode `json:"children,omitempty"`
+	HasChildren bool                  `json:"has_children,omitempty"`
 }
 
 type webDataMetadataResponse struct {
 	Nodes []webDataMetadataNode `json:"nodes"`
+}
+
+type webDataMetadataRequest struct {
+	NodeType string
+	Database string
+	Schema   string
+	Name     string
 }
 
 type webDataObjectRequest struct {
@@ -186,6 +194,7 @@ type webDataSession struct {
 	directConnection bool
 	connectionParams string
 	expiresAt        time.Time
+	startedAt        time.Time
 	target           *controlplane.WebDataTarget
 	sqlDB            *sql.DB
 	redisClient      *redis.Client
@@ -269,6 +278,7 @@ func (s *webDataSessionStore) create(session *webDataSession) (*webDataSession, 
 		return nil, err
 	}
 	session.token = token
+	session.startedAt = time.Now()
 	session.expiresAt = time.Now().Add(webDataSessionTTL)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -478,6 +488,7 @@ func (web *web) handleCreateWebDataSessionHTTP(w http.ResponseWriter, r *http.Re
 	if req.SaveCredential && !savedCredential && len(password) > 0 {
 		encryptedPassword, nonce, err := web.encryptWebSSHPassword(password)
 		if err != nil {
+			web.recordWebDataAudit(r, target, user.ID, "save_credential", req.Protocol, webDataAuditDatabase(&req), "", false, 0, 0, err.Error())
 			zeroBytes(password)
 			session.close()
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"code": http.StatusInternalServerError, "message": err.Error()})
@@ -498,11 +509,13 @@ func (web *web) handleCreateWebDataSessionHTTP(w http.ResponseWriter, r *http.Re
 			Nonce:             nonce,
 			PasswordChanged:   true,
 		}); err != nil {
+			web.recordWebDataAudit(r, target, user.ID, "save_credential", req.Protocol, webDataAuditDatabase(&req), "", false, 0, 0, err.Error())
 			zeroBytes(password)
 			session.close()
 			writeJSON(w, webDataHTTPStatus(err), map[string]any{"code": webDataHTTPStatus(err), "message": err.Error()})
 			return
 		}
+		web.recordWebDataAudit(r, target, user.ID, "save_credential", req.Protocol, webDataAuditDatabase(&req), "", true, 0, 0, "")
 	} else if savedCredential {
 		if req.CredentialID > 0 {
 			_ = web.controlPlane.TouchWebDataCredentialByID(ctx, proxyID, req.CredentialID)
@@ -875,6 +888,7 @@ func (web *web) handleDeleteWebDataSessionHTTP(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"code": http.StatusUnauthorized, "message": "invalid or expired webdata session"})
 		return
 	}
+	web.recordWebDataAudit(r, session.target, user.ID, "close_session", session.protocol, webDataAuditSessionDatabase(session), "", true, 0, time.Since(session.startedAt).Milliseconds(), "")
 	web.webData.delete(token)
 	writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success"})
 }
@@ -908,7 +922,19 @@ func (web *web) handleWebDataMetadataHTTP(w http.ResponseWriter, r *http.Request
 	defer session.mu.Unlock()
 	ctx, cancel := context.WithTimeout(r.Context(), webDataMetadataTimeout)
 	defer cancel()
-	nodes, err := session.metadata(ctx)
+	query := r.URL.Query()
+	metadataRequest := webDataMetadataRequest{
+		NodeType: strings.TrimSpace(query.Get("type")),
+		Database: strings.TrimSpace(query.Get("database")),
+		Schema:   strings.TrimSpace(query.Get("schema")),
+		Name:     strings.TrimSpace(query.Get("name")),
+	}
+	var nodes []webDataMetadataNode
+	if metadataRequest.NodeType == "" {
+		nodes, err = session.metadata(ctx)
+	} else {
+		nodes, err = session.metadataChildren(ctx, metadataRequest)
+	}
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success", "data": webDataMetadataResponse{Nodes: []webDataMetadataNode{
 			{Key: "metadata-error", Title: err.Error(), Type: "error"},
@@ -1463,107 +1489,121 @@ func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, e
 	}
 }
 
+func (s *webDataSession) metadataChildren(ctx context.Context, req webDataMetadataRequest) ([]webDataMetadataNode, error) {
+	switch s.protocol {
+	case "mysql":
+		return s.mysqlMetadataChildren(ctx, req)
+	case "postgresql":
+		return s.postgresMetadataChildren(ctx, req)
+	case "redis":
+		return s.redisMetadataChildren(ctx, req)
+	case "mongodb":
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unsupported protocol %q", s.protocol)
+	}
+}
+
+type webDataTableRef struct {
+	Namespace string
+	Name      string
+	Kind      string
+}
+
 func (s *webDataSession) mysqlMetadata(ctx context.Context) ([]webDataMetadataNode, error) {
 	dbs, err := querySingleColumn(ctx, s.sqlDB, "SHOW DATABASES")
 	if err != nil {
 		return nil, err
 	}
-	columnMap := map[string][]webDataMetadataNode{}
-	if s.database != "" {
-		rows, err := s.sqlDB.QueryContext(ctx, `
-SELECT table_name, column_name, column_type, is_nullable, column_key
-FROM information_schema.columns
-WHERE table_schema = ?
-ORDER BY table_name, ordinal_position`, s.database)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var table, column, columnType, nullable, key string
-				if err := rows.Scan(&table, &column, &columnType, &nullable, &key); err != nil {
-					return nil, err
-				}
-				value := columnType
-				if key != "" {
-					value += " " + key
-				}
-				if nullable == "NO" {
-					value += " not null"
-				}
-				columnMap[table] = append(columnMap[table], webDataMetadataNode{
-					Key:   "mysql-column-" + s.database + "-" + table + "-" + column,
-					Title: column,
-					Type:  "column",
-					Value: value,
-					Meta: map[string]string{
-						"database": s.database,
-						"name":     table,
-						"column":   column,
-					},
-				})
-			}
-			if err := rows.Err(); err != nil {
-				return nil, err
-			}
-		}
-	}
-	root := webDataMetadataNode{Key: "mysql-databases", Title: "Databases", Type: "root"}
-	for _, db := range dbs {
-		node := webDataMetadataNode{Key: "mysql-db-" + db, Title: db, Type: "database", Meta: map[string]string{"database": db}}
-		if s.database != "" && db == s.database {
-			tables, _ := querySingleColumn(ctx, s.sqlDB, "SHOW TABLES")
-			for _, table := range tables {
-				node.Children = append(node.Children, webDataMetadataNode{
-					Key:      "mysql-table-" + db + "-" + table,
-					Title:    table,
-					Type:     "table",
-					Meta:     map[string]string{"database": db, "name": table},
-					Children: columnMap[table],
-				})
-			}
-		}
-		root.Children = append(root.Children, node)
-	}
-	return []webDataMetadataNode{root}, nil
-}
-
-func (s *webDataSession) postgresMetadata(ctx context.Context) ([]webDataMetadataNode, error) {
-	columnRows, err := s.sqlDB.QueryContext(ctx, `
-SELECT table_schema, table_name, column_name, data_type, is_nullable
-FROM information_schema.columns
-WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-ORDER BY table_schema, table_name, ordinal_position`)
+	rows, err := s.sqlDB.QueryContext(ctx, `
+SELECT table_schema, table_name, table_type
+FROM information_schema.tables
+ORDER BY table_schema, table_name`)
 	if err != nil {
 		return nil, err
 	}
-	columns := map[string][]webDataMetadataNode{}
-	for columnRows.Next() {
-		var schema, table, column, dataType, nullable string
-		if err := columnRows.Scan(&schema, &table, &column, &dataType, &nullable); err != nil {
-			_ = columnRows.Close()
+	defer rows.Close()
+	tables := make([]webDataTableRef, 0)
+	for rows.Next() {
+		var table webDataTableRef
+		if err := rows.Scan(&table.Namespace, &table.Name, &table.Kind); err != nil {
 			return nil, err
 		}
-		value := dataType
+		tables = append(tables, table)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return buildMySQLMetadata(dbs, tables), nil
+}
+
+func buildMySQLMetadata(databases []string, tables []webDataTableRef) []webDataMetadataNode {
+	byDatabase := make(map[string][]webDataTableRef, len(databases))
+	for _, table := range tables {
+		byDatabase[table.Namespace] = append(byDatabase[table.Namespace], table)
+	}
+	root := webDataMetadataNode{Key: "mysql-databases", Title: "Databases", Type: "root"}
+	for _, database := range databases {
+		node := webDataMetadataNode{Key: "mysql-db-" + database, Title: database, Type: "database", Meta: map[string]string{"database": database}}
+		for _, table := range byDatabase[database] {
+			value := ""
+			if strings.Contains(strings.ToUpper(table.Kind), "VIEW") {
+				value = "view"
+			}
+			node.Children = append(node.Children, webDataMetadataNode{
+				Key:         "mysql-table-" + database + "-" + table.Name,
+				Title:       table.Name,
+				Type:        "table",
+				Value:       value,
+				Meta:        map[string]string{"database": database, "name": table.Name},
+				HasChildren: true,
+			})
+		}
+		root.Children = append(root.Children, node)
+	}
+	return []webDataMetadataNode{root}
+}
+
+func (s *webDataSession) mysqlMetadataChildren(ctx context.Context, req webDataMetadataRequest) ([]webDataMetadataNode, error) {
+	if req.NodeType != "table" || req.Database == "" || req.Name == "" {
+		return nil, errors.New("MySQL 元数据节点参数无效")
+	}
+	rows, err := s.sqlDB.QueryContext(ctx, `
+SELECT column_name, column_type, is_nullable, column_key
+FROM information_schema.columns
+WHERE table_schema = ? AND table_name = ?
+ORDER BY ordinal_position`, req.Database, req.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns := make([]webDataMetadataNode, 0)
+	for rows.Next() {
+		var column, columnType, nullable, key string
+		if err := rows.Scan(&column, &columnType, &nullable, &key); err != nil {
+			return nil, err
+		}
+		value := columnType
+		if key != "" {
+			value += " " + key
+		}
 		if nullable == "NO" {
 			value += " not null"
 		}
-		key := schema + "\x00" + table
-		columns[key] = append(columns[key], webDataMetadataNode{
-			Key:   "postgres-column-" + schema + "-" + table + "-" + column,
+		columns = append(columns, webDataMetadataNode{
+			Key:   "mysql-column-" + req.Database + "-" + req.Name + "-" + column,
 			Title: column,
 			Type:  "column",
 			Value: value,
-			Meta:  map[string]string{"schema": schema, "name": table, "column": column},
+			Meta:  map[string]string{"database": req.Database, "name": req.Name, "column": column},
 		})
 	}
-	if err := columnRows.Close(); err != nil {
-		return nil, err
-	}
-	if err := columnRows.Err(); err != nil {
-		return nil, err
-	}
+	return columns, rows.Err()
+}
 
+func (s *webDataSession) postgresMetadata(ctx context.Context) ([]webDataMetadataNode, error) {
 	rows, err := s.sqlDB.QueryContext(ctx, `
-SELECT table_schema, table_name
+SELECT table_schema, table_name, table_type
 FROM information_schema.tables
 WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
 ORDER BY table_schema, table_name`)
@@ -1571,30 +1611,84 @@ ORDER BY table_schema, table_name`)
 		return nil, err
 	}
 	defer rows.Close()
-	schemas := map[string][]string{}
+	tables := make([]webDataTableRef, 0)
 	for rows.Next() {
-		var schema, table string
-		if err := rows.Scan(&schema, &table); err != nil {
+		var table webDataTableRef
+		if err := rows.Scan(&table.Namespace, &table.Name, &table.Kind); err != nil {
 			return nil, err
 		}
-		schemas[schema] = append(schemas[schema], table)
+		tables = append(tables, table)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return buildPostgresMetadata(tables), nil
+}
+
+func buildPostgresMetadata(tables []webDataTableRef) []webDataMetadataNode {
+	schemas := map[string][]webDataTableRef{}
+	for _, table := range tables {
+		schemas[table.Namespace] = append(schemas[table.Namespace], table)
 	}
 	root := webDataMetadataNode{Key: "postgres-schemas", Title: "Schemas", Type: "root"}
-	names := sortedMapStringKeys(schemas)
+	names := make([]string, 0, len(schemas))
+	for schema := range schemas {
+		names = append(names, schema)
+	}
+	sort.Strings(names)
 	for _, schema := range names {
 		node := webDataMetadataNode{Key: "postgres-schema-" + schema, Title: schema, Type: "schema", Meta: map[string]string{"schema": schema}}
 		for _, table := range schemas[schema] {
+			value := ""
+			if strings.Contains(strings.ToUpper(table.Kind), "VIEW") {
+				value = "view"
+			}
 			node.Children = append(node.Children, webDataMetadataNode{
-				Key:      "postgres-table-" + schema + "-" + table,
-				Title:    table,
-				Type:     "table",
-				Meta:     map[string]string{"schema": schema, "name": table},
-				Children: columns[schema+"\x00"+table],
+				Key:         "postgres-table-" + schema + "-" + table.Name,
+				Title:       table.Name,
+				Type:        "table",
+				Value:       value,
+				Meta:        map[string]string{"schema": schema, "name": table.Name},
+				HasChildren: true,
 			})
 		}
 		root.Children = append(root.Children, node)
 	}
-	return []webDataMetadataNode{root}, rows.Err()
+	return []webDataMetadataNode{root}
+}
+
+func (s *webDataSession) postgresMetadataChildren(ctx context.Context, req webDataMetadataRequest) ([]webDataMetadataNode, error) {
+	if req.NodeType != "table" || req.Schema == "" || req.Name == "" {
+		return nil, errors.New("PostgreSQL 元数据节点参数无效")
+	}
+	rows, err := s.sqlDB.QueryContext(ctx, `
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = $1 AND table_name = $2
+ORDER BY ordinal_position`, req.Schema, req.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns := make([]webDataMetadataNode, 0)
+	for rows.Next() {
+		var column, dataType, nullable string
+		if err := rows.Scan(&column, &dataType, &nullable); err != nil {
+			return nil, err
+		}
+		value := dataType
+		if nullable == "NO" {
+			value += " not null"
+		}
+		columns = append(columns, webDataMetadataNode{
+			Key:   "postgres-column-" + req.Schema + "-" + req.Name + "-" + column,
+			Title: column,
+			Type:  "column",
+			Value: value,
+			Meta:  map[string]string{"schema": req.Schema, "name": req.Name, "column": column},
+		})
+	}
+	return columns, rows.Err()
 }
 
 func (s *webDataSession) redisMetadata(ctx context.Context) ([]webDataMetadataNode, error) {
@@ -1633,6 +1727,10 @@ func (s *webDataSession) redisMetadata(ctx context.Context) ([]webDataMetadataNo
 	return []webDataMetadataNode{root}, nil
 }
 
+func (s *webDataSession) redisMetadataChildren(context.Context, webDataMetadataRequest) ([]webDataMetadataNode, error) {
+	return nil, nil
+}
+
 func (s *webDataSession) mongoMetadata(ctx context.Context) ([]webDataMetadataNode, error) {
 	root := webDataMetadataNode{Key: "mongo-databases", Title: "Databases", Type: "root"}
 	dbNames, err := s.mongoClient.ListDatabaseNames(ctx, bson.D{})
@@ -1646,9 +1744,11 @@ func (s *webDataSession) mongoMetadata(ctx context.Context) ([]webDataMetadataNo
 		}
 		dbNames = []string{db}
 	}
+	sort.Strings(dbNames)
 	for _, dbName := range dbNames {
 		node := webDataMetadataNode{Key: "mongo-db-" + dbName, Title: dbName, Type: "database", Meta: map[string]string{"database": dbName}}
 		if names, err := s.mongoClient.Database(dbName).ListCollectionNames(ctx, bson.D{}); err == nil {
+			sort.Strings(names)
 			for _, name := range names {
 				node.Children = append(node.Children, webDataMetadataNode{
 					Key:   "mongo-coll-" + dbName + "-" + name,
@@ -2286,7 +2386,10 @@ func webDataStatementHash(statement string) string {
 }
 
 func webDataShouldAuditExecute(protocol, statement string) bool {
-	return !webDataExecuteIsQuery(protocol, statement)
+	// Access audit records describe the operation, never its result set or
+	// credentials. Read operations are still user operations and must remain
+	// traceable just like writes.
+	return strings.TrimSpace(protocol) != "" && strings.TrimSpace(statement) != ""
 }
 
 func webDataExecuteIsQuery(protocol, statement string) bool {

@@ -1,6 +1,7 @@
 import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, Notice, Pager, Select, StatusPill, Timestamp } from '@/components/ui';
 import { ACCESS_TYPES, ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, applicationTypeForAccess, getProxyAccessType, isAccessType, isProxyPublicPortExposed, isWebAccessType } from '@/constants/accessTypes';
 import { useI18n } from '@/i18n';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { history, useSearchParams } from '@/lib/runtime';
 import { createProxy, deleteProxy, deleteProxyFirewall, getApplicationList, getClientIP, getProxyFirewall, getProxyList, updateProxy, upsertProxyFirewall } from '@/services/api';
 import { Check, Copy, Globe2, Plus, Shield, Terminal, Trash2 } from 'lucide-react';
@@ -60,7 +61,8 @@ const ProxyPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ name: '', access_type: routeType });
-  const [applied, setApplied] = useState(filters);
+  const debouncedName = useDebouncedValue(filters.name);
+  const applied = useMemo(() => ({ name: debouncedName, access_type: filters.access_type }), [debouncedName, filters.access_type]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editRow, setEditRow] = useState<API.Proxy>();
   const [deleteRow, setDeleteRow] = useState<API.Proxy>();
@@ -75,7 +77,7 @@ const ProxyPage: React.FC = () => {
   const [firewallUpdatedAt, setFirewallUpdatedAt] = useState('');
   const [firewallDirty, setFirewallDirty] = useState(false);
 
-  useEffect(() => { setFilters((value) => ({ ...value, access_type: routeType })); setApplied((value) => ({ ...value, access_type: routeType })); setPage(1); }, [routeType]);
+  useEffect(() => { setFilters((value) => ({ ...value, access_type: routeType })); setPage(1); }, [routeType]);
   const loadApplications = useCallback(async () => { try { const response = await getApplicationList({ page_size: 1000 }); if (response.code === 200) setApplications(response.data?.applications || []); } catch { setApplications([]); } }, []);
   const load = useCallback(async () => {
     setLoading(true);
@@ -188,7 +190,7 @@ const ProxyPage: React.FC = () => {
 
   return <div className="liaison-page-stack">
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
-    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('访问名称', 'Access')}</span><input value={filters.name} onChange={(event) => setFilters((value) => ({ ...value, name: event.target.value }))} placeholder={tr('输入访问名称', 'Access name')} /></label>{!routeType ? <label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.access_type} onChange={(event) => setFilters((value) => ({ ...value, access_type: event.target.value }))}><option value="">{tr('全部', 'All')}</option>{ACCESS_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}<div className="liaison-filter-actions"><Button onClick={() => { const reset = { name: '', access_type: routeType }; setFilters(reset); setApplied(reset); setPage(1); }}>{tr('重置', 'Reset')}</Button><Button variant="primary" onClick={() => { setApplied(filters); setPage(1); }}>{tr('查询', 'Search')}</Button></div></div>
+    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('访问名称', 'Access')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入访问名称', 'Access name')} /></label>{!routeType ? <label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.access_type} onChange={(event) => { setFilters((value) => ({ ...value, access_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{ACCESS_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}<div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', access_type: routeType }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
     <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('访问列表', 'Access')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建访问', 'Create access')}</Button></header><DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无访问', 'No access')} /><Pager page={page} pageSize={pageSize} total={total} onPageChange={setPage} /></section>
     <Modal open={createOpen} title={tr('新建访问', 'Create access')} onClose={() => setCreateOpen(false)} width={520} footer={<><Button onClick={() => setCreateOpen(false)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-proxy" disabled={saving}>{tr('确定', 'Create')}</Button></>}>{accessForm('create-proxy', create)}</Modal>
     <Modal open={!!editRow} title={tr('编辑访问', 'Edit access')} onClose={() => setEditRow(undefined)} width={480} footer={<><Button onClick={() => setEditRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-proxy" disabled={saving}>{tr('确定', 'Save')}</Button></>}>{accessForm('edit-proxy', update, true)}</Modal>

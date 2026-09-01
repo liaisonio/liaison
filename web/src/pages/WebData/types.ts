@@ -5,6 +5,7 @@ export type MetadataTreeNode = {
   title: React.ReactNode;
   source?: API.WebDataMetadataNode;
   children?: MetadataTreeNode[];
+  isLeaf?: boolean;
 };
 
 export type QuickAction =

@@ -1,9 +1,10 @@
 import { Button, Column, DataTable, Drawer, Field, Input, Modal, Notice, Pager, StatusPill } from '@/components/ui';
 import { useI18n } from '@/i18n';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { getDeviceDetail, getDeviceList, updateDevice } from '@/services/api';
 import { formatMBSize } from '@/utils/format';
 import { Monitor } from 'lucide-react';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 const pageSize = 10;
 
@@ -14,7 +15,9 @@ const DevicePage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({ name: '', ip: '' });
-  const [applied, setApplied] = useState(filters);
+  const debouncedName = useDebouncedValue(filters.name);
+  const debouncedIP = useDebouncedValue(filters.ip);
+  const applied = useMemo(() => ({ name: debouncedName, ip: debouncedIP }), [debouncedIP, debouncedName]);
   const [current, setCurrent] = useState<API.Device>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -74,9 +77,9 @@ const DevicePage: React.FC = () => {
   return <div className="liaison-page-stack">
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
     <div className="liaison-filter-bar">
-      <label className="liaison-compound"><span>{tr('设备名称', 'Device')}</span><input value={filters.name} onChange={(event) => setFilters((value) => ({ ...value, name: event.target.value }))} placeholder={tr('输入设备名称', 'Device name')} /></label>
-      <label className="liaison-compound"><span>{tr('网卡 IP', 'NIC IP')}</span><input value={filters.ip} onChange={(event) => setFilters((value) => ({ ...value, ip: event.target.value }))} placeholder={tr('输入 IP', 'IP address')} /></label>
-      <div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', ip: '' }); setApplied({ name: '', ip: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button><Button variant="primary" onClick={() => { setApplied(filters); setPage(1); }}>{tr('查询', 'Search')}</Button></div>
+      <label className="liaison-compound"><span>{tr('设备名称', 'Device')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label>
+      <label className="liaison-compound"><span>{tr('网卡 IP', 'NIC IP')}</span><input value={filters.ip} onChange={(event) => { setFilters((value) => ({ ...value, ip: event.target.value })); setPage(1); }} placeholder={tr('输入 IP', 'IP address')} /></label>
+      <div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', ip: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div>
     </div>
     <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('设备列表', 'Devices')}</h2></header><DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无设备', 'No devices')} /><Pager page={page} pageSize={pageSize} total={total} onPageChange={setPage} /></section>
     <Drawer open={detailOpen} title={tr('设备详情', 'Device Detail')} onClose={() => setDetailOpen(false)}><dl className="liaison-detail-list">{detailItems.map(([label, value]) => <div key={String(label)}><dt>{label}</dt><dd>{String(value ?? '-')}</dd></div>)}</dl>{current?.interfaces?.length ? <section className="liaison-detail-section"><h3>{tr('网卡信息', 'Network interfaces')}</h3>{current.interfaces.map((item) => <div key={item.name}><b>{item.name}</b><span>{(item.ip || []).join(', ') || '-'}</span><small>MAC: {item.mac || '-'}</small></div>)}</section> : null}</Drawer>

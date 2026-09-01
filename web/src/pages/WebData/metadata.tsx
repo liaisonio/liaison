@@ -128,7 +128,50 @@ export const mapMetadataTree = (
     title: renderNodeTitle(node),
     source: node,
     children: node.children ? mapMetadataTree(node.children) : undefined,
+    isLeaf: node.has_children
+      ? false
+      : node.children
+        ? node.children.length === 0
+        : true,
   }));
+
+export const replaceMetadataChildren = (
+  nodes: API.WebDataMetadataNode[],
+  key: string,
+  children: API.WebDataMetadataNode[],
+): API.WebDataMetadataNode[] =>
+  nodes.map((node) => {
+    if (node.key === key) {
+      return { ...node, children, has_children: children.length > 0 };
+    }
+    if (!node.children?.length) return node;
+    return {
+      ...node,
+      children: replaceMetadataChildren(node.children, key, children),
+    };
+  });
+
+export const buildMetadataChildParams = (
+  protocol: string,
+  node: API.WebDataMetadataNode,
+): API.WebDataMetadataParams | undefined => {
+  if (node.type !== 'table') return undefined;
+  if (protocol === 'mysql') {
+    return {
+      type: 'table',
+      database: node.meta?.database,
+      name: node.meta?.name || node.title,
+    };
+  }
+  if (protocol === 'postgresql') {
+    return {
+      type: 'table',
+      schema: node.meta?.schema,
+      name: node.meta?.name || node.title,
+    };
+  }
+  return undefined;
+};
 
 export const renderNodeTitle = (node: API.WebDataMetadataNode) => {
   const redisGroupIcon = node.type === 'group'

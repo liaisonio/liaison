@@ -108,13 +108,9 @@ function SummaryCard({
 function TrafficChart({
   data,
   emptyText,
-  chartId,
-  colorOffset = 0,
 }: {
   data: TrafficPoint[];
   emptyText: string;
-  chartId: string;
-  colorOffset?: number;
 }) {
   const width = 1000;
   const height = 250;
@@ -129,24 +125,19 @@ function TrafficChart({
   const yTicks = [0, 0.25, 0.5, 0.75, 1];
   const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
   const seriesColor = (index: number) =>
-    chartColors[(index + colorOffset) % chartColors.length];
+    chartColors[index % chartColors.length];
 
   return (
     <div className="overview-chart">
       <div className="overview-chart-legend">
         {applications.map((application, index) => (
-          <span key={application}><i style={{ background: seriesColor(index) }} />{application}</span>
+          <span key={application}>
+            <i style={{ background: seriesColor(index) }} />
+            {application}
+          </span>
         ))}
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Application traffic chart">
-        <defs>
-          {applications.map((application, index) => (
-            <linearGradient key={application} id={`${chartId}-fill-${index}`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={seriesColor(index)} stopOpacity="0.24" />
-              <stop offset="100%" stopColor={seriesColor(index)} stopOpacity="0" />
-            </linearGradient>
-          ))}
-        </defs>
         <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} className="overview-chart-axis" />
         {yTicks.map((tick) => {
           const tickY = y(maxValue * tick);
@@ -160,13 +151,17 @@ function TrafficChart({
         {applications.map((application, index) => {
           const applicationData = data.filter((item) => item.application === application);
           const points = applicationData.map((item) => `${x(item.time.getTime())},${y(item.value)}`).join(' ');
-          const areaPoints = applicationData.length
-            ? `${x(applicationData[0].time.getTime())},${height - padding.bottom} ${points} ${x(applicationData[applicationData.length - 1].time.getTime())},${height - padding.bottom}`
-            : '';
           return (
             <g key={application}>
-              {areaPoints ? <polygon points={areaPoints} fill={`url(#${chartId}-fill-${index})`} /> : null}
-              <polyline points={points} fill="none" stroke={seriesColor(index)} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+              <polyline
+                points={points}
+                fill="none"
+                stroke={seriesColor(index)}
+                strokeWidth="1.8"
+                strokeOpacity="0.82"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
               {applicationData.length === 1 ? (
                 <circle
                   cx={x(applicationData[0].time.getTime())}
@@ -335,6 +330,75 @@ const DashboardPage: React.FC = () => {
       }))
       .sort((left, right) => left.time.getTime() - right.time.getTime());
   }, [trafficData, tr]);
+  const otherTrafficLabel = tr('其他应用', 'Other applications');
+  const trafficOverview = useMemo(() => {
+    const applicationTotals = new Map<string, number>();
+    trafficData.forEach((point) => {
+      applicationTotals.set(
+        point.application,
+        (applicationTotals.get(point.application) || 0) + point.value,
+      );
+    });
+    const rankedApplications = [...applicationTotals]
+      .map(([application, value]) => ({ application, value }))
+      .sort((left, right) => right.value - left.value);
+    const topApplications = rankedApplications.slice(0, 4);
+    const topApplicationNames = new Set(
+      topApplications.map((item) => item.application),
+    );
+    const visibleBuckets = new Map<string, TrafficPoint>();
+
+    trafficData.forEach((point) => {
+      const application = topApplicationNames.has(point.application)
+        ? point.application
+        : otherTrafficLabel;
+      const key = `${point.time.getTime()}:${application}`;
+      const current = visibleBuckets.get(key);
+      visibleBuckets.set(key, {
+        time: point.time,
+        application,
+        value: (current?.value || 0) + point.value,
+      });
+    });
+
+    const otherValue = rankedApplications
+      .slice(4)
+      .reduce((total, item) => total + item.value, 0);
+    const visibleSeriesOrder = [
+      ...topApplications.map((item) => item.application),
+      ...(otherValue > 0 ? [otherTrafficLabel] : []),
+    ];
+    const visibleSeriesRank = new Map(
+      visibleSeriesOrder.map((application, index) => [application, index]),
+    );
+    const composition = [
+      ...topApplications,
+      ...(otherValue > 0
+        ? [{ application: otherTrafficLabel, value: otherValue }]
+        : []),
+    ];
+    const compositionTotal = composition.reduce(
+      (total, item) => total + item.value,
+      0,
+    );
+    const latestPoint = totalTrafficData.at(-1);
+
+    return {
+      chartData: [...visibleBuckets.values()].sort((left, right) => {
+        const seriesDifference =
+          (visibleSeriesRank.get(left.application) || 0) -
+          (visibleSeriesRank.get(right.application) || 0);
+        return seriesDifference || left.time.getTime() - right.time.getTime();
+      }),
+      composition: composition.map((item) => ({
+        ...item,
+        share: compositionTotal ? (item.value / compositionTotal) * 100 : 0,
+      })),
+      latestRate: latestPoint?.value || 0,
+      peakRate: Math.max(0, ...totalTrafficData.map((point) => point.value)),
+      activeApplications: rankedApplications.length,
+    };
+  }, [otherTrafficLabel, totalTrafficData, trafficData]);
 
   return (
     <div className="overview-page">
@@ -363,25 +427,78 @@ const DashboardPage: React.FC = () => {
           <SummaryCard
             icon={Activity}
             label={tr('24 小时流量', '24h traffic')}
-            value={formatTraffic((trafficBytes * 8) / (24 * 60 * 60))}
+            value={formatBytes(trafficBytes)}
             details={[
-              { label: tr('累计传输', 'Transferred'), value: formatBytes(trafficBytes) },
-              { label: tr('采样数据', 'Data points'), value: trafficData.length },
+              {
+                label: tr('平均速率', 'Average rate'),
+                value: formatTraffic((trafficBytes * 8) / (24 * 60 * 60)),
+              },
+              {
+                label: tr('活跃应用', 'Active applications'),
+                value: trafficOverview.activeApplications,
+              },
             ]}
           />
         </div>
 
-        <div className="overview-main-grid">
-          <section className="overview-panel overview-traffic">
-            <header><div><h2>{tr('应用流量', 'Application traffic')}</h2><p>{tr('最近 24 小时，10 分钟粒度', 'Last 24 hours, 10-minute intervals')}</p></div></header>
-            <TrafficChart chartId="application-traffic" data={trafficData} emptyText={tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')} />
-          </section>
-
-          <section className="overview-panel overview-traffic overview-total-traffic">
-            <header><div><h2>{tr('总流量', 'Total traffic')}</h2><p>{tr('全部应用流量的聚合趋势', 'Aggregated traffic across all applications')}</p></div></header>
-            <TrafficChart chartId="total-traffic" colorOffset={1} data={totalTrafficData} emptyText={tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')} />
-          </section>
-        </div>
+        <section className="overview-panel overview-traffic overview-traffic-unified">
+          <header>
+            <div>
+              <h2>{tr('流量趋势', 'Traffic trend')}</h2>
+              <p>{tr('活跃应用流量，最近 24 小时', 'Active application traffic over the last 24 hours')}</p>
+            </div>
+            <span>{tr('10 分钟粒度', '10-minute intervals')}</span>
+          </header>
+          <div className="overview-traffic-kpis">
+            <div>
+              <span>{tr('最近速率', 'Latest rate')}</span>
+              <strong>{formatTraffic(trafficOverview.latestRate)}</strong>
+            </div>
+            <div>
+              <span>{tr('峰值速率', 'Peak rate')}</span>
+              <strong>{formatTraffic(trafficOverview.peakRate)}</strong>
+            </div>
+            <div>
+              <span>{tr('活跃应用', 'Active applications')}</span>
+              <strong>{trafficOverview.activeApplications}</strong>
+            </div>
+          </div>
+          <div className="overview-traffic-layout">
+            <TrafficChart
+              data={trafficOverview.chartData}
+              emptyText={tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')}
+            />
+            <aside className="overview-traffic-composition">
+              <header>
+                <h3>{tr('应用构成', 'Application mix')}</h3>
+                <span>{tr('Top 4 + 其他', 'Top 4 + other')}</span>
+              </header>
+              <div className="overview-traffic-composition-list">
+                {trafficOverview.composition.length ? (
+                  trafficOverview.composition.map((item, index) => (
+                    <div key={item.application}>
+                      <span className="overview-traffic-composition-name">
+                        <i style={{ background: chartColors[index % chartColors.length] }} />
+                        <b title={item.application}>{item.application}</b>
+                      </span>
+                      <strong>{item.share.toFixed(1)}%</strong>
+                      <span className="overview-traffic-composition-bar">
+                        <i
+                          style={{
+                            width: `${item.share}%`,
+                            background: chartColors[index % chartColors.length],
+                          }}
+                        />
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p>{tr('暂无应用流量', 'No application traffic')}</p>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
       </div>
     </div>
   );

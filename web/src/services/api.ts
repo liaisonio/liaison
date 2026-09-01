@@ -351,11 +351,15 @@ export async function executeWebDataStatement(
 }
 
 /** 获取 WebData metadata GET /v1/webdata/sessions/:token/metadata */
-export async function getWebDataMetadata(token: string) {
+export async function getWebDataMetadata(
+  token: string,
+  params?: API.WebDataMetadataParams,
+) {
   return request<API.Response<API.WebDataMetadataResult>>(
     `/api/v1/webdata/sessions/${token}/metadata`,
     {
       method: 'GET',
+      params,
       preserveLoginOnUnauthorized: true,
     },
   );

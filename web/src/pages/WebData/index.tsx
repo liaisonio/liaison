@@ -81,6 +81,7 @@ import {
 } from './connection';
 import './index.less';
 import {
+  buildMetadataChildParams,
   buildGenericColumns,
   buildRedisMetadataView,
   buildObjectParams,
@@ -91,6 +92,7 @@ import {
   formatCellValue,
   isInspectableNode,
   mapMetadataTree,
+  replaceMetadataChildren,
   summarizeMetadata,
   summarizeResult,
   unionRowKeys,
@@ -700,6 +702,26 @@ const WebDataPage: React.FC = () => {
       );
     } finally {
       setMetadataLoading(false);
+    }
+  };
+
+  const loadMetadataChildren = async (treeNode: MetadataTreeNode) => {
+    const source = treeNode.source;
+    if (!session?.token || !target || !source) return;
+    const params = buildMetadataChildParams(target.protocol, source);
+    if (!params) return;
+    try {
+      const res = await getWebDataMetadata(session.token, params);
+      if (res.code === 200 && res.data) {
+        setMetadata((nodes) =>
+          replaceMetadataChildren(nodes, source.key, res.data?.nodes || []),
+        );
+      }
+    } catch (err: any) {
+      message.error(
+        err?.message || tr('加载字段失败', 'Failed to load fields'),
+      );
+      throw err;
     }
   };
 
@@ -2957,6 +2979,7 @@ const WebDataPage: React.FC = () => {
                         defaultExpandedKeys={treeData.map((node) => node.key)}
                         blockNode
                         selectedKeys={selectedNode ? [selectedNode.key] : []}
+                        loadData={loadMetadataChildren}
                         onSelect={handleTreeSelect}
                       />
                     ) : (
