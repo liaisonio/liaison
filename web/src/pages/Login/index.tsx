@@ -64,11 +64,11 @@ const Login: React.FC = () => {
           <span className="login-brand-wordmark">Liaison</span>
         </div>
         <div className="login-brand-message">
-          <span className="login-kicker">ZERO TRUST NETWORK ACCESS</span>
+          <span className="login-kicker">ZERO TRUST APPLICATION ACCESS</span>
           <h1>
             {tr(
-              '让每一个私有应用，都以零信任方式接入',
-              'Zero-trust access for every private application',
+              '面向私有应用的零信任访问',
+              'Zero-trust access for private applications',
             )}
           </h1>
           <p>

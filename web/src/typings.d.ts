@@ -204,6 +204,10 @@ declare namespace API {
     protocol?: string;
   }
 
+  interface EdgeScanTaskCreateResult {
+    task_id: number;
+  }
+
   // ========== 访问 (Proxy) ==========
   interface Proxy {
     id: number;

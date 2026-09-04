@@ -337,11 +337,17 @@ message CreateEdgeScanApplicationTaskRequest {
 message CreateEdgeScanApplicationTaskResponse {
     int32 code = 1 [json_name = "code"];
     string message = 2 [json_name = "message"];
+    EdgeScanApplicationTaskCreated data = 3 [json_name = "data"];
+}
+
+message EdgeScanApplicationTaskCreated {
+    uint64 task_id = 1 [json_name = "task_id"];
 }
 
 // 获取扫描应用任务
 message GetEdgeScanApplicationTaskRequest {
     uint64 edge_id = 1 [json_name = "edge_id"];
+    uint64 task_id = 2 [json_name = "task_id"];
 }
 
 message GetEdgeScanApplicationTaskResponse {

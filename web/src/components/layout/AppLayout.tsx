@@ -182,6 +182,7 @@ export function AppLayout() {
             </span>
             {!sidebarCollapsed && <span className="liaison-brand-copy">
               <strong>Liaison</strong>
+              <small>ZERO TRUST APPLICATION ACCESS</small>
             </span>}
           </Link>
         </div>

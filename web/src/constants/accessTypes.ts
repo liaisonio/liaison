@@ -18,6 +18,13 @@ const NATIVE_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'ssh', label: 'SSH' },
   { value: 'rdp', label: 'RDP' },
   { value: 'vnc', label: 'VNC' },
+];
+
+// Kept as known values so legacy records can still be identified and hidden
+// without being misclassified as TCP. Liaison does not currently terminate
+// these native database protocols, so they are not exposed as product access
+// types until a protocol-aware server implementation exists.
+const UNSUPPORTED_NATIVE_DATA_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'mysql', label: 'MySQL' },
   { value: 'postgresql', label: 'PostgreSQL' },
   { value: 'redis', label: 'Redis' },
@@ -41,6 +48,11 @@ export const ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   ...WEB_ACCESS_TYPES,
 ];
 
+const KNOWN_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
+  ...ACCESS_TYPES,
+  ...UNSUPPORTED_NATIVE_DATA_ACCESS_TYPES,
+];
+
 const WEB_TYPE_BY_APPLICATION: Partial<Record<ApplicationType, WebAccessType>> = {
   ssh: 'webssh',
   rdp: 'webrdp',
@@ -56,10 +68,14 @@ export const ACCESS_TYPES_CHANGED_EVENT = 'liaison:access-types-changed';
 export const isAccessType = (
   value: string | null | undefined,
 ): value is AccessType =>
-  ACCESS_TYPES.some((accessType) => accessType.value === value);
+  KNOWN_ACCESS_TYPES.some((accessType) => accessType.value === value);
+
+export const isSupportedAccessType = (
+  value: string | null | undefined,
+) => ACCESS_TYPES.some((accessType) => accessType.value === value);
 
 export const accessTypeLabel = (value: string | null | undefined) =>
-  ACCESS_TYPES.find((item) => item.value === value)?.label || value || '-';
+  KNOWN_ACCESS_TYPES.find((item) => item.value === value)?.label || value || '-';
 
 export const isWebAccessType = (
   value: string | null | undefined,

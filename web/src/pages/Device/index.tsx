@@ -11,13 +11,11 @@ const pageSize = 10;
 const DevicePage: React.FC = () => {
   const { tr } = useI18n();
   const [rows, setRows] = useState<API.Device[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({ name: '', ip: '' });
+  const [filters, setFilters] = useState({ name: '', ip: '', online: '', os: '' });
   const debouncedName = useDebouncedValue(filters.name);
   const debouncedIP = useDebouncedValue(filters.ip);
-  const applied = useMemo(() => ({ name: debouncedName, ip: debouncedIP }), [debouncedIP, debouncedName]);
   const [current, setCurrent] = useState<API.Device>();
   const [detailOpen, setDetailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -29,16 +27,29 @@ const DevicePage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getDeviceList({ page, page_size: pageSize, name: applied.name || undefined, ip: applied.ip || undefined });
+      const response = await getDeviceList({ page: 1, page_size: 1000 });
       if (response.code !== 200) throw new Error(response.message);
       setRows(response.data?.devices || []);
-      setTotal(response.data?.total || 0);
     } catch (error: any) {
       setNotice({ tone: 'danger', text: error?.message || tr('加载设备失败', 'Failed to load devices') });
     } finally { setLoading(false); }
-  }, [applied, page, tr]);
+  }, [tr]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const filteredRows = useMemo(() => {
+    const name = debouncedName.trim().toLowerCase();
+    const ip = debouncedIP.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (name && !(row.name || '').toLowerCase().includes(name)) return false;
+      if (ip && !(row.interfaces || []).some((item) => (item.ip || []).some((value) => value.toLowerCase().includes(ip)))) return false;
+      if (filters.online && String(row.online) !== filters.online) return false;
+      if (filters.os && (row.os || '') !== filters.os) return false;
+      return true;
+    });
+  }, [debouncedIP, debouncedName, filters.online, filters.os, rows]);
+  const visibleRows = useMemo(() => filteredRows.slice((page - 1) * pageSize, page * pageSize), [filteredRows, page]);
+  const osOptions = useMemo(() => [...new Set(rows.map((row) => row.os).filter(Boolean))].sort(), [rows]);
 
   const openDetail = async (row: API.Device) => {
     setCurrent(row); setDetailOpen(true);
@@ -79,9 +90,11 @@ const DevicePage: React.FC = () => {
     <div className="liaison-filter-bar">
       <label className="liaison-compound"><span>{tr('设备名称', 'Device')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label>
       <label className="liaison-compound"><span>{tr('网卡 IP', 'NIC IP')}</span><input value={filters.ip} onChange={(event) => { setFilters((value) => ({ ...value, ip: event.target.value })); setPage(1); }} placeholder={tr('输入 IP', 'IP address')} /></label>
-      <div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', ip: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div>
+      <label className="liaison-compound"><span>{tr('在线状态', 'Online')}</span><select value={filters.online} onChange={(event) => { setFilters((value) => ({ ...value, online: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="1">{tr('在线', 'Online')}</option><option value="0">{tr('离线', 'Offline')}</option></select></label>
+      <label className="liaison-compound"><span>{tr('操作系统', 'OS')}</span><select value={filters.os} onChange={(event) => { setFilters((value) => ({ ...value, os: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{osOptions.map((os) => <option key={os} value={os}>{os}</option>)}</select></label>
+      <div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', ip: '', online: '', os: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div>
     </div>
-    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('设备列表', 'Devices')}</h2></header><DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无设备', 'No devices')} /><Pager page={page} pageSize={pageSize} total={total} onPageChange={setPage} /></section>
+    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('设备列表', 'Devices')}</h2></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无设备', 'No devices')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>
     <Drawer open={detailOpen} title={tr('设备详情', 'Device Detail')} onClose={() => setDetailOpen(false)}><dl className="liaison-detail-list">{detailItems.map(([label, value]) => <div key={String(label)}><dt>{label}</dt><dd>{String(value ?? '-')}</dd></div>)}</dl>{current?.interfaces?.length ? <section className="liaison-detail-section"><h3>{tr('网卡信息', 'Network interfaces')}</h3>{current.interfaces.map((item) => <div key={item.name}><b>{item.name}</b><span>{(item.ip || []).join(', ') || '-'}</span><small>MAC: {item.mac || '-'}</small></div>)}</section> : null}</Drawer>
     <Modal open={editOpen} title={tr('编辑设备', 'Edit Device')} onClose={() => setEditOpen(false)} width={500} footer={<><Button onClick={() => setEditOpen(false)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-device-form" disabled={saving}>{tr('确定', 'Save')}</Button></>}><form id="edit-device-form" className="native-modal-form" onSubmit={save}><Field label={tr('设备名称', 'Device Name')} required><Input value={editName} onChange={(event) => setEditName(event.target.value)} /></Field><Field label={tr('描述', 'Description')}><Input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} /></Field></form></Modal>
   </div>;

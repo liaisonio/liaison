@@ -1,11 +1,12 @@
 import { Button, Column, DangerConfirm, DataTable, Field, Input, Modal, Notice, Pager, Select, StatusPill } from '@/components/ui';
-import { ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, accessTypesForApplication, getProxyAccessType, isWebAccessType, type AccessType } from '@/constants/accessTypes';
+import { ApplicationIcon } from '@/components/icons/ApplicationIcon';
+import { ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, accessTypesForApplication, getProxyAccessType, isSupportedAccessType, isWebAccessType, type AccessType } from '@/constants/accessTypes';
 import { APPLICATION_TYPES, APPLICATION_TYPES_CHANGED_EVENT } from '@/constants/applicationTypes';
 import { useI18n } from '@/i18n';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useSearchParams } from '@/lib/runtime';
+import { history, useSearchParams } from '@/lib/runtime';
 import { createApplication, createProxy, deleteApplication, getApplicationList, getEdgeList, getProxyList, updateApplication } from '@/services/api';
-import { AppWindow, Link2, Plus } from 'lucide-react';
+import { Link2, Plus } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 const pageSize = 10;
@@ -30,14 +31,13 @@ const AppPage: React.FC = () => {
   const [rows, setRows] = useState<API.Application[]>([]);
   const [proxies, setProxies] = useState<API.Proxy[]>([]);
   const [edges, setEdges] = useState<API.Edge[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const routeType = routeSearch.get('application_type') || '';
-  const [filters, setFilters] = useState({ name: '', application_type: routeType, device_name: '' });
+  const [filters, setFilters] = useState({ name: '', application_type: routeType, device_name: '', target: '' });
   const debouncedName = useDebouncedValue(filters.name);
   const debouncedDeviceName = useDebouncedValue(filters.device_name);
-  const applied = useMemo(() => ({ name: debouncedName, application_type: filters.application_type, device_name: debouncedDeviceName }), [debouncedDeviceName, debouncedName, filters.application_type]);
+  const debouncedTarget = useDebouncedValue(filters.target);
   const [createOpen, setCreateOpen] = useState(false);
   const [editRow, setEditRow] = useState<API.Application>();
   const [deleteRow, setDeleteRow] = useState<API.Application>();
@@ -63,9 +63,9 @@ const AppPage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getApplicationList({ page, page_size: pageSize, name: applied.name || undefined, application_type: applied.application_type || undefined, device_name: applied.device_name || undefined });
+      const response = await getApplicationList({ page: 1, page_size: 1000 });
       if (response.code !== 200) throw new Error(response.message);
-      setRows(response.data?.applications || []); setTotal(response.data?.total || 0);
+      setRows(response.data?.applications || []);
       try {
         const proxyResponse = await getProxyList({ page_size: 1000 });
         setProxies(proxyResponse.code === 200 ? proxyResponse.data?.proxies || [] : []);
@@ -73,7 +73,7 @@ const AppPage: React.FC = () => {
       window.dispatchEvent(new CustomEvent(APPLICATION_TYPES_CHANGED_EVENT));
     } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('加载应用失败', 'Failed to load applications') }); }
     finally { setLoading(false); }
-  }, [applied, page, tr]);
+  }, [tr]);
   useEffect(() => { void loadEdges(); }, [loadEdges]);
   useEffect(() => { void load(); }, [load]);
 
@@ -84,12 +84,26 @@ const AppPage: React.FC = () => {
   const accessesByApplication = useMemo(() => {
     const grouped = new Map<number, API.Proxy[]>();
     proxies.forEach((proxy) => {
+      if (!isSupportedAccessType(getProxyAccessType(proxy))) return;
       const applicationID = proxy.application?.id;
       if (!applicationID) return;
       grouped.set(applicationID, [...(grouped.get(applicationID) || []), proxy]);
     });
     return grouped;
   }, [proxies]);
+  const filteredRows = useMemo(() => {
+    const name = debouncedName.trim().toLowerCase();
+    const device = debouncedDeviceName.trim().toLowerCase();
+    const target = debouncedTarget.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (name && !row.name.toLowerCase().includes(name)) return false;
+      if (filters.application_type && row.application_type !== filters.application_type) return false;
+      if (device && !(row.device?.name || '').toLowerCase().includes(device)) return false;
+      if (target && !`${row.ip}:${row.port}`.toLowerCase().includes(target)) return false;
+      return true;
+    });
+  }, [debouncedDeviceName, debouncedName, debouncedTarget, filters.application_type, rows]);
+  const visibleRows = useMemo(() => filteredRows.slice((page - 1) * pageSize, page * pageSize), [filteredRows, page]);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -125,13 +139,13 @@ const AppPage: React.FC = () => {
     try {
       const response = await createProxy({ name: accessName.trim() || suggestedAccessName, application_id: accessRow.id, access_protocol: accessProtocol, expose_public_port: expose, port: expose && publicPort ? Number(publicPort) : undefined });
       if (response.code !== 200) throw new Error(response.message);
-      setAccessRow(undefined); setNotice({ tone: 'success', text: tr('访问已创建', 'Access created') }); window.dispatchEvent(new CustomEvent(ACCESS_TYPES_CHANGED_EVENT)); await load();
+      setAccessRow(undefined); window.dispatchEvent(new CustomEvent(ACCESS_TYPES_CHANGED_EVENT)); history.push(`/proxy?access_type=${accessMode}`);
     } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('创建访问失败', 'Failed to create access') }); }
     finally { setSaving(false); }
   };
 
   const columns: Column<API.Application>[] = [
-    { key: 'name', title: tr('应用名称', 'Application'), width: 190, render: (row) => <span className="liaison-inline-name"><AppWindow size={14} />{row.name}</span> },
+    { key: 'name', title: tr('应用名称', 'Application'), width: 190, render: (row) => <span className="liaison-inline-name"><ApplicationIcon size={14} />{row.name}</span> },
     { key: 'type', title: tr('协议类型', 'Protocol'), width: 105, render: (row) => <StatusPill tone="info">{row.application_type.toUpperCase()}</StatusPill> },
     { key: 'target', title: tr('目标', 'Target'), width: 155, render: (row) => <code>{row.ip}:{row.port}</code> },
     { key: 'device', title: tr('所在设备', 'Device'), width: 150, render: (row) => row.device?.name || '-' },
@@ -146,8 +160,8 @@ const AppPage: React.FC = () => {
 
   return <div className="liaison-page-stack">
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
-    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('应用名称', 'Application')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入应用名称', 'Application name')} /></label><label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.application_type} onChange={(event) => { setFilters((value) => ({ ...value, application_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{APPLICATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => { setFilters((value) => ({ ...value, device_name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', application_type: routeType, device_name: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
-    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('应用列表', 'Applications')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建应用', 'Create application')}</Button></header><DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无应用', 'No applications')} /><Pager page={page} pageSize={pageSize} total={total} onPageChange={setPage} /></section>
+    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('应用名称', 'Application')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入应用名称', 'Application name')} /></label><label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.application_type} onChange={(event) => { setFilters((value) => ({ ...value, application_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{APPLICATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => { setFilters((value) => ({ ...value, device_name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label><label className="liaison-compound"><span>{tr('目标地址', 'Target')}</span><input value={filters.target} onChange={(event) => { setFilters((value) => ({ ...value, target: event.target.value })); setPage(1); }} placeholder={tr('IP 或端口', 'IP or port')} /></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', application_type: routeType, device_name: '', target: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
+    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('应用列表', 'Applications')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建应用', 'Create application')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无应用', 'No applications')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>
     <Modal open={createOpen} title={tr('新建应用', 'Create application')} onClose={closeCreate} width={480} footer={<><Button onClick={closeCreate}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-application" disabled={saving}>{tr('确定', 'Create')}</Button></>}><form id="create-application" className="liaison-form-grid liaison-application-form" onSubmit={create}><Field label={tr('应用名称', 'Application name')}><Input value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder={suggestedApplicationName} /></Field><Field label={tr('协议类型', 'Protocol')}><Select value={form.application_type} onChange={(event) => setForm((value) => ({ ...value, application_type: event.target.value }))}>{APPLICATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field><div className="is-full"><Field label={tr('连接器', 'Connector')} required hint={tr('应用通过该连接器访问所在局域网', 'The application uses this connector to reach its LAN')}><Select value={form.edge_id} onChange={(event) => setForm((value) => ({ ...value, edge_id: event.target.value, ip: '' }))}><option value="">{tr('选择连接器', 'Select connector')}</option>{edges.map((edge) => <option key={edge.id} value={edge.id}>{edge.name}{edge.device?.name ? ` (${edge.device.name})` : ''}</option>)}</Select></Field></div><Field label={tr('IP 地址', 'IP address')} required><Input list="application-ip-options" value={form.ip} onChange={(event) => setForm((value) => ({ ...value, ip: event.target.value }))} placeholder="192.168.1.100" /><datalist id="application-ip-options">{availableIPs.map((ip) => <option key={ip} value={ip} />)}</datalist></Field><Field label={tr('端口', 'Port')}><Input type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm((value) => ({ ...value, port: event.target.value }))} placeholder="443" /></Field></form></Modal>
     <Modal open={!!editRow} title={tr('编辑应用', 'Edit application')} onClose={() => setEditRow(undefined)} width={460} footer={<><Button onClick={() => setEditRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-application">{tr('确定', 'Save')}</Button></>}><form id="edit-application" onSubmit={update}><Field label={tr('应用名称', 'Application name')} required><Input value={editName} onChange={(event) => setEditName(event.target.value)} /></Field></form></Modal>
     <Modal open={!!deleteRow} title={tr('删除应用', 'Delete application')} onClose={() => setDeleteRow(undefined)} width={430} footer={<><Button onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('关联该应用的访问将一并移除，此操作无法撤销。', 'Access entries linked to this application will also be removed. This cannot be undone.')} /></Modal>

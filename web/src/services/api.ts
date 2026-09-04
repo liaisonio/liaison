@@ -204,19 +204,19 @@ export async function deleteEdge(id: number) {
 }
 
 /** 获取扫描应用任务 GET /v1/edges/:edge_id/scan_application_tasks */
-export async function getEdgeScanTask(edgeId: number) {
+export async function getEdgeScanTask(edgeId: number, taskId?: number) {
   return request<API.Response<API.EdgeScanApplicationTask>>(
     `/api/v1/edges/${edgeId}/scan_application_tasks`,
     {
       method: 'GET',
-      params: { edge_id: edgeId },
+      params: { edge_id: edgeId, task_id: taskId },
     },
   );
 }
 
 /** 创建扫描应用任务 POST /v1/edges/:edge_id/scan_application_tasks */
 export async function createEdgeScanTask(data: API.EdgeScanTaskCreateParams) {
-  return request<API.Response>(
+  return request<API.Response<API.EdgeScanTaskCreateResult>>(
     `/api/v1/edges/${data.edge_id}/scan_application_tasks`,
     {
       method: 'POST',

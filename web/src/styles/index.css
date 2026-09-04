@@ -587,9 +587,12 @@ button {
 .liaison-firewall-empty.is-deny { color: rgb(var(--danger)); }
 .liaison-firewall-empty.is-deny strong { color: rgb(var(--danger)); }
 .liaison-drawer-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 4px; }
-.liaison-switch { display: inline-flex; height: 26px; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 0 8px 0 4px; background: rgb(var(--line)); color: rgb(var(--muted)); font-size: 10px; cursor: pointer; }
-.liaison-switch i { width: 18px; height: 18px; border-radius: 50%; background: rgb(var(--surface)); transition: transform 120ms ease; }
-.liaison-switch.is-on { background: rgb(var(--accent) / 0.18); color: rgb(var(--accent)); }
+.liaison-switch { position: relative; display: inline-flex; width: 52px; height: 26px; flex: 0 0 52px; align-items: center; justify-content: center; border: 0; border-radius: 999px; padding: 0 5px 0 25px; background: rgb(var(--line)); color: rgb(var(--muted)); font-size: 10px; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; }
+.liaison-switch i { position: absolute; left: 4px; width: 18px; height: 18px; border-radius: 50%; background: rgb(var(--surface)); box-shadow: 0 1px 2px rgb(15 23 42 / 0.16); transition: transform 160ms ease; }
+.liaison-switch span { line-height: 1; white-space: nowrap; }
+.liaison-switch.is-on { padding: 0 25px 0 5px; background: rgb(var(--accent) / 0.18); color: rgb(var(--accent)); }
+.liaison-switch.is-on i { transform: translateX(26px); }
+.liaison-switch:disabled { cursor: wait; opacity: 0.72; }
 .liaison-install-loading { display: grid; min-height: 180px; place-items: center; align-content: center; gap: 8px; text-align: center; }
 .liaison-install-loading .ui-spinner { width: 22px; height: 22px; margin-bottom: 6px; }
 .liaison-install-loading strong { font-size: 12px; font-weight: 650; }

@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -54,12 +55,15 @@ type trafficStats struct {
 }
 
 type httpProxy struct {
-	id       int
-	port     int
-	listener net.Listener
-	ctx      context.Context
-	cancel   context.CancelFunc
-	wg       sync.WaitGroup
+	id           int
+	port         int
+	listener     net.Listener
+	ctx          context.Context
+	cancel       context.CancelFunc
+	wg           sync.WaitGroup
+	connectionMu sync.Mutex
+	connections  map[net.Conn]struct{}
+	stopping     bool
 }
 
 // NewServer 创建 HTTP 服务器
@@ -145,11 +149,12 @@ func (s *Server) CreateProxy(ctx context.Context, protoproxy *proto.Proxy, certF
 	proxyCtx, cancel := context.WithCancel(context.Background())
 
 	proxy := &httpProxy{
-		id:       protoproxy.ID,
-		port:     actualPort,
-		listener: listener,
-		ctx:      proxyCtx,
-		cancel:   cancel,
+		id:          protoproxy.ID,
+		port:        actualPort,
+		listener:    listener,
+		ctx:         proxyCtx,
+		cancel:      cancel,
+		connections: make(map[net.Conn]struct{}),
 	}
 
 	// 启动处理 goroutine
@@ -166,38 +171,39 @@ func (s *Server) CreateProxy(ctx context.Context, protoproxy *proto.Proxy, certF
 // DeleteProxy 删除代理
 func (s *Server) DeleteProxy(ctx context.Context, id int) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	proxy, exists := s.proxies[id]
 	if !exists {
+		s.mu.Unlock()
 		log.Warnf("proxy %d not found", id)
 		return nil
 	}
 
-	// 取消 context
-	proxy.cancel()
-
-	// 关闭监听器
-	if err := proxy.listener.Close(); err != nil {
-		log.Errorf("failed to close listener for proxy %d: %s", id, err)
-	}
+	// 先阻止新连接并从索引中摘除，再释放全局锁。连接处理协程会使用
+	// Server 锁记录流量，持锁等待会令关闭固定拖到超时。
+	proxy.stop()
+	delete(s.proxies, id)
+	delete(s.proxiesIdxPort, proxy.port)
+	s.mu.Unlock()
 
 	// 等待 goroutine 退出
 	done := make(chan struct{})
 	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				log.Errorf("panic while waiting for HTTP proxy %d shutdown: %v", id, recovered)
+			}
+			close(done)
+		}()
 		proxy.wg.Wait()
-		close(done)
 	}()
 
 	select {
 	case <-done:
-		// goroutine 已退出
+	case <-ctx.Done():
+		return fmt.Errorf("wait for HTTP proxy %d shutdown: %w", id, ctx.Err())
 	case <-time.After(5 * time.Second):
 		log.Warnf("proxy %d goroutine did not exit within 5 seconds", id)
 	}
-
-	delete(s.proxies, id)
-	delete(s.proxiesIdxPort, proxy.port)
 
 	log.Infof("HTTP proxy %d deleted", id)
 	return nil
@@ -206,20 +212,63 @@ func (s *Server) DeleteProxy(ctx context.Context, id int) error {
 // Close 关闭所有代理
 func (s *Server) Close() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	// 停止流量统计上报
 	close(s.stop)
 
+	proxies := make([]*httpProxy, 0, len(s.proxies))
 	for _, proxy := range s.proxies {
-		proxy.cancel()
-		proxy.listener.Close()
-	}
-	for _, proxy := range s.proxies {
-		proxy.wg.Wait()
+		proxy.stop()
+		proxies = append(proxies, proxy)
 	}
 	s.proxies = make(map[int]*httpProxy)
 	s.proxiesIdxPort = make(map[int]int)
+	s.mu.Unlock()
+
+	for _, proxy := range proxies {
+		proxy.wg.Wait()
+	}
+}
+
+func (p *httpProxy) trackConnection(conn net.Conn) bool {
+	p.connectionMu.Lock()
+	defer p.connectionMu.Unlock()
+	if p.stopping {
+		return false
+	}
+	p.connections[conn] = struct{}{}
+	p.wg.Add(1)
+	return true
+}
+
+func (p *httpProxy) releaseConnection(conn net.Conn) {
+	p.connectionMu.Lock()
+	delete(p.connections, conn)
+	p.connectionMu.Unlock()
+	p.wg.Done()
+}
+
+// stop cancels the proxy and actively closes accepted connections so idle
+// keep-alive clients cannot delay a disable operation until their read timeout.
+func (p *httpProxy) stop() {
+	p.connectionMu.Lock()
+	if p.stopping {
+		p.connectionMu.Unlock()
+		return
+	}
+	p.stopping = true
+	connections := make([]net.Conn, 0, len(p.connections))
+	for conn := range p.connections {
+		connections = append(connections, conn)
+	}
+	p.connectionMu.Unlock()
+
+	p.cancel()
+	if err := p.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+		log.Errorf("failed to close listener for proxy %d: %s", p.id, err)
+	}
+	for _, conn := range connections {
+		_ = conn.Close()
+	}
 }
 
 // recordTraffic 记录流量（累积到stats中，由定时器每分钟上报一次）
@@ -316,6 +365,10 @@ func (p *httpProxy) serve(s *Server, protoproxy *proto.Proxy) {
 				continue
 			}
 		}
+		if !p.trackConnection(conn) {
+			_ = conn.Close()
+			return
+		}
 
 		// 防火墙：在连接真正进入处理前按代理 ID 做 CIDR 检查，
 		// 不通过直接断开，连代理协议都不握手。
@@ -325,13 +378,13 @@ func (p *httpProxy) serve(s *Server, protoproxy *proto.Proxy) {
 		if fw != nil && !fw.CheckAddr(protoproxy.ID, conn.RemoteAddr()) {
 			log.Infof("firewall: rejected %s for http proxy %d", conn.RemoteAddr(), protoproxy.ID)
 			_ = conn.Close()
+			p.releaseConnection(conn)
 			continue
 		}
 
 		// 为每个连接启动 goroutine
-		p.wg.Add(1)
 		go func(clientConn net.Conn) {
-			defer p.wg.Done()
+			defer p.releaseConnection(clientConn)
 			defer clientConn.Close()
 			s.handleConnection(p.ctx, clientConn, protoproxy)
 		}(conn)

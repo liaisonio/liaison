@@ -2,18 +2,18 @@ import {
   ACCESS_TYPES,
   ACCESS_TYPES_CHANGED_EVENT,
   getProxyAccessType,
-  isAccessType,
+  isSupportedAccessType,
 } from '@/constants/accessTypes';
 import {
   APPLICATION_TYPES_CHANGED_EVENT,
 } from '@/constants/applicationTypes';
 import { AuditLogIcon } from '@/components/icons/AuditLogIcon';
+import { ApplicationIcon } from '@/components/icons/ApplicationIcon';
 import { useI18n } from '@/i18n';
 import { getProxyList } from '@/services/api';
 import { useUi } from '@/store/ui';
-import type { LucideIcon, LucideProps } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import {
-  AppWindow,
   Boxes,
   Cable,
   ChevronDown,
@@ -34,10 +34,6 @@ type NavItem = {
   icon: LucideIcon;
   end?: boolean;
 };
-
-const CloudApplicationsIcon = ({ size = 17, className }: LucideProps) => (
-  <AppWindow className={className} size={size} strokeWidth={1.8} />
-);
 
 export function Sidebar() {
   const { tr } = useI18n();
@@ -61,7 +57,7 @@ export function Sidebar() {
   ];
 
   const accessType = new URLSearchParams(location.search).get('access_type');
-  const activeAccessType = isAccessType(accessType) ? accessType : undefined;
+  const activeAccessType = isSupportedAccessType(accessType) ? accessType : undefined;
   const visibleAccessTypes = ACCESS_TYPES.filter((type) =>
     availableAccessTypes.has(type.value),
   );
@@ -207,7 +203,7 @@ export function Sidebar() {
               `liaison-nav-item${isActive ? ' is-active' : ''}`
             }
           >
-            <CloudApplicationsIcon size={17} />
+            <ApplicationIcon size={17} />
             {!collapsed && <span>{tr('应用', 'Applications')}</span>}
           </NavLink>
         </div>

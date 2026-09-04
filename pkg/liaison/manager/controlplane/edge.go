@@ -506,6 +506,9 @@ func (cp *controlPlane) CreateEdgeScanApplicationTask(ctx context.Context, req *
 	return &v1.CreateEdgeScanApplicationTaskResponse{
 		Code:    200,
 		Message: "success",
+		Data: &v1.EdgeScanApplicationTaskCreated{
+			TaskId: uint64(task.ID),
+		},
 	}, nil
 }
 
@@ -516,23 +519,37 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(ctx context.Context, req *v1.
 	if err := requireVisibleResource(ctx, cp.repo, resourceConnector, req.EdgeId); err != nil {
 		return nil, err
 	}
-	tasks, err := cp.repo.ListTasks(&dao.ListTasksQuery{
-		EdgeID:      uint(req.EdgeId),
-		TaskType:    model.TaskTypeScan,
-		TaskSubType: model.TaskSubTypeScanApplication,
-		//Status:      []model.TaskStatus{model.TaskStatusPending, model.TaskStatusRunning},
-		Query: dao.Query{
-			Page:     1,
-			PageSize: 1,
-			Order:    "id",
-			Desc:     true,
-		},
-	})
-	if err != nil {
-		log.Errorf("list tasks error: %s", err)
-		return nil, err
+	var task *model.Task
+	if req.TaskId != 0 {
+		var err error
+		task, err = cp.repo.GetTask(uint(req.TaskId))
+		if err != nil {
+			return nil, mapRecordNotFound(err, "SCAN_TASK_NOT_FOUND", "扫描任务不存在")
+		}
+		if task.EdgeID != req.EdgeId || task.TaskType != model.TaskTypeScan || task.TaskSubType != model.TaskSubTypeScanApplication {
+			return nil, notFound("SCAN_TASK_NOT_FOUND", "扫描任务不存在", nil)
+		}
+	} else {
+		tasks, err := cp.repo.ListTasks(&dao.ListTasksQuery{
+			EdgeID:      uint(req.EdgeId),
+			TaskType:    model.TaskTypeScan,
+			TaskSubType: model.TaskSubTypeScanApplication,
+			Query: dao.Query{
+				Page:     1,
+				PageSize: 1,
+				Order:    "id",
+				Desc:     true,
+			},
+		})
+		if err != nil {
+			log.Errorf("list tasks error: %s", err)
+			return nil, err
+		}
+		if len(tasks) != 0 {
+			task = tasks[0]
+		}
 	}
-	if len(tasks) == 0 {
+	if task == nil {
 		return &v1.GetEdgeScanApplicationTaskResponse{
 			Code:    200,
 			Message: "success",
@@ -542,7 +559,7 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(ctx context.Context, req *v1.
 
 	// result
 	result := model.TaskScanApplicationResult{}
-	err = json.Unmarshal(tasks[0].TaskResult, &result)
+	err := json.Unmarshal(task.TaskResult, &result)
 	if err != nil {
 		log.Errorf("unmarshal task result error: %s", err)
 		return nil, err
@@ -582,13 +599,13 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(ctx context.Context, req *v1.
 		Code:    200,
 		Message: "success",
 		Data: &v1.EdgeScanApplicationTask{
-			Id:           uint64(tasks[0].ID),
-			EdgeId:       uint64(tasks[0].EdgeID),
-			TaskStatus:   tasks[0].TaskStatus.String(),
-			CreatedAt:    tasks[0].CreatedAt.Format(time.DateTime),
-			UpdatedAt:    tasks[0].UpdatedAt.Format(time.DateTime),
+			Id:           uint64(task.ID),
+			EdgeId:       uint64(task.EdgeID),
+			TaskStatus:   task.TaskStatus.String(),
+			CreatedAt:    task.CreatedAt.Format(time.DateTime),
+			UpdatedAt:    task.UpdatedAt.Format(time.DateTime),
 			Applications: applications,
-			Error:        tasks[0].Error,
+			Error:        task.Error,
 		},
 	}, nil
 }

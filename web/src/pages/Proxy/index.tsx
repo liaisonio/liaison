@@ -1,5 +1,5 @@
 import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, Notice, Pager, Select, StatusPill, Timestamp } from '@/components/ui';
-import { ACCESS_TYPES, ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, applicationTypeForAccess, getProxyAccessType, isAccessType, isProxyPublicPortExposed, isWebAccessType } from '@/constants/accessTypes';
+import { ACCESS_TYPES, ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, applicationTypeForAccess, getProxyAccessType, isAccessType, isProxyPublicPortExposed, isSupportedAccessType, isWebAccessType } from '@/constants/accessTypes';
 import { useI18n } from '@/i18n';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { history, useSearchParams } from '@/lib/runtime';
@@ -54,21 +54,21 @@ const ConnectionCommand: React.FC<{ row: API.Proxy; copiedLabel: string; copyHin
 const ProxyPage: React.FC = () => {
   const { tr } = useI18n();
   const [routeSearch] = useSearchParams();
-  const routeType = routeSearch.get('access_type') || '';
+  const requestedRouteType = routeSearch.get('access_type') || '';
+  const routeType = isSupportedAccessType(requestedRouteType) ? requestedRouteType : '';
   const [rows, setRows] = useState<API.Proxy[]>([]);
   const [applications, setApplications] = useState<API.Application[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({ name: '', access_type: routeType });
+  const [filters, setFilters] = useState({ name: '', access_type: routeType, application_id: '', status: '' });
   const debouncedName = useDebouncedValue(filters.name);
-  const applied = useMemo(() => ({ name: debouncedName, access_type: filters.access_type }), [debouncedName, filters.access_type]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editRow, setEditRow] = useState<API.Proxy>();
   const [deleteRow, setDeleteRow] = useState<API.Proxy>();
   const [form, setForm] = useState({ name: '', application_id: '', access_type: routeType, port: '', description: '' });
   const [suggestedAccessName, setSuggestedAccessName] = useState(defaultAccessName);
   const [saving, setSaving] = useState(false);
+  const [togglingIds, setTogglingIds] = useState<number[]>([]);
   const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
   const [firewallRow, setFirewallRow] = useState<API.Proxy>();
   const [cidrs, setCidrs] = useState<string[]>([]);
@@ -82,17 +82,28 @@ const ProxyPage: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getProxyList({ page: 1, page_size: 1000, name: applied.name || undefined });
+      const response = await getProxyList({ page: 1, page_size: 1000 });
       if (response.code !== 200) throw new Error(response.message);
-      const all = response.data?.proxies || [];
-      const filtered = applied.access_type ? all.filter((row) => getProxyAccessType(row) === applied.access_type) : all;
-      setTotal(filtered.length); setRows(filtered.slice((page - 1) * pageSize, page * pageSize));
+      setRows(response.data?.proxies || []);
       window.dispatchEvent(new CustomEvent(ACCESS_TYPES_CHANGED_EVENT));
     } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('加载访问失败', 'Failed to load access') }); }
     finally { setLoading(false); }
-  }, [applied, page, tr]);
+  }, [tr]);
   useEffect(() => { void loadApplications(); }, [loadApplications]);
   useEffect(() => { void load(); }, [load]);
+
+  const filteredRows = useMemo(() => {
+    const name = debouncedName.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (!isSupportedAccessType(getProxyAccessType(row))) return false;
+      if (name && !row.name.toLowerCase().includes(name)) return false;
+      if (filters.access_type && getProxyAccessType(row) !== filters.access_type) return false;
+      if (filters.application_id && String(row.application?.id || '') !== filters.application_id) return false;
+      if (filters.status && row.status !== filters.status) return false;
+      return true;
+    });
+  }, [debouncedName, filters.access_type, filters.application_id, filters.status, rows]);
+  const visibleRows = useMemo(() => filteredRows.slice((page - 1) * pageSize, page * pageSize), [filteredRows, page]);
 
   const selectedAccessType = routeType || form.access_type;
   const availableApplications = useMemo(() => {
@@ -129,7 +140,22 @@ const ProxyPage: React.FC = () => {
     catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('更新失败', 'Update failed') }); } finally { setSaving(false); }
   };
   const remove = async () => { if (!deleteRow) return; try { const response = await deleteProxy(deleteRow.id); if (response.code !== 200) throw new Error(response.message); setDeleteRow(undefined); setNotice({ tone: 'success', text: tr('访问已删除', 'Access deleted') }); await load(); } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('删除失败', 'Delete failed') }); } };
-  const toggle = async (row: API.Proxy) => { try { const response = await updateProxy(row.id, { status: row.status === 'running' ? 'stopped' : 'running' }); if (response.code !== 200) throw new Error(response.message); await load(); } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('状态更新失败', 'Status update failed') }); } };
+  const toggle = async (row: API.Proxy) => {
+    if (togglingIds.includes(row.id)) return;
+    const nextStatus = row.status === 'running' ? 'stopped' : 'running';
+    setTogglingIds((ids) => [...ids, row.id]);
+    setRows((items) => items.map((item) => item.id === row.id ? { ...item, status: nextStatus, effective_status: nextStatus === 'stopped' ? 'stopped' : item.effective_status } : item));
+    try {
+      const response = await updateProxy(row.id, { status: nextStatus });
+      if (response.code !== 200) throw new Error(response.message);
+      if (response.data) setRows((items) => items.map((item) => item.id === row.id ? { ...item, ...response.data } : item));
+    } catch (error: any) {
+      setRows((items) => items.map((item) => item.id === row.id ? row : item));
+      setNotice({ tone: 'danger', text: error?.message || tr('状态更新失败', 'Status update failed') });
+    } finally {
+      setTogglingIds((ids) => ids.filter((id) => id !== row.id));
+    }
+  };
 
   const openFirewall = async (row: API.Proxy) => {
     setFirewallRow(row); setCidrs([]); setCidrDraft(''); setClientIP(''); setFirewallUpdatedAt(''); setFirewallDirty(false);
@@ -171,7 +197,7 @@ const ProxyPage: React.FC = () => {
     { key: 'application', title: tr('应用', 'Application'), width: 175, render: (row) => row.application?.name || '-' },
     { key: 'application_protocol', title: tr('应用协议', 'Application protocol'), width: 110, render: (row) => <StatusPill tone="neutral">{accessTypeLabel(row.application?.application_type)}</StatusPill> },
     ...endpointColumn,
-    { key: 'enabled', title: tr('启用', 'Enabled'), width: 82, render: (row) => <button className={`liaison-switch${row.status === 'running' ? ' is-on' : ''}`} title={row.status === 'running' ? tr('点击停用', 'Click to disable') : tr('点击启用', 'Click to enable')} aria-label={row.status === 'running' ? tr('停用访问', 'Disable access') : tr('启用访问', 'Enable access')} aria-pressed={row.status === 'running'} onClick={() => void toggle(row)}><i /><span>{row.status === 'running' ? tr('启用', 'On') : tr('停用', 'Off')}</span></button> },
+    { key: 'enabled', title: tr('启用', 'Enabled'), width: 82, render: (row) => <button disabled={togglingIds.includes(row.id)} className={`liaison-switch${row.status === 'running' ? ' is-on' : ''}`} title={row.status === 'running' ? tr('点击停用', 'Click to disable') : tr('点击启用', 'Click to enable')} aria-label={row.status === 'running' ? tr('停用访问', 'Disable access') : tr('启用访问', 'Enable access')} aria-pressed={row.status === 'running'} onClick={() => void toggle(row)}><i /><span>{row.status === 'running' ? tr('启用', 'On') : tr('停用', 'Off')}</span></button> },
     { key: 'created', title: tr('创建时间', 'Created'), width: 150, render: (row) => <Timestamp value={row.created_at} /> },
     { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
     { key: 'actions', title: tr('操作', 'Actions'), width: 285, fixed: 'right', render: (row) => <span className="liaison-table-actions">{isProxyPublicPortExposed(row) && getProxyAccessType(row) !== 'http' ? <ConnectionCommand row={row} commandLabel={tr('连接命令', 'Command')} exampleLabel={tr('连接示例', 'Connection example')} copyHintLabel={tr('点击复制', 'Click to copy')} copiedLabel={tr('已复制', 'Copied')} /> : <button className="liaison-table-link" onClick={() => openAccess(row)}>{isWebAccessType(getProxyAccessType(row)) ? tr('详情', 'Details') : tr('访问', 'Open')}</button>}{isProxyPublicPortExposed(row) ? <button className="liaison-table-link" onClick={() => void openFirewall(row)}>{tr('防火墙', 'Firewall')}</button> : null}<button className="liaison-table-link" onClick={() => { setEditRow(row); setForm({ name: row.name, application_id: String(row.application?.id || ''), access_type: getProxyAccessType(row) || row.application?.application_type || '', port: row.port ? String(row.port) : '', description: row.description || '' }); }}>{tr('编辑', 'Edit')}</button><button className="liaison-table-link is-danger" onClick={() => setDeleteRow(row)}>{tr('删除', 'Delete')}</button></span> },
@@ -190,8 +216,8 @@ const ProxyPage: React.FC = () => {
 
   return <div className="liaison-page-stack">
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
-    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('访问名称', 'Access')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入访问名称', 'Access name')} /></label>{!routeType ? <label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.access_type} onChange={(event) => { setFilters((value) => ({ ...value, access_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{ACCESS_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}<div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', access_type: routeType }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
-    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('访问列表', 'Access')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建访问', 'Create access')}</Button></header><DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无访问', 'No access')} /><Pager page={page} pageSize={pageSize} total={total} onPageChange={setPage} /></section>
+    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('访问名称', 'Access')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入访问名称', 'Access name')} /></label>{!routeType ? <label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.access_type} onChange={(event) => { setFilters((value) => ({ ...value, access_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{ACCESS_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}<label className="liaison-compound"><span>{tr('应用', 'Application')}</span><select value={filters.application_id} onChange={(event) => { setFilters((value) => ({ ...value, application_id: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{applications.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="liaison-compound"><span>{tr('启用状态', 'Enabled')}</span><select value={filters.status} onChange={(event) => { setFilters((value) => ({ ...value, status: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="running">{tr('启用', 'Enabled')}</option><option value="stopped">{tr('停用', 'Disabled')}</option></select></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', access_type: routeType, application_id: '', status: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
+    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('访问列表', 'Access')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建访问', 'Create access')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无访问', 'No access')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>
     <Modal open={createOpen} title={tr('新建访问', 'Create access')} onClose={() => setCreateOpen(false)} width={520} footer={<><Button onClick={() => setCreateOpen(false)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-proxy" disabled={saving}>{tr('确定', 'Create')}</Button></>}>{accessForm('create-proxy', create)}</Modal>
     <Modal open={!!editRow} title={tr('编辑访问', 'Edit access')} onClose={() => setEditRow(undefined)} width={480} footer={<><Button onClick={() => setEditRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-proxy" disabled={saving}>{tr('确定', 'Save')}</Button></>}>{accessForm('edit-proxy', update, true)}</Modal>
     <Modal open={!!deleteRow} title={tr('删除访问', 'Delete access')} onClose={() => setDeleteRow(undefined)} width={430} footer={<><Button onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('该访问入口和防火墙规则将立即停止，此操作无法撤销。', 'This endpoint and its firewall rules will stop immediately. This cannot be undone.')} /></Modal>
