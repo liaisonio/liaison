@@ -8,7 +8,7 @@
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
 [![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
-[简体中文](./README.md) | [English](./README_en.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | Français | [Deutsch](./README_de.md)
+[简体中文](./README_zh.md) | [English](./README.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | Français | [Deutsch](./README_de.md)
 
 ![Dashboard](docs/pages/home_en.png)
 

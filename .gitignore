@@ -72,3 +72,7 @@ certs/*.crt
 # Local design documents and visual assets
 /design/
 /docs/adr/
+
+# Local agent and skill configuration
+/.agents/
+/.mini-wiki/
