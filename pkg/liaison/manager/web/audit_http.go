@@ -40,6 +40,64 @@ func (web *web) handleAccessAuditListHTTP(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success", "data": result})
 }
 
+// @Summary List management audit logs
+// @Tags Audit
+// @Produce json
+// @Param page query int false "Page"
+// @Param page_size query int false "Page size"
+// @Success 200 {object} map[string]any
+// @Failure 400 {object} map[string]any
+// @Failure 401 {object} map[string]any
+// @Router /api/v1/audits/management [get]
+func (web *web) handleManagementAuditListHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET")
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]any{"code": http.StatusMethodNotAllowed, "message": "method not allowed"})
+		return
+	}
+	user, err := web.authenticateHTTP(r)
+	if err != nil {
+		writeUnauthorized(w)
+		return
+	}
+	page, err := parsePositiveIntQuery(r.URL.Query().Get("page"), 1, 100000)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "invalid page"})
+		return
+	}
+	pageSize, err := parsePositiveIntQuery(r.URL.Query().Get("page_size"), 20, 500)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "invalid page size"})
+		return
+	}
+	var success *bool
+	if raw := strings.TrimSpace(r.URL.Query().Get("success")); raw != "" {
+		parsed, parseErr := strconv.ParseBool(raw)
+		if parseErr != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "invalid result"})
+			return
+		}
+		success = &parsed
+	}
+	startTime, err := parseAuditTimeQuery(r.URL.Query().Get("start_time"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "invalid start time"})
+		return
+	}
+	endTime, err := parseAuditTimeQuery(r.URL.Query().Get("end_time"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "invalid end time"})
+		return
+	}
+	ctx := context.WithValue(r.Context(), "user_id", user.ID)
+	result, err := web.controlPlane.ListManagementAudits(ctx, &controlplane.ManagementAuditListQuery{Module: strings.TrimSpace(r.URL.Query().Get("module")), Action: strings.TrimSpace(r.URL.Query().Get("action")), Success: success, Keyword: strings.TrimSpace(r.URL.Query().Get("keyword")), StartTime: startTime, EndTime: endTime, Page: page, PageSize: pageSize})
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"code": http.StatusInternalServerError, "message": "failed to load management logs"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success", "data": result})
+}
+
 func parseWebDataAuditListQuery(r *http.Request) (*controlplane.WebDataAuditListQuery, error) {
 	q := r.URL.Query()
 	page, err := parsePositiveIntQuery(q.Get("page"), 1, 100000)

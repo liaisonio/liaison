@@ -1,688 +1,516 @@
-import { PageContainer } from '@ant-design/pro-components';
-import { Card, Row, Col, Spin } from 'antd';
-import { Pie, Line } from '@ant-design/plots';
-import { useEffect, useState } from 'react';
-import { BarChartOutlined, PieChartOutlined, LineChartOutlined } from '@ant-design/icons';
-import { getDeviceList, getApplicationList, getEdgeList, getTrafficMetricsList } from '@/services/api';
+import { APPLICATION_TYPES } from '@/constants/applicationTypes';
 import { useI18n } from '@/i18n';
+import {
+  getApplicationList,
+  getDeviceList,
+  getEdgeList,
+  getTrafficMetricsList,
+} from '@/services/api';
+import {
+  Activity,
+  Cable,
+  HardDrive,
+  type LucideIcon,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import './index.less';
 
-interface PieData {
-  type: string;
-  value: number;
+type DistributionItem = { type: string; value: number };
+type TrafficPoint = { time: Date; application: string; value: number };
+
+const chartColors = ['rgb(var(--chart-1))', 'rgb(var(--chart-2))', 'rgb(var(--chart-3))', 'rgb(var(--chart-4))', 'rgb(var(--chart-5))', 'rgb(var(--chart-6))'];
+
+const applicationLabels = Object.fromEntries(
+  APPLICATION_TYPES.map((type) => [type.value, type.label]),
+);
+
+const numberValue = (value: number | string | undefined) => {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatLocalTime = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
+    date.getSeconds(),
+  )}`;
+};
+
+const formatChartTime = (date: Date) =>
+  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+const formatTraffic = (bitsPerSecond: number) => {
+  if (bitsPerSecond >= 1_000_000_000)
+    return `${(bitsPerSecond / 1_000_000_000).toFixed(1)} Gbps`;
+  if (bitsPerSecond >= 1_000_000)
+    return `${(bitsPerSecond / 1_000_000).toFixed(1)} Mbps`;
+  if (bitsPerSecond >= 1_000)
+    return `${(bitsPerSecond / 1_000).toFixed(1)} Kbps`;
+  return `${Math.round(bitsPerSecond)} bps`;
+};
+
+const formatBytes = (bytes: number) => {
+  if (bytes >= 1_000_000_000)
+    return `${(bytes / 1_000_000_000).toFixed(2)} GB`;
+  if (bytes >= 1_000_000)
+    return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  if (bytes >= 1_000)
+    return `${(bytes / 1_000).toFixed(1)} KB`;
+  return `${Math.round(bytes)} B`;
+};
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  unit,
+  progress,
+  details,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  unit?: string;
+  progress?: number;
+  details: Array<{ label: string; value: string | number }>;
+}) {
+  return (
+    <section className="overview-summary-card">
+      <header>
+        <span className="overview-summary-icon">
+          <Icon size={17} strokeWidth={1.8} />
+        </span>
+        <h2>{label}</h2>
+      </header>
+      <div className="overview-summary-value">
+        <strong>{value}</strong>
+        {unit ? <span>{unit}</span> : null}
+      </div>
+      {typeof progress === 'number' ? (
+        <div className="overview-summary-progress" aria-hidden="true">
+          <span style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+        </div>
+      ) : null}
+      <dl>
+        {details.map((detail) => (
+          <div key={detail.label}>
+            <dt>{detail.label}</dt>
+            <dd>{detail.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
 }
 
-interface ApplicationTrafficData {
-  application: string; // 应用名称
-  application_id: number;
-  bytes_in: number;
-  bytes_out: number;
-}
+function TrafficChart({
+  data,
+  emptyText,
+}: {
+  data: TrafficPoint[];
+  emptyText: string;
+}) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(1000);
+  const height = 285;
+  const padding = { left: 64, right: 20, top: 24, bottom: 42 };
+  useEffect(() => {
+    const element = chartRef.current;
+    if (!element) return;
+    const updateWidth = () => setWidth(Math.max(240, Math.round(element.getBoundingClientRect().width)));
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const now = Date.now();
+  const minTime = now - 24 * 60 * 60 * 1000;
+  const maxTime = now;
+  const maxValue = Math.max(1, ...data.map((item) => item.value));
+  const applications = [...new Set(data.map((item) => item.application))];
+  const x = (time: number) => padding.left + ((time - minTime) / Math.max(1, maxTime - minTime)) * (width - padding.left - padding.right);
+  const y = (value: number) => height - padding.bottom - (value / maxValue) * (height - padding.top - padding.bottom);
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+  const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+  const seriesColor = (index: number) =>
+    chartColors[index % chartColors.length];
 
-interface TimeTrafficData {
-  time: string; // 时间戳
-  application: string; // 应用名称
-  bytes_in: number;
-  bytes_out: number;
+  return (
+    <div className="overview-chart" ref={chartRef}>
+      <div className="overview-chart-legend">
+        {applications.map((application, index) => (
+          <span key={application}>
+            <i style={{ background: seriesColor(index) }} />
+            {application}
+          </span>
+        ))}
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Application traffic chart">
+        <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} className="overview-chart-axis" />
+        {yTicks.map((tick) => {
+          const tickY = y(maxValue * tick);
+          return <g key={tick}><line x1={padding.left} x2={width - padding.right} y1={tickY} y2={tickY} className="overview-chart-grid" /><text x={padding.left - 10} y={tickY + 4} textAnchor="end">{formatTraffic(maxValue * tick)}</text></g>;
+        })}
+        {xTicks.map((tick) => {
+          const tickTime = minTime + (maxTime - minTime) * tick;
+          const tickX = x(tickTime);
+          return <g key={`x-${tick}`}><line x1={tickX} x2={tickX} y1={height - padding.bottom} y2={height - padding.bottom + 5} className="overview-chart-axis" /><text x={tickX} y={height - 15} textAnchor={tick === 0 ? 'start' : tick === 1 ? 'end' : 'middle'}>{formatChartTime(new Date(tickTime))}</text></g>;
+        })}
+        {applications.map((application, index) => {
+          const applicationData = data.filter((item) => item.application === application);
+          const points = applicationData.map((item) => `${x(item.time.getTime())},${y(item.value)}`).join(' ');
+          return (
+            <g key={application}>
+              <polyline
+                points={points}
+                fill="none"
+                stroke={seriesColor(index)}
+                strokeWidth="1.8"
+                strokeOpacity="0.82"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+              {applicationData.length === 1 ? (
+                <circle
+                  cx={x(applicationData[0].time.getTime())}
+                  cy={y(applicationData[0].value)}
+                  r="4"
+                  fill={seriesColor(index)}
+                  stroke="rgb(var(--surface))"
+                  strokeWidth="2"
+                />
+              ) : null}
+            </g>
+          );
+        })}
+        {!data.length ? <text className="overview-chart-empty-label" x={(padding.left + width - padding.right) / 2} y={(padding.top + height - padding.bottom) / 2} textAnchor="middle">{emptyText}</text> : null}
+      </svg>
+    </div>
+  );
 }
 
 const DashboardPage: React.FC = () => {
   const { tr } = useI18n();
   const [loading, setLoading] = useState(true);
-  const [deviceData, setDeviceData] = useState<PieData[]>([]);
-  const [applicationData, setApplicationData] = useState<PieData[]>([]);
-  const [edgeData, setEdgeData] = useState<PieData[]>([]);
-  const [timeTrafficData, setTimeTrafficData] = useState<TimeTrafficData[]>([]);
+  const [deviceData, setDeviceData] = useState<DistributionItem[]>([]);
+  const [applicationData, setApplicationData] = useState<DistributionItem[]>(
+    [],
+  );
+  const [edgeData, setEdgeData] = useState<DistributionItem[]>([]);
+  const [trafficData, setTrafficData] = useState<TrafficPoint[]>([]);
+  const [trafficBytes, setTrafficBytes] = useState(0);
 
-  useEffect(() => {
-    loadData();
-    // 每30秒刷新一次流量数据
-    const interval = setInterval(() => {
-      loadTrafficData();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadData = async () => {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
     try {
-      // 获取所有数据
-      const [devicesRes, applicationsRes, edgesRes] = await Promise.all([
-        getDeviceList({ page_size: 1000 }),
-        getApplicationList({ page_size: 1000 }),
-        getEdgeList({ page_size: 1000 }),
-      ]);
+      const [devicesResponse, applicationsResponse, edgesResponse] =
+        await Promise.all([
+          getDeviceList({ page_size: 1000 }),
+          getApplicationList({ page_size: 1000 }),
+          getEdgeList({ page_size: 1000 }),
+        ]);
+      const devices = devicesResponse.data?.devices || [];
+      const applications = applicationsResponse.data?.applications || [];
+      const edges = edgesResponse.data?.edges || [];
 
-      // 处理设备数据 - 按操作系统分类
-      const devices = devicesRes.data?.devices || [];
-      const deviceStats: Record<string, number> = {};
-      devices.forEach((device: API.Device) => {
-        const os = device.os?.toLowerCase() || 'unknown';
-        let osType = tr('其他', 'Other');
-        if (os.includes('linux')) {
-          osType = 'Linux';
-        } else if (os.includes('darwin') || os.includes('mac')) {
-          osType = 'macOS';
-        } else if (os.includes('windows')) {
-          osType = 'Windows';
-        }
-        deviceStats[osType] = (deviceStats[osType] || 0) + 1;
+      const deviceCounts = new Map<string, number>();
+      devices.forEach((device) => {
+        const os = String(device.os || '').toLowerCase();
+        const label = os.includes('linux')
+          ? 'Linux'
+          : os.includes('darwin') || os.includes('mac')
+          ? 'macOS'
+          : os.includes('windows')
+          ? 'Windows'
+          : tr('其他', 'Other');
+        deviceCounts.set(label, (deviceCounts.get(label) || 0) + 1);
       });
-      const deviceDataList = Object.entries(deviceStats).map(([type, value]) => ({ type, value }));
-      setDeviceData(deviceDataList);
+      setDeviceData(
+        [...deviceCounts].map(([type, value]) => ({ type, value })),
+      );
 
-      // 处理应用数据 - 按应用类型分类
-      const applications = applicationsRes.data?.applications || [];
-      const appStats: Record<string, number> = {};
-      const typeMap: Record<string, string> = {
-        http: 'HTTP',
-        tcp: 'TCP',
-        udp: 'UDP',
-        ssh: 'SSH',
-        rdp: 'RDP',
-        vnc: 'VNC',
-        database: tr('数据库', 'Database'),
-        mysql: 'MySQL',
-        postgresql: 'PostgreSQL',
-        redis: 'Redis',
-        mongodb: 'MongoDB',
-      };
-      applications.forEach((app: API.Application) => {
-        const type = app.application_type || 'unknown';
-        const displayType = typeMap[type.toLowerCase()] || type.toUpperCase();
-        appStats[displayType] = (appStats[displayType] || 0) + 1;
+      const applicationCounts = new Map<string, number>();
+      applications.forEach((application) => {
+        const type = String(application.application_type || '').toLowerCase();
+        const label = applicationLabels[type] || type.toUpperCase() || '-';
+        applicationCounts.set(label, (applicationCounts.get(label) || 0) + 1);
       });
-      const applicationDataList = Object.entries(appStats).map(([type, value]) => ({ type, value }));
-      setApplicationData(applicationDataList);
+      setApplicationData(
+        [...applicationCounts].map(([type, value]) => ({ type, value })),
+      );
 
-      // 处理连接器数据 - 按在线状态分类
-      const edges = edgesRes.data?.edges || [];
-      const edgeStats: Record<string, number> = {
-        [tr('在线', 'Online')]: 0,
-        [tr('离线', 'Offline')]: 0,
-      };
-      edges.forEach((edge: API.Edge) => {
-        if (edge.online === 1) {
-          edgeStats[tr('在线', 'Online')]++;
-        } else {
-          edgeStats[tr('离线', 'Offline')]++;
-        }
+      const online = edges.filter((edge) => edge.online === 1).length;
+      setEdgeData(
+        edges.length
+          ? [
+              { type: tr('在线', 'Online'), value: online },
+              { type: tr('离线', 'Offline'), value: edges.length - online },
+            ]
+          : [],
+      );
+
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+      const trafficResponse = await getTrafficMetricsList({
+        start_time: formatLocalTime(startTime),
+        end_time: formatLocalTime(endTime),
+        limit: 10000,
       });
-      // 只有当有连接器数据时才显示，否则显示空状态
-      const totalEdges = edgeStats[tr('在线', 'Online')] + edgeStats[tr('离线', 'Offline')];
-      const edgeDataList = totalEdges > 0 
-        ? Object.entries(edgeStats).map(([type, value]) => ({ type, value }))
-        : [];
-      setEdgeData(edgeDataList);
+      const metrics = trafficResponse.data?.metrics || [];
+      const applicationNames = new Map(
+        applications.map((application) => [application.id, application.name]),
+      );
+      const buckets = new Map<
+        string,
+        { time: Date; application: string; bytes: number; samples: number }
+      >();
+      let totalBytes = 0;
 
-      // 调试信息
-      console.log('设备数据:', deviceDataList);
-      console.log('应用数据:', applicationDataList);
-      console.log('连接器数据:', edgeDataList);
-    } catch (error) {
-      console.error('加载数据失败:', error);
+      metrics.forEach((metric) => {
+        const date = new Date(metric.timestamp);
+        if (Number.isNaN(date.getTime())) return;
+        date.setMinutes(Math.floor(date.getMinutes() / 10) * 10, 0, 0);
+        const bytes =
+          numberValue(metric.bytes_in) + numberValue(metric.bytes_out);
+        totalBytes += bytes;
+        const application =
+          applicationNames.get(metric.application_id) ||
+          `${tr('应用', 'Application')} #${metric.application_id}`;
+        const key = `${date.getTime()}:${metric.application_id}`;
+        const current = buckets.get(key) || {
+          time: date,
+          application,
+          bytes: 0,
+          samples: 0,
+        };
+        current.bytes += bytes;
+        current.samples += 1;
+        buckets.set(key, current);
+      });
+
+      setTrafficBytes(totalBytes);
+      setTrafficData(
+        [...buckets.values()]
+          .map((bucket) => ({
+            time: bucket.time,
+            application: bucket.application,
+            value: ((bucket.bytes / Math.max(1, bucket.samples)) * 8) / 60,
+          }))
+          .sort((left, right) => left.time.getTime() - right.time.getTime()),
+      );
+    } catch {
+      // Preserve the latest successful dashboard snapshot on transient failures.
     } finally {
       setLoading(false);
     }
-    // 加载流量数据
-    loadTrafficData();
-  };
+  }, [tr]);
 
-  const loadTrafficData = async () => {
-    try {
-      // 获取应用列表，建立应用ID到名称的映射
-      const applicationsRes = await getApplicationList({ page_size: 1000 });
-      const applications = applicationsRes.data?.applications || [];
-      const appMap: Record<number, string> = {};
-      applications.forEach((app: API.Application) => {
-        appMap[app.id] = app.name;
-      });
+  useEffect(() => {
+    void loadDashboard();
+    const timer = window.setInterval(() => void loadDashboard(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [loadDashboard]);
 
-      // 获取最近24小时的流量数据
-      const endTime = new Date();
-      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24小时前
-      
-      // 格式化为本地时间字符串（不带时区）：YYYY-MM-DDTHH:mm:ss
-      const formatLocalTime = (date: Date): string => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-      };
-      
-      const res = await getTrafficMetricsList({
-        start_time: formatLocalTime(startTime),
-        end_time: formatLocalTime(endTime),
-        limit: 10000, // 增加限制以获取更多数据
-      });
+  const deviceTotal = useMemo(
+    () => deviceData.reduce((total, item) => total + item.value, 0),
+    [deviceData],
+  );
+  const applicationTotal = useMemo(
+    () => applicationData.reduce((total, item) => total + item.value, 0),
+    [applicationData],
+  );
+  const edgeTotal = useMemo(
+    () => edgeData.reduce((total, item) => total + item.value, 0),
+    [edgeData],
+  );
+  const onlineEdges = edgeData[0]?.value || 0;
+  const totalTrafficData = useMemo(() => {
+    const totals = new Map<number, number>();
+    trafficData.forEach((point) => {
+      const timestamp = point.time.getTime();
+      totals.set(timestamp, (totals.get(timestamp) || 0) + point.value);
+    });
+    return [...totals]
+      .map(([timestamp, value]) => ({
+        time: new Date(timestamp),
+        application: tr('总流量', 'Total traffic'),
+        value,
+      }))
+      .sort((left, right) => left.time.getTime() - right.time.getTime());
+  }, [trafficData, tr]);
+  const otherTrafficLabel = tr('其他应用', 'Other applications');
+  const trafficOverview = useMemo(() => {
+    const applicationTotals = new Map<string, number>();
+    trafficData.forEach((point) => {
+      applicationTotals.set(
+        point.application,
+        (applicationTotals.get(point.application) || 0) + point.value,
+      );
+    });
+    const rankedApplications = [...applicationTotals]
+      .map(([application, value]) => ({ application, value }))
+      .sort((left, right) => right.value - left.value);
+    const topApplications = rankedApplications.slice(0, 4);
+    const topApplicationNames = new Set(
+      topApplications.map((item) => item.application),
+    );
+    const visibleBuckets = new Map<string, TrafficPoint>();
 
-      const metrics = res.data?.metrics || [];
-      console.log('获取到的流量数据:', metrics.length, '条');
-      if (metrics.length > 0) {
-        console.log('第一条数据示例:', metrics[0]);
-      }
-      
-      // 生成完整的时间序列（最近24小时，每10分钟一个点）
-      const sortedTimes: string[] = [];
-      const now = new Date();
-      // 对齐到最近的10分钟
-      const alignedMinutes = Math.floor(now.getMinutes() / 10) * 10;
-      const alignedNow = new Date(now);
-      alignedNow.setMinutes(alignedMinutes, 0, 0);
-      
-      // 从当前时间往前推24小时，生成144个10分钟间隔的数据点
-      for (let i = 143; i >= 0; i--) {
-        const time = new Date(alignedNow.getTime() - i * 10 * 60 * 1000);
-        // 存储完整时间（包含分钟，用于数据聚合）
-        const timeKey = `${String(time.getMonth() + 1).padStart(2, '0')}-${String(time.getDate()).padStart(2, '0')} ${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
-        sortedTimes.push(timeKey);
-      }
-      
-      // 按时间和应用分组流量数据
-      const timeAppMap: Record<string, Record<number, { bytes_in: number; bytes_out: number }>> = {};
-      
-      // 初始化所有时间点的数据结构
-      sortedTimes.forEach((timeKey) => {
-        timeAppMap[timeKey] = {};
-        applications.forEach((app: API.Application) => {
-          timeAppMap[timeKey][app.id] = { bytes_in: 0, bytes_out: 0 };
-        });
+    trafficData.forEach((point) => {
+      const application = topApplicationNames.has(point.application)
+        ? point.application
+        : otherTrafficLabel;
+      const key = `${point.time.getTime()}:${application}`;
+      const current = visibleBuckets.get(key);
+      visibleBuckets.set(key, {
+        time: point.time,
+        application,
+        value: (current?.value || 0) + point.value,
       });
-      
-      // 填充实际流量数据（将数据聚合到10分钟间隔，并计算平均值）
-      const timeAppCount: Record<string, Record<number, number>> = {}; // 记录每个时间点每个应用的数据条数
-      
-      metrics.forEach((metric: API.TrafficMetric) => {
-        // 解析时间戳（本地时间格式：YYYY-MM-DDTHH:mm:ss）
-        // 如果时间戳不包含时区信息，将其视为本地时间
-        let date: Date;
-        if (metric.timestamp.includes('+') || metric.timestamp.includes('Z') || metric.timestamp.includes('T') && metric.timestamp.length > 19) {
-          // 包含时区信息，使用标准解析
-          date = new Date(metric.timestamp);
-        } else {
-          // 本地时间格式，手动解析为本地时间
-          const [datePart, timePart] = metric.timestamp.split('T');
-          const [year, month, day] = datePart.split('-').map(Number);
-          const [hour, minute, second = 0] = (timePart || '').split(':').map(Number);
-          date = new Date(year, month - 1, day, hour, minute, second);
-        }
-        // 对齐到10分钟间隔
-        const alignedMinutes = Math.floor(date.getMinutes() / 10) * 10;
-        const alignedDate = new Date(date);
-        alignedDate.setMinutes(alignedMinutes, 0, 0);
-        // 存储完整时间（包含分钟）
-        const timeKey = `${String(alignedDate.getMonth() + 1).padStart(2, '0')}-${String(alignedDate.getDate()).padStart(2, '0')} ${String(alignedDate.getHours()).padStart(2, '0')}:${String(alignedDate.getMinutes()).padStart(2, '0')}`;
-        
-        if (timeAppMap[timeKey]) {
-          const appId = metric.application_id;
-          // 确保 timeAppCount[timeKey] 已初始化
-          if (!timeAppCount[timeKey]) {
-            timeAppCount[timeKey] = {};
-          }
-          if (!timeAppMap[timeKey][appId]) {
-            timeAppMap[timeKey][appId] = { bytes_in: 0, bytes_out: 0 };
-            timeAppCount[timeKey][appId] = 0;
-          }
-          // 确保转换为数字类型，累加流量
-          const bytesIn = typeof metric.bytes_in === 'string' ? parseInt(metric.bytes_in, 10) : metric.bytes_in;
-          const bytesOut = typeof metric.bytes_out === 'string' ? parseInt(metric.bytes_out, 10) : metric.bytes_out;
-          timeAppMap[timeKey][appId].bytes_in += Number.isNaN(bytesIn) ? 0 : bytesIn;
-          timeAppMap[timeKey][appId].bytes_out += Number.isNaN(bytesOut) ? 0 : bytesOut;
-          // 记录数据条数
-          timeAppCount[timeKey][appId] = (timeAppCount[timeKey][appId] || 0) + 1;
-        }
-      });
-      
-      // 计算平均值（每个10分钟间隔内的平均每分钟流量）
-      Object.keys(timeAppMap).forEach((timeKey) => {
-        Object.keys(timeAppMap[timeKey]).forEach((appIdStr) => {
-          const appId = parseInt(appIdStr);
-          const count = timeAppCount[timeKey]?.[appId] || 1; // 至少为1，避免除0
-          // 计算平均值：总流量 / 数据条数（即平均每分钟流量）
-          const bytesIn = timeAppMap[timeKey][appId].bytes_in;
-          const bytesOut = timeAppMap[timeKey][appId].bytes_out;
-          timeAppMap[timeKey][appId].bytes_in = count > 0 ? Math.round(bytesIn / count) : 0;
-          timeAppMap[timeKey][appId].bytes_out = count > 0 ? Math.round(bytesOut / count) : 0;
-        });
-      });
+    });
 
-      // 转换为图表数据格式：按时间排序，每个时间点包含所有应用的流量
-      const timeTrafficDataList: TimeTrafficData[] = [];
-      
-      sortedTimes.forEach((time) => {
-        const appData = timeAppMap[time] || {};
-        // 确保所有应用在每个时间点都有数据（即使为0）
-        applications.forEach((app: API.Application) => {
-          const appId = app.id;
-          const traffic = appData[appId] || { bytes_in: 0, bytes_out: 0 };
-          // 将时间字符串转换为 Date 对象，用于图表库识别时间类型
-          try {
-            const timeParts = time.split(' ');
-            if (timeParts.length < 2) {
-              console.warn('时间格式错误:', time);
-              return; // 跳过当前迭代
-            }
-            const datePart = timeParts[0];
-            const timePart = timeParts[1];
-            const dateParts = datePart.split('-');
-            const timeParts2 = timePart.split(':');
-            if (dateParts.length < 2 || timeParts2.length < 2) {
-              console.warn('时间格式错误:', time, 'dateParts:', dateParts, 'timeParts2:', timeParts2);
-              return; // 跳过当前迭代
-            }
-            const month = dateParts[0];
-            const day = dateParts[1];
-            const hour = timeParts2[0];
-            const minute = timeParts2[1];
-            // 使用当前年份，创建 Date 对象
-            const currentYear = new Date().getFullYear();
-            const dateObj = new Date(currentYear, parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), 0);
-            
-            // 确保值为数字类型
-            const bytesIn = typeof traffic.bytes_in === 'number' ? traffic.bytes_in : parseInt(String(traffic.bytes_in || 0), 10);
-            const bytesOut = typeof traffic.bytes_out === 'number' ? traffic.bytes_out : parseInt(String(traffic.bytes_out || 0), 10);
-            
-            // 格式化为本地时间格式（YYYY-MM-DDTHH:mm:ss）
-            const formatLocalTime = (d: Date): string => {
-              const year = d.getFullYear();
-              const month = String(d.getMonth() + 1).padStart(2, '0');
-              const day = String(d.getDate()).padStart(2, '0');
-              const hours = String(d.getHours()).padStart(2, '0');
-              const minutes = String(d.getMinutes()).padStart(2, '0');
-              const seconds = String(d.getSeconds()).padStart(2, '0');
-              return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-            };
-            
-            timeTrafficDataList.push({
-              time: formatLocalTime(dateObj), // 存储本地时间格式
-              application: app.name,
-              bytes_in: Number.isNaN(bytesIn) ? 0 : bytesIn,
-              bytes_out: Number.isNaN(bytesOut) ? 0 : bytesOut,
-            });
-          } catch (error) {
-            console.error('处理时间数据时出错:', time, error);
-            // 跳过当前迭代，继续处理下一个
-          }
-        });
-      });
+    const otherValue = rankedApplications
+      .slice(4)
+      .reduce((total, item) => total + item.value, 0);
+    const visibleSeriesOrder = [
+      ...topApplications.map((item) => item.application),
+      ...(otherValue > 0 ? [otherTrafficLabel] : []),
+    ];
+    const visibleSeriesRank = new Map(
+      visibleSeriesOrder.map((application, index) => [application, index]),
+    );
+    const composition = [
+      ...topApplications,
+      ...(otherValue > 0
+        ? [{ application: otherTrafficLabel, value: otherValue }]
+        : []),
+    ];
+    const compositionTotal = composition.reduce(
+      (total, item) => total + item.value,
+      0,
+    );
+    const latestPoint = totalTrafficData.at(-1);
 
-      setTimeTrafficData(timeTrafficDataList);
-    } catch (error) {
-      console.error('加载流量数据失败:', error);
-    }
-  };
-
-  const getPieConfig = (data: PieData[]) => {
     return {
-      data,
-      angleField: 'value',
-      colorField: 'type',
-      // 标签显示在外部，显示类型名称和数值
-      label: {
-        text: (d: any) => (Number(d.value) > 0 ? `${d.type}: ${d.value}` : ''),
-        position: 'outside',
-        style: {
-          fontSize: 12,
-          fill: '#666',
-        },
-      },
-      legend: false, // 隐藏默认图例，我们手动添加
-      // @ant-design/plots 默认有 tooltip，显示类型和数值
-      // 使用更丰富的颜色方案
-      color: ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'],
-      height: 200,
-      tooltip: {
-        title: false,
-        items: [
-          (datum: any) => {
-            return {
-              name: datum.type,
-              value: datum.value,
-            };
-          },
-        ],
-      },
+      chartData: [...visibleBuckets.values()].sort((left, right) => {
+        const seriesDifference =
+          (visibleSeriesRank.get(left.application) || 0) -
+          (visibleSeriesRank.get(right.application) || 0);
+        return seriesDifference || left.time.getTime() - right.time.getTime();
+      }),
+      composition: composition.map((item) => ({
+        ...item,
+        share: compositionTotal ? (item.value / compositionTotal) * 100 : 0,
+      })),
+      latestRate: latestPoint?.value || 0,
+      peakRate: Math.max(0, ...totalTrafficData.map((point) => point.value)),
+      activeApplications: rankedApplications.length,
     };
-  };
+  }, [otherTrafficLabel, totalTrafficData, trafficData]);
 
   return (
-    <PageContainer>
-      <Spin spinning={loading}>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={24} md={8}>
-            <Card title={tr('设备统计', 'Device Stats')} variant="outlined">
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {deviceData.length > 0 ? (
-                  <>
-                    <div style={{ flex: 1, minHeight: 200 }}>
-                      <Pie {...getPieConfig(deviceData)} />
-                    </div>
-                    <div style={{ marginTop: 16, textAlign: 'center' }}>
-                      {deviceData.map((item, index) => {
-                        const colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
-                        const color = colors[index % colors.length];
-                        return (
-                          <span key={item.type} style={{ margin: '0 8px', fontSize: '12px' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                width: 12,
-                                height: 12,
-                                backgroundColor: color,
-                                marginRight: 4,
-                                verticalAlign: 'middle',
-                              }}
-                            />
-                            {item.type}: {item.value}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '60px 20px',
-                    color: '#999',
-                    fontSize: '14px'
-                  }}>
-                  <PieChartOutlined style={{ 
-                    fontSize: '48px', 
-                    marginBottom: '16px',
-                    color: '#d9d9d9'
-                  }} />
-                  <div>{tr('暂无数据', 'No Data')}</div>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </Col>
-          <Col xs={24} sm={24} md={8}>
-            <Card title={tr('应用统计', 'Application Stats')} variant="outlined">
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {applicationData.length > 0 ? (
-                  <>
-                    <div style={{ flex: 1, minHeight: 200 }}>
-                      <Pie {...getPieConfig(applicationData)} />
-                    </div>
-                    <div style={{ marginTop: 16, textAlign: 'center' }}>
-                      {applicationData.map((item, index) => {
-                        const colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
-                        const color = colors[index % colors.length];
-                        return (
-                          <span key={item.type} style={{ margin: '0 8px', fontSize: '12px' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                width: 12,
-                                height: 12,
-                                backgroundColor: color,
-                                marginRight: 4,
-                                verticalAlign: 'middle',
-                              }}
-                            />
-                            {item.type}: {item.value}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '60px 20px',
-                    color: '#999',
-                    fontSize: '14px'
-                  }}>
-                  <PieChartOutlined style={{ 
-                    fontSize: '48px', 
-                    marginBottom: '16px',
-                    color: '#d9d9d9'
-                  }} />
-                  <div>{tr('暂无数据', 'No Data')}</div>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </Col>
-          <Col xs={24} sm={24} md={8}>
-            <Card title={tr('连接器统计', 'Edge Stats')} variant="outlined">
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {edgeData.length > 0 ? (
-                  <>
-                    <div style={{ flex: 1, minHeight: 200 }}>
-                      <Pie {...getPieConfig(edgeData)} />
-                    </div>
-                    <div style={{ marginTop: 16, textAlign: 'center' }}>
-                      {edgeData.map((item, index) => {
-                        // 连接器统计使用特定颜色：在线=蓝色，离线=灰色
-                        const colors = item.type === tr('在线', 'Online') ? '#1890ff' : '#d9d9d9';
-                        return (
-                          <span key={item.type} style={{ margin: '0 8px', fontSize: '12px' }}>
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                width: 12,
-                                height: 12,
-                                backgroundColor: colors,
-                                borderRadius: '2px',
-                                marginRight: 4,
-                                verticalAlign: 'middle',
-                              }}
-                            />
-                            {item.type}: {item.value}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '60px 20px',
-                    color: '#999',
-                    fontSize: '14px'
-                  }}>
-                  <PieChartOutlined style={{ 
-                    fontSize: '48px', 
-                    marginBottom: '16px',
-                    color: '#d9d9d9'
-                  }} />
-                  <div>{tr('暂无数据', 'No Data')}</div>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </Col>
-        </Row>
-        {/* 第二排：应用流量监控图表 */}
-        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col xs={24}>
-            <Card title={tr('应用流量监控', 'Application Traffic')} variant="outlined">
-              {timeTrafficData.length > 0 ? (() => {
-                // 计算所有数据的bps值，用于确定Y轴范围
-                const dataWithBps = timeTrafficData.map((d) => {
-                  const bytesIn = typeof d.bytes_in === 'number' ? d.bytes_in : parseInt(String(d.bytes_in || 0), 10);
-                  const bytesOut = typeof d.bytes_out === 'number' ? d.bytes_out : parseInt(String(d.bytes_out || 0), 10);
-                  const totalBytes = (Number.isNaN(bytesIn) ? 0 : bytesIn) + (Number.isNaN(bytesOut) ? 0 : bytesOut);
-                  const bps = (totalBytes * 8) / 60;
-                  return {
-                    date: d.time,
-                    type: d.application,
-                    value: bps,
-                  };
-                });
+    <div className="overview-page">
+      <div className={`overview-content${loading ? ' is-loading' : ''}`}>
+        <div className="overview-summaries">
+          <SummaryCard
+            icon={HardDrive}
+            label={tr('资源概览', 'Resource overview')}
+            value={deviceTotal + applicationTotal}
+            unit={tr('项资源', 'resources')}
+            details={[
+              { label: tr('设备', 'Devices'), value: deviceTotal },
+              { label: tr('应用', 'Applications'), value: applicationTotal },
+            ]}
+          />
+          <SummaryCard
+            icon={Cable}
+            label={tr('连接器可用性', 'Connector availability')}
+            value={`${onlineEdges} / ${edgeTotal}`}
+            progress={edgeTotal ? (onlineEdges / edgeTotal) * 100 : 0}
+            details={[
+              { label: tr('在线', 'Online'), value: onlineEdges },
+              { label: tr('离线', 'Offline'), value: Math.max(0, edgeTotal - onlineEdges) },
+            ]}
+          />
+          <SummaryCard
+            icon={Activity}
+            label={tr('24 小时流量', '24h traffic')}
+            value={formatBytes(trafficBytes)}
+            details={[
+              {
+                label: tr('平均速率', 'Average rate'),
+                value: formatTraffic((trafficBytes * 8) / (24 * 60 * 60)),
+              },
+              {
+                label: tr('活跃应用', 'Active applications'),
+                value: trafficOverview.activeApplications,
+              },
+            ]}
+          />
+        </div>
 
-                // 对每条应用曲线做轻量平滑，减弱单点尖峰的突兀感
-                const groupedByApp: Record<string, { date: string; type: string; value: number }[]> = {};
-                dataWithBps.forEach((point) => {
-                  if (!groupedByApp[point.type]) {
-                    groupedByApp[point.type] = [];
-                  }
-                  groupedByApp[point.type].push(point);
-                });
-                const smoothValues = (values: number[]): number[] => {
-                  // 5点加权平滑：1-2-3-2-1，边界点使用邻近点填充
-                  const get = (idx: number) => values[Math.max(0, Math.min(values.length - 1, idx))];
-                  return values.map((_, i) => {
-                    const v =
-                      get(i - 2) * 1 +
-                      get(i - 1) * 2 +
-                      get(i) * 3 +
-                      get(i + 1) * 2 +
-                      get(i + 2) * 1;
-                    return Math.max(0, v / 9);
-                  });
-                };
-                const suppressSpikes = (values: number[]): number[] => {
-                  if (values.length < 3) return values;
-                  return values.map((current, i) => {
-                    if (i === 0 || i === values.length - 1) return current;
-                    const prev = values[i - 1];
-                    const next = values[i + 1];
-                    const localMean = (prev + next) / 2;
-                    if (localMean <= 0) return current;
-                    // 压制孤立突刺，避免出现针状峰
-                    if (current > localMean * 2.2) {
-                      return localMean + (current - localMean) * 0.15;
-                    }
-                    return current;
-                  });
-                };
-                const ema = (values: number[], alpha = 0.2): number[] => {
-                  if (values.length === 0) return values;
-                  const out: number[] = [values[0]];
-                  for (let i = 1; i < values.length; i++) {
-                    out[i] = alpha * values[i] + (1 - alpha) * out[i - 1];
-                  }
-                  return out;
-                };
-
-                const smoothedDataWithBps: { date: string; type: string; value: number }[] = [];
-                Object.values(groupedByApp).forEach((points) => {
-                  const rawValues = points.map((p) => p.value);
-                  // 先去尖峰，再做多阶段平滑
-                  const deSpiked = suppressSpikes(rawValues);
-                  const pass1 = smoothValues(deSpiked);
-                  const pass2 = smoothValues(pass1);
-                  const pass3 = ema(pass2, 0.2);
-                  for (let i = 0; i < points.length; i++) {
-                    smoothedDataWithBps.push({
-                      ...points[i],
-                      value: pass3[i],
-                    });
-                  }
-                });
-                
-                // 计算最大值，如果所有值都是0，设置一个小的非零值避免显示多个0刻度
-                const maxValue = Math.max(...smoothedDataWithBps.map(d => d.value));
-                const allZero = maxValue === 0;
-                const formatTrafficValue = (datum: any): string => {
-                  const value = typeof datum === 'number' ? datum : parseFloat(String(datum || 0));
-                  if (isNaN(value) || value === 0) return '0 bps';
-                  if (value >= 1000 * 1000 * 1000) {
-                    return `${(value / (1000 * 1000 * 1000)).toFixed(2)} Gbps`;
-                  } else if (value >= 1000 * 1000) {
-                    return `${(value / (1000 * 1000)).toFixed(2)} Mbps`;
-                  } else if (value >= 1000) {
-                    return `${(value / 1000).toFixed(2)} Kbps`;
-                  }
-                  return `${Math.round(value)} bps`;
-                };
-                
-                return (
-                  <Line
-                    data={smoothedDataWithBps}
-                  xField={(d: any) => {
-                    // 解析本地时间格式（YYYY-MM-DDTHH:mm:ss）
-                    const dateStr = d.date;
-                    if (dateStr.includes('+') || dateStr.includes('Z') || (dateStr.includes('T') && dateStr.length > 19)) {
-                      // 包含时区信息，使用标准解析
-                      return new Date(dateStr);
-                    } else {
-                      // 本地时间格式，手动解析为本地时间
-                      const [datePart, timePart] = dateStr.split('T');
-                      const [year, month, day] = datePart.split('-').map(Number);
-                      const [hour, minute, second = 0] = (timePart || '').split(':').map(Number);
-                      return new Date(year, month - 1, day, hour, minute, second);
-                    }
-                  }}
-                  yField="value"
-                  colorField="type"
-                  height={350}
-                  paddingTop={26}
-                  point={false}
-                  smooth={true}
-                  style={{
-                    lineWidth: 1.5,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                    opacity: 0.85,
-                  }}
-                  legend={{
-                    position: 'top-right',
-                    offsetY: -8,
-                    itemHeight: 14,
-                    maxWidth: 300,
-                  }}
-                  scale={{
-                    value: allZero ? {
-                      domain: [0, 1],
-                      nice: false,
-                      ticks: [0, 1],
-                    } : {
-                      nice: true,
-                      min: 0,
-                    },
-                  }}
-                  axis={{
-                    x: {
-                      labelAutoHide: 'greedy',
-                      labelTransform: 'rotate(-45)',
-                      labelFill: '#999',
-                      lineStroke: '#e8e8e8',
-                      tickStroke: '#e8e8e8',
-                    },
-                    y: {
-                      labelFill: '#666',
-                      labelSpacing: 12,
-                      labelFormatter: formatTrafficValue,
-                      lineStroke: '#e8e8e8',
-                      tickStroke: '#e8e8e8',
-                      tickCount: allZero ? 2 : 5, // 当所有值都是0时，只显示2个刻度（0和1）
-                    },
-                  }}
-                  label={false}
-                  tooltip={{
-                    showCrosshairs: true,
-                    shared: true,
-                    field: 'value',
-                    valueFormatter: formatTrafficValue,
-                  }}
-                />
-                );
-              })(              ) : (
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: '60px 20px',
-                  color: '#999',
-                  fontSize: '14px'
-                }}>
-                  <LineChartOutlined style={{ 
-                    fontSize: '48px', 
-                    marginBottom: '16px',
-                    color: '#d9d9d9'
-                  }} />
-                  <div>{tr('暂无流量数据', 'No traffic data')}</div>
-                </div>
-              )}
-            </Card>
-          </Col>
-        </Row>
-      </Spin>
-    </PageContainer>
+        <section className="overview-panel overview-traffic overview-traffic-unified">
+          <header>
+            <div>
+              <h2>{tr('流量趋势', 'Traffic trend')}</h2>
+              <p>{tr('活跃应用流量，最近 24 小时', 'Active application traffic over the last 24 hours')}</p>
+            </div>
+            <span>{tr('10 分钟粒度', '10-minute intervals')}</span>
+          </header>
+          <div className="overview-traffic-kpis">
+            <div>
+              <span>{tr('最近速率', 'Latest rate')}</span>
+              <strong>{formatTraffic(trafficOverview.latestRate)}</strong>
+            </div>
+            <div>
+              <span>{tr('峰值速率', 'Peak rate')}</span>
+              <strong>{formatTraffic(trafficOverview.peakRate)}</strong>
+            </div>
+            <div>
+              <span>{tr('活跃应用', 'Active applications')}</span>
+              <strong>{trafficOverview.activeApplications}</strong>
+            </div>
+          </div>
+          <div className="overview-traffic-layout">
+            <TrafficChart
+              data={trafficOverview.chartData}
+              emptyText={tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')}
+            />
+            <aside className="overview-traffic-composition">
+              <header>
+                <h3>{tr('应用构成', 'Application mix')}</h3>
+                <span>{tr('Top 4 + 其他', 'Top 4 + other')}</span>
+              </header>
+              <div className="overview-traffic-composition-list">
+                {trafficOverview.composition.length ? (
+                  trafficOverview.composition.map((item, index) => (
+                    <div key={item.application}>
+                      <span className="overview-traffic-composition-name">
+                        <i style={{ background: chartColors[index % chartColors.length] }} />
+                        <b title={item.application}>{item.application}</b>
+                      </span>
+                      <strong>{item.share.toFixed(1)}%</strong>
+                      <span className="overview-traffic-composition-bar">
+                        <i
+                          style={{
+                            width: `${item.share}%`,
+                            background: chartColors[index % chartColors.length],
+                          }}
+                        />
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p>{tr('暂无应用流量', 'No application traffic')}</p>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      </div>
+    </div>
   );
 };
 

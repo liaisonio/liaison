@@ -1,931 +1,172 @@
-import { CreateButton, DeleteLink } from '@/components/TableButtons';
+import { Button, Column, DangerConfirm, DataTable, Field, Input, Modal, Notice, Pager, Select, StatusPill } from '@/components/ui';
+import { ApplicationIcon } from '@/components/icons/ApplicationIcon';
+import { ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, accessTypesForApplication, getProxyAccessType, isSupportedAccessType, isWebAccessType, type AccessType } from '@/constants/accessTypes';
+import { APPLICATION_TYPES, APPLICATION_TYPES_CHANGED_EVENT } from '@/constants/applicationTypes';
 import { useI18n } from '@/i18n';
-import {
-  createApplication,
-  createProxy,
-  deleteApplication,
-  getApplicationList,
-  getDeviceDetail,
-  getDeviceList,
-  getEdgeList,
-  getProxyList,
-  updateApplication,
-} from '@/services/api';
-import { executeAction, tableRequest } from '@/utils/request';
-import {
-  buildSearchParams,
-  defaultPagination,
-  defaultSearch,
-} from '@/utils/tableConfig';
-import {
-  ApiOutlined,
-  CheckCircleOutlined,
-  LinkOutlined,
-} from '@ant-design/icons';
-import {
-  ActionType,
-  ModalForm,
-  PageContainer,
-  ProColumns,
-  ProFormDigit,
-  ProFormSelect,
-  ProFormSwitch,
-  ProFormText,
-  ProTable,
-} from '@ant-design/pro-components';
-import { Alert, AutoComplete, Form, Space, Tag, Typography } from 'antd';
-import { useRef, useState } from 'react';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { history, useSearchParams } from '@/lib/runtime';
+import { createApplication, createProxy, deleteApplication, getApplicationList, getEdgeList, getProxyList, updateApplication } from '@/services/api';
+import { Link2, Plus } from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
-const { Text } = Typography;
+const pageSize = 10;
 
-const webOnlyApplicationTypes = new Set([
-  'ssh',
-  'rdp',
-  'vnc',
-  'mysql',
-  'postgresql',
-  'redis',
-  'mongodb',
-  'database',
-]);
-
-type SelectOption = {
-  label: string;
-  value: string;
+const defaultApplicationName = () => {
+  const bytes = new Uint8Array(4);
+  window.crypto.getRandomValues(bytes);
+  return `App-${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`;
 };
 
-type EdgeOption = {
-  label: string;
-  value: number;
-  deviceId?: number;
+const defaultAccessName = () => {
+  const bytes = new Uint8Array(4);
+  window.crypto.getRandomValues(bytes);
+  return `Access-${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`;
 };
+
+const emptyApplication = () => ({ name: '', application_type: 'tcp', edge_id: '', ip: '', port: '' });
 
 const AppPage: React.FC = () => {
   const { tr } = useI18n();
-  const actionRef = useRef<ActionType>();
-  const formRef = useRef<any>();
-  const [createForm] = Form.useForm();
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [proxyModalVisible, setProxyModalVisible] = useState(false);
-  const [currentRow, setCurrentRow] = useState<API.Application>();
-  const [proxyExposePublicPort, setProxyExposePublicPort] = useState(false);
-  const [selectedApplicationType, setSelectedApplicationType] = useState<
-    string | undefined
-  >();
-  const [selectedCreateEdgeId, setSelectedCreateEdgeId] = useState<
-    number | undefined
-  >();
-  const [applicationIpOptions, setApplicationIpOptions] = useState<
-    SelectOption[]
-  >([]);
-  const [applicationIpDropdownOpen, setApplicationIpDropdownOpen] =
-    useState(false);
-  const suppressNextIpDropdownOpenRef = useRef(false);
-  const [deviceOptions, setDeviceOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
+  const [routeSearch] = useSearchParams();
+  const [rows, setRows] = useState<API.Application[]>([]);
+  const [proxies, setProxies] = useState<API.Proxy[]>([]);
+  const [edges, setEdges] = useState<API.Edge[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const routeType = routeSearch.get('application_type') || '';
+  const [filters, setFilters] = useState({ name: '', application_type: routeType, device_name: '', target: '' });
+  const debouncedName = useDebouncedValue(filters.name);
+  const debouncedDeviceName = useDebouncedValue(filters.device_name);
+  const debouncedTarget = useDebouncedValue(filters.target);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editRow, setEditRow] = useState<API.Application>();
+  const [deleteRow, setDeleteRow] = useState<API.Application>();
+  const [accessRow, setAccessRow] = useState<API.Application>();
+  const [form, setForm] = useState(emptyApplication);
+  const [editName, setEditName] = useState('');
+  const [accessName, setAccessName] = useState('');
+  const [accessMode, setAccessMode] = useState<AccessType>('tcp');
+  const [publicPort, setPublicPort] = useState('');
+  const [suggestedApplicationName, setSuggestedApplicationName] = useState(defaultApplicationName);
+  const [suggestedAccessName, setSuggestedAccessName] = useState(defaultAccessName);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
 
-  const reload = () => actionRef.current?.reload();
+  useEffect(() => {
+    setFilters((value) => ({ ...value, application_type: routeType }));
+    setPage(1);
+  }, [routeType]);
 
-  const isWebOnlyCapableType = (type?: string) =>
-    webOnlyApplicationTypes.has(String(type || '').toLowerCase());
+  const loadEdges = useCallback(async () => {
+    try { const response = await getEdgeList({ page_size: 1000 }); if (response.code === 200) setEdges(response.data?.edges || []); } catch { setEdges([]); }
+  }, []);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await getApplicationList({ page: 1, page_size: 1000 });
+      if (response.code !== 200) throw new Error(response.message);
+      setRows(response.data?.applications || []);
+      try {
+        const proxyResponse = await getProxyList({ page_size: 1000 });
+        setProxies(proxyResponse.code === 200 ? proxyResponse.data?.proxies || [] : []);
+      } catch { setProxies([]); }
+      window.dispatchEvent(new CustomEvent(APPLICATION_TYPES_CHANGED_EVENT));
+    } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('加载应用失败', 'Failed to load applications') }); }
+    finally { setLoading(false); }
+  }, [tr]);
+  useEffect(() => { void loadEdges(); }, [loadEdges]);
+  useEffect(() => { void load(); }, [load]);
 
-  const normalizeInterfaceIP = (ip?: string) => {
-    const value = String(ip || '').trim();
-    if (!value) return '';
-    return value.split('/')[0].trim();
-  };
-
-  const buildDeviceIpOptions = (device?: API.Device): SelectOption[] => {
-    const seen = new Set<string>();
-    const options: SelectOption[] = [];
-    const deviceName = device?.name?.trim();
-    for (const iface of device?.interfaces || []) {
-      const ips = [...(iface.ip || []), ...(iface.ipv4 || [])];
-      for (const rawIP of ips) {
-        const ip = normalizeInterfaceIP(rawIP);
-        if (!ip || ip.includes(':') || seen.has(ip)) continue;
-        seen.add(ip);
-        const interfaceText = iface.name ? ` (${iface.name})` : '';
-        options.push({
-          label: deviceName
-            ? `${deviceName} - ${ip}${interfaceText}`
-            : `${ip}${interfaceText}`,
-          value: ip,
-        });
-      }
-    }
-    return options;
-  };
-
-  const formatEntryPort = (proxy?: API.Proxy, applicationType?: string) =>
-    proxy && proxy.port === 0 && isWebOnlyCapableType(applicationType)
-      ? tr('仅 Web', 'Web only')
-      : proxy?.port;
-
-  const isValidIPv4Address = (value: string): boolean => {
-    const parts = value.split('.');
-    if (parts.length !== 4) return false;
-    return parts.every((part) => {
-      if (!/^\d+$/.test(part)) return false;
-      if (part.length > 1 && part.startsWith('0')) return false;
-      const octet = Number(part);
-      return octet >= 0 && octet <= 255;
+  const availableIPs = useMemo(() => {
+    const edge = edges.find((item) => item.id === Number(form.edge_id));
+    return edge?.device?.interfaces?.flatMap((item) => item.ip || []).filter((ip) => !ip.includes(':')) || [];
+  }, [edges, form.edge_id]);
+  const accessesByApplication = useMemo(() => {
+    const grouped = new Map<number, API.Proxy[]>();
+    proxies.forEach((proxy) => {
+      if (!isSupportedAccessType(getProxyAccessType(proxy))) return;
+      const applicationID = proxy.application?.id;
+      if (!applicationID) return;
+      grouped.set(applicationID, [...(grouped.get(applicationID) || []), proxy]);
     });
-  };
-
-  const isValidApplicationHost = (value: string): boolean => {
-    const host = value.trim();
-    if (
-      !host ||
-      host.length > 253 ||
-      host.includes('/') ||
-      host.includes(' ')
-    ) {
-      return false;
-    }
-    if (host.toLowerCase() === 'localhost') return true;
-    if (host.includes(':')) return false;
-    if (isValidIPv4Address(host)) return true;
-    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) return false;
-    return host.split('.').every((label) => {
-      if (!label || label.length > 63) return false;
-      if (label.startsWith('-') || label.endsWith('-')) return false;
-      return /^[A-Za-z0-9-]+$/.test(label);
+    return grouped;
+  }, [proxies]);
+  const filteredRows = useMemo(() => {
+    const name = debouncedName.trim().toLowerCase();
+    const device = debouncedDeviceName.trim().toLowerCase();
+    const target = debouncedTarget.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (name && !row.name.toLowerCase().includes(name)) return false;
+      if (filters.application_type && row.application_type !== filters.application_type) return false;
+      if (device && !(row.device?.name || '').toLowerCase().includes(device)) return false;
+      if (target && !`${row.ip}:${row.port}`.toLowerCase().includes(target)) return false;
+      return true;
     });
-  };
+  }, [debouncedDeviceName, debouncedName, debouncedTarget, filters.application_type, rows]);
+  const visibleRows = useMemo(() => filteredRows.slice((page - 1) * pageSize, page * pageSize), [filteredRows, page]);
 
-  const validatePublicPort = async (value?: number) => {
-    if (value === undefined || value === null) return Promise.resolve();
-    if (!Number.isInteger(value) || value < 1 || value > 65535) {
-      return Promise.reject(
-        new Error(
-          tr(
-            '公网端口必须在1-65535之间',
-            'Public port must be between 1 and 65535',
-          ),
-        ),
-      );
-    }
+  const create = async (event: FormEvent) => {
+    event.preventDefault();
+    const port = form.port ? Number(form.port) : 443;
+    if (!form.edge_id || !form.ip.trim()) { setNotice({ tone: 'danger', text: tr('请选择连接器并填写 IP 地址', 'Select a connector and enter an IP address') }); return; }
+    if (!Number.isInteger(port) || port < 1 || port > 65535) { setNotice({ tone: 'danger', text: tr('请输入有效端口', 'Enter a valid port') }); return; }
+    setSaving(true);
     try {
-      const res = await getProxyList({ page_size: 10000 });
-      const conflict = res.data?.proxies?.find(
-        (proxy: API.Proxy) => proxy.port === value,
-      );
-      if (conflict) {
-        return Promise.reject(
-          new Error(
-            tr(
-              `公网端口 ${value} 已被访问「${conflict.name}」使用`,
-              `Public port ${value} is already used by entry "${conflict.name}"`,
-            ),
-          ),
-        );
-      }
-    } catch {
-      // 后端仍会做最终冲突校验；列表预校验失败时不阻塞表单。
-    }
-    return Promise.resolve();
+      const response = await createApplication({ name: form.name.trim() || suggestedApplicationName, application_type: form.application_type, edge_id: Number(form.edge_id), ip: form.ip.trim(), port });
+      if (response.code !== 200) throw new Error(response.message);
+      setCreateOpen(false); setForm(emptyApplication()); setNotice({ tone: 'success', text: tr('应用已创建', 'Application created') }); await load();
+    } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('创建失败', 'Create failed') }); }
+    finally { setSaving(false); }
   };
-
-  // 加载设备列表
-  const loadDeviceOptions = async () => {
-    if (deviceOptions.length > 0) return; // 已加载过，不再重复加载
+  const update = async (event: FormEvent) => {
+    event.preventDefault(); if (!editRow || !editName.trim()) return; setSaving(true);
+    try { const response = await updateApplication(editRow.id, { name: editName.trim() }); if (response.code !== 200) throw new Error(response.message); setEditRow(undefined); setNotice({ tone: 'success', text: tr('应用已更新', 'Application updated') }); await load(); }
+    catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('更新失败', 'Update failed') }); } finally { setSaving(false); }
+  };
+  const remove = async () => {
+    if (!deleteRow) return;
+    try { const response = await deleteApplication(deleteRow.id); if (response.code !== 200) throw new Error(response.message); setDeleteRow(undefined); setNotice({ tone: 'success', text: tr('应用已删除', 'Application deleted') }); await load(); }
+    catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('删除失败', 'Delete failed') }); }
+  };
+  const openAccess = (row: API.Application) => { setSuggestedAccessName(defaultAccessName()); setAccessRow(row); setAccessName(''); setAccessMode(accessTypesForApplication(row.application_type)[0].value); setPublicPort(''); };
+  const openCreate = () => { setSuggestedApplicationName(defaultApplicationName()); setForm(emptyApplication()); setCreateOpen(true); };
+  const closeCreate = () => { setCreateOpen(false); setForm(emptyApplication()); };
+  const createAccess = async (event: FormEvent) => {
+    event.preventDefault(); if (!accessRow) return;
+    const accessProtocol = accessProtocolForType(accessMode);
+    const expose = !isWebAccessType(accessMode);
+    setSaving(true);
     try {
-      const res = await getDeviceList({ page_size: 100 });
-      const options = (res.data?.devices || []).map((device: API.Device) => ({
-        label: device.name,
-        value: device.name,
-      }));
-      setDeviceOptions(options);
-    } catch {
-      // 忽略错误
-    }
+      const response = await createProxy({ name: accessName.trim() || suggestedAccessName, application_id: accessRow.id, access_protocol: accessProtocol, expose_public_port: expose, port: expose && publicPort ? Number(publicPort) : undefined });
+      if (response.code !== 200) throw new Error(response.message);
+      setAccessRow(undefined); window.dispatchEvent(new CustomEvent(ACCESS_TYPES_CHANGED_EVENT)); history.push(`/proxy?access_type=${accessMode}`);
+    } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('创建访问失败', 'Failed to create access') }); }
+    finally { setSaving(false); }
   };
 
-  const loadCreateEdgeOptions = async (): Promise<EdgeOption[]> => {
-    try {
-      const res = await getEdgeList({ page_size: 100 });
-      const edges = res.data?.edges || [];
-      return edges.map((item: API.Edge) => ({
-        label: item.device?.name
-          ? `${item.name} (${item.device.name})`
-          : item.name,
-        value: item.id,
-        deviceId: item.device?.id,
-      }));
-    } catch {
-      return [];
-    }
-  };
-
-  const loadCreateEdgeDeviceIps = async (deviceID?: number) => {
-    setApplicationIpOptions([]);
-    setApplicationIpDropdownOpen(false);
-    if (!deviceID) return;
-
-    try {
-      const res = await getDeviceDetail(deviceID);
-      const options = buildDeviceIpOptions(res.data);
-      setApplicationIpOptions(options);
-      setApplicationIpDropdownOpen(false);
-    } catch {
-      setApplicationIpOptions([]);
-      setApplicationIpDropdownOpen(false);
-    }
-  };
-
-  const handleAdd = async (values: any) => {
-    return executeAction(
-      () =>
-        createApplication({
-          name: values.name?.trim(),
-          application_type: values.application_type,
-          ip: values.ip?.trim(),
-          port: values.port,
-          edge_id: values.edge_id,
-          device_id: values.device_id,
-        }),
-      {
-        successMessage: tr('创建成功', 'Created successfully'),
-        errorMessage: tr('创建失败', 'Create failed'),
-        onSuccess: () => {
-          setCreateModalVisible(false);
-          reload();
-        },
-      },
-    );
-  };
-
-  const handleEdit = async (values: any) => {
-    if (!currentRow?.id) return false;
-    return executeAction(
-      () => updateApplication(currentRow.id, { name: values.name }),
-      {
-        successMessage: tr('更新成功', 'Updated successfully'),
-        errorMessage: tr('更新失败', 'Update failed'),
-        onSuccess: () => {
-          setEditModalVisible(false);
-          reload();
-        },
-      },
-    );
-  };
-
-  const handleDelete = async (id: number) => {
-    await executeAction(() => deleteApplication(id), {
-      successMessage: tr('删除成功', 'Deleted successfully'),
-      errorMessage: tr('删除失败', 'Delete failed'),
-      onSuccess: reload,
-    });
-  };
-
-  const handleCreateProxy = async (values: any) => {
-    if (!currentRow?.id) return false;
-    const webCapable = isWebOnlyCapableType(currentRow.application_type);
-    const exposePublicPort = webCapable
-      ? Boolean(values.expose_public_port)
-      : true;
-    const createPort = exposePublicPort ? values.port || undefined : 0;
-    let createdProxy: API.Proxy | null = null;
-
-    const result = await executeAction(
-      () =>
-        createProxy({
-          name: values.name?.trim() || currentRow.name,
-          description: values.description,
-          port: createPort,
-          expose_public_port: exposePublicPort,
-          application_id: currentRow.id,
-        }),
-      {
-        successMessage: tr('访问创建成功', 'Entry created successfully'),
-        errorMessage: tr('访问创建失败', 'Failed to create entry'),
-        onSuccess: (data) => {
-          // 保存创建的访问信息
-          if (data) {
-            createdProxy = data as API.Proxy;
-          }
-        },
-      },
-    );
-
-    // 如果创建时端口为空，创建后获取动态分配的端口
-    // 端口已经在响应中返回，刷新列表即可显示动态分配的端口
-    setProxyModalVisible(false);
-    reload();
-
-    return result;
-  };
-
-  const columns: ProColumns<API.Application>[] = [
-    {
-      title: tr('应用名称', 'Application Name'),
-      dataIndex: 'name',
-      ellipsis: true,
-      fieldProps: {
-        placeholder: tr('请输入应用名称', 'Please input application name'),
-      },
-      render: (_, record) => (
-        <Space>
-          <ApiOutlined />
-          <span>{record.name}</span>
-        </Space>
-      ),
-    },
-    {
-      title: tr('类型', 'Type'),
-      dataIndex: 'application_type',
-      width: 100,
-      valueType: 'select',
-      valueEnum: {
-        http: { text: 'HTTP' },
-        tcp: { text: 'TCP' },
-        ssh: { text: 'SSH' },
-        rdp: { text: 'RDP' },
-        vnc: { text: 'VNC' },
-        mysql: { text: 'MySQL' },
-        postgresql: { text: 'PostgreSQL' },
-        redis: { text: 'Redis' },
-        mongodb: { text: 'MongoDB' },
-      },
-      fieldProps: {
-        placeholder: tr('请选择应用类型', 'Please select application type'),
-        allowClear: true,
-        onChange: (val: string) => {
-          // 使用 formRef 获取表单实例并设置值
-          if (formRef.current) {
-            formRef.current.setFieldsValue({ application_type: val });
-            // 触发表单提交
-            formRef.current.submit();
-          }
-        },
-      },
-    },
-    {
-      title: tr('IP 地址', 'IP Address'),
-      dataIndex: 'ip',
-      width: 140,
-      search: false,
-      render: (ip) => <Text code>{ip}</Text>,
-    },
-    {
-      title: tr('端口', 'Port'),
-      dataIndex: 'port',
-      width: 80,
-      search: false,
-      render: (port) => <Tag>{port}</Tag>,
-    },
-    {
-      title: tr('所在设备', 'Device'),
-      dataIndex: 'device_name',
-      ellipsis: true,
-      width: 150,
-      valueType: 'select',
-      render: (_, record) => record.device?.name || '-',
-      fieldProps: {
-        placeholder: tr('请选择设备', 'Please select device'),
-        showSearch: true,
-        allowClear: true,
-        options: deviceOptions,
-        filterOption: (
-          input: string,
-          option?: { label: string; value: string },
-        ) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-        onFocus: loadDeviceOptions,
-        onChange: (val: string) => {
-          // 使用 formRef 获取表单实例并设置值
-          if (formRef.current) {
-            formRef.current.setFieldsValue({ device_name: val });
-            // 触发表单提交
-            formRef.current.submit();
-          }
-        },
-      },
-      formItemProps: {
-        style: { marginBottom: 0, marginRight: 16 },
-      },
-    },
-    {
-      title: tr('已关联访问', 'Linked Entry'),
-      dataIndex: 'proxy',
-      ellipsis: true,
-      width: 150,
-      search: false,
-      render: (_, record) => {
-        if (record.proxy) {
-          return (
-            <Tag color="blue">
-              <LinkOutlined /> {record.proxy.name}:
-              {formatEntryPort(record.proxy, record.application_type)}
-            </Tag>
-          );
-        }
-        return <Tag>{tr('未关联', 'Not Linked')}</Tag>;
-      },
-    },
-    {
-      title: tr('创建时间', 'Created At'),
-      dataIndex: 'created_at',
-      valueType: 'dateTime',
-      width: 170,
-      search: false,
-    },
-    {
-      title: tr('操作', 'Actions'),
-      valueType: 'option',
-      width: 180,
-      fixed: 'right',
-      align: 'center',
-      render: (_, record) => (
-        <Space>
-          <a
-            onClick={() => {
-              setCurrentRow(record);
-              setProxyExposePublicPort(
-                !isWebOnlyCapableType(record.application_type),
-              );
-              setProxyModalVisible(true);
-            }}
-          >
-            {tr('创建访问', 'Create Entry')}
-          </a>
-          <a
-            onClick={() => {
-              setCurrentRow(record);
-              setEditModalVisible(true);
-            }}
-          >
-            {tr('编辑', 'Edit')}
-          </a>
-          <DeleteLink
-            title={tr('确定要删除这个应用吗？', 'Delete this application?')}
-            description={tr(
-              '将连带删除该应用下的所有访问和访问规则，历史流量记录会保留',
-              'All entries and access rules under this application will be removed. Traffic history will be retained',
-            )}
-            onConfirm={() => handleDelete(record.id)}
-          />
-        </Space>
-      ),
-    },
+  const columns: Column<API.Application>[] = [
+    { key: 'name', title: tr('应用名称', 'Application'), width: 190, render: (row) => <span className="liaison-inline-name"><ApplicationIcon size={14} />{row.name}</span> },
+    { key: 'type', title: tr('协议类型', 'Protocol'), width: 105, render: (row) => <StatusPill tone="info">{row.application_type.toUpperCase()}</StatusPill> },
+    { key: 'target', title: tr('目标', 'Target'), width: 155, render: (row) => <code>{row.ip}:{row.port}</code> },
+    { key: 'device', title: tr('所在设备', 'Device'), width: 150, render: (row) => row.device?.name || '-' },
+    { key: 'proxy', title: tr('关联访问', 'Access'), width: 210, render: (row) => {
+      const accesses = accessesByApplication.get(row.id) || (row.proxy ? [row.proxy] : []);
+      return accesses.length ? <span className="liaison-related-accesses">{accesses.map((access) => { const protocol = accessTypeLabel(getProxyAccessType(access)); return <span key={access.id} className="liaison-related-access" title={`${access.name} · ${protocol}`}>{access.name}<small>{protocol}</small></span>; })}</span> : '-';
+    } },
+    { key: 'created', title: tr('创建时间', 'Created'), width: 150, render: (row) => row.created_at },
+    { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
+    { key: 'actions', title: tr('操作', 'Actions'), width: 180, fixed: 'right', render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" onClick={() => openAccess(row)}>{tr('创建访问', 'Create access')}</button><button className="liaison-table-link" onClick={() => { setEditRow(row); setEditName(row.name); }}>{tr('编辑', 'Edit')}</button><button className="liaison-table-link is-danger" onClick={() => setDeleteRow(row)}>{tr('删除', 'Delete')}</button></span> },
   ];
 
-  return (
-    <PageContainer>
-      <div className="table-search-wrapper">
-        <ProTable<API.Application>
-          headerTitle={tr('应用列表', 'Applications')}
-          actionRef={actionRef}
-          formRef={formRef}
-          rowKey="id"
-          columns={columns}
-          request={async (params) => {
-            console.log('ProTable request params:', params);
-            const searchParams = buildSearchParams<API.ApplicationListParams>(
-              params,
-              ['name', 'device_name', 'application_type'],
-            );
-            console.log('buildSearchParams result:', searchParams);
-            return tableRequest(
-              () => getApplicationList(searchParams),
-              'applications',
-            );
-          }}
-          onSubmit={(values) => {
-            console.log('ProTable onSubmit:', values);
-            // 触发表格刷新，此时会使用表单值
-            actionRef.current?.reload();
-          }}
-          toolBarRender={() => [
-            <CreateButton
-              key="create"
-              onClick={() => setCreateModalVisible(true)}
-            >
-              {tr('新建应用', 'New Application')}
-            </CreateButton>,
-          ]}
-          pagination={defaultPagination}
-          search={{
-            ...defaultSearch,
-            labelWidth: 'auto',
-          }}
-          scroll={{ x: 'max-content' }}
-        />
-      </div>
-
-      <ModalForm
-        title={tr('新建应用', 'New Application')}
-        open={createModalVisible}
-        onOpenChange={(visible) => {
-          setCreateModalVisible(visible);
-          if (!visible) {
-            setSelectedApplicationType(undefined);
-            setSelectedCreateEdgeId(undefined);
-            setApplicationIpOptions([]);
-            setApplicationIpDropdownOpen(false);
-            createForm.resetFields();
-          }
-        }}
-        onFinish={handleAdd}
-        modalProps={{ destroyOnClose: true }}
-        form={createForm}
-        width={500}
-      >
-        <ProFormText
-          name="name"
-          label={tr('应用名称', 'Application Name')}
-          placeholder={tr('请输入应用名称', 'Please input application name')}
-          rules={[
-            {
-              required: true,
-              message: tr('请输入应用名称', 'Please input application name'),
-            },
-          ]}
-        />
-        <ProFormSelect
-          name="edge_id"
-          label={tr('连接器', 'Edge')}
-          placeholder={tr('请先选择连接器', 'Select an edge first')}
-          rules={[
-            {
-              required: true,
-              message: tr('请选择连接器', 'Please select edge'),
-            },
-          ]}
-          request={loadCreateEdgeOptions}
-          fieldProps={{
-            showSearch: true,
-            optionFilterProp: 'label',
-            onChange: (value, option) => {
-              const edgeID = Number(value) || undefined;
-              const optionItem = Array.isArray(option) ? option[0] : option;
-              const deviceID = Number((optionItem as EdgeOption)?.deviceId);
-              setSelectedCreateEdgeId(edgeID);
-              createForm.setFieldsValue({ ip: undefined });
-              void loadCreateEdgeDeviceIps(deviceID || undefined);
-            },
-          }}
-          extra={tr(
-            '选择后，IP 输入框会列出该连接器所在设备的网卡 IP',
-            'After selection, the IP field lists interface IPs from that edge device',
-          )}
-        />
-        <ProFormSelect
-          name="application_type"
-          label={tr('应用类型', 'Application Type')}
-          placeholder={tr(
-            '请选择应用类型（不填默认为TCP）',
-            'Please select application type (default TCP)',
-          )}
-          options={[
-            { label: 'HTTP', value: 'http' },
-            { label: 'TCP', value: 'tcp' },
-            { label: 'SSH', value: 'ssh' },
-            { label: 'RDP', value: 'rdp' },
-            { label: 'VNC', value: 'vnc' },
-            { label: 'MySQL', value: 'mysql' },
-            { label: 'PostgreSQL', value: 'postgresql' },
-            { label: 'Redis', value: 'redis' },
-            { label: 'MongoDB', value: 'mongodb' },
-          ]}
-          extra={tr('不填默认为TCP', 'Default is TCP')}
-          fieldProps={{
-            onChange: (value: string) => {
-              setSelectedApplicationType(value);
-              // 根据应用类型设置默认端口
-              const defaultPorts: Record<string, number> = {
-                http: 80,
-                ssh: 22,
-                rdp: 3389,
-                vnc: 5900,
-                mysql: 3306,
-                postgresql: 5432,
-                redis: 6379,
-                mongodb: 27017,
-              };
-              const defaultPort = defaultPorts[value as string];
-              if (defaultPort) {
-                createForm.setFieldsValue({ port: defaultPort });
-              }
-            },
-          }}
-        />
-        {selectedApplicationType === 'http' && (
-          <Alert
-            message={
-              <span
-                style={{
-                  fontSize: '11px',
-                  lineHeight: '16px',
-                  marginBottom: 0,
-                  display: 'block',
-                }}
-              >
-                {tr('将开启 HTTPS', 'HTTPS will be enabled')}
-              </span>
-            }
-            description={
-              <span
-                style={{
-                  fontSize: '10px',
-                  lineHeight: '14px',
-                  marginTop: 0,
-                  display: 'block',
-                }}
-              >
-                {tr(
-                  'HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书',
-                  'HTTP applications will be exposed over HTTPS with configured TLS certificates',
-                )}
-              </span>
-            }
-            type="info"
-            icon={
-              <CheckCircleOutlined
-                style={{ color: '#52c41a', fontSize: '14px' }}
-              />
-            }
-            style={{ marginBottom: 16, padding: '8px 12px' }}
-            messageStyle={{ marginBottom: 0 }}
-            descriptionStyle={{ marginTop: 0 }}
-          />
-        )}
-        <Form.Item
-          name="ip"
-          label={tr('IP 地址', 'IP Address')}
-          rules={[
-            {
-              required: true,
-              message: tr('请输入 IP 地址', 'Please input IP address'),
-            },
-            {
-              validator: (_: any, value?: string) => {
-                const trimmed = value?.trim();
-                if (!trimmed) return Promise.resolve();
-                if (!isValidApplicationHost(trimmed)) {
-                  return Promise.reject(
-                    new Error(
-                      tr(
-                        '请输入合法的 IPv4 地址、localhost 或主机名',
-                        'Please input a valid IPv4 address, localhost, or hostname',
-                      ),
-                    ),
-                  );
-                }
-                return Promise.resolve();
-              },
-            },
-          ]}
-          extra={tr(
-            '可从当前设备 IP 中选择，也可以直接输入 IP、localhost 或主机名',
-            'Select a current device IP or type an IP, localhost, or hostname',
-          )}
-        >
-          <AutoComplete
-            allowClear
-            disabled={!selectedCreateEdgeId}
-            open={
-              Boolean(selectedCreateEdgeId) &&
-              applicationIpOptions.length > 0 &&
-              applicationIpDropdownOpen
-            }
-            options={applicationIpOptions}
-            placeholder={
-              selectedCreateEdgeId
-                ? tr(
-                    '选择当前设备 IP，或直接输入',
-                    'Select a device IP or type one',
-                  )
-                : tr('请先选择连接器', 'Select an edge first')
-            }
-            filterOption={(input, option) => {
-              const text = `${option?.label ?? ''} ${option?.value ?? ''}`;
-              return text.toLowerCase().includes(input.toLowerCase());
-            }}
-            onFocus={() => {
-              if (
-                applicationIpOptions.length > 0 &&
-                !suppressNextIpDropdownOpenRef.current
-              ) {
-                setApplicationIpDropdownOpen(true);
-              }
-            }}
-            onClick={() => {
-              if (
-                applicationIpOptions.length > 0 &&
-                !suppressNextIpDropdownOpenRef.current
-              ) {
-                setApplicationIpDropdownOpen(true);
-              }
-            }}
-            onBlur={() => {
-              window.setTimeout(() => setApplicationIpDropdownOpen(false), 100);
-            }}
-            onOpenChange={(open) => {
-              if (open && suppressNextIpDropdownOpenRef.current) {
-                return;
-              }
-              setApplicationIpDropdownOpen(Boolean(open));
-            }}
-            onSelect={() => {
-              suppressNextIpDropdownOpenRef.current = true;
-              setApplicationIpDropdownOpen(false);
-              createForm.validateFields(['ip']).catch(() => undefined);
-              window.setTimeout(() => {
-                suppressNextIpDropdownOpenRef.current = false;
-              }, 120);
-            }}
-          />
-        </Form.Item>
-        <ProFormDigit
-          name="port"
-          label={tr('端口', 'Port')}
-          placeholder={tr('请输入端口号', 'Please input port')}
-          min={1}
-          max={65535}
-          fieldProps={{ precision: 0 }}
-          rules={[
-            {
-              required: true,
-              message: tr('请输入端口号', 'Please input port'),
-            },
-            {
-              validator: (_: any, value: number) => {
-                if (!value || value === 0) {
-                  return Promise.reject(
-                    new Error(
-                      tr(
-                        '端口号不能为0，请输入1-65535之间的端口号',
-                        'Port cannot be 0, valid range is 1-65535',
-                      ),
-                    ),
-                  );
-                }
-                if (value < 1 || value > 65535) {
-                  return Promise.reject(
-                    new Error(
-                      tr(
-                        '端口号必须在1-65535之间',
-                        'Port must be between 1 and 65535',
-                      ),
-                    ),
-                  );
-                }
-                return Promise.resolve();
-              },
-            },
-          ]}
-        />
-      </ModalForm>
-
-      <ModalForm
-        title={tr('编辑应用', 'Edit Application')}
-        open={editModalVisible}
-        onOpenChange={setEditModalVisible}
-        onFinish={handleEdit}
-        modalProps={{ destroyOnClose: true }}
-        initialValues={currentRow}
-        width={500}
-      >
-        <ProFormText
-          name="name"
-          label={tr('应用名称', 'Application Name')}
-          placeholder={tr('请输入应用名称', 'Please input application name')}
-          rules={[
-            {
-              required: true,
-              message: tr('请输入应用名称', 'Please input application name'),
-            },
-          ]}
-        />
-      </ModalForm>
-
-      <ModalForm
-        title={tr('为应用创建访问', 'Create Entry for Application')}
-        open={proxyModalVisible}
-        onOpenChange={(visible) => {
-          setProxyModalVisible(visible);
-          if (!visible) {
-            setProxyExposePublicPort(false);
-          }
-        }}
-        onFinish={handleCreateProxy}
-        modalProps={{ destroyOnClose: true }}
-        initialValues={{ expose_public_port: false }}
-        width={500}
-      >
-        <ProFormText
-          name="name"
-          label={tr('访问名称', 'Entry Name')}
-          placeholder={tr('请输入访问名称', 'Please input entry name')}
-          initialValue={currentRow?.name}
-          rules={[
-            {
-              required: true,
-              message: tr('请输入访问名称', 'Please input entry name'),
-            },
-          ]}
-        />
-        {currentRow?.application_type === 'http' && (
-          <Alert
-            message={
-              <span
-                style={{
-                  fontSize: '11px',
-                  lineHeight: '16px',
-                  marginBottom: 0,
-                  display: 'block',
-                }}
-              >
-                {tr('将开启 HTTPS', 'HTTPS will be enabled')}
-              </span>
-            }
-            description={
-              <span
-                style={{
-                  fontSize: '10px',
-                  lineHeight: '14px',
-                  marginTop: 0,
-                  display: 'block',
-                }}
-              >
-                {tr(
-                  'HTTP 应用将默认使用 HTTPS 协议访问，使用系统配置的 TLS 证书',
-                  'HTTP applications will be exposed over HTTPS with configured TLS certificates',
-                )}
-              </span>
-            }
-            type="info"
-            icon={
-              <CheckCircleOutlined
-                style={{ color: '#52c41a', fontSize: '14px' }}
-              />
-            }
-            style={{ marginBottom: 16, padding: '8px 12px' }}
-            messageStyle={{ marginBottom: 0 }}
-            descriptionStyle={{ marginTop: 0 }}
-          />
-        )}
-        {isWebOnlyCapableType(currentRow?.application_type) && (
-          <Alert
-            message={tr(
-              '可独立控制是否开放公网端口',
-              'Public port exposure is controlled separately',
-            )}
-            description={tr(
-              '关闭时只能通过网页控制台访问；开启时会创建公网监听端口，端口留空则自动分配。',
-              'When disabled, access is web-console only. When enabled, a public listener is created; leave the port empty to auto-allocate.',
-            )}
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        {isWebOnlyCapableType(currentRow?.application_type) && (
-          <ProFormSwitch
-            name="expose_public_port"
-            label={tr('开放公网端口', 'Expose Public Port')}
-            initialValue={false}
-            fieldProps={{
-              onChange: (checked) => setProxyExposePublicPort(Boolean(checked)),
-            }}
-            extra={tr(
-              '关闭后仅允许网页访问，不创建对外监听端口',
-              'Disable to allow web-only access without an external listener',
-            )}
-          />
-        )}
-        {(!isWebOnlyCapableType(currentRow?.application_type) ||
-          proxyExposePublicPort) && (
-          <ProFormDigit
-            name="port"
-            label={tr('公网端口', 'Public Port')}
-            placeholder={tr('留空自动分配', 'Leave empty for auto allocation')}
-            min={1}
-            max={65535}
-            fieldProps={{ precision: 0 }}
-            rules={[
-              {
-                validator: (_: any, value?: number) =>
-                  validatePublicPort(value),
-              },
-            ]}
-            extra={tr(
-              '映射到公网的端口号，留空则自动分配',
-              'Mapped public port, leave empty to auto-allocate',
-            )}
-          />
-        )}
-        <ProFormText
-          name="description"
-          label={tr('描述', 'Description')}
-          placeholder={tr('请输入描述', 'Please input description')}
-        />
-      </ModalForm>
-    </PageContainer>
-  );
+  return <div className="liaison-page-stack">
+    {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
+    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('应用名称', 'Application')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入应用名称', 'Application name')} /></label><label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.application_type} onChange={(event) => { setFilters((value) => ({ ...value, application_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{APPLICATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => { setFilters((value) => ({ ...value, device_name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label><label className="liaison-compound"><span>{tr('目标地址', 'Target')}</span><input value={filters.target} onChange={(event) => { setFilters((value) => ({ ...value, target: event.target.value })); setPage(1); }} placeholder={tr('IP 或端口', 'IP or port')} /></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', application_type: routeType, device_name: '', target: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
+    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('应用列表', 'Applications')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建应用', 'Create application')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无应用', 'No applications')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>
+    <Modal open={createOpen} title={tr('新建应用', 'Create application')} onClose={closeCreate} width={480} footer={<><Button onClick={closeCreate}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-application" disabled={saving}>{tr('确定', 'Create')}</Button></>}><form id="create-application" className="liaison-form-grid liaison-application-form" onSubmit={create}><Field label={tr('应用名称', 'Application name')}><Input value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder={suggestedApplicationName} /></Field><Field label={tr('协议类型', 'Protocol')}><Select value={form.application_type} onChange={(event) => setForm((value) => ({ ...value, application_type: event.target.value }))}>{APPLICATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field><div className="is-full"><Field label={tr('连接器', 'Connector')} required hint={tr('应用通过该连接器访问所在局域网', 'The application uses this connector to reach its LAN')}><Select value={form.edge_id} onChange={(event) => setForm((value) => ({ ...value, edge_id: event.target.value, ip: '' }))}><option value="">{tr('选择连接器', 'Select connector')}</option>{edges.map((edge) => <option key={edge.id} value={edge.id}>{edge.name}{edge.device?.name ? ` (${edge.device.name})` : ''}</option>)}</Select></Field></div><Field label={tr('IP 地址', 'IP address')} required><Input list="application-ip-options" value={form.ip} onChange={(event) => setForm((value) => ({ ...value, ip: event.target.value }))} placeholder="192.168.1.100" /><datalist id="application-ip-options">{availableIPs.map((ip) => <option key={ip} value={ip} />)}</datalist></Field><Field label={tr('端口', 'Port')}><Input type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm((value) => ({ ...value, port: event.target.value }))} placeholder="443" /></Field></form></Modal>
+    <Modal open={!!editRow} title={tr('编辑应用', 'Edit application')} onClose={() => setEditRow(undefined)} width={460} footer={<><Button onClick={() => setEditRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-application">{tr('确定', 'Save')}</Button></>}><form id="edit-application" onSubmit={update}><Field label={tr('应用名称', 'Application name')} required><Input value={editName} onChange={(event) => setEditName(event.target.value)} /></Field></form></Modal>
+    <Modal open={!!deleteRow} title={tr('删除应用', 'Delete application')} onClose={() => setDeleteRow(undefined)} width={430} footer={<><Button onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('关联该应用的访问将一并移除，此操作无法撤销。', 'Access entries linked to this application will also be removed. This cannot be undone.')} /></Modal>
+    <Modal open={!!accessRow} title={tr('为应用创建访问', 'Create application access')} onClose={() => setAccessRow(undefined)} width={520} footer={<><Button onClick={() => setAccessRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-access" disabled={saving}><Link2 size={14} />{tr('创建', 'Create')}</Button></>}><form id="create-access" className="liaison-access-form is-application-access" onSubmit={createAccess}><div className="is-full"><Field label={tr('访问名称', 'Access name')}><Input value={accessName} onChange={(event) => setAccessName(event.target.value)} placeholder={suggestedAccessName} /></Field></div><Field label={tr('访问协议', 'Protocol')}><div className="liaison-choice-row">{accessRow ? accessTypesForApplication(accessRow.application_type).map((mode) => <button key={mode.value} type="button" className={accessMode === mode.value ? 'is-active' : ''} onClick={() => { setAccessMode(mode.value); setPublicPort(''); }}>{mode.label}</button>) : null}</div></Field>{!isWebAccessType(accessMode) ? <div className="liaison-access-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty to assign automatically')}><Input type="number" min={1} max={65535} value={publicPort} onChange={(event) => setPublicPort(event.target.value)} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}</form></Modal>
+  </div>;
 };
 
 export default AppPage;

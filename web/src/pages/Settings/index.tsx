@@ -1,543 +1,163 @@
-import { PageContainer } from '@ant-design/pro-components';
-import {
-  Card,
-  Tabs,
-  Form,
-  Input,
-  InputNumber,
-  Button,
-  App,
-  Descriptions,
-  Avatar,
-  Typography,
-  Divider,
-  Modal,
-  Table,
-  Popconfirm,
-  Space,
-  Alert,
-} from 'antd';
-import {
-  UserOutlined,
-  LockOutlined,
-  SafetyOutlined,
-  GithubOutlined,
-  InfoCircleOutlined,
-  KeyOutlined,
-  CopyOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import { useEffect, useState } from 'react';
-import { useModel } from '@umijs/max';
-import {
-  changePassword,
-  createAPIToken,
-  listAPITokens,
-  revokeAPIToken,
-} from '@/services/api';
-import { executeAction } from '@/utils/request';
+import { Button, DangerConfirm, Field, Input, Modal, Notice, Segmented } from '@/components/ui';
 import { APP_NAME } from '@/constants';
 import { useI18n } from '@/i18n';
+import { createAPIToken, listAPITokens, revokeAPIToken } from '@/services/api';
+import { ACCENT_PRESETS, useAccentColor, useThemeMode } from '@/store/theme';
+import { Check, Copy, Github, Globe2, Info, KeyRound, Palette, Plus, Sun } from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import './index.less';
 
-const { Title, Text, Link } = Typography;
 const GITHUB_URL = 'https://github.com/liaisonio/liaison';
 
 const SettingsPage: React.FC = () => {
-  const { message } = App.useApp();
-  const { initialState } = useModel('@@initialState');
-  const { tr } = useI18n();
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordForm] = Form.useForm();
-
-  // ── PAT state ──────────────────────────────────────────────
+  const { tr, locale, setLocale } = useI18n();
+  const { preference, setPreference } = useThemeMode();
+  const { accentId, setAccentId } = useAccentColor();
+  const [active, setActive] = useState<'preferences' | 'tokens' | 'about'>('preferences');
   const [tokens, setTokens] = useState<API.APIToken[]>([]);
   const [tokensLoading, setTokensLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
-  const [createForm] = Form.useForm();
-  // plaintext of the just-created token — shown exactly once.
-  const [revealed, setRevealed] = useState<string>('');
+  const [tokenName, setTokenName] = useState('');
+  const [expires, setExpires] = useState('0');
+  const [revealed, setRevealed] = useState('');
+  const [revokeTarget, setRevokeTarget] = useState<API.APIToken>();
+  const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
 
-  const fetchTokens = async () => {
+  const showNotice = (tone: 'danger' | 'success', text: string) => {
+    setNotice({ tone, text });
+    window.setTimeout(() => setNotice(undefined), 3200);
+  };
+
+  const fetchTokens = useCallback(async () => {
     setTokensLoading(true);
     try {
-      const res = await listAPITokens();
-      if (res.code === 200 && res.data) {
-        setTokens(res.data.tokens || []);
-      }
-    } catch (err: any) {
-      message.error(err?.message || tr('加载 Token 失败', 'Failed to load tokens'));
+      const response = await listAPITokens();
+      if (response.code === 200) setTokens(response.data?.tokens || []);
+      else throw new Error(response.message);
+    } catch (error: any) {
+      showNotice('danger', error?.message || tr('加载 Token 失败', 'Failed to load tokens'));
     } finally {
       setTokensLoading(false);
     }
-  };
+  }, [tr]);
 
-  useEffect(() => {
-    fetchTokens();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { void fetchTokens(); }, [fetchTokens]);
 
-  const handleCreateToken = async (values: { name: string; expires_in_days?: number }) => {
+  const handleCreateToken = async (event: FormEvent) => {
+    event.preventDefault();
+    const days = Number(expires || 0);
+    if (!tokenName.trim()) {
+      showNotice('danger', tr('请填写名称', 'Please enter a name'));
+      return;
+    }
+    if (!Number.isInteger(days) || days < 0 || days > 3650) {
+      showNotice('danger', tr('过期天数应为 0-3650 的整数', 'Expiry must be an integer from 0 to 3650'));
+      return;
+    }
     setCreateLoading(true);
     try {
-      const res = await createAPIToken({
-        name: values.name,
-        expires_in_days: values.expires_in_days || 0,
-      });
-      if (res.code === 200 && res.data?.token) {
-        setRevealed(res.data.token);
-        setCreateOpen(false);
-        createForm.resetFields();
-        fetchTokens();
-      } else {
-        message.error(res.message || tr('创建失败', 'Failed to create'));
-      }
-    } catch (err: any) {
-      message.error(err?.message || tr('创建失败', 'Failed to create'));
+      const response = await createAPIToken({ name: tokenName.trim(), expires_in_days: days });
+      if (response.code !== 200 || !response.data?.token) throw new Error(response.message);
+      setRevealed(response.data.token);
+      setCreateOpen(false);
+      setTokenName('');
+      setExpires('0');
+      await fetchTokens();
+    } catch (error: any) {
+      showNotice('danger', error?.message || tr('创建失败', 'Failed to create'));
     } finally {
       setCreateLoading(false);
     }
   };
 
-  const handleRevokeToken = async (id: number) => {
-    await executeAction(() => revokeAPIToken(id), {
-      successMessage: tr('Token 已撤销', 'Token revoked'),
-      errorMessage: tr('撤销失败', 'Failed to revoke'),
-      onSuccess: fetchTokens,
-    });
-  };
-
-  const handleChangePassword = async (values: {
-    oldPassword: string;
-    newPassword: string;
-    confirmPassword: string;
-  }) => {
-    if (values.newPassword !== values.confirmPassword) {
-      message.error(tr('两次输入的新密码不一致', 'New passwords do not match'));
-      return;
+  const handleRevoke = async () => {
+    if (!revokeTarget) return;
+    try {
+      const response = await revokeAPIToken(revokeTarget.id);
+      if (response.code !== 200) throw new Error(response.message);
+      setRevokeTarget(undefined);
+      showNotice('success', tr('Token 已撤销', 'Token revoked'));
+      await fetchTokens();
+    } catch (error: any) {
+      showNotice('danger', error?.message || tr('撤销失败', 'Failed to revoke'));
     }
-
-    setPasswordLoading(true);
-    await executeAction(
-      () =>
-        changePassword({
-          old_password: values.oldPassword,
-          new_password: values.newPassword,
-        }),
-      {
-        successMessage: tr('密码修改成功', 'Password changed successfully'),
-        errorMessage: tr('密码修改失败', 'Failed to change password'),
-        onSuccess: () => passwordForm.resetFields(),
-      },
-    );
-    setPasswordLoading(false);
   };
-
-  const items = [
-    {
-      key: 'account',
-      label: (
-        <span>
-          <UserOutlined />
-          {tr('账户信息', 'Account')}
-        </span>
-      ),
-      children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <div className="user-profile">
-              <Avatar
-                size={80}
-                icon={<UserOutlined />}
-                src="/avatar.svg"
-              />
-              <div className="user-info">
-                <Title level={4}>
-                  {initialState?.currentUser?.name || 'Admin'}
-                </Title>
-                <Text type="secondary">
-                  {initialState?.currentUser?.email || 'default@liaison.local'}
-                </Text>
-              </div>
-            </div>
-            
-            <Divider />
-            
-            <Descriptions
-              column={{ xs: 1, sm: 1, md: 2 }}
-              styles={{ label: { fontWeight: 500 } }}
-            >
-              <Descriptions.Item label={tr('用户名', 'Username')}>
-                {initialState?.currentUser?.name || 'Admin'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('邮箱', 'Email')}>
-                {initialState?.currentUser?.email || 'default@liaison.local'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('角色', 'Role')}>
-                {initialState?.currentUser?.role || tr('管理员', 'Administrator')}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('注册时间', 'Created At')}>
-                {initialState?.currentUser?.created_at || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('最后登录', 'Last Login')}>
-                {initialState?.currentUser?.last_login || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label={tr('登录IP', 'Login IP')}>
-                {initialState?.currentUser?.login_ip || '-'}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-        </div>
-      ),
-    },
-    {
-      key: 'password',
-      label: (
-        <span>
-          <LockOutlined />
-          {tr('修改密码', 'Password')}
-        </span>
-      ),
-      children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <div className="password-tips">
-              <SafetyOutlined className="text-blue-500 text-xl mr-2" />
-              <div>
-                <Text strong>{tr('密码安全提示', 'Password Security Tips')}</Text>
-                <br />
-                <Text type="secondary">
-                  {tr('建议定期修改密码，密码长度至少8位，包含字母和数字', 'Use at least 8 characters and include letters and numbers')}
-                </Text>
-              </div>
-            </div>
-            
-            <Divider />
-            
-            <Form
-              form={passwordForm}
-              layout="vertical"
-              onFinish={handleChangePassword}
-              className="password-form"
-              requiredMark={false}
-            >
-              <Form.Item
-                name="oldPassword"
-                label={tr('当前密码', 'Current Password')}
-                rules={[{ required: true, message: tr('请输入当前密码', 'Please input current password') }]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请输入当前密码', 'Please input current password')}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="newPassword"
-                label={tr('新密码', 'New Password')}
-                rules={[
-                  { required: true, message: tr('请输入新密码', 'Please input new password') },
-                  { min: 8, message: tr('密码长度至少8位', 'Password must be at least 8 characters') },
-                  {
-                    pattern: /^(?=.*[A-Za-z])(?=.*\d)/,
-                    message: tr('密码必须包含字母和数字', 'Password must include letters and numbers'),
-                  },
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请输入新密码', 'Please input new password')}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="confirmPassword"
-                label={tr('确认新密码', 'Confirm New Password')}
-                dependencies={['newPassword']}
-                rules={[
-                  { required: true, message: tr('请确认新密码', 'Please confirm new password') },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error(tr('两次输入的密码不一致', 'Passwords do not match')));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder={tr('请再次输入新密码', 'Please input password again')}
-                />
-              </Form.Item>
-
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={passwordLoading}
-                >
-                  {tr('修改密码', 'Change Password')}
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-        </div>
-      ),
-    },
-    {
-      key: 'tokens',
-      label: (
-        <span>
-          <KeyOutlined />
-          {tr('API Token', 'API Tokens')}
-        </span>
-      ),
-      children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <div className="password-tips">
-              <KeyOutlined className="text-blue-500 text-xl mr-2" />
-              <div>
-                <Text strong>{tr('个人访问令牌 (PAT)', 'Personal Access Tokens')}</Text>
-                <br />
-                <Text type="secondary">
-                  {tr(
-                    '用于 CLI / 脚本调用 API。每个 token 只会明文显示一次，请妥善保管。',
-                    'For CLI / script API access. Each token is shown in plaintext once — copy it immediately.',
-                  )}
-                </Text>
-              </div>
-            </div>
-            <Divider />
-            <Space style={{ marginBottom: 16 }}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateOpen(true)}
-              >
-                {tr('新建 Token', 'Create token')}
-              </Button>
-            </Space>
-            <Table<API.APIToken>
-              rowKey="id"
-              loading={tokensLoading}
-              dataSource={tokens}
-              pagination={false}
-              columns={[
-                { title: tr('名称', 'Name'), dataIndex: 'name', key: 'name' },
-                {
-                  title: tr('前缀', 'Prefix'),
-                  dataIndex: 'token_prefix',
-                  key: 'token_prefix',
-                  render: (v: string) => <code>{v}…</code>,
-                },
-                {
-                  title: tr('创建时间', 'Created'),
-                  dataIndex: 'created_at',
-                  key: 'created_at',
-                },
-                {
-                  title: tr('最后使用', 'Last used'),
-                  key: 'last_used',
-                  render: (_: unknown, r) => (
-                    <span>
-                      {r.last_used_at || '-'}
-                      {r.last_used_ip ? ` (${r.last_used_ip})` : ''}
-                    </span>
-                  ),
-                },
-                {
-                  title: tr('过期时间', 'Expires'),
-                  dataIndex: 'expires_at',
-                  key: 'expires_at',
-                  render: (v?: string) => v || tr('永不过期', 'Never'),
-                },
-                {
-                  title: tr('操作', 'Actions'),
-                  key: 'actions',
-                  render: (_: unknown, r) => (
-                    <Popconfirm
-                      title={tr('撤销此 Token？', 'Revoke this token?')}
-                      description={tr(
-                        '撤销后使用此 Token 的客户端将立即失败。',
-                        'Clients using this token will stop working immediately.',
-                      )}
-                      okText={tr('撤销', 'Revoke')}
-                      cancelText={tr('取消', 'Cancel')}
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => handleRevokeToken(r.id)}
-                    >
-                      <Button danger size="small">
-                        {tr('撤销', 'Revoke')}
-                      </Button>
-                    </Popconfirm>
-                  ),
-                },
-              ]}
-            />
-          </Card>
-        </div>
-      ),
-    },
-    {
-      key: 'about',
-      label: (
-        <span>
-          <InfoCircleOutlined />
-          {tr('关于', 'About')}
-        </span>
-      ),
-      children: (
-        <div className="settings-section">
-          <Card variant="borderless">
-            <Title level={4}>{tr('关于', 'About')} {APP_NAME}</Title>
-            <Divider />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>{tr('产品名称:', 'Product:')}</span>
-                <span>{APP_NAME}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>GitHub:</span>
-                <Link 
-                  href={GITHUB_URL} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{ 
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    wordBreak: 'break-all',
-                    flex: 1
-                  }}
-                >
-                  <GithubOutlined style={{ marginRight: 8, flexShrink: 0 }} />
-                  <span>{GITHUB_URL}</span>
-                </Link>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-                <span style={{ fontWeight: 500, minWidth: 'fit-content', whiteSpace: 'nowrap' }}>{tr('许可证:', 'License:')}</span>
-                <span>Apache License 2.0</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      ),
-    },
-  ];
 
   return (
-    <PageContainer>
-      <Card variant="borderless">
-        <Tabs
-          items={items}
-          tabPosition="left"
-          className="settings-tabs"
-        />
-      </Card>
+    <div className="settings-page native-settings-page">
+      {notice ? <div className="settings-floating-notice"><Notice tone={notice.tone}>{notice.text}</Notice></div> : null}
+      <div className="settings-shell native-settings-shell">
+        <aside className="native-settings-tabs">
+          <button className={active === 'preferences' ? 'is-active' : ''} onClick={() => setActive('preferences')}><Palette size={15} />{tr('界面偏好', 'Appearance')}</button>
+          <button className={active === 'tokens' ? 'is-active' : ''} onClick={() => setActive('tokens')}><KeyRound size={15} />{tr('API Token', 'API Tokens')}</button>
+          <button className={active === 'about' ? 'is-active' : ''} onClick={() => setActive('about')}><Info size={15} />{tr('关于', 'About')}</button>
+        </aside>
+        <main className="native-settings-content">
+          {active === 'preferences' ? (
+            <section className="settings-section settings-preferences">
+              <header className="settings-section-heading">
+                <h2>{tr('产品偏好', 'Product preferences')}</h2>
+                <p>{tr('调整当前浏览器中的外观与交互偏好。', 'Customize appearance and interaction preferences for this browser.')}</p>
+              </header>
+              <div className="settings-preference-row">
+                <div className="settings-preference-copy"><Sun size={17} /><div><strong>{tr('主题', 'Theme')}</strong><span>{tr('系统模式会跟随设备外观。', 'System mode follows your device appearance.')}</span></div></div>
+                <Segmented value={preference} onChange={setPreference} options={[{ label: tr('跟随系统', 'System'), value: 'system' }, { label: tr('浅色', 'Light'), value: 'light' }, { label: tr('深色', 'Dark'), value: 'dark' }]} />
+              </div>
+              <div className="settings-preference-row">
+                <div className="settings-preference-copy"><Globe2 size={17} /><div><strong>{tr('语言', 'Language')}</strong><span>{tr('切换控制台的显示语言。', 'Switch the language used by the console.')}</span></div></div>
+                <Segmented value={locale} onChange={setLocale} options={[{ label: '中文', value: 'zh-CN' }, { label: 'English', value: 'en-US' }]} />
+              </div>
+              <div className="settings-accent-section">
+                <div className="settings-preference-copy"><Palette size={17} /><div><strong>{tr('颜色偏好', 'Accent color')}</strong><span>{tr('用于主要按钮、选中态和关键操作。', 'Used for primary actions, selection, and highlights.')}</span></div></div>
+                <div className="settings-accent-options">
+                  {ACCENT_PRESETS.map((preset) => <button key={preset.id} type="button" className={preset.id === accentId ? 'is-active' : ''} title={`${locale === 'zh-CN' ? preset.zh : preset.en} · ${preset.hex}`} onClick={() => setAccentId(preset.id)}><i style={{ backgroundColor: preset.hex }} /><span>{locale === 'zh-CN' ? preset.zh : preset.en}</span>{preset.id === accentId ? <Check size={12} /> : null}</button>)}
+                </div>
+                <div className="settings-accent-preview"><Button variant="primary">{tr('主要按钮', 'Primary button')}</Button><span>{tr('当前选中', 'Selected')}</span><a>{tr('链接文字', 'Link text')}</a></div>
+              </div>
+            </section>
+          ) : null}
 
-      {/* Create-token modal */}
-      <Modal
-        title={tr('新建 API Token', 'Create API Token')}
-        open={createOpen}
-        onCancel={() => {
-          setCreateOpen(false);
-          createForm.resetFields();
-        }}
-        footer={null}
-        destroyOnClose
-      >
-        <Form form={createForm} layout="vertical" onFinish={handleCreateToken} requiredMark={false}>
-          <Form.Item
-            name="name"
-            label={tr('名称', 'Name')}
-            rules={[
-              { required: true, message: tr('请填写名称', 'Please enter a name') },
-              { max: 64, message: tr('最长 64 个字符', 'At most 64 characters') },
-            ]}
-          >
-            <Input placeholder={tr('例如: laptop-cli', 'e.g. laptop-cli')} />
-          </Form.Item>
-          <Form.Item
-            name="expires_in_days"
-            label={tr('过期天数（0 或留空表示永不过期）', 'Expires in days (0 or blank = never)')}
-            rules={[
-              {
-                type: 'integer',
-                min: 0,
-                max: 3650,
-                message: tr('请输入 0-3650 之间的整数', 'Enter an integer between 0 and 3650'),
-              },
-            ]}
-          >
-            <InputNumber
-              min={0}
-              max={3650}
-              precision={0}
-              style={{ width: '100%' }}
-              placeholder="0"
-            />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={createLoading}>
-                {tr('创建', 'Create')}
-              </Button>
-              <Button onClick={() => setCreateOpen(false)}>{tr('取消', 'Cancel')}</Button>
-            </Space>
-          </Form.Item>
-        </Form>
+          {active === 'tokens' ? (
+            <section className="settings-section">
+              <div className="password-tips"><KeyRound size={20} /><div><strong>{tr('个人访问令牌 (PAT)', 'Personal Access Tokens')}</strong><span>{tr('用于 CLI / 脚本调用 API。每个 Token 只会明文显示一次。', 'For CLI and script API access. Each token is shown once.')}</span></div></div>
+              <div className="native-token-toolbar"><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={14} />{tr('新建 Token', 'Create token')}</Button></div>
+              <div className="native-table-wrap">
+                <table className="native-table">
+                  <thead><tr><th>{tr('名称', 'Name')}</th><th>{tr('前缀', 'Prefix')}</th><th>{tr('创建时间', 'Created')}</th><th>{tr('最后使用', 'Last used')}</th><th>{tr('过期时间', 'Expires')}</th><th>{tr('操作', 'Actions')}</th></tr></thead>
+                  <tbody>
+                    {tokens.map((token) => <tr key={token.id}><td>{token.name}</td><td><code>{token.token_prefix}…</code></td><td>{token.created_at}</td><td>{token.last_used_at || '-'}{token.last_used_ip ? ` (${token.last_used_ip})` : ''}</td><td>{token.expires_at || tr('永不过期', 'Never')}</td><td><Button variant="danger" onClick={() => setRevokeTarget(token)}>{tr('撤销', 'Revoke')}</Button></td></tr>)}
+                    {!tokensLoading && tokens.length === 0 ? <tr><td colSpan={6} className="native-table-empty">{tr('暂无 Token', 'No tokens')}</td></tr> : null}
+                    {tokensLoading ? <tr><td colSpan={6} className="native-table-empty">{tr('加载中…', 'Loading…')}</td></tr> : null}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
+          {active === 'about' ? (
+            <section className="settings-section native-about"><h3>{tr('关于', 'About')} {APP_NAME}</h3><dl><div><dt>{tr('产品名称', 'Product')}</dt><dd>{APP_NAME}</dd></div><div><dt>GitHub</dt><dd><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"><Github size={14} />{GITHUB_URL}</a></dd></div><div><dt>{tr('许可证', 'License')}</dt><dd>Apache License 2.0</dd></div></dl></section>
+          ) : null}
+        </main>
+      </div>
+
+      <Modal open={createOpen} title={tr('新建 API Token', 'Create API Token')} onClose={() => setCreateOpen(false)} footer={<><Button onClick={() => setCreateOpen(false)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-token-form" disabled={createLoading}>{createLoading ? tr('创建中…', 'Creating…') : tr('创建', 'Create')}</Button></>}>
+        <form id="create-token-form" className="native-modal-form" onSubmit={handleCreateToken}>
+          <Field label={tr('名称', 'Name')} required><Input value={tokenName} onChange={(event) => setTokenName(event.target.value)} maxLength={64} placeholder={tr('例如：laptop-cli', 'e.g. laptop-cli')} /></Field>
+          <Field label={tr('过期天数', 'Expires in days')} hint={tr('0 表示永不过期', '0 means never')}><Input type="number" min={0} max={3650} step={1} value={expires} onChange={(event) => setExpires(event.target.value)} /></Field>
+        </form>
       </Modal>
 
-      {/* One-time reveal modal */}
-      <Modal
-        title={tr('保管好你的 Token', 'Save this token now')}
-        open={!!revealed}
-        onCancel={() => setRevealed('')}
-        okText={tr('我已保存', 'I have saved it')}
-        cancelButtonProps={{ style: { display: 'none' } }}
-        onOk={() => setRevealed('')}
-        closable={false}
-        maskClosable={false}
-      >
-        <Alert
-          type="warning"
-          showIcon
-          message={tr(
-            '此 Token 明文仅显示一次，关闭后无法再次查看。',
-            'This plaintext token is shown only once and cannot be retrieved later.',
-          )}
-          style={{ marginBottom: 12 }}
-        />
-        <div
-          style={{
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-            fontSize: 13,
-            background: 'rgba(0,0,0,0.04)',
-            border: '1px solid rgba(0,0,0,0.08)',
-            borderRadius: 6,
-            padding: '10px 12px',
-            wordBreak: 'break-all',
-            userSelect: 'all',
-          }}
-        >
-          {revealed}
-        </div>
-        <div style={{ marginTop: 12, textAlign: 'right' }}>
-          <Button
-            icon={<CopyOutlined />}
-            onClick={() => {
-              navigator.clipboard.writeText(revealed);
-              message.success(tr('已复制', 'Copied'));
-            }}
-          >
-            {tr('复制', 'Copy')}
-          </Button>
-        </div>
+      <Modal open={!!revealed} title={tr('保管好你的 Token', 'Save this token now')} onClose={() => setRevealed('')} closeOnMask={false} footer={<Button variant="primary" onClick={() => setRevealed('')}>{tr('我已保存', 'I have saved it')}</Button>}>
+        <Notice tone="warning">{tr('此 Token 明文仅显示一次，关闭后无法再次查看。', 'This plaintext token is shown only once.')}</Notice>
+        <div className="settings-token-reveal">{revealed}</div>
+        <div className="native-copy-row"><Button onClick={async () => { await navigator.clipboard.writeText(revealed); showNotice('success', tr('已复制', 'Copied')); }}><Copy size={14} />{tr('复制', 'Copy')}</Button></div>
       </Modal>
-    </PageContainer>
+
+      <Modal open={!!revokeTarget} title={tr('撤销 Token', 'Revoke token')} onClose={() => setRevokeTarget(undefined)} width={440} footer={<><Button onClick={() => setRevokeTarget(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={handleRevoke}>{tr('撤销', 'Revoke')}</Button></>}>
+        <DangerConfirm title={tr('确认撤销这个 Token？', 'Revoke this token?')} description={tr('使用此 Token 的客户端将立即失效，此操作无法撤销。', 'Clients using this token will stop working immediately. This cannot be undone.')} />
+      </Modal>
+    </div>
   );
 };
 

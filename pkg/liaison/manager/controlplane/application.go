@@ -49,20 +49,23 @@ func detectApplicationTypeByPort(port int) string {
 	return "tcp" // 默认返回 tcp
 }
 
-func (cp *controlPlane) CreateApplication(_ context.Context, req *v1.CreateApplicationRequest) (*v1.CreateApplicationResponse, error) {
-	name := strings.TrimSpace(req.Name)
-	ip := strings.TrimSpace(req.Ip)
-	if name == "" {
-		return nil, badRequest("APPLICATION_NAME_REQUIRED", "应用名称不能为空")
+func (cp *controlPlane) CreateApplication(ctx context.Context, req *v1.CreateApplicationRequest) (*v1.CreateApplicationResponse, error) {
+	name, err := normalizeResourceName(req.Name, "App")
+	if err != nil {
+		return nil, err
 	}
+	ip := strings.TrimSpace(req.Ip)
 	if !isValidApplicationHost(ip) {
 		return nil, badRequest("APPLICATION_IP_INVALID", "请输入合法的应用 IPv4、localhost 或主机名")
 	}
 	if req.EdgeId == 0 {
 		return nil, badRequest("EDGE_ID_REQUIRED", "连接器不能为空")
 	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceConnector, req.EdgeId); err != nil {
+		return nil, err
+	}
 	// 验证 edge 是否存在
-	_, err := cp.repo.GetEdge(req.EdgeId)
+	_, err = cp.repo.GetEdge(req.EdgeId)
 	if err != nil {
 		return nil, mapRecordNotFound(err, "EDGE_NOT_FOUND", "连接器不存在")
 	}
@@ -72,6 +75,9 @@ func (cp *controlPlane) CreateApplication(_ context.Context, req *v1.CreateAppli
 	if req.DeviceId != nil && *req.DeviceId > 0 {
 		// 如果请求中指定了 device_id，优先使用
 		deviceID = uint(*req.DeviceId)
+		if err := requireVisibleResource(ctx, cp.repo, resourceDevice, uint64(deviceID)); err != nil {
+			return nil, err
+		}
 		if _, err := cp.repo.GetDeviceByID(deviceID); err != nil {
 			return nil, mapRecordNotFound(err, "DEVICE_NOT_FOUND", "设备不存在")
 		}
@@ -142,6 +148,10 @@ func (cp *controlPlane) CreateApplication(_ context.Context, req *v1.CreateAppli
 	if err != nil {
 		return nil, err
 	}
+	if err := claimResource(ctx, cp.repo, resourceApplication, uint64(application.ID)); err != nil {
+		_ = cp.repo.DeleteApplication(application.ID)
+		return nil, err
+	}
 
 	// 重新获取创建的应用，包含完整的关联数据
 	createdApplication, err := cp.repo.GetApplicationByID(application.ID)
@@ -156,7 +166,7 @@ func (cp *controlPlane) CreateApplication(_ context.Context, req *v1.CreateAppli
 	}, nil
 }
 
-func (cp *controlPlane) ListApplications(_ context.Context, req *v1.ListApplicationsRequest) (*v1.ListApplicationsResponse, error) {
+func (cp *controlPlane) ListApplications(ctx context.Context, req *v1.ListApplicationsRequest) (*v1.ListApplicationsResponse, error) {
 	var (
 		deviceIDs       []uint
 		devices         []*model.Device
@@ -213,6 +223,17 @@ func (cp *controlPlane) ListApplications(_ context.Context, req *v1.ListApplicat
 		},
 		DeviceIDs: deviceIDs,
 	}
+	visibleIDs, scoped, err := visibleResourceIDs(ctx, cp.repo, resourceApplication)
+	if err != nil {
+		return nil, err
+	}
+	if scoped {
+		query.ScopeApplied = true
+		query.IDs = make([]uint, len(visibleIDs))
+		for i, id := range visibleIDs {
+			query.IDs[i] = uint(id)
+		}
+	}
 	// 应用类型筛选
 	if req.ApplicationType != nil && *req.ApplicationType != "" {
 		query.ApplicationType = *req.ApplicationType
@@ -263,9 +284,21 @@ func (cp *controlPlane) ListApplications(_ context.Context, req *v1.ListApplicat
 	}
 	var proxies []*model.Proxy
 	if len(applicationIDs) > 0 {
-		proxies, err = cp.repo.ListProxies(&dao.ListProxiesQuery{
+		proxyQuery := &dao.ListProxiesQuery{
 			ApplicationIDs: applicationIDs,
-		})
+		}
+		visibleProxyIDs, proxyScoped, scopeErr := visibleResourceIDs(ctx, cp.repo, resourceAccess)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if proxyScoped {
+			proxyQuery.ScopeApplied = true
+			proxyQuery.IDs = make([]uint, len(visibleProxyIDs))
+			for i, id := range visibleProxyIDs {
+				proxyQuery.IDs[i] = uint(id)
+			}
+		}
+		proxies, err = cp.repo.ListProxies(proxyQuery)
 		if err != nil {
 			return nil, err
 		}
@@ -292,7 +325,9 @@ func (cp *controlPlane) ListApplications(_ context.Context, req *v1.ListApplicat
 	}
 
 	countQuery := &dao.ListApplicationsQuery{
+		Query:     dao.Query{ScopeApplied: query.ScopeApplied},
 		DeviceIDs: deviceIDs,
+		IDs:       query.IDs,
 	}
 	// 应用类型筛选
 	if req.ApplicationType != nil && *req.ApplicationType != "" {
@@ -312,9 +347,12 @@ func (cp *controlPlane) ListApplications(_ context.Context, req *v1.ListApplicat
 	}, nil
 }
 
-func (cp *controlPlane) UpdateApplication(_ context.Context, req *v1.UpdateApplicationRequest) (*v1.UpdateApplicationResponse, error) {
+func (cp *controlPlane) UpdateApplication(ctx context.Context, req *v1.UpdateApplicationRequest) (*v1.UpdateApplicationResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("APPLICATION_ID_REQUIRED", "应用 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceApplication, req.Id); err != nil {
+		return nil, err
 	}
 	application, err := cp.repo.GetApplicationByID(uint(req.Id))
 	if err != nil {
@@ -346,14 +384,20 @@ func (cp *controlPlane) UpdateApplication(_ context.Context, req *v1.UpdateAppli
 	}, nil
 }
 
-func (cp *controlPlane) DeleteApplication(_ context.Context, req *v1.DeleteApplicationRequest) (*v1.DeleteApplicationResponse, error) {
+func (cp *controlPlane) DeleteApplication(ctx context.Context, req *v1.DeleteApplicationRequest) (*v1.DeleteApplicationResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("APPLICATION_ID_REQUIRED", "应用 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceApplication, req.Id); err != nil {
+		return nil, err
 	}
 	if _, err := cp.repo.GetApplicationByID(uint(req.Id)); err != nil {
 		return nil, mapRecordNotFound(err, "APPLICATION_NOT_FOUND", "应用不存在")
 	}
 	if err := cp.deleteApplicationCascade(uint(req.Id), newLifecycleDeleteTracker()); err != nil {
+		return nil, err
+	}
+	if err := cp.repo.DeleteIAMResourceRelations(resourceApplication, req.Id); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteApplicationResponse{

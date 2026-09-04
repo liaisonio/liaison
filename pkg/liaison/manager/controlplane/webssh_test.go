@@ -47,6 +47,7 @@ func TestWebSSHCredentialsAreScopedByUserAndUsername(t *testing.T) {
 	if err := r.CreateProxy(proxy); err != nil {
 		t.Fatalf("create proxy: %v", err)
 	}
+	grantTestResourceToUsers(t, r, resourceAccess, proxy.ID, 1, 2)
 
 	ctxUser1 := context.WithValue(context.Background(), "user_id", uint(1))
 	ctxUser2 := context.WithValue(context.Background(), "user_id", uint(2))

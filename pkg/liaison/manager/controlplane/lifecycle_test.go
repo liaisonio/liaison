@@ -78,6 +78,22 @@ func newTestControlPlane(t *testing.T) (*controlPlane, repo.Repo) {
 	return cp, r
 }
 
+func grantTestResourceToUsers(t *testing.T, r repo.Repo, resourceType string, resourceID uint, userIDs ...uint) {
+	t.Helper()
+	for _, userID := range userIDs {
+		if err := r.UpsertIAMResourceRelation(&model.IAMResourceRelation{
+			ResourceType: resourceType,
+			ResourceID:   uint64(resourceID),
+			Relation:     model.IAMRelationOwner,
+			SubjectType:  model.IAMSubjectUser,
+			SubjectID:    userID,
+			CreatedBy:    userID,
+		}); err != nil {
+			t.Fatalf("grant test resource %s/%d to user %d: %v", resourceType, resourceID, userID, err)
+		}
+	}
+}
+
 func createTestEdgeApplication(t *testing.T, r repo.Repo) (*model.Edge, *model.Application) {
 	t.Helper()
 	edge := &model.Edge{

@@ -39,11 +39,12 @@ const (
 )
 
 type createWebSSHSessionRequest struct {
-	Username       string `json:"username"`
-	Password       string `json:"password"`
-	SaveCredential bool   `json:"save_credential"`
-	Cols           int    `json:"cols"`
-	Rows           int    `json:"rows"`
+	Username           string `json:"username"`
+	Password           string `json:"password"`
+	SaveCredential     bool   `json:"save_credential"`
+	UseSavedCredential bool   `json:"use_saved_credential"`
+	Cols               int    `json:"cols"`
+	Rows               int    `json:"rows"`
 }
 
 type createWebSSHSessionResponse struct {
@@ -257,6 +258,11 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
+	if err := validateWebSSHSessionCredentials(req); err != nil {
+		req.Password = ""
+		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": err.Error()})
+		return
+	}
 	cols, rows := normalizeWebSSHSize(req.Cols, req.Rows)
 	ctx := context.WithValue(r.Context(), "user_id", user.ID)
 	target, err := web.controlPlane.GetWebSSHTarget(ctx, proxyID)
@@ -272,10 +278,6 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 	password := []byte(req.Password)
 	savedCredential := false
 	if len(password) == 0 {
-		if req.Username == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "请选择已保存用户或输入密码"})
-			return
-		}
 		credential, err := web.controlPlane.GetWebSSHCredentialSecret(ctx, proxyID, req.Username)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -293,19 +295,6 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 		}
 		req.Username = credential.Username
 		savedCredential = true
-	} else if req.Username == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "SSH 用户名不能为空"})
-		for i := range password {
-			password[i] = 0
-		}
-		return
-	}
-	if req.Username == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"code": http.StatusBadRequest, "message": "SSH 用户名不能为空"})
-		for i := range password {
-			password[i] = 0
-		}
-		return
 	}
 	saveCredential := req.SaveCredential && !savedCredential
 	if saveCredential && web.credentialKey == nil {
@@ -336,6 +325,16 @@ func (web *web) handleCreateWebSSHSessionHTTP(w http.ResponseWriter, r *http.Req
 	})
 }
 
+func validateWebSSHSessionCredentials(req createWebSSHSessionRequest) error {
+	if strings.TrimSpace(req.Username) == "" {
+		return errors.New("SSH 用户名不能为空")
+	}
+	if req.Password == "" && !req.UseSavedCredential {
+		return errors.New("SSH 密码不能为空")
+	}
+	return nil
+}
+
 func (web *web) handleWebSSHCredentialHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodDelete {
 		w.Header().Set("Allow", "GET, DELETE")
@@ -354,11 +353,21 @@ func (web *web) handleWebSSHCredentialHTTP(w http.ResponseWriter, r *http.Reques
 	}
 	ctx := context.WithValue(r.Context(), "user_id", user.ID)
 	if r.Method == http.MethodDelete {
-		if err := web.controlPlane.DeleteWebSSHCredential(ctx, proxyID, r.URL.Query().Get("username")); err != nil {
+		target, targetErr := web.controlPlane.GetWebSSHTarget(ctx, proxyID)
+		if targetErr != nil {
+			status := webSSHHTTPStatus(targetErr)
+			writeJSON(w, status, map[string]any{"code": status, "message": targetErr.Error()})
+			return
+		}
+		username := r.URL.Query().Get("username")
+		clientIP, clientIPSource := remoteClientIPInfo(r)
+		if err := web.controlPlane.DeleteWebSSHCredential(ctx, proxyID, username); err != nil {
+			web.recordWebSSHAudit(target, user.ID, clientIP, clientIPSource, "delete_credential", username, "", false, 0, err.Error())
 			status := webSSHHTTPStatus(err)
 			writeJSON(w, status, map[string]any{"code": status, "message": err.Error()})
 			return
 		}
+		web.recordWebSSHAudit(target, user.ID, clientIP, clientIPSource, "delete_credential", username, "", true, 0, "")
 		writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success"})
 		return
 	}
@@ -464,11 +473,14 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 		sessionCtx := context.WithValue(context.Background(), "user_id", webSession.userID)
 		if err != nil {
 			log.Errorf("webssh credential encrypt failed: proxy_id=%d err=%v", webSession.proxyID, err)
+			web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "save_credential", webSession.username, "", false, 0, err.Error())
 			_ = writer.write(webSSHServerMessage{Type: "credential_error", Message: "SSH 已连接，但保存密码失败"})
 		} else if err := web.controlPlane.SaveWebSSHCredential(sessionCtx, webSession.proxyID, webSession.username, encryptedPassword, nonce); err != nil {
 			log.Errorf("webssh credential save failed: proxy_id=%d err=%v", webSession.proxyID, err)
+			web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "save_credential", webSession.username, "", false, 0, err.Error())
 			_ = writer.write(webSSHServerMessage{Type: "credential_error", Message: "SSH 已连接，但保存密码失败"})
 		} else {
+			web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "save_credential", webSession.username, "", true, 0, "")
 			_ = writer.write(webSSHServerMessage{Type: "credential_saved"})
 		}
 	} else if webSession.savedCredential {
@@ -698,7 +710,7 @@ func (web *web) recordWebSSHAudit(target *controlplane.WebSSHTarget, userID uint
 		ProxyName:        target.ProxyName,
 		ApplicationID:    target.ApplicationID,
 		ApplicationName:  target.ApplicationName,
-		Protocol:         "ssh",
+		Protocol:         "webssh",
 		Action:           action,
 		Database:         username,
 		StatementPreview: webDataStatementPreview(statement),
@@ -721,6 +733,10 @@ func webSSHAuditStatement(action, username string) string {
 		statement = "OPEN SSH SESSION"
 	case "close_session":
 		statement = "CLOSE SSH SESSION"
+	case "save_credential":
+		statement = "SAVE SSH CONNECTION"
+	case "delete_credential":
+		statement = "DELETE SSH CONNECTION"
 	default:
 		statement = strings.ToUpper(strings.TrimSpace(action))
 	}

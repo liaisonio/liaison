@@ -9,6 +9,7 @@ import (
 // User 用户模型
 type User struct {
 	gorm.Model
+	Name      string     `gorm:"column:name;type:varchar(128);not null;default:''" json:"name"`
 	Email     string     `gorm:"column:email;type:varchar(255);uniqueIndex;not null" json:"email"`
 	Password  string     `gorm:"column:password;type:varchar(255);not null" json:"-"` // 不序列化密码
 	Status    UserStatus `gorm:"column:status;type:varchar(50);not null;default:'active'" json:"status"`

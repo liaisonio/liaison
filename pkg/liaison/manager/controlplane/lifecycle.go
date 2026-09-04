@@ -35,8 +35,7 @@ func isWebOnlyCapableApplicationType(appType model.ApplicationType) bool {
 func isWebOnlyProxy(proxy *model.Proxy, application *model.Application) bool {
 	return proxy != nil &&
 		application != nil &&
-		proxy.Port == 0 &&
-		isWebOnlyCapableApplicationType(application.ApplicationType)
+		!accessProtocolRequiresPublicPort(effectiveAccessProtocol(proxy, application))
 }
 
 // stopProxyRuntime stops the data-plane listener for proxy and revokes any
@@ -78,6 +77,7 @@ func (cp *controlPlane) startProxyRuntime(proxy *model.Proxy, application *model
 		ApplicationID:   application.ID,
 		Dst:             fmt.Sprintf("%s:%d", application.IP, application.Port),
 		ApplicationType: string(application.ApplicationType),
+		AccessProtocol:  string(effectiveAccessProtocol(proxy, application)),
 		UseHTTPS:        useHTTPS,
 	}
 	if err := cp.proxyManager.CreateProxy(context.Background(), protoproxy); err != nil {

@@ -2,10 +2,56 @@ package web
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/liaisonio/liaison/pkg/liaison/config"
 )
+
+func TestValidateWebSSHSessionCredentials(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     createWebSSHSessionRequest
+		wantErr string
+	}{
+		{
+			name:    "username required",
+			req:     createWebSSHSessionRequest{Password: "secret"},
+			wantErr: "用户名",
+		},
+		{
+			name:    "new connection requires password",
+			req:     createWebSSHSessionRequest{Username: "root"},
+			wantErr: "密码",
+		},
+		{
+			name: "explicit saved credential may omit password",
+			req: createWebSSHSessionRequest{
+				Username:           "root",
+				UseSavedCredential: true,
+			},
+		},
+		{
+			name: "new connection accepts entered password",
+			req:  createWebSSHSessionRequest{Username: "root", Password: "secret"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateWebSSHSessionCredentials(tt.req)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateWebSSHSessionCredentials() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("validateWebSSHSessionCredentials() error = %v, want containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
 
 func TestWebSSHCredentialEncryptDecrypt(t *testing.T) {
 	key := deriveWebSSHCredentialKey(&config.Configuration{

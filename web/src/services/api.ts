@@ -1,9 +1,9 @@
 /**
  * API 服务统一入口
- * 基于 Liaison 文档: http://49.232.250.11:8080
+ * 所有请求使用同源 /api，由开发代理或 Liaison Manager 路由。
  */
 
-import { request } from '@umijs/max';
+import { request } from '@/api/client';
 
 /** 登录 POST /v1/iam/login */
 export async function login(data: API.LoginParams) {
@@ -15,7 +15,7 @@ export async function login(data: API.LoginParams) {
 
 /** 获取当前用户信息 GET /v1/iam/profile */
 export async function getCurrentUser() {
-  return request<API.Response<API.CurrentUser>>('/api/v1/iam/profile', {
+  return request<API.Response<API.CurrentUser>>('/api/v1/iam/account', {
     method: 'GET',
   });
 }
@@ -37,6 +37,58 @@ export async function logout() {
     method: 'POST',
     data: {},
   });
+}
+
+export async function getManagedUsers() {
+  return request<API.Response<{ users: API.ManagedUser[]; total: number }>>('/api/v1/iam/users');
+}
+
+export async function createManagedUser(data: { organization_id: number; name?: string; email: string; password?: string; role?: API.IAMRole }) {
+  return request<API.Response<{ user: API.ManagedUser; initial_password?: string }>>('/api/v1/iam/users', { method: 'POST', data });
+}
+
+export async function updateManagedUser(id: number, data: { name?: string; status?: API.UserStatus; role?: API.IAMRole }) {
+  return request<API.Response<API.ManagedUser>>(`/api/v1/iam/users/${id}`, { method: 'PATCH', data });
+}
+
+export async function resetManagedUserPassword(id: number, password: string) {
+  return request<API.Response>(`/api/v1/iam/users/${id}/password`, { method: 'PUT', data: { password } });
+}
+
+export async function deleteManagedUser(id: number) {
+  return request<API.Response>(`/api/v1/iam/users/${id}`, { method: 'DELETE' });
+}
+
+export async function getOrganizations() {
+  return request<API.Response<{ organizations: API.Organization[] }>>('/api/v1/iam/organizations');
+}
+
+export async function createOrganization(data: { name: string; description?: string; parent_id?: number }) {
+  return request<API.Response<API.Organization>>('/api/v1/iam/organizations', { method: 'POST', data });
+}
+
+export async function updateOrganization(id: number, data: { name?: string; description?: string; parent_id?: number; set_parent?: boolean }) {
+  return request<API.Response<API.Organization>>(`/api/v1/iam/organizations/${id}`, { method: 'PATCH', data });
+}
+
+export async function deleteOrganization(id: number) {
+  return request<API.Response>(`/api/v1/iam/organizations/${id}`, { method: 'DELETE' });
+}
+
+export async function getOrganizationMembers(id: number) {
+  return request<API.Response<{ members: API.OrganizationMember[] }>>(`/api/v1/iam/organizations/${id}/members`);
+}
+
+export async function addOrganizationMember(id: number, data: { email: string; role: API.OrganizationRole }) {
+  return request<API.Response<API.OrganizationMember>>(`/api/v1/iam/organizations/${id}/members`, { method: 'POST', data });
+}
+
+export async function updateOrganizationMember(id: number, userId: number, role: API.OrganizationRole) {
+  return request<API.Response<API.OrganizationMember>>(`/api/v1/iam/organizations/${id}/members/${userId}`, { method: 'PUT', data: { role } });
+}
+
+export async function removeOrganizationMember(id: number, userId: number) {
+  return request<API.Response>(`/api/v1/iam/organizations/${id}/members/${userId}`, { method: 'DELETE' });
 }
 
 /** 获取应用列表 GET /v1/applications */
@@ -152,19 +204,19 @@ export async function deleteEdge(id: number) {
 }
 
 /** 获取扫描应用任务 GET /v1/edges/:edge_id/scan_application_tasks */
-export async function getEdgeScanTask(edgeId: number) {
+export async function getEdgeScanTask(edgeId: number, taskId?: number) {
   return request<API.Response<API.EdgeScanApplicationTask>>(
     `/api/v1/edges/${edgeId}/scan_application_tasks`,
     {
       method: 'GET',
-      params: { edge_id: edgeId },
+      params: { edge_id: edgeId, task_id: taskId },
     },
   );
 }
 
 /** 创建扫描应用任务 POST /v1/edges/:edge_id/scan_application_tasks */
 export async function createEdgeScanTask(data: API.EdgeScanTaskCreateParams) {
-  return request<API.Response>(
+  return request<API.Response<API.EdgeScanTaskCreateResult>>(
     `/api/v1/edges/${data.edge_id}/scan_application_tasks`,
     {
       method: 'POST',
@@ -345,16 +397,22 @@ export async function executeWebDataStatement(
     {
       method: 'POST',
       data: { statement },
+      preserveLoginOnUnauthorized: true,
     },
   );
 }
 
 /** 获取 WebData metadata GET /v1/webdata/sessions/:token/metadata */
-export async function getWebDataMetadata(token: string) {
+export async function getWebDataMetadata(
+  token: string,
+  params?: API.WebDataMetadataParams,
+) {
   return request<API.Response<API.WebDataMetadataResult>>(
     `/api/v1/webdata/sessions/${token}/metadata`,
     {
       method: 'GET',
+      params,
+      preserveLoginOnUnauthorized: true,
     },
   );
 }
@@ -369,6 +427,7 @@ export async function getWebDataObject(
     {
       method: 'GET',
       params,
+      preserveLoginOnUnauthorized: true,
     },
   );
 }
@@ -409,10 +468,19 @@ export async function getAccessAuditList(params?: API.WebDataAuditListParams) {
   );
 }
 
+/** 获取管理日志 GET /v1/audits/management */
+export async function getManagementAuditList(params?: API.ManagementAuditListParams) {
+  return request<API.Response<API.ManagementAuditListResult>>(
+    '/api/v1/audits/management',
+    { method: 'GET', params },
+  );
+}
+
 /** 关闭 WebData 会话 DELETE /v1/webdata/sessions/:token */
 export async function deleteWebDataSession(token: string) {
   return request<API.Response>(`/api/v1/webdata/sessions/${token}`, {
     method: 'DELETE',
+    preserveLoginOnUnauthorized: true,
   });
 }
 

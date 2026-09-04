@@ -438,7 +438,7 @@ export const parseMongoInlineValue = (value: string, originalValue: any) => {
       return text;
     }
   }
-  if (/^[\[{"]/.test(trimmed)) {
+  if (/^[[{"]/.test(trimmed)) {
     try {
       return JSON.parse(trimmed);
     } catch {
@@ -1116,7 +1116,7 @@ export const parseFilterValueByKind = (
   if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
   if (/^(true|false)$/i.test(text)) return /^true$/i.test(text);
   if (/^null$/i.test(text)) return null;
-  if (/^[\[{]/.test(text)) {
+  if (/^[[{]/.test(text)) {
     try {
       return JSON.parse(text);
     } catch {

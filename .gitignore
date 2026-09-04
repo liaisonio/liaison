@@ -67,3 +67,8 @@ certs/*.crt
 
 # Local runtime state
 /local-run/
+.gstack/
+
+# Local design documents and visual assets
+/design/
+/docs/adr/

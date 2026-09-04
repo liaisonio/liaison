@@ -14,6 +14,9 @@ type Query struct {
 	// Order
 	Order string
 	Desc  bool
+	// ScopeApplied distinguishes an intentionally empty authorization scope
+	// from an omitted ID filter.
+	ScopeApplied bool
 }
 
 type ListTasksQuery struct {
@@ -55,20 +58,24 @@ type ListEdgesQuery struct {
 type ListTrafficMetricsQuery struct {
 	ApplicationIDs []uint
 	ProxyIDs       []uint
+	ScopeApplied   bool
 	StartTime      *time.Time
 	EndTime        *time.Time
 	Limit          int
 }
 
 type ListWebDataAuditsQuery struct {
-	UserID    uint
-	ProxyID   uint
-	Protocol  string
-	Action    string
-	Success   *bool
-	Keyword   string
-	StartTime *time.Time
-	EndTime   *time.Time
-	Limit     int
-	Offset    int
+	UserID        uint
+	IncludeSystem bool
+	ProxyID       uint
+	ProxyIDs      []uint
+	ScopeApplied  bool
+	Protocol      string
+	Action        string
+	Success       *bool
+	Keyword       string
+	StartTime     *time.Time
+	EndTime       *time.Time
+	Limit         int
+	Offset        int
 }

@@ -1,4 +1,5 @@
 import { useI18n } from '@/i18n';
+import { AuditLogIcon } from '@/components/icons/AuditLogIcon';
 import {
   createWebDataSession,
   deleteWebDataCredential,
@@ -11,33 +12,8 @@ import {
   saveWebDataCredential,
   testWebDataConnection,
 } from '@/services/api';
-import {
-  ApiOutlined,
-  AuditOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloudServerOutlined,
-  ClusterOutlined,
-  CopyOutlined,
-  DatabaseOutlined,
-  DeleteOutlined,
-  DisconnectOutlined,
-  DownloadOutlined,
-  EditOutlined,
-  FileSearchOutlined,
-  FileTextOutlined,
-  KeyOutlined,
-  LoginOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SaveOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  TableOutlined,
-} from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
-import { history, useModel, useParams } from '@umijs/max';
+import { history, useModel, useParams, useSearchParams } from '@/lib/runtime';
+import { accessTypeLabel } from '@/constants/accessTypes';
 import {
   Alert,
   Button,
@@ -60,8 +36,27 @@ import {
   Tree,
   Typography,
   message,
-} from 'antd';
-import type { ChangeEvent, KeyboardEvent, UIEvent } from 'react';
+} from '@/components/ui/complex';
+import {
+  CircleCheck as CheckCircleOutlined,
+  Clock3 as ClockCircleOutlined,
+  Copy as CopyOutlined,
+  Database as DatabaseOutlined,
+  Trash2 as DeleteOutlined,
+  Unplug as DisconnectOutlined,
+  Pencil as EditOutlined,
+  SearchCode as FileSearchOutlined,
+  FileText as FileTextOutlined,
+  KeyRound as KeyOutlined,
+  LogIn as LoginOutlined,
+  CirclePlay as PlayCircleOutlined,
+  Plus as PlusOutlined,
+  RefreshCw as ReloadOutlined,
+  Save as SaveOutlined,
+  Search as SearchOutlined,
+  Settings as SettingOutlined,
+} from 'lucide-react';
+import type { ChangeEvent, KeyboardEvent, PointerEvent as ReactPointerEvent, UIEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { renderWebDataAuditDetails } from './auditDetails';
 import {
@@ -79,7 +74,6 @@ import {
   buildConnectionProfileFromValues,
   buildConnectionRequestFromValues,
   connectionMeta,
-  connectionSubtitle,
   connectionTitle,
   defaultConnectionName,
   normalizeConnectionTLSMode,
@@ -87,7 +81,9 @@ import {
 } from './connection';
 import './index.less';
 import {
+  buildMetadataChildParams,
   buildGenericColumns,
+  buildRedisMetadataView,
   buildObjectParams,
   buildResultColumns,
   editableCellValue,
@@ -96,6 +92,7 @@ import {
   formatCellValue,
   isInspectableNode,
   mapMetadataTree,
+  replaceMetadataChildren,
   summarizeMetadata,
   summarizeResult,
   unionRowKeys,
@@ -138,7 +135,11 @@ import {
   sqlEditableColumns,
   sqlIdentityColumn,
 } from './objectCommands';
-import { isSQLProtocol, protocolLabels } from './protocol';
+import {
+  isSQLProtocol,
+  protocolLabels,
+  protocolWorkspaceCopy,
+} from './protocol';
 import {
   currentUserStorageKey,
   objectStatementDraftKey,
@@ -169,18 +170,40 @@ import type {
 const { Text, Title } = Typography;
 const { TextArea } = Input;
 
+const PageContainer = ({ children }: any) => <>{children}</>;
+
+const webDataSessionKey = (proxyId: number, credentialId: number) =>
+  `liaison:webdata:${proxyId}:${credentialId}`;
+
+const readCachedWebDataSession = (proxyId: number, credentialId: number) => {
+  try {
+    const raw = window.sessionStorage.getItem(
+      webDataSessionKey(proxyId, credentialId),
+    );
+    if (!raw) return undefined;
+    const cached = JSON.parse(raw) as API.CreateWebDataSessionResponse;
+    const expiresAt = new Date(cached.expires_at).getTime();
+    if (!cached.token || !expiresAt || expiresAt <= Date.now() + 10_000) {
+      window.sessionStorage.removeItem(webDataSessionKey(proxyId, credentialId));
+      return undefined;
+    }
+    return cached;
+  } catch {
+    return undefined;
+  }
+};
+
 const WebDataPage: React.FC = () => {
   const { tr } = useI18n();
   const { initialState } = useModel('@@initialState');
   const params = useParams();
+  const [routeSearch] = useSearchParams();
   const proxyId = Number(params.proxyId);
+  const credentialId = Number(params.credentialId);
+  const isConnectionDetail = Number.isFinite(credentialId) && credentialId > 0;
   const currentUserKey = useMemo(
     () => currentUserStorageKey(initialState?.currentUser),
-    [
-      initialState?.currentUser?.email,
-      initialState?.currentUser?.id,
-      initialState?.currentUser?.name,
-    ],
+    [initialState?.currentUser],
   );
   const [connectionForm] = Form.useForm();
   const [quickForm] = Form.useForm();
@@ -216,10 +239,16 @@ const WebDataPage: React.FC = () => {
     conditions: [],
     limit: 100,
   });
+  const [filterOpen, setFilterOpen] = useState(false);
   const [objectDetailOpen, setObjectDetailOpen] = useState(false);
   const objectRequestSeq = useRef(0);
+  const restoredCredentialRef = useRef<number>();
   const skipStatementDraftSaveRef = useRef(false);
   const [treeSearch, setTreeSearch] = useState('');
+  const [navigatorWidth, setNavigatorWidth] = useState(() => {
+    const saved = Number(window.localStorage.getItem('liaison:webdata:navigator-width'));
+    return Number.isFinite(saved) && saved >= 210 && saved <= 420 ? saved : 260;
+  });
   const [editorCursor, setEditorCursor] = useState(0);
   const [editorScrollTop, setEditorScrollTop] = useState(0);
   const [completionActive, setCompletionActive] = useState(false);
@@ -235,6 +264,33 @@ const WebDataPage: React.FC = () => {
   const [inlineCellEdit, setInlineCellEdit] = useState<InlineCellEdit>();
   const [inlineCellSaving, setInlineCellSaving] = useState(false);
   const connected = Boolean(session?.token);
+  const webAccessType = `web${String(target?.protocol || '').toLowerCase()}`;
+  const requestedReturnPath = routeSearch.get('from') || '';
+  const returnQuery = requestedReturnPath
+    ? `?from=${encodeURIComponent(requestedReturnPath)}`
+    : '';
+  const connectionListPath = `/webdata/${proxyId}${returnQuery}`;
+  const connectionDetailPath = (id: number) =>
+    `/webdata/${proxyId}/connections/${id}${returnQuery}`;
+
+  const beginNavigatorResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = navigatorWidth;
+    const move = (moveEvent: PointerEvent) => {
+      setNavigatorWidth(Math.max(210, Math.min(420, startWidth + moveEvent.clientX - startX)));
+    };
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
+  };
+
+  useEffect(() => {
+    window.localStorage.setItem('liaison:webdata:navigator-width', String(navigatorWidth));
+  }, [navigatorWidth]);
 
   useEffect(() => {
     let mounted = true;
@@ -272,17 +328,15 @@ const WebDataPage: React.FC = () => {
     };
   }, [connectionForm, proxyId, tr]);
 
-  useEffect(() => {
-    return () => {
-      if (session?.token) {
-        deleteWebDataSession(session.token).catch(() => {});
-      }
-    };
-  }, [session?.token]);
-
   const filteredMetadata = useMemo(
-    () => filterMetadataNodes(metadata, treeSearch),
-    [metadata, treeSearch],
+    () => {
+      const redisDB = target?.credentials?.find((item) => item.id === credentialId)?.redis_db ?? 0;
+      const source = target?.protocol === 'redis'
+        ? buildRedisMetadataView(metadata, redisDB)
+        : metadata;
+      return filterMetadataNodes(source, treeSearch);
+    },
+    [credentialId, metadata, target?.credentials, target?.protocol, treeSearch],
   );
 
   const treeData = useMemo<MetadataTreeNode[]>(
@@ -294,8 +348,15 @@ const WebDataPage: React.FC = () => {
     () => summarizeMetadata(metadata),
     [metadata],
   );
+  const activeRedisDB = target?.credentials?.find(
+    (item) => item.id === credentialId,
+  )?.redis_db ?? 0;
 
   const resultSummary = useMemo(() => summarizeResult(result), [result]);
+  const workspaceCopy = useMemo(
+    () => protocolWorkspaceCopy(target?.protocol, tr),
+    [target?.protocol, tr],
+  );
 
   const statementDraftKey = useMemo(
     () =>
@@ -305,16 +366,7 @@ const WebDataPage: React.FC = () => {
         target?.protocol,
         objectDetail,
       ),
-    [
-      currentUserKey,
-      objectDetail?.database,
-      objectDetail?.key,
-      objectDetail?.name,
-      objectDetail?.object_type,
-      objectDetail?.schema,
-      proxyId,
-      target?.protocol,
-    ],
+    [currentUserKey, objectDetail, proxyId, target?.protocol],
   );
 
   useEffect(() => {
@@ -404,6 +456,7 @@ const WebDataPage: React.FC = () => {
   useEffect(() => {
     const fields = objectFilterFieldInfos(target?.protocol, objectDetail);
     setObjectFilter((prev) => normalizeObjectFilter(prev, fields));
+    setFilterOpen(false);
   }, [objectDetail, target?.protocol]);
 
   const reloadTarget = async () => {
@@ -416,13 +469,22 @@ const WebDataPage: React.FC = () => {
     return undefined;
   };
 
-  const activateSession = async (data: API.CreateWebDataSessionResponse) => {
+  const activateSession = async (
+    data: API.CreateWebDataSessionResponse,
+    activeCredentialId?: number,
+  ) => {
     objectRequestSeq.current += 1;
     setSession(data);
     setResult(undefined);
     setSelectedNode(undefined);
     setObjectDetail(undefined);
     setConnectionDrawerOpen(false);
+    if (activeCredentialId) {
+      window.sessionStorage.setItem(
+        webDataSessionKey(proxyId, activeCredentialId),
+        JSON.stringify(data),
+      );
+    }
     message.success(tr('已连接', 'Connected'));
     await loadMetadata(data.token);
   };
@@ -455,7 +517,15 @@ const WebDataPage: React.FC = () => {
   const handleConnectWithCredential = async (
     credential: API.WebDataCredential,
   ) => {
-    if (!target) return false;
+    if (!credential.id) return false;
+    history.push(connectionDetailPath(credential.id));
+    return true;
+  };
+
+  const connectCredentialSession = async (
+    credential: API.WebDataCredential,
+  ) => {
+    if (!target || !credential.id) return false;
     setConnecting(true);
     setConnectingCredentialId(credential.id);
     try {
@@ -476,7 +546,7 @@ const WebDataPage: React.FC = () => {
         message.error(res.message || tr('连接失败', 'Connection failed'));
         return false;
       }
-      await activateSession(res.data);
+      await activateSession(res.data, credential.id);
       return true;
     } catch (err: any) {
       message.error(err?.message || tr('连接失败', 'Connection failed'));
@@ -492,6 +562,11 @@ const WebDataPage: React.FC = () => {
     try {
       await deleteWebDataSession(session.token);
     } catch {}
+    if (isConnectionDetail) {
+      window.sessionStorage.removeItem(
+        webDataSessionKey(proxyId, credentialId),
+      );
+    }
     setSession(undefined);
     setMetadata([]);
     objectRequestSeq.current += 1;
@@ -499,6 +574,7 @@ const WebDataPage: React.FC = () => {
     setObjectDetail(undefined);
     setResult(undefined);
     message.success(tr('已断开', 'Disconnected'));
+    history.replace(connectionListPath);
   };
 
   const openCreateConnection = () => {
@@ -578,43 +654,6 @@ const WebDataPage: React.FC = () => {
     }
   };
 
-  const handleConnectOnceFromDrawer = async () => {
-    if (!target) return;
-    let values: any;
-    try {
-      values = await connectionForm.validateFields();
-    } catch {
-      return;
-    }
-    if (editingCredential?.id && !values.password) {
-      setConnecting(true);
-      try {
-        const res = await createWebDataSession(
-          proxyId,
-          buildConnectionRequestFromValues(target.protocol, values, {
-            credentialId: editingCredential.id,
-            credential: editingCredential,
-          }),
-        );
-        if (res.code !== 200 || !res.data) {
-          message.error(res.message || tr('连接失败', 'Connection failed'));
-          return;
-        }
-        await activateSession(res.data);
-      } catch (err: any) {
-        message.error(err?.message || tr('连接失败', 'Connection failed'));
-      } finally {
-        setConnecting(false);
-      }
-      return;
-    }
-    await handleConnect({
-      ...values,
-      protocol: target.protocol,
-      save_credential: false,
-    });
-  };
-
   const handleTestConnectionFromDrawer = async () => {
     if (!target) return;
     let values: any;
@@ -665,6 +704,63 @@ const WebDataPage: React.FC = () => {
       setMetadataLoading(false);
     }
   };
+
+  const loadMetadataChildren = async (treeNode: MetadataTreeNode) => {
+    const source = treeNode.source;
+    if (!session?.token || !target || !source) return;
+    const params = buildMetadataChildParams(target.protocol, source);
+    if (!params) return;
+    try {
+      const res = await getWebDataMetadata(session.token, params);
+      if (res.code === 200 && res.data) {
+        setMetadata((nodes) =>
+          replaceMetadataChildren(nodes, source.key, res.data?.nodes || []),
+        );
+      }
+    } catch (err: any) {
+      message.error(
+        err?.message || tr('加载字段失败', 'Failed to load fields'),
+      );
+      throw err;
+    }
+  };
+
+  useEffect(() => {
+    if (!isConnectionDetail) {
+      restoredCredentialRef.current = undefined;
+      return;
+    }
+    if (!target || restoredCredentialRef.current === credentialId) {
+      return;
+    }
+    restoredCredentialRef.current = credentialId;
+    const credential = target.credentials?.find((item) => item.id === credentialId);
+    if (!credential) {
+      message.error(tr('连接不存在或已删除', 'Connection does not exist'));
+      history.replace(connectionListPath);
+      return;
+    }
+    const cached = readCachedWebDataSession(proxyId, credentialId);
+    if (cached) {
+      void (async () => {
+        try {
+          const metadataResponse = await getWebDataMetadata(cached.token);
+          if (metadataResponse.code === 200 && metadataResponse.data) {
+            setSession(cached);
+            setMetadata(metadataResponse.data.nodes || []);
+            return;
+          }
+        } catch {
+          // The database session may have expired while the management login is valid.
+        }
+        window.sessionStorage.removeItem(webDataSessionKey(proxyId, credentialId));
+        setSession(undefined);
+        await connectCredentialSession(credential);
+      })();
+      return;
+    }
+    void connectCredentialSession(credential);
+  }, [credentialId, isConnectionDetail, target]);
 
   const loadAudits = async () => {
     if (!proxyId) return;
@@ -1460,16 +1556,16 @@ const WebDataPage: React.FC = () => {
           className="webdata-cell-input"
           value={inlineCellEdit.value}
           disabled={inlineCellSaving}
-          onChange={(event) =>
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
             setInlineCellEdit((prev) =>
               prev ? { ...prev, value: event.target.value } : prev,
             )
           }
-          onPressEnter={(event) => {
+          onPressEnter={(event: KeyboardEvent<HTMLInputElement>) => {
             event.preventDefault();
             saveInlineCellEdit().catch(() => {});
           }}
-          onKeyDown={(event) => {
+          onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
             if (event.key === 'Escape') {
               event.preventDefault();
               setInlineCellEdit(undefined);
@@ -1537,7 +1633,7 @@ const WebDataPage: React.FC = () => {
         key: '_webdata_actions',
         ellipsis: false,
         fixed: 'right',
-        width: 150,
+        width: 74,
         render: (_value: any, row: Record<string, any>) => {
           const actions: React.ReactNode[] = [];
           if (options.redisRowActions && objectDetail) {
@@ -1545,7 +1641,8 @@ const WebDataPage: React.FC = () => {
               actions.push(
                 <Button
                   key="update"
-                  icon={<EditOutlined />}
+                  type="link"
+                  className="webdata-row-action"
                   size="small"
                   onClick={() => openRedisRowUpdate(row)}
                 >
@@ -1557,8 +1654,8 @@ const WebDataPage: React.FC = () => {
               actions.push(
                 <Button
                   key="delete"
-                  danger
-                  icon={<DeleteOutlined />}
+                  type="link"
+                  className="webdata-row-action is-danger"
                   size="small"
                   onClick={() => deleteRedisRow(row)}
                 >
@@ -1586,8 +1683,8 @@ const WebDataPage: React.FC = () => {
             actions.push(
               <Tooltip key="delete" title={canIdentify ? '' : disabledTitle}>
                 <Button
-                  danger
-                  icon={<DeleteOutlined />}
+                  type="link"
+                  className="webdata-row-action is-danger"
                   size="small"
                   disabled={!canIdentify}
                   onClick={() =>
@@ -1632,7 +1729,7 @@ const WebDataPage: React.FC = () => {
       <Table
         className="webdata-table"
         size="small"
-        rowKey={(_, index) => String(index)}
+        rowKey={(_: Record<string, any>, index: number) => String(index)}
         columns={buildGenericColumns(rows)}
         dataSource={rows}
         pagination={{ pageSize: 20, showSizeChanger: true }}
@@ -1701,12 +1798,9 @@ const WebDataPage: React.FC = () => {
     };
     return (
       <div className="webdata-filter-panel">
-        <div className="webdata-filter-head">
-          <Space size={6}>
-            <SearchOutlined />
-            <Text strong>{tr('快捷筛选', 'Quick Filter')}</Text>
-            <Text type="secondary">{tr('多条件按 AND 组合', 'AND logic')}</Text>
-          </Space>
+        <div className="webdata-filter-body">
+          <div className="webdata-filter-head">
+            <Text strong>{tr('筛选条件', 'Filter conditions')}</Text>
           <Space size={6}>
             <Text type="secondary">Limit</Text>
             <InputNumber
@@ -1716,7 +1810,7 @@ const WebDataPage: React.FC = () => {
               max={1000}
               precision={0}
               value={objectFilter.limit}
-              onChange={(limit) =>
+              onChange={(limit: number) =>
                 setObjectFilter((prev) => ({
                   ...prev,
                   limit: Number(limit || 100),
@@ -1727,8 +1821,8 @@ const WebDataPage: React.FC = () => {
               {tr('条件', 'Condition')}
             </Button>
           </Space>
-        </div>
-        <div className="webdata-filter-rows">
+          </div>
+          <div className="webdata-filter-rows">
           {conditions.map((condition, index) => {
             const field = condition.field || fields[0];
             const fieldKind = objectFilterFieldKind(fieldInfos, field);
@@ -1750,7 +1844,7 @@ const WebDataPage: React.FC = () => {
                   options={fieldOptions}
                   optionFilterProp="label"
                   popupMatchSelectWidth={false}
-                  onChange={(nextField) =>
+                  onChange={(nextField: string) =>
                     updateConditionField(condition, nextField)
                   }
                 />
@@ -1759,7 +1853,7 @@ const WebDataPage: React.FC = () => {
                   className="webdata-filter-operator"
                   value={operator}
                   options={objectFilterOperatorOptions(tr, fieldKind)}
-                  onChange={(nextOperator) =>
+                  onChange={(nextOperator: string) =>
                     updateCondition(condition.id, {
                       operator: nextOperator,
                       value: filterOperatorNeedsValue(nextOperator)
@@ -1778,7 +1872,7 @@ const WebDataPage: React.FC = () => {
                       ? objectFilterValuePlaceholder(fieldKind, tr)
                       : '-'
                   }
-                  onChange={(event) =>
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
                     updateCondition(condition.id, {
                       value: event.target.value,
                     })
@@ -1794,8 +1888,8 @@ const WebDataPage: React.FC = () => {
               </div>
             );
           })}
-        </div>
-        <div className="webdata-filter-actions">
+          </div>
+          <div className="webdata-filter-actions">
           <Button
             size="small"
             type="primary"
@@ -1808,6 +1902,7 @@ const WebDataPage: React.FC = () => {
           <Button size="small" onClick={resetObjectFilter}>
             {tr('重置', 'Reset')}
           </Button>
+          </div>
         </div>
       </div>
     );
@@ -1856,40 +1951,27 @@ const WebDataPage: React.FC = () => {
               >
                 <div className="webdata-connection-card-main">
                   <div className="webdata-connection-identity">
-                    <DatabaseOutlined className="webdata-connection-icon" />
+                    <span className="webdata-connection-icon"><DatabaseOutlined /></span>
                     <div className="webdata-connection-copy">
                       <div className="webdata-connection-title-row">
                         <Text strong className="webdata-connection-title">
                           {connectionTitle(credential)}
                         </Text>
-                        <Tag color="blue">
-                          {protocolLabels[credential.protocol] ||
-                            credential.protocol}
-                        </Tag>
-                      </div>
-                      <div>
-                        <Text
-                          type="secondary"
-                          className="webdata-connection-subtitle"
-                        >
-                          {connectionSubtitle(credential)}
-                        </Text>
-                      </div>
-                      <div className="webdata-connection-meta-row">
-                        {connectionMeta(credential).map((item) => (
-                          <span className="webdata-connection-chip" key={item}>
-                            {item}
-                          </span>
-                        ))}
-                        <span className="webdata-connection-chip">
-                          <ClockCircleOutlined />
-                          {credential.last_used_at
-                            ? formatAuditTime(credential.last_used_at)
-                            : tr('未使用', 'Never used')}
-                        </span>
                       </div>
                     </div>
                   </div>
+                </div>
+                <div className="webdata-connection-meta-row">
+                  <span className="webdata-connection-protocol">
+                    {protocolLabels[credential.protocol] || credential.protocol}
+                  </span>
+                  {connectionMeta(credential, tr).map((item) => (
+                    <span className="webdata-connection-chip" key={item}>{item}</span>
+                  ))}
+                </div>
+                <div className="webdata-connection-last-used">
+                  <span>{tr('最近使用：', 'Last used:')}</span>
+                  <time><ClockCircleOutlined />{credential.last_used_at ? formatAuditTime(credential.last_used_at) : tr('尚未使用', 'Never')}</time>
                 </div>
                 <div className="webdata-connection-actions">
                   <Button
@@ -1910,7 +1992,8 @@ const WebDataPage: React.FC = () => {
                     {tr('编辑', 'Edit')}
                   </Button>
                   <Button
-                    danger
+                    type="link"
+                    className="webdata-connection-delete"
                     icon={<DeleteOutlined />}
                     onClick={() => handleDeleteCredential(credential)}
                   >
@@ -1922,18 +2005,11 @@ const WebDataPage: React.FC = () => {
           </div>
         ) : (
           <div className="webdata-connection-empty">
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={tr('暂无保存连接', 'No saved connections')}
-            >
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={openCreateConnection}
-              >
-                {tr('新建连接', 'New Connection')}
-              </Button>
-            </Empty>
+            <DatabaseOutlined />
+            <div>
+              <strong>{tr('暂无保存连接', 'No saved connections')}</strong>
+              <span>{tr('保存后可在下次进入时直接连接', 'Save a connection for one-click access next time')}</span>
+            </div>
           </div>
         )}
       </div>
@@ -1946,18 +2022,18 @@ const WebDataPage: React.FC = () => {
     const isRedis = protocol === 'redis';
     const isMongo = protocol === 'mongodb';
     return (
-      <Drawer
+      <Modal
         title={
           editingCredential
             ? tr('编辑连接', 'Edit Connection')
             : tr('新建连接', 'New Connection')
         }
-        width={520}
+        width={560}
+        className="webdata-connection-modal"
         open={connectionDrawerOpen}
-        onClose={closeConnectionDrawer}
-        destroyOnClose
+        onCancel={closeConnectionDrawer}
         footer={
-          <div className="webdata-drawer-footer">
+          <div className="webdata-connection-modal-actions">
             <Button onClick={closeConnectionDrawer}>
               {tr('取消', 'Cancel')}
             </Button>
@@ -1970,19 +2046,11 @@ const WebDataPage: React.FC = () => {
               {tr('测试连接', 'Test')}
             </Button>
             <Button
-              icon={<LoginOutlined />}
-              loading={connecting}
-              disabled={target?.effective_status !== 'active'}
-              onClick={handleConnectOnceFromDrawer}
-            >
-              {tr('连接一次', 'Connect Once')}
-            </Button>
-            <Button
               icon={<SaveOutlined />}
               loading={connectionSaving}
               onClick={() => handleSaveConnection(false)}
             >
-              {tr('保存', 'Save')}
+              {tr('仅保存', 'Save Only')}
             </Button>
             <Button
               type="primary"
@@ -1991,13 +2059,13 @@ const WebDataPage: React.FC = () => {
               disabled={target?.effective_status !== 'active'}
               onClick={() => handleSaveConnection(true)}
             >
-              {tr('保存并进入', 'Save and Enter')}
+              {tr('保存并连接', 'Save and Connect')}
             </Button>
           </div>
         }
       >
-        <Form form={connectionForm} layout="vertical">
-          <Form.Item name="name" label={tr('连接名称', 'Connection Name')}>
+        <Form form={connectionForm} layout="vertical" className="webdata-connection-form">
+          <Form.Item name="name" label={tr('连接名称', 'Connection Name')} className="is-full">
             <Input
               prefix={<SettingOutlined />}
               placeholder={defaultConnectionName(protocol)}
@@ -2019,6 +2087,7 @@ const WebDataPage: React.FC = () => {
           {!isRedis && (
             <Form.Item
               name="database"
+              className="is-full"
               label={
                 isMongo
                   ? tr('默认数据库', 'Default DB')
@@ -2029,7 +2098,7 @@ const WebDataPage: React.FC = () => {
             </Form.Item>
           )}
           {isRedis && (
-            <Form.Item name="redis_db" label={tr('Redis DB', 'Redis DB')}>
+            <Form.Item name="redis_db" label={tr('Redis DB', 'Redis DB')} className="is-full">
               <InputNumber
                 min={0}
                 max={15}
@@ -2122,6 +2191,7 @@ const WebDataPage: React.FC = () => {
           />
           {editingCredential && (
             <Alert
+              className="is-full"
               type="info"
               showIcon
               message={tr(
@@ -2131,7 +2201,7 @@ const WebDataPage: React.FC = () => {
             />
           )}
         </Form>
-      </Drawer>
+      </Modal>
     );
   };
 
@@ -2198,14 +2268,14 @@ const WebDataPage: React.FC = () => {
           },
         ]}
         expandable={{
-          expandedRowRender: (record) => (
+          expandedRowRender: (record: API.WebDataAuditItem) => (
             <Space direction="vertical" size={4}>
               <Text type="secondary">SHA256: {record.statement_sha256}</Text>
               {renderWebDataAuditDetails(record.details)}
               {record.error && <Text type="danger">{record.error}</Text>}
             </Space>
           ),
-          rowExpandable: (record) =>
+          rowExpandable: (record: API.WebDataAuditItem) =>
             Boolean(record.error || record.statement_sha256),
         }}
       />
@@ -2739,7 +2809,7 @@ const WebDataPage: React.FC = () => {
     <Drawer
       className="webdata-inspector-drawer"
       title={tr('对象详情', 'Object Detail')}
-      width="min(1180px, calc(100vw - 56px))"
+      width="min(680px, calc(100vw - 32px))"
       open={objectDetailOpen}
       onClose={() => setObjectDetailOpen(false)}
       destroyOnClose={false}
@@ -2778,55 +2848,43 @@ const WebDataPage: React.FC = () => {
       <div className="webdata-shell">
         <div className="webdata-header">
           <div className="webdata-header-main">
-            <DatabaseOutlined className="webdata-header-icon" />
-            <div className="webdata-header-copy">
-              <Text type="secondary">
-                {tr('网页数据控制台', 'Web Data Console')}
-              </Text>
-              <Title level={4} className="webdata-title">
-                {target?.proxy_name || tr('数据控制台', 'Data Console')}
-              </Title>
-              <Space size={8} wrap className="webdata-header-meta">
-                <CloudServerOutlined />
-                <Text type="secondary">{target?.application_name}</Text>
-                <Text type="secondary">
-                  {target?.target_host}:{target?.target_port}
-                </Text>
-              </Space>
-            </div>
+            <nav className="webdata-header-breadcrumb" aria-label={tr('页面层级', 'Breadcrumb')}>
+              <span>{tr('访问', 'Access')}</span><i>/</i>
+              <span>{accessTypeLabel(webAccessType)}</span><i>/</i>
+              <span>{tr('连接', 'Connection')}</span>
+              {isConnectionDetail && <><i>/</i><strong>{tr('详情', 'Detail')}</strong></>}
+            </nav>
+            {isConnectionDetail && (
+              <span className="webdata-context">
+                <strong>{target?.proxy_name || tr('数据控制台', 'Data Console')}</strong>
+                <span>{target?.target_host}:{target?.target_port}</span>
+              </span>
+            )}
           </div>
           <div className="webdata-header-actions">
             <Space wrap>
-              {target && (
-                <Tag color="processing">
-                  {protocolLabels[target.protocol] || target.protocol}
-                </Tag>
-              )}
-              {connected && session?.expires_at && (
+              {isConnectionDetail && connected && session?.expires_at && (
                 <Tag color="success" icon={<CheckCircleOutlined />}>
                   {tr('会话有效', 'Session active')}
                 </Tag>
               )}
               {target && (
                 <Button
-                  icon={<AuditOutlined />}
-                  onClick={() => history.push(`/audit?proxy_id=${proxyId}`)}
+                  type="link"
+                  className="webdata-audit-button"
+                  icon={<AuditLogIcon size={14} />}
+                  onClick={() => history.push(`/logs/audit?proxy_id=${proxyId}`)}
                 >
-                  {tr('审计', 'Audit')}
+                  {tr('审计日志', 'Audit Log')}
                 </Button>
               )}
-              {connected ? (
-                <>
-                  <Button
-                    icon={<DisconnectOutlined />}
-                    onClick={handleDisconnect}
-                  >
-                    {tr('断开', 'Disconnect')}
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={() => history.push('/proxy')}>
-                  {tr('返回访问', 'Back')}
+              {isConnectionDetail && connected && (
+                <Button
+                  type="link"
+                  icon={<DisconnectOutlined />}
+                  onClick={handleDisconnect}
+                >
+                  {tr('断开', 'Disconnect')}
                 </Button>
               )}
             </Space>
@@ -2845,19 +2903,20 @@ const WebDataPage: React.FC = () => {
           />
         )}
 
-        {!connected ? (
+        {!isConnectionDetail ? (
           renderConnectionManager()
-        ) : (
-          <div className="webdata-workbench">
+        ) : connected ? (
+          <div
+            className="webdata-workbench"
+            style={{ '--webdata-navigator-width': `${navigatorWidth}px` } as React.CSSProperties}
+          >
             <div className="webdata-side-frame">
               <aside className="webdata-side">
                 <div className="webdata-side-header">
-                  <Space>
-                    <TableOutlined />
-                    <Text strong>{tr('对象', 'Objects')}</Text>
-                  </Space>
+                  <Text strong>{workspaceCopy.navigatorTitle}</Text>
                   <Tooltip title={tr('刷新对象', 'Refresh objects')}>
                     <Button
+                      className="webdata-refresh-button"
                       icon={<ReloadOutlined />}
                       size="small"
                       loading={metadataLoading}
@@ -2870,27 +2929,45 @@ const WebDataPage: React.FC = () => {
                   size="small"
                   prefix={<SearchOutlined />}
                   className="webdata-object-search"
-                  placeholder={tr('搜索库、表、字段', 'Search objects')}
+                  placeholder={workspaceCopy.searchPlaceholder}
                   value={treeSearch}
-                  onChange={(event) => setTreeSearch(event.target.value)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => setTreeSearch(event.target.value)}
                 />
                 <div className="webdata-object-stats">
-                  <span>
-                    <strong>{metadataSummary.databases}</strong>
-                    {tr('库', 'DB')}
-                  </span>
-                  <span>
-                    <strong>
-                      {metadataSummary.tables +
-                        metadataSummary.collections +
-                        metadataSummary.keys}
-                    </strong>
-                    {tr('对象', 'Objects')}
-                  </span>
-                  <span>
-                    <strong>{metadataSummary.columns}</strong>
-                    {tr('字段', 'Fields')}
-                  </span>
+                  {target?.protocol === 'redis' ? (
+                    <>
+                      <span><strong>DB {activeRedisDB}</strong></span>
+                      <span>
+                        <strong>{metadataSummary.keys}</strong>
+                        {tr('键', 'Keys')}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        <strong>
+                          {target?.protocol === 'postgresql'
+                            ? metadataSummary.schemas
+                            : metadataSummary.databases}
+                        </strong>
+                        {target?.protocol === 'postgresql'
+                          ? 'Schema'
+                          : tr('库', 'DB')}
+                      </span>
+                      <span>
+                        <strong>
+                          {metadataSummary.tables +
+                            metadataSummary.collections +
+                            metadataSummary.keys}
+                        </strong>
+                        {tr('对象', 'Objects')}
+                      </span>
+                      <span>
+                        <strong>{metadataSummary.columns}</strong>
+                        {tr('字段', 'Fields')}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <div className="webdata-object-tree">
                   <Spin spinning={metadataLoading}>
@@ -2899,8 +2976,10 @@ const WebDataPage: React.FC = () => {
                         key={treeSearch ? `search-${treeSearch}` : 'objects'}
                         treeData={treeData}
                         defaultExpandAll={Boolean(treeSearch)}
+                        defaultExpandedKeys={treeData.map((node) => node.key)}
                         blockNode
                         selectedKeys={selectedNode ? [selectedNode.key] : []}
+                        loadData={loadMetadataChildren}
                         onSelect={handleTreeSelect}
                       />
                     ) : (
@@ -2913,44 +2992,32 @@ const WebDataPage: React.FC = () => {
                 </div>
               </aside>
             </div>
+            <div
+              className="webdata-resizer"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={tr('调整对象栏宽度', 'Resize object navigator')}
+              tabIndex={0}
+              onPointerDown={beginNavigatorResize}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                event.preventDefault();
+                setNavigatorWidth((width) =>
+                  Math.max(210, Math.min(420, width + (event.key === 'ArrowRight' ? 12 : -12))),
+                );
+              }}
+            />
 
             <main className="webdata-main">
               <div className="webdata-editor">
                 <div className="webdata-editor-toolbar">
                   <div className="webdata-editor-title">
-                    <Space>
-                      <ApiOutlined />
-                      <Text strong>{tr('命令窗口', 'Command Window')}</Text>
-                    </Space>
-                    <Text type="secondary">
-                      {target
-                        ? protocolLabels[target.protocol] || target.protocol
-                        : '-'}
-                    </Text>
+                    <Text strong>{workspaceCopy.editorTitle}</Text>
+                    {target?.protocol === 'redis' && (
+                      <span className="webdata-editor-context">Redis · DB {activeRedisDB}</span>
+                    )}
                   </div>
                   <Space wrap className="webdata-editor-actions">
-                    {isSQLProtocol(target?.protocol) && (
-                      <Button
-                        icon={<FileSearchOutlined />}
-                        loading={executing}
-                        onClick={handleExplainStatement}
-                      >
-                        Explain
-                      </Button>
-                    )}
-                    <Button
-                      icon={<CopyOutlined />}
-                      onClick={copyCurrentStatement}
-                    >
-                      {tr('复制', 'Copy')}
-                    </Button>
-                    <Button
-                      icon={<FileTextOutlined />}
-                      disabled={!selectedNode}
-                      onClick={() => setObjectDetailOpen(true)}
-                    >
-                      {tr('对象详情', 'Details')}
-                    </Button>
                     <Tooltip
                       title={tr(
                         '有选中文本时只执行选中命令',
@@ -2958,6 +3025,7 @@ const WebDataPage: React.FC = () => {
                       )}
                     >
                       <Button
+                        className="webdata-run-button"
                         type="primary"
                         icon={<PlayCircleOutlined />}
                         loading={executing}
@@ -2966,9 +3034,47 @@ const WebDataPage: React.FC = () => {
                         {tr('执行', 'Run')}
                       </Button>
                     </Tooltip>
+                    {isSQLProtocol(target?.protocol) && (
+                      <Button
+                        className="webdata-toolbar-action"
+                        type="link"
+                        icon={<FileSearchOutlined />}
+                        loading={executing}
+                        onClick={handleExplainStatement}
+                      >
+                        Explain
+                      </Button>
+                    )}
+                    {objectFilterFieldInfos(target?.protocol, objectDetail).length > 0 && (
+                      <Button
+                        className={`webdata-toolbar-action${filterOpen ? ' is-active' : ''}`}
+                        type="link"
+                        icon={<SearchOutlined />}
+                        onClick={() => setFilterOpen((value) => !value)}
+                      >
+                        {tr('筛选', 'Filter')}
+                      </Button>
+                    )}
+                    <Button
+                      className="webdata-toolbar-action"
+                      type="link"
+                      icon={<CopyOutlined />}
+                      onClick={copyCurrentStatement}
+                    >
+                      {tr('复制', 'Copy')}
+                    </Button>
+                    <Button
+                      className="webdata-toolbar-action"
+                      type="link"
+                      icon={<FileTextOutlined />}
+                      disabled={!selectedNode}
+                      onClick={() => setObjectDetailOpen(true)}
+                    >
+                      {tr('对象详情', 'Details')}
+                    </Button>
                   </Space>
                 </div>
-                {objectDetail &&
+                {filterOpen && objectDetail &&
                   ((isSQLProtocol(target?.protocol) &&
                     objectDetail.object_type === 'table') ||
                     (target?.protocol === 'mongodb' &&
@@ -3029,7 +3135,7 @@ const WebDataPage: React.FC = () => {
                     onScroll={handleStatementScroll}
                     placeholder={statementPlaceholder(target?.protocol, tr)}
                     spellCheck={false}
-                    autoSize={{ minRows: 10, maxRows: 20 }}
+                    autoSize={{ minRows: 6, maxRows: 12 }}
                     className="webdata-textarea webdata-statement-textarea"
                   />
                   {completionVisible && (
@@ -3077,10 +3183,7 @@ const WebDataPage: React.FC = () => {
 
               <div className="webdata-result">
                 <div className="webdata-result-meta">
-                  <Space>
-                    <ClusterOutlined />
-                    <Text strong>{tr('执行结果', 'Execution Result')}</Text>
-                  </Space>
+                  <Text strong>{workspaceCopy.resultTitle}</Text>
                   {result && (
                     <Space size={8} wrap className="webdata-result-actions">
                       <Space size={8} wrap>
@@ -3104,33 +3207,38 @@ const WebDataPage: React.FC = () => {
                         )}
                       </Space>
                       {Boolean(result.rows?.length) && (
-                        <Space size={4} wrap>
+                        <div className="webdata-export-group" role="group" aria-label={tr('导出结果', 'Export result')}>
+                          <span>{tr('导出', 'Export')}</span>
                           <Button
                             size="small"
-                            icon={<DownloadOutlined />}
+                            type="link"
+                            className="webdata-export-action"
                             onClick={() => handleExportResult('csv')}
                           >
                             CSV
                           </Button>
                           <Button
                             size="small"
-                            icon={<DownloadOutlined />}
+                            type="link"
+                            className="webdata-export-action"
                             onClick={() => handleExportResult('json')}
                           >
                             JSON
                           </Button>
-                        </Space>
+                        </div>
                       )}
                     </Space>
                   )}
                 </div>
-                {renderRowsTable(result, tr('暂无结果', 'No result'), {
+                {renderRowsTable(result, tr('暂无执行结果', 'No execution result'), {
                   ...currentObjectRowActionOptions(),
                   tableId: 'execution-result',
                 })}
               </div>
             </main>
           </div>
+        ) : (
+          <div className="webdata-console-loading"><Spin /></div>
         )}
         {renderAuditDrawer()}
         {renderConnectionDrawer()}

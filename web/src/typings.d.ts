@@ -1,5 +1,3 @@
-/* eslint-disable */
-
 declare namespace API {
   // ========== 通用响应 ==========
   interface Response<T = any> {
@@ -34,16 +32,48 @@ declare namespace API {
     name?: string;
     email?: string;
     avatar?: string;
-    role?: string;
+    role?: IAMRole;
     created_at?: string;
     last_login_at?: string;
     last_login_ip?: string;
+  }
+
+  type UserStatus = 'active' | 'inactive' | 'locked';
+  type IAMRole = 'admin' | 'user';
+  interface ManagedUser {
+    id: number;
+    name: string;
+    email: string;
+    status: UserStatus;
+    role: IAMRole;
+    created_at: string;
+    last_login?: string;
+    login_ip?: string;
+  }
+  interface Organization {
+    id: number;
+    name: string;
+    description: string;
+    parent_id?: number;
+    is_root: boolean;
+    created_at: string;
+		can_manage?: boolean;
+		can_delete?: boolean;
+  }
+  type OrganizationRole = IAMRole;
+  interface OrganizationMember {
+    id: number;
+    organization_id: number;
+    user_id: number;
+    role: OrganizationRole;
+    user?: ManagedUser;
   }
 
   // ========== 应用 (Application) ==========
   interface Application {
     id: number;
     name: string;
+    description?: string;
     application_type: string;
     ip: string;
     port: number;
@@ -68,6 +98,7 @@ declare namespace API {
 
   interface ApplicationCreateParams {
     name: string;
+    description?: string;
     application_type: string;
     ip: string;
     port: number;
@@ -77,6 +108,7 @@ declare namespace API {
 
   interface ApplicationUpdateParams {
     name?: string;
+    description?: string;
   }
 
   // ========== 设备 (Device) ==========
@@ -172,6 +204,10 @@ declare namespace API {
     protocol?: string;
   }
 
+  interface EdgeScanTaskCreateResult {
+    task_id: number;
+  }
+
   // ========== 访问 (Proxy) ==========
   interface Proxy {
     id: number;
@@ -191,6 +227,7 @@ declare namespace API {
     updated_at: string;
     access_url?: string;
     expose_public_port?: boolean;
+    access_protocol?: string;
   }
 
   interface ProxyListResult {
@@ -208,6 +245,7 @@ declare namespace API {
     port?: number;
     expose_public_port?: boolean;
     application_id: number;
+    access_protocol?: string;
   }
 
   interface ProxyUpdateParams {
@@ -216,6 +254,7 @@ declare namespace API {
     port?: number;
     expose_public_port?: boolean;
     status?: string;
+    access_protocol?: string;
   }
 
   // ========== WebSSH ==========
@@ -226,6 +265,7 @@ declare namespace API {
   }
 
   interface WebSSHCredential {
+    id: number;
     saved: boolean;
     username?: string;
     last_used_at?: string;
@@ -248,6 +288,7 @@ declare namespace API {
     username?: string;
     password?: string;
     save_credential?: boolean;
+    use_saved_credential?: boolean;
     cols?: number;
     rows?: number;
   }
@@ -260,6 +301,7 @@ declare namespace API {
 
   // ========== WebDesktop ==========
   interface WebDesktopCredential {
+    id: number;
     saved: boolean;
     protocol: string;
     username?: string;
@@ -390,10 +432,18 @@ declare namespace API {
     value?: string;
     meta?: Record<string, string>;
     children?: WebDataMetadataNode[];
+    has_children?: boolean;
   }
 
   interface WebDataMetadataResult {
     nodes: WebDataMetadataNode[];
+  }
+
+  interface WebDataMetadataParams {
+    type: string;
+    database?: string;
+    schema?: string;
+    name?: string;
   }
 
   interface WebDataObjectParams {
@@ -449,6 +499,39 @@ declare namespace API {
     limit?: number;
     proxy_id?: number;
     protocol?: string;
+    action?: string;
+    success?: boolean;
+    keyword?: string;
+    start_time?: string;
+    end_time?: string;
+  }
+
+  interface ManagementAuditItem {
+    id: number;
+    user_id: number;
+    user_email: string;
+    module: string;
+    action: string;
+    resource: string;
+    method: string;
+    client_ip: string;
+    success: boolean;
+    status_code: number;
+    elapsed_ms: number;
+    created_at: string;
+  }
+
+  interface ManagementAuditListResult {
+    items: ManagementAuditItem[];
+    total: number;
+    page: number;
+    page_size: number;
+  }
+
+  interface ManagementAuditListParams {
+    page?: number;
+    page_size?: number;
+    module?: string;
     action?: string;
     success?: boolean;
     keyword?: string;

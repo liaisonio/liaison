@@ -84,6 +84,8 @@ func (d *dao) CountDevices(query *ListDevicesQuery) (int64, error) {
 	db := d.getDB()
 	if len(query.IDs) > 0 {
 		db = db.Where("devices.id IN ?", query.IDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	if query.Name != "" {
 		db = db.Where("devices.name LIKE ?", "%"+query.Name+"%")
@@ -106,6 +108,8 @@ func (d *dao) ListDevices(query *ListDevicesQuery) ([]*model.Device, error) {
 	}
 	if len(query.IDs) > 0 {
 		db = db.Where("devices.id IN ?", query.IDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	if query.Name != "" {
 		db = db.Where("devices.name LIKE ?", "%"+query.Name+"%")

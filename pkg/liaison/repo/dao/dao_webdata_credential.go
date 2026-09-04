@@ -164,10 +164,18 @@ func (d *dao) applyWebDataAuditFilters(db *gorm.DB, query *ListWebDataAuditsQuer
 		return db
 	}
 	if query.UserID > 0 {
-		db = db.Where("user_id = ?", query.UserID)
+		if query.IncludeSystem {
+			db = db.Where("user_id = ? OR user_id = 0", query.UserID)
+		} else {
+			db = db.Where("user_id = ?", query.UserID)
+		}
 	}
 	if query.ProxyID > 0 {
 		db = db.Where("proxy_id = ?", query.ProxyID)
+	} else if len(query.ProxyIDs) > 0 {
+		db = db.Where("proxy_id IN ?", query.ProxyIDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	if query.Protocol != "" {
 		db = db.Where("protocol = ?", query.Protocol)

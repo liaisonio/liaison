@@ -6,6 +6,9 @@ manager:
       enable: false
   db: /opt/liaison/data/liaison.db
   jwt_secret: "YJEVmDSDk1FCTzUCJVFsugywxcEUQ4vh"
+  ssh_host_key_file: /opt/liaison/data/ssh_host_ed25519_key
+  ssh_idle_timeout: 30m
+  ssh_max_duration: 8h
   guacd_addr: 127.0.0.1:4822
   guacd_bridge_addr: 127.0.0.1:0
   guacd_bridge_host: 127.0.0.1

@@ -22,7 +22,7 @@ type FirewallData struct {
 // GetProxyFirewall returns the current allowlist for a proxy. If no rule
 // exists, the response advertises allow-all via a single 0.0.0.0/0 entry.
 func (cp *controlPlane) GetProxyFirewall(ctx context.Context, proxyID uint) (*FirewallData, error) {
-	if _, err := cp.getProxyForFirewall(proxyID); err != nil {
+	if _, err := cp.getProxyForFirewall(ctx, proxyID); err != nil {
 		return nil, err
 	}
 
@@ -46,7 +46,7 @@ func (cp *controlPlane) GetProxyFirewall(ctx context.Context, proxyID uint) (*Fi
 // UpsertProxyFirewall creates or replaces the source-IP allowlist for a proxy.
 // An empty cidrs slice means "deny all".
 func (cp *controlPlane) UpsertProxyFirewall(ctx context.Context, proxyID uint, cidrs []string) (*FirewallData, error) {
-	proxy, err := cp.getProxyForFirewall(proxyID)
+	proxy, err := cp.getProxyForFirewall(ctx, proxyID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (cp *controlPlane) UpsertProxyFirewall(ctx context.Context, proxyID uint, c
 
 // DeleteProxyFirewall removes the allowlist for a proxy, restoring allow-all.
 func (cp *controlPlane) DeleteProxyFirewall(ctx context.Context, proxyID uint) error {
-	proxy, err := cp.getProxyForFirewall(proxyID)
+	proxy, err := cp.getProxyForFirewall(ctx, proxyID)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,10 @@ func (cp *controlPlane) DeleteProxyFirewall(ctx context.Context, proxyID uint) e
 // In this private-deployment build every proxy (HTTP or TCP) has its own
 // fixed listen port, so L4 CIDR matching is always feasible — no protocol
 // restriction is applied.
-func (cp *controlPlane) getProxyForFirewall(proxyID uint) (*model.Proxy, error) {
+func (cp *controlPlane) getProxyForFirewall(ctx context.Context, proxyID uint) (*model.Proxy, error) {
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, uint64(proxyID)); err != nil {
+		return nil, err
+	}
 	proxy, err := cp.repo.GetProxyByID(proxyID)
 	if err != nil {
 		return nil, mapRecordNotFound(err, "PROXY_NOT_FOUND", "访问不存在")

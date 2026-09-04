@@ -17,10 +17,10 @@ import (
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
-func (cp *controlPlane) CreateEdge(_ context.Context, req *v1.CreateEdgeRequest) (*v1.CreateEdgeResponse, error) {
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return nil, badRequest("EDGE_NAME_REQUIRED", "连接器名称不能为空")
+func (cp *controlPlane) CreateEdge(ctx context.Context, req *v1.CreateEdgeRequest) (*v1.CreateEdgeResponse, error) {
+	name, err := normalizeResourceName(req.Name, "Connector")
+	if err != nil {
+		return nil, err
 	}
 	// 在事务中创建edge和ak/sk
 	tx := cp.repo.Begin()
@@ -32,8 +32,12 @@ func (cp *controlPlane) CreateEdge(_ context.Context, req *v1.CreateEdgeRequest)
 		Online:      model.EdgeOnlineStatusOffline,
 	}
 
-	err := tx.CreateEdge(edge)
+	err = tx.CreateEdge(edge)
 	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := claimResource(ctx, tx, resourceConnector, uint64(edge.ID)); err != nil {
 		tx.Rollback()
 		return nil, err
 	}
@@ -109,9 +113,12 @@ func (cp *controlPlane) CreateEdge(_ context.Context, req *v1.CreateEdgeRequest)
 	}, nil
 }
 
-func (cp *controlPlane) GetEdge(_ context.Context, req *v1.GetEdgeRequest) (*v1.GetEdgeResponse, error) {
+func (cp *controlPlane) GetEdge(ctx context.Context, req *v1.GetEdgeRequest) (*v1.GetEdgeResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("EDGE_ID_REQUIRED", "连接器 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceConnector, req.Id); err != nil {
+		return nil, err
 	}
 	edge, err := cp.repo.GetEdge(req.Id)
 	if err != nil {
@@ -141,7 +148,7 @@ func (cp *controlPlane) GetEdge(_ context.Context, req *v1.GetEdgeRequest) (*v1.
 	}, nil
 }
 
-func (cp *controlPlane) ListEdges(_ context.Context, req *v1.ListEdgesRequest) (*v1.ListEdgesResponse, error) {
+func (cp *controlPlane) ListEdges(ctx context.Context, req *v1.ListEdgesRequest) (*v1.ListEdgesResponse, error) {
 	var (
 		edgeIDs []uint64
 		err     error
@@ -201,8 +208,20 @@ func (cp *controlPlane) ListEdges(_ context.Context, req *v1.ListEdgesRequest) (
 			Desc:     true,
 		},
 	}
+	visibleIDs, scoped, err := visibleResourceIDs(ctx, cp.repo, resourceConnector)
+	if err != nil {
+		return nil, err
+	}
+	if scoped {
+		query.ScopeApplied = true
+		if len(edgeIDs) > 0 {
+			query.EdgeIDs = intersectResourceIDs(edgeIDs, visibleIDs)
+		} else {
+			query.EdgeIDs = visibleIDs
+		}
+	}
 	// 如果通过设备名找到了 Edge IDs，使用这些 IDs 过滤
-	if len(edgeIDs) > 0 {
+	if !scoped && len(edgeIDs) > 0 {
 		query.EdgeIDs = edgeIDs
 	}
 	if req.Name != "" {
@@ -284,9 +303,12 @@ func (cp *controlPlane) ListEdges(_ context.Context, req *v1.ListEdgesRequest) (
 	}, nil
 }
 
-func (cp *controlPlane) UpdateEdge(_ context.Context, req *v1.UpdateEdgeRequest) (*v1.UpdateEdgeResponse, error) {
+func (cp *controlPlane) UpdateEdge(ctx context.Context, req *v1.UpdateEdgeRequest) (*v1.UpdateEdgeResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("EDGE_ID_REQUIRED", "连接器 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceConnector, req.Id); err != nil {
+		return nil, err
 	}
 	edge, err := cp.repo.GetEdge(req.Id)
 	if err != nil {
@@ -343,14 +365,20 @@ func (cp *controlPlane) UpdateEdge(_ context.Context, req *v1.UpdateEdgeRequest)
 	}, nil
 }
 
-func (cp *controlPlane) DeleteEdge(_ context.Context, req *v1.DeleteEdgeRequest) (*v1.DeleteEdgeResponse, error) {
+func (cp *controlPlane) DeleteEdge(ctx context.Context, req *v1.DeleteEdgeRequest) (*v1.DeleteEdgeResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("EDGE_ID_REQUIRED", "连接器 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceConnector, req.Id); err != nil {
+		return nil, err
 	}
 	if _, err := cp.repo.GetEdge(req.Id); err != nil {
 		return nil, mapRecordNotFound(err, "EDGE_NOT_FOUND", "连接器不存在")
 	}
 	if err := cp.deleteEdgeCascade(req.Id, newLifecycleDeleteTracker()); err != nil {
+		return nil, err
+	}
+	if err := cp.repo.DeleteIAMResourceRelations(resourceConnector, req.Id); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteEdgeResponse{
@@ -359,9 +387,12 @@ func (cp *controlPlane) DeleteEdge(_ context.Context, req *v1.DeleteEdgeRequest)
 	}, nil
 }
 
-func (cp *controlPlane) CreateEdgeScanApplicationTask(_ context.Context, req *v1.CreateEdgeScanApplicationTaskRequest) (*v1.CreateEdgeScanApplicationTaskResponse, error) {
+func (cp *controlPlane) CreateEdgeScanApplicationTask(ctx context.Context, req *v1.CreateEdgeScanApplicationTaskRequest) (*v1.CreateEdgeScanApplicationTaskResponse, error) {
 	if req.EdgeId == 0 {
 		return nil, badRequest("EDGE_ID_REQUIRED", "连接器 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceConnector, req.EdgeId); err != nil {
+		return nil, err
 	}
 	if req.Port < 0 || req.Port > 65535 {
 		return nil, badRequest("SCAN_PORT_INVALID", "扫描端口必须在 1-65535 之间，或留空扫描常用端口")
@@ -475,30 +506,50 @@ func (cp *controlPlane) CreateEdgeScanApplicationTask(_ context.Context, req *v1
 	return &v1.CreateEdgeScanApplicationTaskResponse{
 		Code:    200,
 		Message: "success",
+		Data: &v1.EdgeScanApplicationTaskCreated{
+			TaskId: uint64(task.ID),
+		},
 	}, nil
 }
 
-func (cp *controlPlane) GetEdgeScanApplicationTask(_ context.Context, req *v1.GetEdgeScanApplicationTaskRequest) (*v1.GetEdgeScanApplicationTaskResponse, error) {
+func (cp *controlPlane) GetEdgeScanApplicationTask(ctx context.Context, req *v1.GetEdgeScanApplicationTaskRequest) (*v1.GetEdgeScanApplicationTaskResponse, error) {
 	if req.EdgeId == 0 {
 		return nil, badRequest("EDGE_ID_REQUIRED", "连接器 ID 不能为空")
 	}
-	tasks, err := cp.repo.ListTasks(&dao.ListTasksQuery{
-		EdgeID:      uint(req.EdgeId),
-		TaskType:    model.TaskTypeScan,
-		TaskSubType: model.TaskSubTypeScanApplication,
-		//Status:      []model.TaskStatus{model.TaskStatusPending, model.TaskStatusRunning},
-		Query: dao.Query{
-			Page:     1,
-			PageSize: 1,
-			Order:    "id",
-			Desc:     true,
-		},
-	})
-	if err != nil {
-		log.Errorf("list tasks error: %s", err)
+	if err := requireVisibleResource(ctx, cp.repo, resourceConnector, req.EdgeId); err != nil {
 		return nil, err
 	}
-	if len(tasks) == 0 {
+	var task *model.Task
+	if req.TaskId != 0 {
+		var err error
+		task, err = cp.repo.GetTask(uint(req.TaskId))
+		if err != nil {
+			return nil, mapRecordNotFound(err, "SCAN_TASK_NOT_FOUND", "扫描任务不存在")
+		}
+		if task.EdgeID != req.EdgeId || task.TaskType != model.TaskTypeScan || task.TaskSubType != model.TaskSubTypeScanApplication {
+			return nil, notFound("SCAN_TASK_NOT_FOUND", "扫描任务不存在", nil)
+		}
+	} else {
+		tasks, err := cp.repo.ListTasks(&dao.ListTasksQuery{
+			EdgeID:      uint(req.EdgeId),
+			TaskType:    model.TaskTypeScan,
+			TaskSubType: model.TaskSubTypeScanApplication,
+			Query: dao.Query{
+				Page:     1,
+				PageSize: 1,
+				Order:    "id",
+				Desc:     true,
+			},
+		})
+		if err != nil {
+			log.Errorf("list tasks error: %s", err)
+			return nil, err
+		}
+		if len(tasks) != 0 {
+			task = tasks[0]
+		}
+	}
+	if task == nil {
 		return &v1.GetEdgeScanApplicationTaskResponse{
 			Code:    200,
 			Message: "success",
@@ -508,7 +559,7 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(_ context.Context, req *v1.Ge
 
 	// result
 	result := model.TaskScanApplicationResult{}
-	err = json.Unmarshal(tasks[0].TaskResult, &result)
+	err := json.Unmarshal(task.TaskResult, &result)
 	if err != nil {
 		log.Errorf("unmarshal task result error: %s", err)
 		return nil, err
@@ -548,13 +599,13 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(_ context.Context, req *v1.Ge
 		Code:    200,
 		Message: "success",
 		Data: &v1.EdgeScanApplicationTask{
-			Id:           uint64(tasks[0].ID),
-			EdgeId:       uint64(tasks[0].EdgeID),
-			TaskStatus:   tasks[0].TaskStatus.String(),
-			CreatedAt:    tasks[0].CreatedAt.Format(time.DateTime),
-			UpdatedAt:    tasks[0].UpdatedAt.Format(time.DateTime),
+			Id:           uint64(task.ID),
+			EdgeId:       uint64(task.EdgeID),
+			TaskStatus:   task.TaskStatus.String(),
+			CreatedAt:    task.CreatedAt.Format(time.DateTime),
+			UpdatedAt:    task.UpdatedAt.Format(time.DateTime),
 			Applications: applications,
-			Error:        tasks[0].Error,
+			Error:        task.Error,
 		},
 	}, nil
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/liaisonio/liaison/pkg/entry/firewall"
 	"github.com/liaisonio/liaison/pkg/entry/frontierbound"
 	"github.com/liaisonio/liaison/pkg/entry/http"
+	"github.com/liaisonio/liaison/pkg/entry/sshgateway"
 	"github.com/liaisonio/liaison/pkg/entry/transport"
 	"github.com/liaisonio/liaison/pkg/liaison/config"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
@@ -15,6 +16,7 @@ import (
 type Entry struct {
 	gatekeeper      *transport.Gatekeeper
 	httpServer      *http.Server
+	sshGateway      *sshgateway.Gateway
 	proxyManager    proto.ProxyManager
 	firewallManager *firewall.Manager
 	// liaison manager
@@ -48,11 +50,22 @@ func NewEntry(conf *config.Configuration, manager controlplane.ControlPlane, tra
 	firewallManager := firewall.NewManager()
 	gatekeeper.SetFirewall(firewallManager)
 	httpServer.SetFirewall(firewallManager)
+	sshGateway, err := sshgateway.New(
+		conf.Manager.SSHHostKeyFile,
+		manager,
+		conf.Manager.SSHIdleTimeout,
+		conf.Manager.SSHMaxDuration,
+	)
+	if err != nil {
+		return nil, err
+	}
+	sshGateway.SetFirewall(firewallManager)
 
 	// 创建统一的 ProxyManager，根据应用类型路由到不同的服务器
 	proxyManager := &unifiedProxyManager{
 		gatekeeper: gatekeeper,
 		httpServer: httpServer,
+		sshGateway: sshGateway,
 		conf:       conf,
 	}
 	manager.RegisterProxyManager(proxyManager)
@@ -61,6 +74,7 @@ func NewEntry(conf *config.Configuration, manager controlplane.ControlPlane, tra
 	entry := &Entry{
 		gatekeeper:      gatekeeper,
 		httpServer:      httpServer,
+		sshGateway:      sshGateway,
 		proxyManager:    proxyManager,
 		firewallManager: firewallManager,
 		manager:         manager,
@@ -79,12 +93,35 @@ func NewEntry(conf *config.Configuration, manager controlplane.ControlPlane, tra
 type unifiedProxyManager struct {
 	gatekeeper *transport.Gatekeeper
 	httpServer *http.Server
+	sshGateway *sshgateway.Gateway
 	conf       *config.Configuration
 }
 
+type proxyRuntime string
+
+const (
+	proxyRuntimeTCP  proxyRuntime = "tcp"
+	proxyRuntimeHTTP proxyRuntime = "http"
+	proxyRuntimeSSH  proxyRuntime = "ssh"
+)
+
+func runtimeForProxy(protoproxy *proto.Proxy) proxyRuntime {
+	if protoproxy != nil && protoproxy.AccessProtocol == "ssh" {
+		return proxyRuntimeSSH
+	}
+	if protoproxy != nil && protoproxy.AccessProtocol == "http" {
+		return proxyRuntimeHTTP
+	}
+	return proxyRuntimeTCP
+}
+
 func (u *unifiedProxyManager) CreateProxy(ctx context.Context, protoproxy *proto.Proxy) error {
-	// 如果是 HTTP 应用，使用 HTTP 服务器
-	if protoproxy.ApplicationType == "http" {
+	if runtimeForProxy(protoproxy) == proxyRuntimeSSH {
+		return u.sshGateway.CreateProxy(ctx, protoproxy)
+	}
+	// HTTP access uses the HTTP server. An HTTP application may also be
+	// exposed as raw TCP, in which case it must stay opaque in gatekeeper.
+	if runtimeForProxy(protoproxy) == proxyRuntimeHTTP {
 		// 获取 TLS 证书配置
 		var certFile, keyFile string
 		if protoproxy.UseHTTPS && len(u.conf.Manager.Listen.TLS.Certs) > 0 {
@@ -105,15 +142,22 @@ func (u *unifiedProxyManager) DeleteProxy(ctx context.Context, id int) error {
 	// 「启用/关闭」都看起来失效。
 	httpErr := u.httpServer.DeleteProxy(ctx, id)
 	tcpErr := u.gatekeeper.DeleteProxy(ctx, id)
+	sshErr := u.sshGateway.DeleteProxy(ctx, id)
 	if httpErr != nil {
 		return httpErr
 	}
 	if tcpErr != nil {
 		return tcpErr
 	}
+	if sshErr != nil {
+		return sshErr
+	}
 	return nil
 }
 
 func (e *Entry) Close() error {
+	if e.sshGateway != nil {
+		e.sshGateway.Close()
+	}
 	return nil
 }

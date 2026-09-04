@@ -22,13 +22,16 @@ func (cp *controlPlane) RegisterFirewallManager(firewallManager proto.FirewallMa
 	cp.firewallManager = firewallManager
 }
 
-func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyRequest) (*v1.CreateProxyResponse, error) {
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return nil, badRequest("PROXY_NAME_REQUIRED", "访问名称不能为空")
+func (cp *controlPlane) CreateProxy(ctx context.Context, req *v1.CreateProxyRequest) (*v1.CreateProxyResponse, error) {
+	name, err := normalizeResourceName(req.Name, "Access")
+	if err != nil {
+		return nil, err
 	}
 	if req.ApplicationId == 0 {
 		return nil, badRequest("APPLICATION_ID_REQUIRED", "关联应用不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceApplication, req.ApplicationId); err != nil {
+		return nil, err
 	}
 	if req.Port < 0 || req.Port > 65535 {
 		return nil, badRequest("PROXY_PORT_INVALID", "公网端口必须在 1-65535 之间；SSH/RDP/VNC 可留空仅通过网页访问")
@@ -43,7 +46,11 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 		return nil, err
 	}
 
-	requestedPort, err := cp.resolveCreateProxyPort(application, int(req.Port), req.ExposePublicPort)
+	accessProtocol, err := normalizeAccessProtocol(req.AccessProtocol, application, int(req.Port), req.ExposePublicPort)
+	if err != nil {
+		return nil, err
+	}
+	requestedPort, err := cp.resolveCreateProxyPort(accessProtocol, int(req.Port))
 	if err != nil {
 		return nil, err
 	}
@@ -54,15 +61,20 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 	}
 
 	proxy := &model.Proxy{
-		Name:          name,
-		Status:        model.ProxyStatusRunning,
-		Description:   req.Description,
-		Port:          requestedPort,
-		ApplicationID: uint(req.ApplicationId),
+		Name:           name,
+		Status:         model.ProxyStatusRunning,
+		Description:    req.Description,
+		Port:           requestedPort,
+		ApplicationID:  uint(req.ApplicationId),
+		AccessProtocol: accessProtocol,
 	}
 	err = cp.repo.CreateProxy(proxy)
 	if err != nil {
 		log.Warnf("failed to create proxy: %s", err)
+		return nil, err
+	}
+	if err := claimResource(ctx, cp.repo, resourceAccess, uint64(proxy.ID)); err != nil {
+		_ = cp.repo.DeleteProxy(proxy.ID)
 		return nil, err
 	}
 	proxy.Application = application
@@ -90,7 +102,7 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 	}, nil
 }
 
-func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesRequest) (*v1.ListProxiesResponse, error) {
+func (cp *controlPlane) ListProxies(ctx context.Context, req *v1.ListProxiesRequest) (*v1.ListProxiesResponse, error) {
 	// list proxies
 	query := dao.ListProxiesQuery{
 		Query: dao.Query{
@@ -102,6 +114,17 @@ func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesReques
 	}
 	if req.Name != "" {
 		query.Name = req.Name
+	}
+	visibleIDs, scoped, err := visibleResourceIDs(ctx, cp.repo, resourceAccess)
+	if err != nil {
+		return nil, err
+	}
+	if scoped {
+		query.ScopeApplied = true
+		query.IDs = make([]uint, len(visibleIDs))
+		for i, id := range visibleIDs {
+			query.IDs[i] = uint(id)
+		}
 	}
 	proxies, err := cp.repo.ListProxies(&query)
 	if err != nil {
@@ -157,9 +180,12 @@ func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesReques
 	}, nil
 }
 
-func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyRequest) (*v1.UpdateProxyResponse, error) {
+func (cp *controlPlane) UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequest) (*v1.UpdateProxyResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("PROXY_ID_REQUIRED", "访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, req.Id); err != nil {
+		return nil, err
 	}
 	if req.Port < 0 || req.Port > 65535 {
 		return nil, badRequest("PROXY_PORT_INVALID", "公网端口必须在 1-65535 之间")
@@ -174,6 +200,21 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 	}
 
 	oldProxy := *proxy
+	if req.AccessProtocol != "" {
+		protocol, protocolErr := normalizeAccessProtocol(req.AccessProtocol, application, int(req.Port), req.GetExposePublicPort())
+		if protocolErr != nil {
+			return nil, protocolErr
+		}
+		proxy.AccessProtocol = protocol
+	} else if req.ExposePublicPort != nil && isWebOnlyCapableApplicationType(application.ApplicationType) {
+		if req.GetExposePublicPort() {
+			proxy.AccessProtocol = model.AccessProtocolTCP
+		} else if application.ApplicationType == model.ApplicationTypeSSH {
+			proxy.AccessProtocol = model.AccessProtocolWebSSH
+		} else {
+			proxy.AccessProtocol = model.AccessProtocolWeb
+		}
+	}
 
 	if req.Name != "" {
 		name := strings.TrimSpace(req.Name)
@@ -186,9 +227,22 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 		proxy.Description = req.Description
 	}
 	if req.ExposePublicPort != nil {
-		port, err := cp.resolveUpdateProxyPort(application, proxy, int(req.Port), req.GetExposePublicPort())
+		port, err := cp.resolveUpdateProxyPort(effectiveAccessProtocol(proxy, application), proxy, int(req.Port), req.GetExposePublicPort())
 		if err != nil {
 			return nil, err
+		}
+		proxy.Port = port
+	} else if req.AccessProtocol != "" && !accessProtocolRequiresPublicPort(effectiveAccessProtocol(proxy, application)) {
+		proxy.Port = 0
+	} else if req.AccessProtocol != "" && req.Port > 0 && int(req.Port) != proxy.Port {
+		if err := cp.ensureProxyPortAvailable(int(req.Port), proxy.ID); err != nil {
+			return nil, err
+		}
+		proxy.Port = int(req.Port)
+	} else if req.AccessProtocol != "" && proxy.Port == 0 {
+		port, allocateErr := cp.allocateAvailableProxyPort(proxy.ID)
+		if allocateErr != nil {
+			return nil, allocateErr
 		}
 		proxy.Port = port
 	} else if req.Port > 0 && int(req.Port) != proxy.Port {
@@ -210,7 +264,8 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 
 	statusChanged := oldProxy.Status != proxy.Status
 	portChanged := oldProxy.Port != proxy.Port
-	runtimeChanged := statusChanged || portChanged
+	protocolChanged := oldProxy.AccessProtocol != proxy.AccessProtocol
+	runtimeChanged := statusChanged || portChanged || protocolChanged
 
 	oldRuntimeEligible := false
 	if oldProxy.Status == model.ProxyStatusRunning {
@@ -271,14 +326,20 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 	}, nil
 }
 
-func (cp *controlPlane) DeleteProxy(_ context.Context, req *v1.DeleteProxyRequest) (*v1.DeleteProxyResponse, error) {
+func (cp *controlPlane) DeleteProxy(ctx context.Context, req *v1.DeleteProxyRequest) (*v1.DeleteProxyResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("PROXY_ID_REQUIRED", "访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, req.Id); err != nil {
+		return nil, err
 	}
 	if _, err := cp.repo.GetProxyByID(uint(req.Id)); err != nil {
 		return nil, mapRecordNotFound(err, "PROXY_NOT_FOUND", "访问不存在")
 	}
 	if err := cp.deleteProxyCascade(uint(req.Id), newLifecycleDeleteTracker()); err != nil {
+		return nil, err
+	}
+	if err := cp.repo.DeleteIAMResourceRelations(resourceAccess, req.Id); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteProxyResponse{
@@ -341,19 +402,15 @@ func (cp *controlPlane) transformProxy(proxy *model.Proxy) *v1.Proxy {
 		EffectiveStatus:        effectiveStatus,
 		EffectiveStatusMessage: effectiveStatusMessage,
 		ExposePublicPort:       proxy.Port > 0,
+		AccessProtocol:         string(effectiveAccessProtocol(proxy, proxy.Application)),
 	}
 }
 
-func (cp *controlPlane) resolveCreateProxyPort(application *model.Application, requestedPort int, exposePublicPort bool) (int, error) {
-	if application == nil {
-		return 0, notFound("APPLICATION_NOT_FOUND", "关联应用不存在", nil)
-	}
+func (cp *controlPlane) resolveCreateProxyPort(protocol model.AccessProtocol, requestedPort int) (int, error) {
 	if requestedPort < 0 || requestedPort > 65535 {
 		return 0, badRequest("PROXY_PORT_INVALID", "公网端口必须在 1-65535 之间")
 	}
-	webCapable := isWebOnlyCapableApplicationType(application.ApplicationType)
-	expose := !webCapable || exposePublicPort
-	if !expose {
+	if !accessProtocolRequiresPublicPort(protocol) {
 		return 0, nil
 	}
 	if requestedPort > 0 {
@@ -362,17 +419,16 @@ func (cp *controlPlane) resolveCreateProxyPort(application *model.Application, r
 	return cp.allocateAvailableProxyPort(0)
 }
 
-func (cp *controlPlane) resolveUpdateProxyPort(application *model.Application, proxy *model.Proxy, requestedPort int, exposePublicPort bool) (int, error) {
-	if application == nil || proxy == nil {
-		return 0, notFound("APPLICATION_NOT_FOUND", "关联应用不存在", nil)
+func (cp *controlPlane) resolveUpdateProxyPort(protocol model.AccessProtocol, proxy *model.Proxy, requestedPort int, exposePublicPort bool) (int, error) {
+	if proxy == nil {
+		return 0, notFound("PROXY_NOT_FOUND", "访问不存在", nil)
 	}
 	if requestedPort < 0 || requestedPort > 65535 {
 		return 0, badRequest("PROXY_PORT_INVALID", "公网端口必须在 1-65535 之间")
 	}
-	webCapable := isWebOnlyCapableApplicationType(application.ApplicationType)
 	if !exposePublicPort {
-		if !webCapable {
-			return 0, badRequest("PROXY_PUBLIC_PORT_REQUIRED", "该应用类型必须开放公网端口")
+		if accessProtocolRequiresPublicPort(protocol) {
+			return 0, badRequest("PROXY_PUBLIC_PORT_REQUIRED", "该访问协议必须开放公网端口")
 		}
 		return 0, nil
 	}

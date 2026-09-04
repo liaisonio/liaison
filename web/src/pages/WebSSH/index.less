@@ -1,67 +1,451 @@
 .webssh-shell {
   position: relative;
   display: flex;
-  min-height: calc(100vh - 150px);
-  max-height: calc(100vh - 150px);
+  min-height: calc(100vh - 138px);
+  max-height: calc(100vh - 138px);
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 8px;
-  background: #0f1419;
+  border: 1px solid rgb(var(--line) / 0.78);
+  border-radius: var(--surface-radius);
+  background: #0d1117;
 }
 
-body.webssh-page-active .ant-pro-layout-footer,
+.webssh-shell.is-credential-setup {
+  border-color: transparent;
+  background: transparent;
+}
+
+.webssh-shell.is-credential-setup .webssh-toolbar,
+.webssh-shell.is-credential-setup .webssh-terminal,
+.webssh-shell.is-credential-setup .webssh-loading,
+.webssh-shell.is-credential-setup > .liaison-notice,
+.webssh-shell.is-credential-setup > .webssh-alert {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 body.webssh-page-active .global-footer {
   display: none !important;
   pointer-events: none !important;
 }
 
-body.webssh-page-active .ant-pro-layout-content {
+body.webssh-page-active .liaison-page-body {
   padding-bottom: 0 !important;
 }
 
-body.webssh-page-active .ant-pro-page-container-children-container {
-  padding-bottom: 0 !important;
+.webssh-connections-page {
+  display: flex;
+  min-height: calc(100vh - 150px);
+  flex-direction: column;
+  gap: 12px;
 }
 
-.webssh-toolbar {
+.webssh-connections-header {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 8px;
+}
+
+.webssh-connections-back {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgb(var(--muted));
+  font: inherit;
+  font-size: 10px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.webssh-connections-breadcrumb {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--muted));
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.webssh-connections-breadcrumb i {
+  color: rgb(var(--line));
+  font-style: normal;
+}
+
+.webssh-connections-breadcrumb strong {
+  overflow: hidden;
+  max-width: 240px;
+  color: rgb(var(--ink));
+  font-weight: 620;
+  text-overflow: ellipsis;
+}
+
+.webssh-connections-target {
+  overflow: hidden;
+  color: rgb(var(--muted));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webssh-connections-back:hover {
+  color: rgb(var(--ink));
+}
+
+.webssh-connections-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  background: #ffffff;
+  padding: 2px 2px 4px;
+}
+
+.webssh-connections-heading h2 {
+  margin: 0 0 4px;
+  color: rgb(var(--ink));
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.webssh-connections-heading p {
+  margin: 0;
+  color: rgb(var(--muted));
+  font-size: 11px;
+}
+
+.webssh-connections-heading > .liaison-button {
+  min-height: 32px;
+  padding-inline: 11px;
+  font-size: 11px;
+}
+
+.webssh-connections-loading,
+.webssh-connections-empty {
+  display: flex;
+  min-height: 260px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 1px dashed rgb(var(--line));
+  border-radius: var(--surface-radius);
+  background: rgb(var(--surface));
+}
+
+.webssh-connections-empty > .webssh-terminal-mark {
+  margin-bottom: 14px;
+}
+
+.webssh-connections-empty > strong {
+  color: rgb(var(--ink));
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.webssh-connections-empty > p {
+  max-width: 420px;
+  margin: 6px 0 18px;
+  color: rgb(var(--muted));
+  font-size: 11px;
+  text-align: center;
+}
+
+.webssh-connection-list {
+  display: grid;
+  gap: 8px;
+}
+
+.webssh-connection-card {
+  display: grid;
+  min-height: 66px;
+  align-items: center;
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr) 224px auto;
+  gap: 18px;
+  padding: 9px 11px;
+  border: 1px solid rgb(var(--line) / 0.58);
+  border-radius: 9px;
+  background: rgb(var(--surface));
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.webssh-connection-card:hover {
+  border-color: rgb(var(--muted) / 0.52);
+  background: rgb(var(--panel));
+}
+
+.webssh-connection-card-identity,
+.webssh-connection-card-meta,
+.webssh-connection-card-used,
+.webssh-connection-card-actions,
+.webssh-connection-card-used time {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.webssh-connection-card-identity {
+  gap: 6px;
+  overflow: hidden;
+}
+
+.webssh-connection-card-meta {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.webssh-connection-card-identity strong {
+  overflow: hidden;
+  max-width: 100%;
+  color: rgb(var(--ink));
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webssh-connection-card-identity > span:not(.webssh-terminal-mark),
+.webssh-connection-card-meta > span,
+.webssh-connection-card-used > span {
+  color: rgb(var(--muted));
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.webssh-connection-protocol {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgb(var(--info) / 0.08);
+  color: rgb(var(--info)) !important;
+  font-weight: 620;
+}
+
+.webssh-connection-password-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgb(var(--success)) !important;
+}
+
+.webssh-connection-password-state svg {
+  flex: 0 0 auto;
+}
+
+.webssh-connection-card-used time {
+  gap: 6px;
+  color: rgb(var(--ink) / 0.78);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.webssh-connection-card-actions {
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.webssh-connection-card-actions .liaison-button {
+  height: 32px;
+  font-size: 11px;
+}
+
+.webssh-connection-card-actions .liaison-button-ghost {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  color: rgb(var(--danger));
+}
+
+.webssh-toolbar {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  min-height: 64px;
+  align-items: center;
+  grid-template-columns: minmax(170px, auto) minmax(320px, 1fr) auto;
+  gap: 22px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgb(var(--line) / 0.72);
+  background: rgb(var(--surface));
+}
+
+.webssh-identity,
+.webssh-toolbar-actions,
+.webssh-session-meta,
+.webssh-session-meta > div,
+.webssh-credential-options,
+.webssh-credential-actions {
+  display: flex;
+  align-items: center;
+}
+
+.webssh-native-form { display: grid; gap: 12px; margin-top: 12px; }
+.webssh-native-spinner { width: 28px; height: 28px; border: 2px solid rgb(var(--line)); border-top-color: rgb(var(--ink)); border-radius: 50%; animation: webssh-spin 700ms linear infinite; }
+.liaison-checkbox { display: inline-flex; align-items: center; gap: 8px; color: rgb(var(--ink)); font-size: 11px; cursor: pointer; }
+.liaison-checkbox input { width: 16px; height: 16px; accent-color: rgb(var(--accent)); }
+.webssh-alert .liaison-notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+@keyframes webssh-spin { to { transform: rotate(360deg); } }
+
+.webssh-identity {
+  min-width: 0;
+  gap: 8px;
+}
+
+.webssh-back-button.liaison-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  color: rgb(var(--muted));
+}
+
+.webssh-back-button.liaison-button:hover {
+  background: rgb(var(--panel));
+  color: rgb(var(--ink));
+}
+
+.webssh-identity > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.webssh-identity strong {
+  overflow: hidden;
+  color: rgb(var(--ink));
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webssh-identity span:not(.webssh-terminal-mark) {
+  color: rgb(var(--muted));
+  font-size: 10px;
+}
+
+.webssh-terminal-mark {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(var(--line));
+  border-radius: var(--control-radius);
+  background: rgb(var(--panel));
+  color: rgb(var(--ink));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.webssh-session-meta {
+  min-width: 0;
+  gap: 24px;
+}
+
+.webssh-session-meta > div {
+  min-width: 0;
+  gap: 7px;
+}
+
+.webssh-session-meta span {
+  flex: 0 0 auto;
+  color: rgb(var(--muted));
+  font-size: 10px;
+}
+
+.webssh-session-meta strong {
+  overflow: hidden;
+  color: rgb(var(--ink));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webssh-status,
+.webssh-status i {
+  display: inline-flex;
+}
+
+.webssh-status {
+  align-items: center;
+  gap: 5px;
+}
+
+.webssh-status i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.webssh-status.is-connected {
+  color: rgb(var(--accent));
+}
+
+.webssh-status.is-connecting {
+  color: rgb(var(--accent));
+}
+
+.webssh-status.is-connecting i {
+  animation: webssh-status-pulse 1.1s ease-in-out infinite;
+}
+
+.webssh-status.is-ready {
+  color: rgb(var(--muted));
+}
+
+.webssh-status.is-error {
+  color: rgb(var(--danger));
+}
+
+.webssh-toolbar-actions {
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.webssh-toolbar-actions .liaison-button {
+  height: 32px;
+  border-color: rgb(var(--line));
+  border-radius: var(--control-radius);
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.webssh-toolbar-actions .liaison-button-primary {
+  border-color: rgb(var(--ink));
+  background: rgb(var(--ink));
+  color: rgb(var(--canvas));
 }
 
 .webssh-loading {
   position: absolute;
-  z-index: 2;
-  top: 57px;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  z-index: 5;
+  inset: 65px 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgb(13 17 23 / 0.88);
 }
 
 .webssh-alert {
-  margin: 12px 16px 0;
-}
-
-.webssh-body {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-}
-
-.webssh-login {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-  background: #f8fafc;
+  position: relative;
+  z-index: 4;
+  margin: 10px 12px 0;
 }
 
 .webssh-terminal {
@@ -70,24 +454,16 @@ body.webssh-page-active .ant-pro-page-container-children-container {
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  padding: 0;
-  background: #101418;
+  background: #0d1117;
+  outline: none;
 }
 
-.webssh-terminal:fullscreen {
-  width: 100vw;
-  height: 100vh;
-  min-height: 100vh;
-  padding: 0;
-  background: #101418;
-}
-
+.webssh-terminal:fullscreen,
 .webssh-terminal:-webkit-full-screen {
   width: 100vw;
   height: 100vh;
   min-height: 100vh;
-  padding: 0;
-  background: #101418;
+  background: #0d1117;
 }
 
 .webssh-terminal-screen {
@@ -98,6 +474,7 @@ body.webssh-page-active .ant-pro-page-container-children-container {
   height: 100%;
   min-width: 0;
   min-height: 0;
+  padding: 12px 14px;
 }
 
 .webssh-terminal-screen .xterm {
@@ -105,18 +482,256 @@ body.webssh-page-active .ant-pro-page-container-children-container {
   height: 100%;
 }
 
-@media (max-width: 768px) {
+.webssh-connecting-state {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: #0d1117;
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.webssh-connecting-spinner {
+  display: block;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 15px;
+  border: 2px solid #28313d;
+  border-top-color: #7dd3fc;
+  border-radius: 50%;
+  animation: webssh-connecting-spin 0.8s linear infinite;
+}
+
+.webssh-connecting-state strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.webssh-connecting-state p {
+  display: flex;
+  max-width: min(460px, calc(100% - 48px));
+  align-items: center;
+  gap: 9px;
+  margin: 9px 0 5px;
+  color: #9aa4b2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+
+.webssh-connecting-state p span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webssh-connecting-state p i {
+  flex: 0 0 auto;
+  color: #4b5563;
+  font-style: normal;
+}
+
+.webssh-connecting-state small {
+  color: #66717f;
+  font-size: 10px;
+}
+
+@keyframes webssh-connecting-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes webssh-status-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.webssh-terminal-empty {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  background: #0d1117;
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.webssh-terminal-empty .webssh-terminal-mark {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 13px;
+  border-color: #2a3038;
+  background: #151a21;
+  color: #d1d5db;
+}
+
+.webssh-terminal-empty strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.webssh-terminal-empty p {
+  margin: 5px 0 15px;
+  color: #737b87;
+  font-size: 11px;
+}
+
+.webssh-terminal-empty .liaison-button-primary {
+  border-color: #e5e7eb;
+  background: #e5e7eb;
+  color: #111318;
+  box-shadow: none;
+}
+
+.webssh-session-finished-icon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 13px;
+  place-items: center;
+  border: 1px solid #2a3038;
+  border-radius: var(--control-radius);
+  background: #151a21;
+  color: #d1d5db;
+  font-size: 17px;
+}
+
+.webssh-terminal-empty .webssh-session-duration {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 17px;
+}
+
+.webssh-session-duration b {
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.webssh-session-end-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.webssh-session-end-actions .liaison-button {
+  min-width: 88px;
+  border-color: #2a3038;
+  background: #151a21;
+  color: #d1d5db;
+  box-shadow: none;
+}
+
+.webssh-terminal .session-watermark__tile {
+  color: rgb(255 255 255 / 0.055);
+  font-size: 11px;
+}
+
+.webssh-credential-error {
+  margin-bottom: 15px;
+}
+
+.webssh-credential-options {
+  min-height: 28px;
+  justify-content: space-between;
+  margin-top: -4px;
+}
+
+.webssh-credential-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--accent));
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.webssh-credential-options .liaison-field {
+  margin-bottom: 0 !important;
+}
+
+.webssh-credential-options .liaison-button-link {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  color: rgb(var(--muted));
+  font-size: 11px;
+}
+
+.webssh-credential-actions {
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.webssh-credential-modal .liaison-modal-body {
+  overflow: hidden !important;
+  padding: 20px 28px 10px;
+}
+
+@media (max-width: 980px) {
+  .webssh-connection-card {
+    grid-template-columns: minmax(170px, 210px) minmax(0, 1fr) auto;
+  }
+
+  .webssh-connection-card-used {
+    display: none;
+  }
+
   .webssh-toolbar {
+    grid-template-columns: minmax(160px, 1fr) auto;
+  }
+
+  .webssh-session-meta {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .webssh-connections-heading {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .webssh-login .ant-form {
-    display: grid;
-    grid-template-columns: 1fr;
+  .webssh-connection-card {
+    grid-template-columns: 1fr auto;
+    gap: 14px;
   }
 
-  .webssh-login .ant-form-item {
-    margin-right: 0;
+  .webssh-connection-card-meta {
+    display: none;
   }
+  .webssh-credential-modal .liaison-modal-body {
+    overflow-y: auto !important;
+  }
+
+  .webssh-shell {
+    min-height: calc(100vh - 96px);
+    max-height: calc(100vh - 96px);
+  }
+
+  .webssh-toolbar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .webssh-toolbar-actions {
+    justify-content: flex-start;
+  }
+
 }

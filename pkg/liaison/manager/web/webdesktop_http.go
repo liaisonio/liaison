@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jumboframes/armorigo/log"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
 	"gorm.io/gorm"
 )
 
@@ -60,6 +61,7 @@ type webDesktopSession struct {
 	dpi             int
 	saveCredential  bool
 	savedCredential bool
+	target          *controlplane.WebDesktopTarget
 	expiresAt       time.Time
 }
 
@@ -289,6 +291,7 @@ func (web *web) handleCreateWebDesktopSessionHTTP(w http.ResponseWriter, r *http
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"code": http.StatusInternalServerError, "message": "failed to create session"})
 		return
 	}
+	session.target = target
 	req.Password = ""
 	wsPath := fmt.Sprintf("/api/v1/webdesktop/sessions/%s/connect", session.token)
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -319,11 +322,19 @@ func (web *web) handleWebDesktopCredentialHTTP(w http.ResponseWriter, r *http.Re
 		return
 	}
 	ctx := context.WithValue(r.Context(), "user_id", user.ID)
+	target, targetErr := web.controlPlane.GetWebDesktopTarget(ctx, proxyID)
+	if targetErr != nil {
+		status := webDesktopHTTPStatus(targetErr)
+		writeJSON(w, status, map[string]any{"code": status, "message": targetErr.Error()})
+		return
+	}
 	if err := web.controlPlane.DeleteWebDesktopCredential(ctx, proxyID, r.URL.Query().Get("protocol"), r.URL.Query().Get("username"), r.URL.Query().Get("domain")); err != nil {
+		web.recordWebDesktopAudit(target, user.ID, r, "delete_credential", r.URL.Query().Get("username"), r.URL.Query().Get("domain"), false, 0, err.Error())
 		status := webDesktopHTTPStatus(err)
 		writeJSON(w, status, map[string]any{"code": status, "message": err.Error()})
 		return
 	}
+	web.recordWebDesktopAudit(target, user.ID, r, "delete_credential", r.URL.Query().Get("username"), r.URL.Query().Get("domain"), true, 0, "")
 	writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success"})
 }
 
@@ -348,10 +359,11 @@ func (web *web) handleWebDesktopConnectHTTP(w http.ResponseWriter, r *http.Reque
 	defer conn.Close()
 	tuneLowLatencyTCP(conn.UnderlyingConn())
 	conn.SetReadLimit(webDesktopMaxMessageSize)
-	web.runWebDesktop(context.WithoutCancel(r.Context()), conn, session)
+	web.runWebDesktop(context.WithoutCancel(r.Context()), conn, session, r)
 }
 
-func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, session *webDesktopSession) {
+func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, session *webDesktopSession, r *http.Request) {
+	started := time.Now()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	unregister := web.webDesktop.registerActive(session.proxyID, session.token, cancel)
@@ -359,6 +371,7 @@ func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, sessi
 
 	targetListener, err := web.startWebDesktopTargetBridge(ctx, session.proxyID)
 	if err != nil {
+		web.recordWebDesktopAudit(session.target, session.userID, r, "open_session", session.username, session.domain, false, time.Since(started).Milliseconds(), err.Error())
 		log.Debugf("webdesktop target bridge failed: proxy_id=%d err=%v", session.proxyID, err)
 		_ = wsConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1011, err.Error()))
 		return
@@ -367,6 +380,7 @@ func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, sessi
 
 	guacdConn, err := net.DialTimeout("tcp", web.guacdAddr, 5*time.Second)
 	if err != nil {
+		web.recordWebDesktopAudit(session.target, session.userID, r, "open_session", session.username, session.domain, false, time.Since(started).Milliseconds(), err.Error())
 		log.Debugf("webdesktop guacd dial failed: proxy_id=%d addr=%s err=%v", session.proxyID, web.guacdAddr, err)
 		_ = wsConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1011, "guacd 未连接或不可用"))
 		return
@@ -375,9 +389,11 @@ func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, sessi
 	tuneLowLatencyTCP(guacdConn)
 
 	if err := web.writeGuacamoleWebSocketUUID(wsConn, session.token); err != nil {
+		web.recordWebDesktopAudit(session.target, session.userID, r, "open_session", session.username, session.domain, false, time.Since(started).Milliseconds(), err.Error())
 		return
 	}
 	if err := web.handshakeGuacd(guacdConn, targetListener.Addr().(*net.TCPAddr), session); err != nil {
+		web.recordWebDesktopAudit(session.target, session.userID, r, "open_session", session.username, session.domain, false, time.Since(started).Milliseconds(), err.Error())
 		log.Debugf("webdesktop guacd handshake failed: proxy_id=%d err=%v", session.proxyID, err)
 		_ = wsConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1011, err.Error()))
 		return
@@ -387,8 +403,12 @@ func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, sessi
 		sessionCtx := context.WithValue(context.Background(), "user_id", session.userID)
 		if err != nil {
 			log.Errorf("webdesktop credential encrypt failed: proxy_id=%d err=%v", session.proxyID, err)
+			web.recordWebDesktopAudit(session.target, session.userID, r, "save_credential", session.username, session.domain, false, 0, err.Error())
 		} else if err := web.controlPlane.SaveWebDesktopCredential(sessionCtx, session.proxyID, session.protocol, session.username, session.domain, encryptedPassword, nonce); err != nil {
 			log.Errorf("webdesktop credential save failed: proxy_id=%d err=%v", session.proxyID, err)
+			web.recordWebDesktopAudit(session.target, session.userID, r, "save_credential", session.username, session.domain, false, 0, err.Error())
+		} else {
+			web.recordWebDesktopAudit(session.target, session.userID, r, "save_credential", session.username, session.domain, true, 0, "")
 		}
 	} else if session.savedCredential {
 		sessionCtx := context.WithValue(context.Background(), "user_id", session.userID)
@@ -397,6 +417,11 @@ func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, sessi
 		}
 	}
 	session.zero()
+	web.recordWebDesktopAudit(session.target, session.userID, r, "open_session", session.username, session.domain, true, time.Since(started).Milliseconds(), "")
+	sessionStarted := time.Now()
+	defer func() {
+		web.recordWebDesktopAudit(session.target, session.userID, r, "close_session", session.username, session.domain, true, time.Since(sessionStarted).Milliseconds(), "")
+	}()
 
 	errCh := make(chan error, 2)
 	var wsWriteMu sync.Mutex
@@ -408,6 +433,35 @@ func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, sessi
 		if err != nil && !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "close") {
 			log.Debugf("webdesktop bridge ended: proxy_id=%d err=%v", session.proxyID, err)
 		}
+	}
+}
+
+func (web *web) recordWebDesktopAudit(target *controlplane.WebDesktopTarget, userID uint, r *http.Request, action, username, domain string, success bool, elapsedMS int64, errText string) {
+	if target == nil || userID == 0 {
+		return
+	}
+	clientIP, clientIPSource := remoteClientIPInfo(r)
+	details := map[string]any{
+		"remote_user":      strings.TrimSpace(username),
+		"domain":           strings.TrimSpace(domain),
+		"client_ip_source": clientIPSource,
+	}
+	statement := webDataAuditStatement(action)
+	if err := web.controlPlane.RecordWebDataAudit(context.Background(), &controlplane.WebDataAudit{
+		UserID:           userID,
+		ProxyID:          target.ProxyID,
+		ApplicationID:    target.ApplicationID,
+		Protocol:         target.Protocol,
+		Action:           action,
+		StatementPreview: statement,
+		StatementSHA256:  webDataStatementHash(statement),
+		Success:          success,
+		Error:            errText,
+		ElapsedMS:        elapsedMS,
+		ClientIP:         clientIP,
+		Details:          details,
+	}); err != nil {
+		log.Warnf("webdesktop audit record failed: proxy_id=%d user_id=%d action=%s err=%v", target.ProxyID, userID, action, err)
 	}
 }
 

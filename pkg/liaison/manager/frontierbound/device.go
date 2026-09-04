@@ -244,6 +244,28 @@ func (fb *frontierBound) reportDevice(ctx context.Context, req geminio.Request, 
 			}
 		}
 		// 如果关系已存在，跳过创建
+		// 设备由连接器发现，因此继承连接器的所有资源关系。一个相同指纹的
+		// 设备可能被多个连接器发现，Upsert 允许它安全地对多个用户可见。
+		edgeRelations, err := tx.ListIAMResourceRelations("connector", device.EdgeID)
+		if err != nil {
+			log.Errorf("list connector resource relations error: %s", err)
+			rsp.SetError(err)
+			return
+		}
+		for _, relation := range edgeRelations {
+			if err := tx.UpsertIAMResourceRelation(&model.IAMResourceRelation{
+				ResourceType: "device",
+				ResourceID:   uint64(deviceModel.ID),
+				Relation:     relation.Relation,
+				SubjectType:  relation.SubjectType,
+				SubjectID:    relation.SubjectID,
+				CreatedBy:    relation.CreatedBy,
+			}); err != nil {
+				log.Errorf("inherit device resource relation error: %s", err)
+				rsp.SetError(err)
+				return
+			}
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

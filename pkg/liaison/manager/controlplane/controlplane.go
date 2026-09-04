@@ -64,6 +64,8 @@ type ControlPlane interface {
 	RecordWebDataAudit(ctx context.Context, audit *WebDataAudit) error
 	ListWebDataAudits(ctx context.Context, proxyID uint, limit int) ([]*WebDataAuditEntry, error)
 	ListWebDataAuditEntries(ctx context.Context, query *WebDataAuditListQuery) (*WebDataAuditList, error)
+	RecordManagementAudit(ctx context.Context, audit *ManagementAudit) error
+	ListManagementAudits(ctx context.Context, query *ManagementAuditListQuery) (*ManagementAuditList, error)
 
 	CreateEdgeScanApplicationTask(ctx context.Context, req *v1.CreateEdgeScanApplicationTaskRequest) (*v1.CreateEdgeScanApplicationTaskResponse, error)
 	GetEdgeScanApplicationTask(ctx context.Context, req *v1.GetEdgeScanApplicationTaskRequest) (*v1.GetEdgeScanApplicationTaskResponse, error)

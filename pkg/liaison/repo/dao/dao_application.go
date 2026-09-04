@@ -29,6 +29,8 @@ func (d *dao) CountApplications(query *ListApplicationsQuery) (int64, error) {
 	}
 	if len(query.IDs) > 0 {
 		db = db.Where("id IN ?", query.IDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	if query.ApplicationType != "" {
 		db = db.Where("application_type = ?", query.ApplicationType)
@@ -58,6 +60,8 @@ func (d *dao) ListApplications(query *ListApplicationsQuery) ([]*model.Applicati
 	// ids
 	if len(query.IDs) > 0 {
 		db = db.Where("id IN ?", query.IDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	// 应用排序
 	if query.Order != "" {

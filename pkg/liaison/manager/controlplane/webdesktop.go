@@ -16,6 +16,7 @@ import (
 )
 
 type WebDesktopCredential struct {
+	ID         uint   `json:"id"`
 	Saved      bool   `json:"saved"`
 	Protocol   string `json:"protocol"`
 	Username   string `json:"username,omitempty"`
@@ -47,7 +48,7 @@ type WebDesktopTarget struct {
 }
 
 func (cp *controlPlane) GetWebDesktopTarget(ctx context.Context, proxyID uint) (*WebDesktopTarget, error) {
-	target, err := cp.loadWebDesktopTarget(proxyID)
+	target, err := cp.loadWebDesktopTarget(ctx, proxyID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (cp *controlPlane) GetWebDesktopTarget(ctx context.Context, proxyID uint) (
 }
 
 func (cp *controlPlane) OpenWebDesktopStream(ctx context.Context, proxyID uint) (net.Conn, *WebDesktopTarget, error) {
-	target, err := cp.loadWebDesktopTarget(proxyID)
+	target, err := cp.loadWebDesktopTarget(ctx, proxyID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,7 +104,7 @@ func (cp *controlPlane) OpenWebDesktopStream(ctx context.Context, proxyID uint) 
 }
 
 func (cp *controlPlane) GetWebDesktopCredentialSecret(ctx context.Context, proxyID uint, protocol, username, domain string) (*WebDesktopCredentialSecret, error) {
-	if err := cp.validateWebDesktopProxy(proxyID); err != nil {
+	if err := cp.validateWebDesktopProxy(ctx, proxyID); err != nil {
 		return nil, err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -125,7 +126,7 @@ func (cp *controlPlane) GetWebDesktopCredentialSecret(ctx context.Context, proxy
 }
 
 func (cp *controlPlane) SaveWebDesktopCredential(ctx context.Context, proxyID uint, protocol, username, domain, encryptedPassword, nonce string) error {
-	if err := cp.validateWebDesktopProxy(proxyID); err != nil {
+	if err := cp.validateWebDesktopProxy(ctx, proxyID); err != nil {
 		return err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -151,6 +152,9 @@ func (cp *controlPlane) TouchWebDesktopCredential(ctx context.Context, proxyID u
 	if proxyID == 0 {
 		return errors.New("访问 ID 不能为空")
 	}
+	if err := cp.validateWebDesktopProxy(ctx, proxyID); err != nil {
+		return err
+	}
 	userID, err := requireWebSSHUserID(ctx)
 	if err != nil {
 		return err
@@ -160,7 +164,7 @@ func (cp *controlPlane) TouchWebDesktopCredential(ctx context.Context, proxyID u
 }
 
 func (cp *controlPlane) DeleteWebDesktopCredential(ctx context.Context, proxyID uint, protocol, username, domain string) error {
-	if err := cp.validateWebDesktopProxy(proxyID); err != nil {
+	if err := cp.validateWebDesktopProxy(ctx, proxyID); err != nil {
 		return err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -171,9 +175,12 @@ func (cp *controlPlane) DeleteWebDesktopCredential(ctx context.Context, proxyID 
 	return cp.repo.DeleteWebDesktopCredential(proxyID, userID, protocol, username, domain)
 }
 
-func (cp *controlPlane) loadWebDesktopTarget(proxyID uint) (*WebDesktopTarget, error) {
+func (cp *controlPlane) loadWebDesktopTarget(ctx context.Context, proxyID uint) (*WebDesktopTarget, error) {
 	if proxyID == 0 {
 		return nil, errors.New("访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, uint64(proxyID)); err != nil {
+		return nil, err
 	}
 	proxy, err := cp.repo.GetProxyByID(proxyID)
 	if err != nil {
@@ -207,8 +214,8 @@ func (cp *controlPlane) loadWebDesktopTarget(proxyID uint) (*WebDesktopTarget, e
 	}, nil
 }
 
-func (cp *controlPlane) validateWebDesktopProxy(proxyID uint) error {
-	_, err := cp.loadWebDesktopTarget(proxyID)
+func (cp *controlPlane) validateWebDesktopProxy(ctx context.Context, proxyID uint) error {
+	_, err := cp.loadWebDesktopTarget(ctx, proxyID)
 	return err
 }
 
@@ -220,6 +227,7 @@ func (cp *controlPlane) loadWebDesktopCredentials(proxyID, userID uint, protocol
 	credentials := make([]*WebDesktopCredential, 0, len(saved))
 	for _, item := range saved {
 		credential := &WebDesktopCredential{
+			ID:       item.ID,
 			Saved:    true,
 			Protocol: item.Protocol,
 			Username: item.Username,

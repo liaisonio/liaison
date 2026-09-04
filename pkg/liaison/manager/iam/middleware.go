@@ -58,11 +58,69 @@ func AuthMiddleware(iamService *IAMService) middleware.Middleware {
 				ctx = context.WithValue(ctx, "user", user)
 
 				log.Debugf("User authentication successful: %s", user.Email)
+				if resource, action, ok := resourcePermissionForRequest(httpReq); ok {
+					if err := iamService.RequireResourcePermission(user, resource, action); err != nil {
+						if errors.Is(err, ErrForbidden) {
+							return nil, errors.New(http.StatusForbidden, "FORBIDDEN", "No permission to perform this operation")
+						}
+						return nil, errors.New(http.StatusInternalServerError, "AUTHORIZATION_FAILED", "Authorization failed")
+					}
+				}
 			}
 
 			return handler(ctx, req)
 		}
 	}
+}
+
+// resourcePermissionForRequest maps transport operations to stable Casbin
+// objects and actions. It deliberately contains no role decisions.
+func resourcePermissionForRequest(r *http.Request) (resource, action string, ok bool) {
+	path := strings.TrimSuffix(r.URL.Path, "/")
+	switch {
+	case strings.HasPrefix(path, "/api/v1/edges"):
+		resource = "connectors"
+	case strings.HasPrefix(path, "/api/v1/devices"):
+		resource = "devices"
+	case strings.HasPrefix(path, "/api/v1/applications"):
+		resource = "applications"
+	case strings.HasPrefix(path, "/api/v1/proxies"):
+		resource = "accesses"
+	case strings.HasPrefix(path, "/api/v1/webssh"), strings.HasPrefix(path, "/api/v1/webdesktop"), strings.HasPrefix(path, "/api/v1/webdata"):
+		resource = "accesses"
+	case strings.HasPrefix(path, "/api/v1/audits"):
+		resource = "logs"
+	case path == "/api/v1/traffic-metrics":
+		resource = "overview"
+	default:
+		return "", "", false
+	}
+
+	if strings.HasPrefix(path, "/api/v1/webssh") || strings.HasPrefix(path, "/api/v1/webdesktop") || strings.HasPrefix(path, "/api/v1/webdata") {
+		switch r.Method {
+		case http.MethodGet:
+			action = "read"
+		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+			action = "use"
+		default:
+			return "", "", false
+		}
+		return resource, action, true
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		action = "read"
+	case http.MethodPost:
+		action = "create"
+	case http.MethodPut, http.MethodPatch:
+		action = "update"
+	case http.MethodDelete:
+		action = "delete"
+	default:
+		return "", "", false
+	}
+	return resource, action, true
 }
 
 // ExtractClientIP returns the most trustworthy client IP from the request
@@ -91,7 +149,6 @@ func ExtractClientIP(r *http.Request) string {
 func isIAMEndpoint(path string) bool {
 	noAuthPaths := []string{
 		"/api/v1/iam/login",
-		"/api/v1/iam/logout",
 		"/api/v1/iam/client_ip",
 		"/install.sh",
 		"/install.ps1",
@@ -101,14 +158,6 @@ func isIAMEndpoint(path string) bool {
 	}
 
 	if strings.HasPrefix(path, "/packages/") {
-		return true
-	}
-	// PAT management — handler authenticates itself (session or PAT).
-	if path == "/api/v1/iam/tokens" || strings.HasPrefix(path, "/api/v1/iam/tokens/") {
-		return true
-	}
-	// Per-proxy firewall — handler authenticates itself.
-	if strings.HasPrefix(path, "/api/v1/proxies/") && strings.HasSuffix(path, "/firewall") {
 		return true
 	}
 	// WebSSH WebSocket upgrades are authorized by one-time session tokens

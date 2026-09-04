@@ -1,4 +1,15 @@
-import { Tooltip } from 'antd';
+import { Tooltip } from '@/components/ui/complex';
+import {
+  Braces,
+  Columns3,
+  Database,
+  KeyRound,
+  Layers3,
+  List,
+  Table2,
+  Type,
+  Waves,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { MetadataSummary, MetadataTreeNode } from './types';
 
@@ -51,6 +62,56 @@ export const summarizeMetadata = (
   return summary;
 };
 
+export const buildRedisMetadataView = (
+  nodes: API.WebDataMetadataNode[],
+  database = 0,
+): API.WebDataMetadataNode[] => {
+  const keys: API.WebDataMetadataNode[] = [];
+  const collectKeys = (items: API.WebDataMetadataNode[]) => {
+    items.forEach((node) => {
+      if (node.type === 'key') keys.push(node);
+      if (node.children?.length) collectKeys(node.children);
+    });
+  };
+  collectKeys(nodes);
+
+  const grouped = new Map<string, API.WebDataMetadataNode[]>();
+  keys.forEach((node) => {
+    const type = String(node.value || 'key').split(/\s+/)[0].toLowerCase();
+    const label = {
+      string: 'String',
+      hash: 'Hash',
+      list: 'List',
+      set: 'Set',
+      zset: 'Sorted Set',
+      stream: 'Stream',
+    }[type] || 'Other';
+    const ttl = String(node.value || '').match(/ttl=(.+)$/)?.[1];
+    const item = { ...node, value: ttl ? `TTL ${ttl}` : undefined };
+    grouped.set(label, [...(grouped.get(label) || []), item]);
+  });
+
+  const typeOrder = ['String', 'Hash', 'List', 'Set', 'Sorted Set', 'Stream', 'Other'];
+  const children = typeOrder
+    .filter((label) => grouped.has(label))
+    .map((label) => ({
+      key: `redis-db-${database}-${label.toLowerCase().replace(/\s+/g, '-')}`,
+      title: label,
+      type: 'group',
+      children: (grouped.get(label) || []).sort((a, b) =>
+        a.title.localeCompare(b.title),
+      ),
+    }));
+
+  return [{
+    key: `redis-db-${database}`,
+    title: `DB ${database}`,
+    type: 'database',
+    meta: { database: String(database) },
+    children,
+  }];
+};
+
 export const summarizeResult = (result?: API.WebDataExecuteResult) => {
   const rows = result?.rows?.length || 0;
   const columns = result?.columns?.length
@@ -67,23 +128,81 @@ export const mapMetadataTree = (
     title: renderNodeTitle(node),
     source: node,
     children: node.children ? mapMetadataTree(node.children) : undefined,
+    isLeaf: node.has_children
+      ? false
+      : node.children
+        ? node.children.length === 0
+        : true,
   }));
 
+export const replaceMetadataChildren = (
+  nodes: API.WebDataMetadataNode[],
+  key: string,
+  children: API.WebDataMetadataNode[],
+): API.WebDataMetadataNode[] =>
+  nodes.map((node) => {
+    if (node.key === key) {
+      return { ...node, children, has_children: children.length > 0 };
+    }
+    if (!node.children?.length) return node;
+    return {
+      ...node,
+      children: replaceMetadataChildren(node.children, key, children),
+    };
+  });
+
+export const buildMetadataChildParams = (
+  protocol: string,
+  node: API.WebDataMetadataNode,
+): API.WebDataMetadataParams | undefined => {
+  if (node.type !== 'table') return undefined;
+  if (protocol === 'mysql') {
+    return {
+      type: 'table',
+      database: node.meta?.database,
+      name: node.meta?.name || node.title,
+    };
+  }
+  if (protocol === 'postgresql') {
+    return {
+      type: 'table',
+      schema: node.meta?.schema,
+      name: node.meta?.name || node.title,
+    };
+  }
+  return undefined;
+};
+
 export const renderNodeTitle = (node: API.WebDataMetadataNode) => {
-  const icon =
-    node.type === 'table' || node.type === 'collection'
-      ? '▦'
-      : node.type === 'column'
-      ? '·'
-      : node.type === 'key'
-      ? '◆'
+  const redisGroupIcon = node.type === 'group'
+    ? ({
+        String: Type,
+        Hash: Braces,
+        List,
+        Set: Layers3,
+        'Sorted Set': Layers3,
+        Stream: Waves,
+      }[node.title])
+    : undefined;
+  const Icon = redisGroupIcon || (node.type === 'database'
+    ? Database
+    : node.type === 'table'
+      ? Table2
+      : node.type === 'collection'
+        ? Braces
+        : node.type === 'key'
+          ? KeyRound
+          : Columns3);
+  const distinctValue =
+    node.value && node.value.trim().toLowerCase() !== node.title.trim().toLowerCase()
+      ? node.value
       : '';
-  const label = `${icon ? `${icon} ` : ''}${node.title}${
-    node.value ? ` (${node.value})` : ''
+  const label = `${node.title}${
+    distinctValue ? ` (${distinctValue})` : ''
   }`;
   return (
     <Tooltip title={label}>
-      <span className="webdata-tree-title">{label}</span>
+      <span className="webdata-tree-title"><Icon size={13} />{label}</span>
     </Tooltip>
   );
 };

@@ -253,6 +253,7 @@ message Proxy {
     string effective_status = 10 [json_name = "effective_status"];
     string effective_status_message = 11 [json_name = "effective_status_message"];
     bool expose_public_port = 12 [json_name = "expose_public_port"];
+    string access_protocol = 13 [json_name = "access_protocol"];
 }
 
 message Proxies {
@@ -280,6 +281,7 @@ message CreateProxyRequest {
     int32 port = 3 [json_name = "port"];
     string description = 4 [json_name = "description"];
     bool expose_public_port = 5 [json_name = "expose_public_port"];
+    string access_protocol = 6 [json_name = "access_protocol"];
 }
 
 message CreateProxyResponse {
@@ -296,6 +298,7 @@ message UpdateProxyRequest {
     string status = 4 [json_name = "status"];
     string description = 5 [json_name = "description"];
     optional bool expose_public_port = 6 [json_name = "expose_public_port"];
+    string access_protocol = 7 [json_name = "access_protocol"];
 }
 
 message UpdateProxyResponse {
@@ -334,11 +337,17 @@ message CreateEdgeScanApplicationTaskRequest {
 message CreateEdgeScanApplicationTaskResponse {
     int32 code = 1 [json_name = "code"];
     string message = 2 [json_name = "message"];
+    EdgeScanApplicationTaskCreated data = 3 [json_name = "data"];
+}
+
+message EdgeScanApplicationTaskCreated {
+    uint64 task_id = 1 [json_name = "task_id"];
 }
 
 // 获取扫描应用任务
 message GetEdgeScanApplicationTaskRequest {
     uint64 edge_id = 1 [json_name = "edge_id"];
+    uint64 task_id = 2 [json_name = "task_id"];
 }
 
 message GetEdgeScanApplicationTaskResponse {
@@ -486,7 +495,6 @@ service LiaisonService {
             body: "*"
         };
     };
-
     // 健康检查
     rpc Health(HealthRequest) returns (HealthResponse) {
         option (google.api.http) = {

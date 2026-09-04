@@ -1,8 +1,8 @@
-import { createAPIToken } from '@/services/api';
+import { createAPIToken, getCurrentUser } from '@/services/api';
 import { APP_NAME } from '@/constants';
+import { Button, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
-import { history, useModel } from '@umijs/max';
-import { App, Button, Spin } from 'antd';
+import { history, useModel } from '@/lib/runtime';
 import { useEffect, useMemo, useState } from 'react';
 import './index.less';
 
@@ -45,11 +45,11 @@ function parseQuery(): CliParams | { error: string } {
 
 const CliAuthPage: React.FC = () => {
   const { tr } = useI18n();
-  const { message } = App.useApp();
   const { initialState, setInitialState } = useModel('@@initialState');
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'approved' | 'denied'>('idle');
   const [manualToken, setManualToken] = useState('');
+  const [submitError, setSubmitError] = useState('');
   // 'checking' until we verify auth state — without this the first render
   // after Login.history.push lands here while the model's setInitialState
   // from Login is still in flight, and we would bounce straight back to
@@ -73,7 +73,13 @@ const CliAuthPage: React.FC = () => {
       // localStorage.token synchronously before history.push, so by the time
       // we mount the token is present.
       const fetchFn = initialState?.fetchUserInfo;
-      const user = fetchFn ? await fetchFn() : undefined;
+      const user = fetchFn
+        ? await fetchFn()
+        : localStorage.getItem('token')
+          ? await getCurrentUser().then((response) =>
+              response.code === 200 ? response.data : undefined,
+            )
+          : undefined;
       if (cancelled) return;
 
       if (user) {
@@ -133,9 +139,9 @@ const CliAuthPage: React.FC = () => {
         }, 600);
         return;
       }
-      message.error(res.message || tr('创建 token 失败', 'Failed to create token'));
+      setSubmitError(res.message || tr('创建 token 失败', 'Failed to create token'));
     } catch (err: any) {
-      message.error(err?.message || tr('创建 token 失败', 'Failed to create token'));
+      setSubmitError(err?.message || tr('创建 token 失败', 'Failed to create token'));
     } finally {
       setSubmitting(false);
     }
@@ -154,7 +160,7 @@ const CliAuthPage: React.FC = () => {
   if (authState !== 'authed' || !initialState?.currentUser) {
     return (
       <div className="cli-auth-container">
-        <Spin />
+        <span className="cli-auth-spinner" />
       </div>
     );
   }
@@ -175,10 +181,8 @@ const CliAuthPage: React.FC = () => {
                 <div className="cli-auth-token-display">
                   <code className="cli-auth-token-value">{manualToken}</code>
                   <Button
-                    size="small"
                     onClick={() => {
                       navigator.clipboard.writeText(manualToken);
-                      message.success(tr('已复制', 'Copied'));
                     }}
                   >
                     {tr('复制', 'Copy')}
@@ -231,6 +235,7 @@ const CliAuthPage: React.FC = () => {
             'Create a long-lived access token for the CLI. You can revoke it any time in Settings.',
           )}
         </p>
+        {submitError ? <Notice tone="danger">{submitError}</Notice> : null}
 
         <dl className="cli-auth-meta">
           <div>
@@ -250,14 +255,13 @@ const CliAuthPage: React.FC = () => {
         </dl>
 
         <div className="cli-auth-actions">
-          <Button size="large" onClick={handleDeny}>
+          <Button onClick={handleDeny}>
             {tr('取消', 'Cancel')}
           </Button>
           <Button
-            size="large"
-            type="primary"
+            variant="primary"
             onClick={handleApprove}
-            loading={submitting}
+            disabled={submitting}
             className="cli-auth-primary-btn"
           >
             {tr('授权登录', 'Authorize')}

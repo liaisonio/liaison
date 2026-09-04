@@ -1,9 +1,9 @@
 import {
-  DatabaseOutlined,
-  FileTextOutlined,
-  KeyOutlined,
-  TableOutlined,
-} from '@ant-design/icons';
+  Database as DatabaseOutlined,
+  FileText as FileTextOutlined,
+  KeyRound as KeyOutlined,
+  Table2 as TableOutlined,
+} from 'lucide-react';
 import { quoteRedisArg } from './objectCommands';
 import { isSQLProtocol } from './protocol';
 import type {
@@ -535,7 +535,9 @@ export const renderStatementHighlight = (
 export const getStatementTextArea = (
   ref: any,
 ): HTMLTextAreaElement | undefined =>
-  ref?.resizableTextArea?.textArea || ref?.textArea || ref?.nativeElement;
+  ref instanceof HTMLTextAreaElement
+    ? ref
+    : ref?.resizableTextArea?.textArea || ref?.textArea || ref?.nativeElement;
 
 export const getTextareaCompletionPosition = (
   textarea: HTMLTextAreaElement,

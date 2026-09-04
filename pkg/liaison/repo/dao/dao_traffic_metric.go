@@ -18,9 +18,13 @@ func (d *dao) ListTrafficMetrics(query *ListTrafficMetricsQuery) ([]*model.Traff
 
 	if len(query.ApplicationIDs) > 0 {
 		db = db.Where("application_id IN ?", query.ApplicationIDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	if len(query.ProxyIDs) > 0 {
 		db = db.Where("proxy_id IN ?", query.ProxyIDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	if query.StartTime != nil {
 		db = db.Where("timestamp >= ?", *query.StartTime)

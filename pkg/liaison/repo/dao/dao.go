@@ -98,6 +98,41 @@ type Dao interface {
 	DeleteUser(id uint) error
 	CheckUserExists(email string) (bool, error)
 
+	// Organization / membership related methods.
+	CreateOrganization(organization *model.Organization) error
+	GetOrganizationByID(id uint) (*model.Organization, error)
+	GetOrganizationByName(name string) (*model.Organization, error)
+	ListOrganizations() ([]*model.Organization, error)
+	UpdateOrganization(organization *model.Organization) error
+	DeleteOrganization(id uint) error
+	CountOrganizationChildren(id uint) (int64, error)
+	UpsertOrganizationMembership(membership *model.OrganizationMembership) error
+	GetOrganizationMembership(organizationID, userID uint) (*model.OrganizationMembership, error)
+	ListOrganizationMembers(organizationID uint) ([]*model.OrganizationMembership, error)
+	ListUserOrganizations(userID uint) ([]*model.OrganizationMembership, error)
+	DeleteOrganizationMembership(organizationID, userID uint) error
+	DeleteOrganizationMembershipsByOrganization(organizationID uint) error
+	DeleteOrganizationMembershipsByUser(userID uint) error
+	GetRootOrganization() (*model.Organization, error)
+	UpsertIAMRole(role *model.IAMRole) error
+	GetIAMRoleByCode(code model.IAMRoleCode) (*model.IAMRole, error)
+	ListIAMRoles() ([]*model.IAMRole, error)
+	UpsertIAMPermission(permission *model.IAMPermission) error
+	GetIAMPermissionByCode(code string) (*model.IAMPermission, error)
+	ListIAMPermissionsByRole(roleID uint) ([]*model.IAMPermission, error)
+	UpsertIAMRolePermission(rolePermission *model.IAMRolePermission) error
+	UpsertIAMRoleBinding(binding *model.IAMRoleBinding) error
+	GetIAMRoleBinding(organizationID, userID uint) (*model.IAMRoleBinding, error)
+	ListIAMRoleBindings() ([]*model.IAMRoleBinding, error)
+	ListIAMRoleBindingsByUser(userID uint) ([]*model.IAMRoleBinding, error)
+	DeleteIAMRoleBinding(organizationID, userID uint) error
+	DeleteIAMRoleBindingsByOrganization(organizationID uint) error
+	DeleteIAMRoleBindingsByUser(userID uint) error
+	UpsertIAMResourceRelation(relation *model.IAMResourceRelation) error
+	ListIAMResourceRelations(resourceType string, resourceID uint64) ([]*model.IAMResourceRelation, error)
+	ListIAMResourceIDsForSubject(resourceType string, subjectType model.IAMSubjectType, subjectID uint) ([]uint64, error)
+	DeleteIAMResourceRelations(resourceType string, resourceID uint64) error
+
 	// TrafficMetric 相关方法
 	CreateTrafficMetric(metric *model.TrafficMetric) error
 	ListTrafficMetrics(query *ListTrafficMetricsQuery) ([]*model.TrafficMetric, error)
@@ -153,6 +188,11 @@ type Dao interface {
 	CreateWebDataAudit(audit *model.WebDataAudit) error
 	ListWebDataAudits(query *ListWebDataAuditsQuery) ([]*model.WebDataAudit, error)
 	CountWebDataAudits(query *ListWebDataAuditsQuery) (int64, error)
+
+	// ManagementAudit 相关方法
+	CreateManagementAudit(audit *model.ManagementAudit) error
+	ListManagementAudits(query *ListManagementAuditsQuery) ([]*model.ManagementAudit, error)
+	CountManagementAudits(query *ListManagementAuditsQuery) (int64, error)
 
 	// 资源清理
 	Close() error
@@ -211,6 +251,13 @@ func (d *dao) initDB() error {
 		&model.Proxy{},
 		&model.Task{},
 		&model.User{},
+		&model.Organization{},
+		&model.OrganizationMembership{},
+		&model.IAMRole{},
+		&model.IAMPermission{},
+		&model.IAMRolePermission{},
+		&model.IAMRoleBinding{},
+		&model.IAMResourceRelation{},
 		&model.TrafficMetric{},
 		&model.UserAPIToken{},
 		&model.ProxyFirewallRule{},
@@ -219,10 +266,43 @@ func (d *dao) initDB() error {
 		&model.WebDesktopCredential{},
 		&model.WebDataCredential{},
 		&model.WebDataAudit{},
+		&model.ManagementAudit{},
 	); err != nil {
 		return err
 	}
+	if err := d.backfillProxyAccessProtocols(); err != nil {
+		return err
+	}
+	if err := d.backfillWebSSHAuditProtocols(); err != nil {
+		return err
+	}
 	return d.migrateWebSSHCredentials()
+}
+
+func (d *dao) backfillProxyAccessProtocols() error {
+	return d.db.Exec(`
+		UPDATE proxies
+		SET access_protocol = CASE
+			WHEN application_id IN (SELECT id FROM applications WHERE application_type = 'http') THEN 'http'
+			WHEN port = 0 AND application_id IN (SELECT id FROM applications WHERE application_type = 'ssh') THEN 'webssh'
+			WHEN port = 0 THEN 'web'
+			ELSE 'tcp'
+		END
+		WHERE access_protocol IS NULL OR access_protocol = ''
+	`).Error
+}
+
+func (d *dao) backfillWebSSHAuditProtocols() error {
+	// Browser WebSSH audits were historically stored as "ssh". Only migrate
+	// rows carrying the WebSSH-only client_ip_source marker so native SSH
+	// history is never reclassified by guesswork. The update is idempotent.
+	return d.db.Exec(`
+		UPDATE access_audits
+		SET protocol = 'webssh'
+		WHERE protocol = 'ssh'
+		  AND user_id > 0
+		  AND details LIKE '%"client_ip_source"%'
+	`).Error
 }
 
 func (d *dao) resetAccessAuditSchema() error {

@@ -11,33 +11,50 @@ import (
 	"time"
 
 	"github.com/jumboframes/armorigo/log"
+	"github.com/liaisonio/liaison/pkg/proto"
+	"github.com/liaisonio/liaison/pkg/utils"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
-	"github.com/liaisonio/liaison/pkg/proto"
-	"github.com/liaisonio/liaison/pkg/utils"
 )
 
 func (r *reporter) loopReportDevice(ctx context.Context) {
-	for {
+	repeatDeviceReport(ctx, 5*time.Second, time.Hour, func() error {
 		device, err := getDevice()
 		if err != nil {
-			log.Errorf("get device error: %v", err)
-			// 失败后等待 5 分钟再重试
-			time.Sleep(5 * time.Minute)
-			continue
+			return fmt.Errorf("get device: %w", err)
 		}
 		device.EdgeID, _ = r.frontierBound.EdgeID()
-		err = r.reportDevice(ctx, device)
-		if err != nil {
-			log.Errorf("report device error: %v", err)
-			// 失败后等待 5 分钟再重试
-			time.Sleep(5 * time.Minute)
-			continue
+		if err := r.reportDevice(ctx, device); err != nil {
+			return fmt.Errorf("report device: %w", err)
 		}
-		// 成功后等待 1 小时
-		time.Sleep(time.Hour)
+		return nil
+	})
+}
+
+// repeatDeviceReport retries the initial inventory report quickly. The edge RPC
+// transport connects asynchronously, so the first call can race with frontier
+// registration. A long retry here leaves an online connector without its host
+// device relation and makes application scanning unavailable in the meantime.
+func repeatDeviceReport(ctx context.Context, retryInterval, reportInterval time.Duration, report func() error) {
+	for {
+		err := report()
+		interval := reportInterval
+		if err != nil {
+			log.Errorf("report device inventory error: %v", err)
+			interval = retryInterval
+		}
+
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return
+		case <-timer.C:
+		}
 	}
 }
 

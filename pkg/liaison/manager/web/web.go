@@ -83,8 +83,11 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	authMiddleware := iam.AuthMiddleware(web.iamService)
 
 	opts := []kratoshttp.ServerOption{
-		kratoshttp.Middleware(recovery.Recovery()),
-		kratoshttp.Middleware(authMiddleware),
+		kratoshttp.Middleware(
+			recovery.Recovery(),
+			authMiddleware,
+			managementAuditMiddleware(controlPlane),
+		),
 		kratoshttp.Listener(ln),
 	}
 	srv := kratoshttp.NewServer(opts...)
@@ -93,6 +96,16 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	// PAT 管理
 	srv.HandleFunc("/api/v1/iam/tokens", web.handleTokensHTTP)
 	srv.HandleFunc("/api/v1/iam/tokens/{id}", web.handleTokenByIDHTTP)
+	srv.HandleFunc("/api/v1/iam/account", web.handleAccountHTTP)
+	// Users and organization hierarchy. Membership rows are the business
+	// source of truth; resource authorization is wired separately.
+	srv.HandleFunc("/api/v1/iam/users", web.handleUsersHTTP)
+	srv.HandleFunc("/api/v1/iam/users/{id}", web.handleUserHTTP)
+	srv.HandleFunc("/api/v1/iam/users/{id}/password", web.handleUserPasswordHTTP)
+	srv.HandleFunc("/api/v1/iam/organizations", web.handleOrganizationsHTTP)
+	srv.HandleFunc("/api/v1/iam/organizations/{id}", web.handleOrganizationHTTP)
+	srv.HandleFunc("/api/v1/iam/organizations/{id}/members", web.handleOrganizationMembersHTTP)
+	srv.HandleFunc("/api/v1/iam/organizations/{id}/members/{user_id}", web.handleOrganizationMemberHTTP)
 
 	// 公开：返回调用方的出口 IP（用于前端防火墙面板的「我的 IP」一键加白）
 	srv.HandleFunc("/api/v1/iam/client_ip", web.handleClientIP)
@@ -127,6 +140,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	// Audit
 	srv.HandleFunc("/api/v1/audits/access", web.handleAccessAuditListHTTP)
 	srv.HandleFunc("/api/v1/audits/webdata", web.handleWebDataAuditListHTTP)
+	srv.HandleFunc("/api/v1/audits/management", web.handleManagementAuditListHTTP)
 
 	// 文件服务
 	if err := web.serveFiles(conf, srv); err != nil {

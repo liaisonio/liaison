@@ -1,984 +1,253 @@
-import { CreateButton, DeleteLink } from '@/components/TableButtons';
+import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, Notice, Pager, Select, StatusPill } from '@/components/ui';
+import { accessProtocolForType, accessTypesForApplication, isWebAccessType, type AccessType } from '@/constants/accessTypes';
+import { APPLICATION_TYPES } from '@/constants/applicationTypes';
 import { useI18n } from '@/i18n';
-import {
-  createApplication,
-  createEdge,
-  createEdgeScanTask,
-  deleteEdge,
-  getDeviceList,
-  getEdgeList,
-  getEdgeScanTask,
-  updateEdge,
-} from '@/services/api';
-import { copyToClipboard } from '@/utils/format';
-import { executeAction, tableRequest } from '@/utils/request';
-import {
-  buildSearchParams,
-  defaultPagination,
-  defaultSearch,
-} from '@/utils/tableConfig';
-import {
-  CheckCircleOutlined,
-  CopyOutlined,
-  LoadingOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
-import {
-  ActionType,
-  ModalForm,
-  PageContainer,
-  ProColumns,
-  ProFormText,
-  ProFormTextArea,
-  ProTable,
-  StepsForm,
-} from '@ant-design/pro-components';
-import { history } from '@umijs/max';
-import {
-  Alert,
-  App,
-  Badge,
-  Button,
-  Drawer,
-  List,
-  Modal,
-  Result,
-  Select,
-  Space,
-  Spin,
-  Switch,
-  Tabs,
-  Tag,
-  Tooltip,
-  Typography,
-} from 'antd';
-import { useRef, useState } from 'react';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { history } from '@/lib/runtime';
+import { createApplication, createEdge, createEdgeScanTask, createProxy, deleteEdge, getEdgeList, getEdgeScanTask, updateEdge } from '@/services/api';
+import { Check, Copy, Plus, Radar, Server } from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const { Text, Paragraph } = Typography;
+const pageSize = 10;
+const scanPollInterval = 500;
+const scanPollLimit = 120;
+const portTypes: Record<number, string> = { 22: 'ssh', 80: 'http', 443: 'http', 3389: 'rdp', 5900: 'vnc', 3306: 'mysql', 5432: 'postgresql', 6379: 'redis', 27017: 'mongodb' };
+
+const defaultConnectorName = () => {
+  const bytes = new Uint8Array(4);
+  window.crypto.getRandomValues(bytes);
+  return `Connector-${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`;
+};
+
+const defaultAccessName = () => {
+  const bytes = new Uint8Array(4);
+  window.crypto.getRandomValues(bytes);
+  return `Access-${Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')}`;
+};
 
 const ConnectorPage: React.FC = () => {
   const { tr } = useI18n();
-  const { message } = App.useApp();
-  const actionRef = useRef<ActionType>();
-  const formRef = useRef<any>();
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [discoverDrawerVisible, setDiscoverDrawerVisible] = useState(false);
-  const [currentRow, setCurrentRow] = useState<API.Edge>();
-  const [accessKeys, setAccessKeys] = useState<API.EdgeCreateResult>();
+  const [rows, setRows] = useState<API.Edge[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({ name: '', device_name: '', online: '', status: '' });
+  const debouncedName = useDebouncedValue(filters.name);
+  const debouncedDeviceName = useDebouncedValue(filters.device_name);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [suggestedConnectorName, setSuggestedConnectorName] = useState(defaultConnectorName);
+  const [createDescription, setCreateDescription] = useState('');
+  const [keys, setKeys] = useState<API.EdgeCreateResult>();
+  const [createError, setCreateError] = useState('');
+  const [installOS, setInstallOS] = useState<'other' | 'windows'>('other');
+  const [installCopied, setInstallCopied] = useState(false);
+  const [editRow, setEditRow] = useState<API.Edge>();
+  const [deleteRow, setDeleteRow] = useState<API.Edge>();
+  const [saving, setSaving] = useState(false);
+  const [togglingIds, setTogglingIds] = useState<number[]>([]);
+  const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
+  const [scanRow, setScanRow] = useState<API.Edge>();
   const [scanTask, setScanTask] = useState<API.EdgeScanApplicationTask>();
   const [scanning, setScanning] = useState(false);
-  const [deviceOptions, setDeviceOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
-  const [installOS, setInstallOS] = useState<'windows' | 'other'>('other');
+  const scanBusyRef = useRef(false);
+  const scanRequestRef = useRef(0);
+  const [discovered, setDiscovered] = useState<string>();
+  const [discoveredForm, setDiscoveredForm] = useState({ name: '', application_type: 'tcp' });
+  const [scanAccessApplication, setScanAccessApplication] = useState<API.Application>();
+  const [scanAccessName, setScanAccessName] = useState('');
+  const [suggestedScanAccessName, setSuggestedScanAccessName] = useState(defaultAccessName);
+  const [scanAccessType, setScanAccessType] = useState<AccessType>('tcp');
+  const [scanPublicPort, setScanPublicPort] = useState('');
 
-  const reload = () => actionRef.current?.reload();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { const response = await getEdgeList({ page: 1, page_size: 1000 }); if (response.code !== 200) throw new Error(response.message); setRows(response.data?.edges || []); }
+    catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('加载连接器失败', 'Failed to load connectors') }); }
+    finally { setLoading(false); }
+  }, [tr]);
+  useEffect(() => { void load(); }, [load]);
 
-  // 加载设备列表
-  const loadDeviceOptions = async () => {
-    if (deviceOptions.length > 0) return; // 已加载过，不再重复加载
-    try {
-      const res = await getDeviceList({ page_size: 100 });
-      const options = (res.data?.devices || []).map((device: API.Device) => ({
-        label: device.name,
-        value: device.name,
-      }));
-      setDeviceOptions(options);
-    } catch {
-      // 忽略错误
-    }
-  };
-
-  const handleOpenCreateModal = () => {
-    setCreateModalVisible(true);
-    setAccessKeys(undefined);
-  };
-
-  const handleDelete = async (id: number) => {
-    await executeAction(() => deleteEdge(id), {
-      successMessage: tr('删除成功', 'Deleted successfully'),
-      errorMessage: tr('删除失败', 'Delete failed'),
-      onSuccess: reload,
+  const filteredRows = useMemo(() => {
+    const name = debouncedName.trim().toLowerCase();
+    const device = debouncedDeviceName.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (name && !row.name.toLowerCase().includes(name)) return false;
+      if (device && !(row.device?.name || '').toLowerCase().includes(device)) return false;
+      if (filters.online && String(row.online) !== filters.online) return false;
+      if (filters.status && String(row.status) !== filters.status) return false;
+      return true;
     });
-  };
+  }, [debouncedDeviceName, debouncedName, filters.online, filters.status, rows]);
+  const visibleRows = useMemo(() => filteredRows.slice((page - 1) * pageSize, page * pageSize), [filteredRows, page]);
 
-  const handleEdit = async (values: any) => {
-    if (!currentRow?.id) return false;
-    return executeAction(
-      () =>
-        updateEdge(currentRow.id, {
-          name: values.name,
-          description: values.description,
-        }),
-      {
-        successMessage: tr('更新成功', 'Updated successfully'),
-        errorMessage: tr('更新失败', 'Update failed'),
-        onSuccess: () => {
-          setEditModalVisible(false);
-          reload();
-        },
-      },
-    );
-  };
-
-  const handleRuntimeToggle = async (record: API.Edge, checked: boolean) => {
-    await executeAction(
-      () => updateEdge(record.id, { status: checked ? 1 : 2 }),
-      {
-        successMessage: checked
-          ? tr('连接器已启用', 'Edge enabled')
-          : tr('连接器已禁用', 'Edge disabled'),
-        errorMessage: tr('操作失败', 'Operation failed'),
-        onSuccess: reload,
-      },
-    );
-  };
-
-  const getScanDisabledReason = (edge?: API.Edge) => {
-    if (!edge) return '';
-    if (edge.status !== 1) {
-      return tr(
-        '连接器已禁用，无法扫描应用',
-        'Edge is disabled, cannot scan applications',
-      );
-    }
-    if (edge.online !== 1) {
-      return tr(
-        '连接器不在线，无法扫描应用',
-        'Edge is offline, cannot scan applications',
-      );
-    }
-    return '';
-  };
-
-  const handleDiscoverApps = async (edge: API.Edge) => {
-    const disabledReason = getScanDisabledReason(edge);
-    if (disabledReason) {
-      message.warning(disabledReason);
-      return;
-    }
-
-    setCurrentRow(edge);
-    setDiscoverDrawerVisible(true);
-    setScanning(true);
-    setScanTask(undefined);
-
+  const createConnector = async (name: string) => {
+    setSaving(true); setCreateError('');
     try {
-      // 先查找是否有已存在的任务
-      const existingRes = await getEdgeScanTask(edge.id);
-      if (existingRes.code === 200 && existingRes.data) {
-        const task = existingRes.data;
-        // 如果有 Pending 或 Running 任务，直接展示
-        if (task.task_status === 'pending' || task.task_status === 'running') {
-          setScanTask(task);
-          setScanning(false);
-          return;
-        }
-        // 如果有 Completed 或 Failed 任务，直接展示（用户可以选择重新扫描）
-        if (task.task_status === 'completed' || task.task_status === 'failed') {
-          setScanTask(task);
-          setScanning(false);
+      const resolvedName = name.trim() || suggestedConnectorName;
+      setCreateName(resolvedName);
+      const response = await createEdge({ name: resolvedName, description: '' });
+      if (response.code !== 200 || !response.data) throw new Error(response.message);
+      setKeys(response.data); await load();
+    }
+    catch (error: any) { setCreateError(error?.message || tr('创建失败，请重试', 'Creation failed. Try again.')); } finally { setSaving(false); }
+  };
+  const openCreate = () => {
+    setSuggestedConnectorName(defaultConnectorName()); setCreateName(''); setKeys(undefined); setInstallOS('other'); setInstallCopied(false); setCreateError(''); setCreateOpen(true);
+  };
+  const closeCreate = () => { if (saving) return; setCreateOpen(false); setCreateName(''); setCreateDescription(''); setKeys(undefined); setInstallOS('other'); setInstallCopied(false); setCreateError(''); };
+  const update = async (event: FormEvent) => { event.preventDefault(); if (!editRow || !createName.trim()) return; setSaving(true); try { const response = await updateEdge(editRow.id, { name: createName.trim(), description: createDescription }); if (response.code !== 200) throw new Error(response.message); setEditRow(undefined); setNotice({ tone: 'success', text: tr('连接器已更新', 'Connector updated') }); await load(); } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('更新失败', 'Update failed') }); } finally { setSaving(false); } };
+  const toggle = async (row: API.Edge) => {
+    if (togglingIds.includes(row.id)) return;
+    const nextStatus = row.status === 1 ? 2 : 1;
+    setTogglingIds((ids) => [...ids, row.id]);
+    setRows((items) => items.map((item) => item.id === row.id ? { ...item, status: nextStatus } : item));
+    try {
+      const response = await updateEdge(row.id, { status: nextStatus });
+      if (response.code !== 200) throw new Error(response.message);
+      if (response.data) setRows((items) => items.map((item) => item.id === row.id ? { ...item, ...response.data } : item));
+    } catch (error: any) {
+      setRows((items) => items.map((item) => item.id === row.id ? row : item));
+      setNotice({ tone: 'danger', text: error?.message || tr('操作失败', 'Operation failed') });
+    } finally {
+      setTogglingIds((ids) => ids.filter((id) => id !== row.id));
+    }
+  };
+  const remove = async () => { if (!deleteRow) return; try { const response = await deleteEdge(deleteRow.id); if (response.code !== 200) throw new Error(response.message); setDeleteRow(undefined); setNotice({ tone: 'success', text: tr('连接器已删除', 'Connector deleted') }); await load(); } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('删除失败', 'Delete failed') }); } };
+
+  const waitForScan = async (edgeId: number, taskId: number, requestId: number) => {
+    for (let attempt = 0; attempt < scanPollLimit; attempt += 1) {
+      const response = await getEdgeScanTask(edgeId, taskId);
+      if (scanRequestRef.current !== requestId) return;
+      if (response.code !== 200) throw new Error(response.message);
+      if (response.data) {
+        setScanTask(response.data);
+        if (response.data.task_status === 'completed' || response.data.task_status === 'failed') return;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, scanPollInterval));
+    }
+    throw new Error(tr('扫描超时，请稍后重试', 'Scan timed out. Try again later.'));
+  };
+
+  const refreshScan = async (edge: API.Edge, force = false) => {
+    if (edge.status !== 1 || edge.online !== 1) { setNotice({ tone: 'danger', text: tr('连接器需处于启用且在线状态', 'Connector must be enabled and online') }); return; }
+    if (scanBusyRef.current) return;
+    scanBusyRef.current = true;
+    const requestId = scanRequestRef.current + 1;
+    scanRequestRef.current = requestId;
+    if (scanRow?.id !== edge.id) setScanTask(undefined);
+    setScanRow(edge); setScanning(true);
+    try {
+      if (!force) {
+        const existing = await getEdgeScanTask(edge.id);
+        if (existing.code !== 200) throw new Error(existing.message);
+        if (existing.data) {
+          setScanTask(existing.data);
+          if (existing.data.task_status === 'completed' || existing.data.task_status === 'failed') return;
+          await waitForScan(edge.id, existing.data.id, requestId);
           return;
         }
       }
-
-      // 没有任务或任务状态允许创建新任务，则创建新的扫描任务
-      const createRes = await createEdgeScanTask({
-        edge_id: edge.id,
-        protocol: 'tcp',
-      });
-      if (createRes.code !== 200) {
-        message.error(
-          createRes.message ||
-            tr('创建扫描任务失败', 'Failed to create scan task'),
-        );
+      const created = await createEdgeScanTask({ edge_id: edge.id, protocol: 'tcp' });
+      if (created.code !== 200 || !created.data?.task_id) throw new Error(created.message || tr('创建扫描任务失败', 'Failed to create scan task'));
+      await waitForScan(edge.id, created.data.task_id, requestId);
+    } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('扫描失败', 'Scan failed') }); }
+    finally {
+      if (scanRequestRef.current === requestId) {
         setScanning(false);
-        return;
+        scanBusyRef.current = false;
       }
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, 1000);
-      });
-      const res = await getEdgeScanTask(edge.id);
-      if (res.code === 200 && res.data) {
-        setScanTask(res.data);
-      }
-    } catch (error: any) {
-      message.error(error?.message || tr('扫描失败', 'Scan failed'));
-    } finally {
-      setScanning(false);
     }
   };
 
-  // 重新扫描应用（强制创建新任务）
-  const handleRescan = async () => {
-    if (!currentRow?.id) return;
-    const disabledReason = getScanDisabledReason(currentRow);
-    if (disabledReason) {
-      message.warning(disabledReason);
-      return;
-    }
-    setScanning(true);
+  const closeScan = () => {
+    scanRequestRef.current += 1;
+    scanBusyRef.current = false;
+    setScanning(false);
+    setScanRow(undefined);
     setScanTask(undefined);
+  };
 
+  const parsedDiscovery = useMemo(() => {
+    if (!discovered) return undefined; const [ip, portRaw] = discovered.split(':'); const port = Number(portRaw); return { ip, port };
+  }, [discovered]);
+  const scanStatusLabel = scanning
+    ? tr('扫描中', 'Scanning')
+    : scanTask?.task_status === 'completed'
+      ? tr('扫描完成', 'Completed')
+      : scanTask?.task_status === 'failed'
+        ? tr('扫描失败', 'Failed')
+        : tr('尚未扫描', 'Not scanned');
+  const addDiscovered = async (createAccess: boolean) => {
+    if (!scanRow || !parsedDiscovery) return; setSaving(true);
+    try { const response = await createApplication({ name: discoveredForm.name.trim(), application_type: discoveredForm.application_type, ip: parsedDiscovery.ip, port: parsedDiscovery.port, edge_id: scanRow.id }); if (response.code !== 200 || !response.data) throw new Error(response.message); setScanTask((task) => task ? { ...task, applications: task.applications.filter((item) => item !== discovered) } : task); setDiscovered(undefined); if (createAccess) { const options = accessTypesForApplication(discoveredForm.application_type); setScanAccessApplication(response.data); setScanAccessName(''); setSuggestedScanAccessName(defaultAccessName()); setScanAccessType(options[0].value); setScanPublicPort(''); } else setNotice({ tone: 'success', text: tr('应用已添加', 'Application added') }); }
+    catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('添加应用失败', 'Failed to add application') }); } finally { setSaving(false); }
+  };
+
+  const createScannedAccess = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!scanAccessApplication) return;
+    const expose = !isWebAccessType(scanAccessType);
+    setSaving(true);
     try {
-      const createRes = await createEdgeScanTask({
-        edge_id: currentRow.id,
-        protocol: 'tcp',
-      });
-      if (createRes.code !== 200) {
-        message.error(
-          createRes.message ||
-            tr('创建扫描任务失败', 'Failed to create scan task'),
-        );
-        setScanning(false);
-        return;
-      }
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, 1000);
-      });
-      const res = await getEdgeScanTask(currentRow.id);
-      if (res.code === 200 && res.data) {
-        setScanTask(res.data);
-      }
-    } catch (error: any) {
-      message.error(error?.message || tr('扫描失败', 'Scan failed'));
-    } finally {
-      setScanning(false);
-    }
+      const response = await createProxy({ name: scanAccessName.trim() || suggestedScanAccessName, application_id: scanAccessApplication.id, access_protocol: accessProtocolForType(scanAccessType), expose_public_port: expose, port: expose && scanPublicPort ? Number(scanPublicPort) : undefined });
+      if (response.code !== 200) throw new Error(response.message);
+      setScanAccessApplication(undefined);
+      history.push(`/proxy?access_type=${scanAccessType}`);
+    } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('创建访问失败', 'Failed to create access') }); }
+    finally { setSaving(false); }
   };
 
-  const handleRefreshScan = async () => {
-    if (!currentRow?.id) return;
-    setScanning(true);
-    try {
-      const res = await getEdgeScanTask(currentRow.id);
-      if (res.code === 200 && res.data) {
-        setScanTask(res.data);
-      }
-    } catch {
-      message.error(tr('获取扫描结果失败', 'Failed to get scan result'));
-    } finally {
-      setScanning(false);
-    }
+  const closeScannedAccess = () => {
+    setScanAccessApplication(undefined);
+    setNotice({ tone: 'success', text: tr('应用已添加，可稍后创建访问', 'Application added. You can create access later.') });
   };
 
-  const handleAddDiscoveredApp = async (appStr: string) => {
-    if (!currentRow?.id) return;
-    // 解析应用字符串，格式是 "ip:port:type"
-    const parts = appStr.split(':');
-    const ip = parts[0];
-    const port = parseInt(parts[1], 10);
-    // 如果后端已经提供了类型，使用后端的类型；否则根据端口推断
-    const appType =
-      parts[2] ||
-      (() => {
-        const portToType: Record<number, string> = {
-          22: 'ssh',
-          80: 'http',
-          443: 'http',
-          3389: 'rdp',
-          5900: 'vnc',
-          3306: 'mysql',
-          5432: 'postgresql',
-          6379: 'redis',
-          27017: 'mongodb',
-        };
-        return portToType[port] || 'tcp';
-      })();
-
-    // 显示确认对话框
-    const handleAddOnly = async () => {
-      // 只添加应用
-      await executeAction(
-        () =>
-          createApplication({
-            name: `App-${ip}:${port}`,
-            application_type: appType,
-            ip,
-            port,
-            edge_id: currentRow.id,
-          }),
-        {
-          successMessage: tr('添加应用成功', 'Application added'),
-          errorMessage: tr('添加应用失败', 'Failed to add application'),
-          onSuccess: () => {
-            if (scanTask) {
-              setScanTask({
-                ...scanTask,
-                applications: scanTask.applications.filter((a) => a !== appStr),
-              });
-            }
-          },
-        },
-      );
-    };
-
-    const modalInstance = Modal.confirm({
-      title: tr('添加应用', 'Add Application'),
-      content: (
-        <div>
-          <div style={{ marginBottom: 8 }}>
-            {tr('确定要添加应用', 'Add application')}{' '}
-            <strong>
-              {ip}:{port}
-            </strong>{' '}
-            {tr(
-              '吗？是否同时创建访问？',
-              'and create an entry at the same time?',
-            )}
-          </div>
-        </div>
-      ),
-      width: 450,
-      centered: true,
-      closable: true,
-      maskClosable: false, // 禁止点击遮罩层关闭
-      okText: tr('添加并设置访问', 'Add and Create Entry'),
-      cancelText: tr('只添加应用', 'Add Only'),
-      okButtonProps: { style: { marginRight: 80 } },
-      footer: (_, { OkBtn }) => (
-        <>
-          <Button
-            onClick={async () => {
-              modalInstance.destroy();
-              await handleAddOnly();
-            }}
-          >
-            {tr('只添加应用', 'Add Only')}
-          </Button>
-          <OkBtn />
-        </>
-      ),
-      onOk: async () => {
-        // 添加应用并跳转到访问页面
-        const result = await executeAction(
-          () =>
-            createApplication({
-              name: `App-${ip}:${port}`,
-              application_type: appType,
-              ip,
-              port,
-              edge_id: currentRow.id,
-            }),
-          {
-            successMessage: tr('添加应用成功', 'Application added'),
-            errorMessage: tr('添加应用失败', 'Failed to add application'),
-            onSuccess: (data?: API.Application) => {
-              if (scanTask) {
-                setScanTask({
-                  ...scanTask,
-                  applications: scanTask.applications.filter(
-                    (a) => a !== appStr,
-                  ),
-                });
-              }
-              // 跳转到访问页面，传递应用ID、名称和autoCreate参数
-              if (data?.id) {
-                const appName = encodeURIComponent(
-                  data.name || `App-${ip}:${port}`,
-                );
-                history.push(
-                  `/proxy?application_id=${data.id}&application_name=${appName}&autoCreate=true`,
-                );
-              } else {
-                history.push('/proxy?autoCreate=true');
-              }
-            },
-          },
-        );
-        return result;
-      },
-      onCancel: () => {
-        // 点击关闭按钮时，不执行任何操作，只关闭对话框
-        // 不做任何处理
-      },
-    });
+  const openDiscovered = (application: string) => {
+    const [ip, portRaw, provided] = application.split(':');
+    const port = Number(portRaw);
+    setDiscoveredForm({ name: `App-${ip}:${port}`, application_type: provided || portTypes[port] || 'tcp' });
+    setDiscovered(application);
   };
 
-  const columns: ProColumns<API.Edge>[] = [
-    {
-      title: tr('连接器名称', 'Edge Name'),
-      dataIndex: 'name',
-      ellipsis: true,
-      width: 150,
-      fieldProps: {
-        placeholder: tr('请输入连接器名称', 'Please input edge name'),
-      },
-    },
-    {
-      title: tr('所在设备', 'Device'),
-      dataIndex: 'device_name',
-      ellipsis: true,
-      width: 150,
-      render: (_, record) => record.device?.name || '-',
-      renderFormItem: () => {
-        return (
-          <Select
-            placeholder={tr('请选择设备', 'Please select device')}
-            showSearch
-            allowClear
-            options={deviceOptions}
-            filterOption={(
-              input: string,
-              option?: { label: string; value: string },
-            ) =>
-              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-            }
-            onFocus={loadDeviceOptions}
-            onChange={(val) => {
-              // 使用 formRef 获取表单实例并设置值
-              if (formRef.current) {
-                formRef.current.setFieldsValue({ device_name: val });
-                // 触发表单提交
-                formRef.current.submit();
-              }
-            }}
-          />
-        );
-      },
-    },
-    {
-      title: tr('描述', 'Description'),
-      dataIndex: 'description',
-      ellipsis: true,
-      search: false,
-      width: 200,
-    },
-    {
-      title: tr('在线状态', 'Online Status'),
-      dataIndex: 'online',
-      width: 100,
-      search: false,
-      render: (_, record) => (
-        <Badge
-          status={record.online === 1 ? 'success' : 'default'}
-          text={
-            record.online === 1 ? tr('在线', 'Online') : tr('离线', 'Offline')
-          }
-        />
-      ),
-    },
-    {
-      title: tr('运行状态', 'Runtime Status'),
-      dataIndex: 'status',
-      width: 130,
-      search: false,
-      render: (_, record) => (
-        <Switch
-          checked={record.status === 1}
-          checkedChildren={tr('运行', 'On')}
-          unCheckedChildren={tr('停止', 'Off')}
-          onChange={(checked) => handleRuntimeToggle(record, checked)}
-        />
-      ),
-    },
-    {
-      title: tr('创建时间', 'Created At'),
-      dataIndex: 'created_at',
-      valueType: 'dateTime',
-      width: 170,
-      search: false,
-    },
-    {
-      title: tr('更新时间', 'Updated At'),
-      dataIndex: 'updated_at',
-      valueType: 'dateTime',
-      width: 180,
-      search: false,
-      hideInTable: true, // 默认隐藏，可通过列设置显示
-    },
-    {
-      title: tr('操作', 'Actions'),
-      valueType: 'option',
-      width: 180,
-      fixed: 'right',
-      align: 'center',
-      render: (_, record) => (
-        <Space>
-          <Tooltip title={getScanDisabledReason(record) || undefined}>
-            <span>
-              <Button
-                type="link"
-                size="small"
-                disabled={!!getScanDisabledReason(record)}
-                style={{ padding: 0, height: 'auto' }}
-                onClick={() => handleDiscoverApps(record)}
-              >
-                {tr('扫描应用', 'Scan Apps')}
-              </Button>
-            </span>
-          </Tooltip>
-          <a
-            onClick={() => {
-              setCurrentRow(record);
-              setEditModalVisible(true);
-            }}
-          >
-            {tr('编辑', 'Edit')}
-          </a>
-          <DeleteLink
-            title={tr('确定要删除这个连接器吗？', 'Delete this edge?')}
-            description={tr(
-              '将连带删除该连接器承载的应用、访问、访问密钥和关系，历史流量与任务记录会保留',
-              'Applications, entries, access keys, and relations on this edge will be removed. Traffic and task history will be retained',
-            )}
-            onConfirm={() => handleDelete(record.id)}
-          />
-        </Space>
-      ),
-    },
+  const installCommand = useMemo(() => {
+    if (!keys) return ''; if (installOS === 'other') return keys.command || `curl -k -sSL ${window.location.origin}/install.sh | bash -s -- --access-key=${keys.access_key} --secret-key=${keys.secret_key} --server-http-addr=${window.location.host} --server-edge-addr=${window.location.hostname}:30012`;
+    return `curl.exe -fsSL "${window.location.origin}/install.ps1" -o install.ps1; powershell -ExecutionPolicy Bypass -File install.ps1 -AccessKey "${keys.access_key}" -SecretKey "${keys.secret_key}" -ServerHttpAddr "${window.location.host}" -ServerEdgeAddr "${window.location.hostname}:30012"`;
+  }, [installOS, keys]);
+  const copyInstallCommand = async () => {
+    await navigator.clipboard.writeText(installCommand);
+    setInstallCopied(true);
+    window.setTimeout(() => setInstallCopied(false), 1800);
+  };
+
+  const columns: Column<API.Edge>[] = [
+    { key: 'name', title: tr('连接器名称', 'Connector'), width: 170, render: (row) => row.name },
+    { key: 'device', title: tr('所在设备', 'Device'), width: 160, render: (row) => row.device?.name || '-' },
+    { key: 'online', title: tr('在线状态', 'Online'), width: 90, render: (row) => <StatusPill tone={row.online === 1 ? 'success' : 'neutral'}>{row.online === 1 ? tr('在线', 'Online') : tr('离线', 'Offline')}</StatusPill> },
+    { key: 'runtime', title: tr('运行状态', 'Runtime'), width: 100, render: (row) => <button disabled={togglingIds.includes(row.id)} className={`liaison-switch${row.status === 1 ? ' is-on' : ''}`} onClick={() => void toggle(row)}><i /><span>{row.status === 1 ? tr('运行', 'On') : tr('停止', 'Off')}</span></button> },
+    { key: 'created', title: tr('创建时间', 'Created'), width: 150, render: (row) => row.created_at },
+    { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
+    { key: 'actions', title: tr('操作', 'Actions'), width: 175, render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" disabled={row.status !== 1 || row.online !== 1} onClick={() => void refreshScan(row)}>{tr('扫描应用', 'Scan')}</button><button className="liaison-table-link" onClick={() => { setEditRow(row); setCreateName(row.name); setCreateDescription(row.description || ''); }}>{tr('编辑', 'Edit')}</button><button className="liaison-table-link is-danger" onClick={() => setDeleteRow(row)}>{tr('删除', 'Delete')}</button></span> },
   ];
 
-  return (
-    <PageContainer>
-      <div className="table-search-wrapper">
-        <ProTable<API.Edge>
-          headerTitle={tr('连接器列表', 'Edges')}
-          actionRef={actionRef}
-          formRef={formRef}
-          rowKey="id"
-          columns={columns}
-          request={async (params) => {
-            const searchParams = buildSearchParams<API.EdgeListParams>(params, [
-              'name',
-              'device_name',
-            ]);
-            return tableRequest(() => getEdgeList(searchParams), 'edges');
-          }}
-          onSubmit={() => {
-            actionRef.current?.reload();
-          }}
-          toolBarRender={() => [
-            <CreateButton key="create" onClick={handleOpenCreateModal}>
-              {tr('新建连接器', 'New Edge')}
-            </CreateButton>,
-          ]}
-          pagination={defaultPagination}
-          search={{
-            ...defaultSearch,
-            labelWidth: 'auto',
-          }}
-          scroll={{ x: 'max-content' }}
-        />
+  return <div className="liaison-page-stack">
+    {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
+    <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('连接器名称', 'Connector')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入连接器名称', 'Connector name')} /></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => { setFilters((value) => ({ ...value, device_name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label><label className="liaison-compound"><span>{tr('在线状态', 'Online')}</span><select value={filters.online} onChange={(event) => { setFilters((value) => ({ ...value, online: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="1">{tr('在线', 'Online')}</option><option value="0">{tr('离线', 'Offline')}</option></select></label><label className="liaison-compound"><span>{tr('运行状态', 'Runtime')}</span><select value={filters.status} onChange={(event) => { setFilters((value) => ({ ...value, status: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="1">{tr('运行', 'Running')}</option><option value="2">{tr('停止', 'Stopped')}</option></select></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', device_name: '', online: '', status: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
+    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('连接器列表', 'Connectors')}</h2><Button variant="primary" onClick={openCreate} disabled={saving}><Plus size={14} />{tr('新建连接器', 'Create connector')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无连接器', 'No connectors')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>
+    <Modal open={createOpen} title={`${tr('新建连接器', 'Create connector')} · ${keys ? '2 / 2' : '1 / 2'}`} onClose={closeCreate} width={560} className="is-connector-wizard" closeOnMask={false} footer={keys ? <Button variant="primary" onClick={closeCreate}><Check size={14} />{tr('完成', 'Done')}</Button> : createError ? <><Button onClick={closeCreate}>{tr('关闭', 'Close')}</Button><Button variant="primary" onClick={() => void createConnector(createName)}>{tr('重试', 'Try again')}</Button></> : saving ? undefined : <><Button onClick={closeCreate}>{tr('取消', 'Cancel')}</Button><Button variant="primary" onClick={() => void createConnector(createName)}>{tr('下一步', 'Next')}</Button></>}>
+      <div className="liaison-connector-wizard">
+        <div className="liaison-connector-steps">
+          <div className={!keys ? 'is-active' : 'is-complete'}><span><b>1</b><strong>{tr('创建连接器', 'Create connector')}</strong></span><small>{tr('填写名称并创建连接器', 'Choose a name and create the connector')}</small></div>
+          <div className={keys ? 'is-active' : ''}><span><b>2</b><strong>{tr('安装连接器', 'Install connector')}</strong></span><small>{tr('复制命令并在目标设备执行', 'Copy the command and run it on the target device')}</small></div>
+        </div>
+        {saving ? <div className="liaison-install-loading"><span className="ui-spinner" aria-hidden /><strong>{tr('正在创建连接器', 'Creating connector')}</strong><small>{tr('正在准备一次性接入凭据，请稍候…', 'Preparing one-time enrollment credentials…')}</small></div> : createError ? <div className="liaison-install-error"><Notice tone="danger">{createError}</Notice><p>{tr('连接器创建失败，你可以直接重试。', 'The connector could not be created. Try again now.')}</p></div> : keys ? <div className="liaison-install"><p className="liaison-install-intro">{tr('在目标设备上执行下方命令即可完成安装，安装完成后连接器会自动上线。', 'Run the command below on your target device to finish setup. The connector will come online automatically after installation.')}</p><div className="liaison-install-toolbar"><div className="liaison-choice-row"><button type="button" className={installOS === 'other' ? 'is-active' : ''} onClick={() => setInstallOS('other')}>Linux / macOS</button><button type="button" className={installOS === 'windows' ? 'is-active' : ''} onClick={() => setInstallOS('windows')}>Windows</button></div></div><div className="liaison-command-block"><div><span>{tr('安装命令', 'Install command')}</span><button type="button" onClick={() => void copyInstallCommand()}>{installCopied ? <Check size={13} /> : <Copy size={13} />}{installCopied ? tr('已复制', 'Copied') : tr('复制命令', 'Copy command')}</button></div><pre><code>{installCommand}</code></pre></div><p className="liaison-install-warning">{tr('命令包含一次性连接密钥，关闭后无法再次查看。', 'This command contains one-time credentials and cannot be viewed again after closing.')}</p></div> : <div className="liaison-connector-create-step"><p>{tr('先创建连接器，再在目标设备上执行安装命令完成接入。', 'Create the connector first, then run the install command on your target device.')}</p><form className="liaison-connector-create-form" onSubmit={(event) => { event.preventDefault(); void createConnector(createName); }}><Field label={tr('连接器名称', 'Connector name')} hint={tr('留空时系统会自动使用上方唯一名称。', 'The suggested unique name is used automatically if left empty.')}><Input value={createName} onChange={(event) => setCreateName(event.target.value)} placeholder={suggestedConnectorName} /></Field></form></div>}
       </div>
-
-      <StepsForm
-        onFinish={async () => {
-          setCreateModalVisible(false);
-          setAccessKeys(undefined);
-          reload();
-          return true;
-        }}
-        stepsFormRender={(dom, submitter) => (
-          <Modal
-            title={tr('创建连接器', 'Create Edge')}
-            open={createModalVisible}
-            onCancel={() => {
-              setCreateModalVisible(false);
-              setAccessKeys(undefined);
-            }}
-            footer={submitter}
-            width={650}
-            destroyOnClose
-          >
-            {dom}
-          </Modal>
-        )}
-        submitter={{
-          render: (props, dom) => {
-            // 最后一步时，提交按钮显示"完成"
-            if (props.step === 2) {
-              return dom.map((item: any) => {
-                if (item.key === 'submit') {
-                  return {
-                    ...item,
-                    props: { ...item.props, children: tr('完成', 'Done') },
-                  };
-                }
-                return item;
-              });
-            }
-            return dom;
-          },
-        }}
-      >
-        <StepsForm.StepForm
-          name="create"
-          title={tr('创建连接器', 'Create Edge')}
-          onFinish={async (values) => {
-            // 如果已经创建了连接器，直接进入下一步，避免重复创建
-            if (accessKeys) {
-              return true;
-            }
-            try {
-              const res = await createEdge({
-                name: values.name,
-                description: values.description,
-              });
-              if (res.code === 200 && res.data) {
-                setAccessKeys(res.data);
-                message.success(
-                  tr('连接器创建成功', 'Edge created successfully'),
-                );
-                return true;
-              }
-              message.error(res.message || tr('创建失败', 'Create failed'));
-              return false;
-            } catch {
-              message.error(tr('创建失败', 'Create failed'));
-              return false;
-            }
-          }}
-        >
-          <ProFormText
-            name="name"
-            label={tr('连接器名称', 'Edge Name')}
-            placeholder={tr('请输入连接器名称', 'Please input edge name')}
-            rules={[
-              {
-                required: true,
-                message: tr('请输入连接器名称', 'Please input edge name'),
-              },
-            ]}
-            extra={tr(
-              '名称用于标识这个连接器，建议使用有意义的名称',
-              'Use a meaningful name to identify this edge',
-            )}
-          />
-          <ProFormTextArea
-            name="description"
-            label={tr('描述', 'Description')}
-            placeholder={tr(
-              '请输入连接器描述（可选）',
-              'Please input edge description (optional)',
-            )}
-          />
-        </StepsForm.StepForm>
-
-        <StepsForm.StepForm
-          name="install"
-          title={tr('安装连接器', 'Install Edge')}
-          onFinish={async () => true}
-        >
-          {accessKeys ? (
-            <>
-              <Alert
-                message={tr(
-                  '连接器已创建，请复制下面的安装命令在目标设备上执行',
-                  'Edge created. Copy and run the command on target device',
-                )}
-                type="success"
-                showIcon
-                icon={<CheckCircleOutlined />}
-                className="mb-4"
-              />
-              <div className="space-y-4">
-                <div>
-                  <Text strong>Access Key:</Text>
-                  <div className="bg-gray-100 p-3 rounded-lg mt-2 flex items-center justify-between">
-                    <Text code className="break-all" style={{ flex: 1 }}>
-                      {accessKeys.access_key}
-                    </Text>
-                    <Button
-                      type="text"
-                      icon={<CopyOutlined />}
-                      onClick={() => copyToClipboard(accessKeys.access_key)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Text strong>Secret Key:</Text>
-                  <div className="bg-gray-100 p-3 rounded-lg mt-2 flex items-center justify-between">
-                    <Text code className="break-all" style={{ flex: 1 }}>
-                      {accessKeys.secret_key}
-                    </Text>
-                    <Button
-                      type="text"
-                      icon={<CopyOutlined />}
-                      onClick={() => copyToClipboard(accessKeys.secret_key)}
-                    />
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <Text strong>{tr('安装命令:', 'Install Command:')}</Text>
-                  <Tabs
-                    activeKey={installOS}
-                    onChange={(key) => setInstallOS(key as 'windows' | 'other')}
-                    items={[
-                      {
-                        key: 'other',
-                        label: 'Linux / macOS',
-                        children: (
-                          <div className="bg-gray-100 p-3 rounded-lg mt-2">
-                            <Paragraph
-                              copyable
-                              className="mb-0 text-sm"
-                              style={{
-                                marginBottom: 0,
-                                wordBreak: 'break-all',
-                              }}
-                            >
-                              {accessKeys.command ||
-                                `curl -k -sSL https://49.232.250.11/install.sh | bash -s -- --access-key=${accessKeys.access_key} --secret-key=${accessKeys.secret_key} --server-http-addr=49.232.250.11 --server-edge-addr=49.232.250.11:30012`}
-                            </Paragraph>
-                          </div>
-                        ),
-                      },
-                      {
-                        key: 'windows',
-                        label: 'Windows',
-                        children: (
-                          <div className="bg-gray-100 p-3 rounded-lg mt-2">
-                            <Paragraph
-                              copyable
-                              className="mb-0 text-sm"
-                              style={{
-                                marginBottom: 0,
-                                wordBreak: 'break-all',
-                              }}
-                            >
-                              {(() => {
-                                // 从后端命令中提取服务器地址，或使用默认值
-                                let serverUrl = 'https://49.232.250.11';
-                                let httpAddr = '49.232.250.11';
-                                let edgeAddr = '49.232.250.11:30012';
-
-                                if (accessKeys.command) {
-                                  // 从命令中提取 URL（例如：curl -k -sSL https://xxx/install.sh）
-                                  const urlMatch =
-                                    accessKeys.command.match(
-                                      /https?:\/\/[^\s\/]+/,
-                                    );
-                                  if (urlMatch) {
-                                    serverUrl = urlMatch[0];
-                                    httpAddr = serverUrl.replace(
-                                      /^https?:\/\//,
-                                      '',
-                                    );
-                                    // 提取 edge 地址（--server-edge-addr=xxx）
-                                    const edgeMatch = accessKeys.command.match(
-                                      /--server-edge-addr=([^\s]+)/,
-                                    );
-                                    if (edgeMatch) {
-                                      edgeAddr = edgeMatch[1];
-                                    }
-                                  }
-                                }
-
-                                // 使用 curl.exe 下载脚本，然后使用 PowerShell 执行（Windows 10+ 内置）
-                                // 注意：PowerShell 中 curl 是 Invoke-WebRequest 的别名，需要使用 curl.exe
-                                // 使用分号分隔命令，PowerShell 不支持 &&
-                                const ps1Url = `${serverUrl}/install.ps1`;
-                                return `curl.exe -fsSL "${ps1Url}" -o install.ps1; powershell -ExecutionPolicy Bypass -File install.ps1 -AccessKey "${accessKeys.access_key}" -SecretKey "${accessKeys.secret_key}" -ServerHttpAddr "${httpAddr}" -ServerEdgeAddr "${edgeAddr}"`;
-                              })()}
-                            </Paragraph>
-                          </div>
-                        ),
-                      },
-                    ]}
-                  />
-                </div>
-                <Alert
-                  message={tr(
-                    '请妥善保管以上密钥信息，关闭后将无法再次查看',
-                    'Keep keys safe. They cannot be viewed again after closing',
-                  )}
-                  type="warning"
-                  showIcon
-                  className="mt-4"
-                />
-                <div className="mt-4 text-gray-500 text-sm">
-                  <p>
-                    {tr(
-                      '支持的操作系统：Linux (x86_64, arm64)、Windows (x86_64)、macOS (x86_64, arm64)',
-                      'Supported OS: Linux (x86_64, arm64), Windows (x86_64), macOS (x86_64, arm64)',
-                    )}
-                  </p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <Result
-              status="error"
-              title={tr('未获取到密钥信息', 'Missing key information')}
-              subTitle={tr(
-                '请返回上一步重新创建',
-                'Please go back and create again',
-              )}
-            />
-          )}
-        </StepsForm.StepForm>
-
-        <StepsForm.StepForm name="done" title={tr('完成', 'Done')}>
-          <Result
-            status="success"
-            title={tr('连接器创建成功', 'Edge created successfully')}
-            subTitle={tr(
-              '安装完成后，连接器将自动上线。您可以在连接器列表中查看状态。',
-              'After installation, edge will come online automatically. You can check status in edge list.',
-            )}
-          />
-        </StepsForm.StepForm>
-      </StepsForm>
-
-      <ModalForm
-        title={tr('编辑连接器', 'Edit Edge')}
-        open={editModalVisible}
-        onOpenChange={setEditModalVisible}
-        onFinish={handleEdit}
-        initialValues={currentRow}
-        modalProps={{ destroyOnClose: true }}
-        width={500}
-      >
-        <ProFormText
-          name="name"
-          label={tr('连接器名称', 'Edge Name')}
-          placeholder={tr('请输入连接器名称', 'Please input edge name')}
-          rules={[
-            {
-              required: true,
-              message: tr('请输入连接器名称', 'Please input edge name'),
-            },
-          ]}
-        />
-        <ProFormTextArea
-          name="description"
-          label={tr('描述', 'Description')}
-          placeholder={tr('请输入连接器描述', 'Please input description')}
-        />
-      </ModalForm>
-
-      <Drawer
-        title={`${tr('扫描应用', 'Scan Apps')} - ${currentRow?.name}`}
-        width={500}
-        open={discoverDrawerVisible}
-        onClose={() => setDiscoverDrawerVisible(false)}
-        extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={handleRefreshScan}
-            loading={scanning}
-          >
-            {tr('刷新', 'Refresh')}
-          </Button>
-        }
-      >
-        {scanning ? (
-          <div className="text-center py-12">
-            <Spin
-              indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />}
-              tip={tr(
-                '正在扫描内网应用...',
-                'Scanning intranet applications...',
-              )}
-            />
-          </div>
-        ) : scanTask ? (
-          <>
-            <div className="mb-4 flex justify-between items-center">
-              <Text type="secondary">
-                {tr('扫描状态', 'Scan Status')}:{' '}
-                {scanTask.task_status === 'pending'
-                  ? tr('扫描中', 'Scanning')
-                  : scanTask.task_status === 'running'
-                  ? tr('扫描中', 'Scanning')
-                  : scanTask.task_status === 'completed'
-                  ? tr('已完成', 'Completed')
-                  : scanTask.task_status === 'failed'
-                  ? tr('失败', 'Failed')
-                  : scanTask.task_status}
-                {scanTask.error && (
-                  <Text type="danger" className="ml-2">
-                    {scanTask.error}
-                  </Text>
-                )}
-              </Text>
-              {(scanTask.task_status === 'completed' ||
-                scanTask.task_status === 'failed') && (
-                <Button
-                  size="small"
-                  onClick={handleRescan}
-                  loading={scanning}
-                  disabled={!!getScanDisabledReason(currentRow)}
-                >
-                  {tr('重新扫描', 'Rescan')}
-                </Button>
-              )}
-            </div>
-            {scanTask.applications && scanTask.applications.length > 0 ? (
-              <List
-                dataSource={scanTask.applications}
-                renderItem={(app) => {
-                  // 解析应用字符串，格式可能是 "ip:port" 或 "ip:port:protocol"
-                  const parts = app.split(':');
-                  const ip = parts[0];
-                  const port = parseInt(parts[1], 10);
-                  const protocol = parts[2] || 'tcp';
-
-                  // 根据端口推断应用类型
-                  const detectApplicationTypeByPort = (
-                    port: number,
-                  ): string => {
-                    const portToType: Record<number, string> = {
-                      22: 'SSH',
-                      80: 'HTTP',
-                      443: 'HTTP',
-                      3389: 'RDP',
-                      5900: 'VNC',
-                      3306: 'MySQL',
-                      5432: 'PostgreSQL',
-                      6379: 'Redis',
-                      27017: 'MongoDB',
-                    };
-                    return portToType[port] || protocol.toUpperCase();
-                  };
-
-                  const appType = detectApplicationTypeByPort(port);
-                  const displayText = `${ip}:${port}`;
-
-                  return (
-                    <List.Item
-                      actions={[
-                        <Button
-                          key="add"
-                          type="link"
-                          onClick={() => handleAddDiscoveredApp(app)}
-                        >
-                          添加
-                        </Button>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        title={displayText}
-                        description={
-                          <Space>
-                            <Tag color="blue">{appType}</Tag>
-                            <span>扫描到的内网服务</span>
-                          </Space>
-                        }
-                      />
-                    </List.Item>
-                  );
-                }}
-              />
-            ) : scanTask.task_status === 'pending' ||
-              scanTask.task_status === 'running' ? (
-              <div className="text-center py-12 text-gray-400">扫描中...</div>
-            ) : (
-              <div className="text-center py-12 text-gray-400">
-                未扫描到可用应用
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-12 text-gray-400">
-            点击刷新开始扫描
-          </div>
-        )}
-      </Drawer>
-    </PageContainer>
-  );
+    </Modal>
+    <Modal open={!!editRow} title={tr('编辑连接器', 'Edit connector')} onClose={() => setEditRow(undefined)} width={500} footer={<><Button onClick={() => setEditRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-edge" disabled={saving}>{tr('确定', 'Save')}</Button></>}><form id="edit-edge" className="native-modal-form" onSubmit={update}><Field label={tr('连接器名称', 'Connector name')} required><Input value={createName} onChange={(event) => setCreateName(event.target.value)} /></Field><Field label={tr('描述', 'Description')}><Input value={createDescription} onChange={(event) => setCreateDescription(event.target.value)} /></Field></form></Modal>
+    <Modal open={!!deleteRow} title={tr('删除连接器', 'Delete connector')} onClose={() => setDeleteRow(undefined)} width={450} footer={<><Button onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('承载的应用、访问和密钥关系将一并移除，历史记录仍会保留。', 'Applications, access entries and key relations will be removed. History is retained.')} /></Modal>
+    <Drawer open={!!scanRow} title={tr('扫描应用', 'Scan applications')} onClose={closeScan}><div className="liaison-scan-overview"><div className="liaison-scan-overview-icon"><Radar size={17} /></div><div><strong>{scanRow?.name || '-'}</strong><p>{tr('发现连接器所在网络中可接入的服务。', 'Discover services available through this connector.')}</p></div><StatusPill tone={scanTask?.task_status === 'completed' ? 'success' : scanTask?.task_status === 'failed' ? 'danger' : 'info'}>{scanStatusLabel}</StatusPill></div><div className="liaison-scan-toolbar"><span>{tr('发现的应用', 'Discovered applications')} <b>{scanTask?.applications?.length || 0}</b></span><Button onClick={() => scanRow && void refreshScan(scanRow, true)} disabled={scanning}><Radar size={14} />{scanning ? tr('扫描中', 'Scanning') : scanTask ? tr('重新扫描', 'Rescan') : tr('扫描', 'Scan')}</Button></div>{scanTask?.error ? <Notice tone="danger">{scanTask.error}</Notice> : null}<div className="liaison-scan-list"><div className="liaison-scan-list-head"><span>{tr('目标服务', 'Target')}</span><span>{tr('协议', 'Protocol')}</span><span /></div>{scanTask?.applications?.map((app) => { const [ip, port, type] = app.split(':'); const protocol = APPLICATION_TYPES.find((item) => item.value === (type || portTypes[Number(port)] || 'tcp'))?.label || 'TCP'; return <div className="liaison-scan-row" key={app}><span className="liaison-scan-target"><i><Server size={14} /></i><span><strong>{ip}</strong><small>{tr('端口', 'Port')} {port}</small></span></span><StatusPill>{protocol}</StatusPill><button type="button" className="liaison-table-link" onClick={() => openDiscovered(app)}><Plus size={13} />{tr('添加', 'Add')}</button></div>; })}{scanTask?.task_status === 'completed' && !scanTask.applications?.length ? <div className="liaison-scan-empty"><Radar size={20} /><strong>{tr('未发现可用应用', 'No applications discovered')}</strong><span>{tr('确认连接器在线后重新扫描。', 'Make sure the connector is online, then scan again.')}</span></div> : null}</div></Drawer>
+    <Modal open={!!discovered} title={tr('添加扫描到的应用', 'Add discovered application')} onClose={() => setDiscovered(undefined)} width={500} footer={<><Button onClick={() => void addDiscovered(false)} disabled={saving}>{tr('添加应用', 'Add application')}</Button><Button variant="primary" onClick={() => void addDiscovered(true)} disabled={saving}>{tr('添加并创建访问', 'Add and create access')}</Button></>}><form className="liaison-scan-application-form" onSubmit={(event) => event.preventDefault()}><div className="liaison-scan-target-summary"><span>{tr('扫描目标', 'Discovered target')}</span><strong>{parsedDiscovery?.ip}:{parsedDiscovery?.port}</strong></div><Field label={tr('应用名称', 'Application name')}><Input value={discoveredForm.name} onChange={(event) => setDiscoveredForm((value) => ({ ...value, name: event.target.value }))} /></Field><Field label={tr('应用类型', 'Application type')} required><Select value={discoveredForm.application_type} onChange={(event) => setDiscoveredForm((value) => ({ ...value, application_type: event.target.value }))}>{APPLICATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field></form></Modal>
+    <Modal open={!!scanAccessApplication} title={tr('为扫描应用创建访问', 'Create access for discovered application')} onClose={closeScannedAccess} width={500} footer={<><Button onClick={closeScannedAccess}>{tr('暂不创建', 'Not now')}</Button><Button variant="primary" type="submit" form="scan-create-access" disabled={saving}>{tr('创建访问', 'Create access')}</Button></>}><form id="scan-create-access" className="liaison-scan-access-form" onSubmit={createScannedAccess}><div className="liaison-scan-target-summary"><span>{tr('应用', 'Application')}</span><strong>{scanAccessApplication?.name}</strong></div><Field label={tr('访问名称', 'Access name')}><Input value={scanAccessName} onChange={(event) => setScanAccessName(event.target.value)} placeholder={suggestedScanAccessName} /></Field><Field label={tr('访问类型', 'Access type')} required><Select value={scanAccessType} onChange={(event) => { setScanAccessType(event.target.value as AccessType); setScanPublicPort(''); }}>{scanAccessApplication ? accessTypesForApplication(scanAccessApplication.application_type).map((item) => <option key={item.value} value={item.value}>{item.label}</option>) : null}</Select></Field>{!isWebAccessType(scanAccessType) ? <div className="liaison-scan-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty for automatic assignment')}><Input type="number" min={1} max={65535} value={scanPublicPort} onChange={(event) => setScanPublicPort(event.target.value)} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}</form></Modal>
+  </div>;
 };
 
 export default ConnectorPage;

@@ -3,56 +3,83 @@ import SessionWatermark, {
   useSessionWatermarkTime,
 } from '@/components/SessionWatermark';
 import { useI18n } from '@/i18n';
+import { history, useLocation, useModel, useParams, useSearchParams } from '@/lib/runtime';
 import {
   createWebDesktopSession,
   deleteWebDesktopCredential,
   getWebDesktopTarget,
 } from '@/services/api';
-import {
-  DisconnectOutlined,
-  FullscreenExitOutlined,
-  FullscreenOutlined,
-  ReloadOutlined,
-  SendOutlined,
-} from '@ant-design/icons';
-import { PageContainer } from '@ant-design/pro-components';
-import { useModel, useParams } from '@umijs/max';
-import {
-  Alert,
-  AutoComplete,
-  Button,
-  Checkbox,
-  Form,
-  Input,
-  Popconfirm,
-  Space,
-  Spin,
-  Tag,
-  Typography,
-  message,
-} from 'antd';
+import { Button, Field, Input, Modal, Notice } from '@/components/ui';
 import Guacamole from 'guacamole-common-js';
+import {
+  ArrowLeft,
+  Check,
+  Clock3,
+  Fullscreen,
+  LogIn,
+  Minimize,
+  Monitor,
+  Plus,
+  PlugZap,
+  Send,
+  Trash2,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.less';
 
-const { Text } = Typography;
-
 const credentialKey = (username?: string, domain?: string) =>
   `${domain || ''}\\${username || ''}`;
+
+const formatWebDesktopTime = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.replace('T', ' ').replace(/Z$/, '');
+  }
+  const part = (item: number) => String(item).padStart(2, '0');
+  return (
+    date.getFullYear() +
+    '-' +
+    part(date.getMonth() + 1) +
+    '-' +
+    part(date.getDate()) +
+    ' ' +
+    part(date.getHours()) +
+    ':' +
+    part(date.getMinutes()) +
+    ':' +
+    part(date.getSeconds())
+  );
+};
 
 const WebDesktopPage: React.FC = () => {
   const { tr } = useI18n();
   const { initialState } = useModel('@@initialState');
   const params = useParams();
+  const location = useLocation();
+  const [routeSearch] = useSearchParams();
   const proxyId = Number(params.proxyId);
-  const [form] = Form.useForm<API.CreateWebDesktopSessionRequest>();
-  const watchedUsername = Form.useWatch('username', form);
-  const watchedDomain = Form.useWatch('domain', form);
+  const credentialId = Number(params.credentialId || 0);
+  const isTemporarySession = location.pathname.endsWith('/session');
+  const isSessionView = isTemporarySession || credentialId > 0;
+  const [credentials, setCredentials] =
+    useState<API.CreateWebDesktopSessionRequest>({
+      username: '',
+      domain: '',
+      password: '',
+      save_credential: false,
+    });
   const [target, setTarget] = useState<API.WebDesktopTarget>();
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [credentialOpen, setCredentialOpen] = useState(false);
+  const [pendingSessionCredentials, setPendingSessionCredentials] =
+    useState<API.CreateWebDesktopSessionRequest>();
+  const [sessionDurationSeconds, setSessionDurationSeconds] = useState<
+    number | null
+  >(null);
   const [error, setError] = useState('');
   const displayHostRef = useRef<HTMLDivElement | null>(null);
   const displayContentRef = useRef<HTMLDivElement | null>(null);
@@ -60,14 +87,17 @@ const WebDesktopPage: React.FC = () => {
   const tunnelRef = useRef<any>();
   const keyboardRef = useRef<any>();
   const mouseRef = useRef<any>();
+  const initialCredentialPromptRef = useRef(false);
+  const initialSavedConnectRef = useRef<number>();
+  const sessionStartedAtRef = useRef<number>();
 
   const active = target?.effective_status === 'active';
   const protocol = target?.protocol || 'rdp';
   const savedCredentials = target?.credentials || [];
-  const selectedSavedCredential = savedCredentials.some(
+  const selectedSavedCredential = credentialId > 0 && savedCredentials.some(
     (item) =>
       credentialKey(item.username, item.domain) ===
-      credentialKey(watchedUsername, watchedDomain),
+      credentialKey(credentials.username, credentials.domain),
   );
   const savedOptions = savedCredentials.map((item) => {
     const key = credentialKey(item.username, item.domain);
@@ -79,6 +109,26 @@ const WebDesktopPage: React.FC = () => {
         : item.username || '';
     return { label, value: key };
   });
+  const requestedReturnPath = routeSearch.get('from') || '';
+  const accessReturnPath =
+    requestedReturnPath.startsWith('/proxy') &&
+    !requestedReturnPath.startsWith('//')
+      ? requestedReturnPath
+      : '/proxy?access_type=' + (protocol === 'vnc' ? 'webvnc' : 'webrdp');
+  const connectionListPath =
+    '/webdesktop/' +
+    proxyId +
+    (requestedReturnPath
+      ? '?from=' + encodeURIComponent(accessReturnPath)
+      : '');
+  const temporarySessionPath =
+    '/webdesktop/' +
+    proxyId +
+    '/session' +
+    (requestedReturnPath
+      ? '?from=' + encodeURIComponent(accessReturnPath)
+      : '');
+
   const watermarkTime = useSessionWatermarkTime();
   const watermarkUser =
     initialState?.currentUser?.email ||
@@ -97,6 +147,79 @@ const WebDesktopPage: React.FC = () => {
         buildSessionWatermarkLabel([watermarkUser, 'WebDesktop']),
         watermarkTime,
       ];
+
+  const formatSessionDuration = useCallback(
+    (seconds: number) => {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remainingSeconds = seconds % 60;
+      if (hours > 0) {
+        return tr(
+          hours + ' 小时 ' + minutes + ' 分钟',
+          hours + 'h ' + minutes + 'm',
+        );
+      }
+      if (minutes > 0) {
+        return tr(
+          minutes + ' 分钟 ' + remainingSeconds + ' 秒',
+          minutes + 'm ' + remainingSeconds + 's',
+        );
+      }
+      return tr(remainingSeconds + ' 秒', remainingSeconds + 's');
+    },
+    [tr],
+  );
+
+  const recordSessionEnd = useCallback(() => {
+    if (sessionStartedAtRef.current === undefined) return;
+    setSessionDurationSeconds(
+      Math.max(1, Math.round((Date.now() - sessionStartedAtRef.current) / 1000)),
+    );
+    sessionStartedAtRef.current = undefined;
+  }, []);
+
+  const returnToAccess = useCallback(() => {
+    history.push(accessReturnPath);
+  }, [accessReturnPath]);
+
+  const returnToConnections = useCallback(() => {
+    history.push(connectionListPath);
+  }, [connectionListPath]);
+
+  const openNewConnection = useCallback(() => {
+    initialCredentialPromptRef.current = false;
+    setError('');
+    setCredentials({
+      username: '',
+      domain: '',
+      password: '',
+      save_credential: false,
+    });
+    setCredentialOpen(true);
+  }, []);
+
+  const closeCredentialModal = useCallback(() => {
+    setError('');
+    setCredentialOpen(false);
+    if (isSessionView) returnToConnections();
+  }, [isSessionView, returnToConnections]);
+
+  const openSavedConnection = useCallback(
+    (credential: API.WebDesktopCredential) => {
+      if (!credential.id) return;
+      initialSavedConnectRef.current = undefined;
+      history.push(
+        '/webdesktop/' +
+          proxyId +
+          '/connections/' +
+          credential.id +
+          (requestedReturnPath
+            ? '?from=' + encodeURIComponent(accessReturnPath)
+            : ''),
+      );
+    },
+    [accessReturnPath, proxyId, requestedReturnPath],
+  );
 
   const cleanupConnection = useCallback(
     (close = false, clearDisplay = false) => {
@@ -128,8 +251,13 @@ const WebDesktopPage: React.FC = () => {
   );
 
   const disconnect = useCallback(() => {
+    recordSessionEnd();
     cleanupConnection(true, true);
-  }, [cleanupConnection]);
+  }, [cleanupConnection, recordSessionEnd]);
+
+  const disconnectAndSummarize = useCallback(() => {
+    disconnect();
+  }, [disconnect]);
 
   const focusRemoteCanvas = useCallback(() => {
     const canvas = displayContentRef.current?.querySelector<HTMLCanvasElement>(
@@ -149,9 +277,7 @@ const WebDesktopPage: React.FC = () => {
       await host.requestFullscreen();
       window.setTimeout(focusRemoteCanvas, 0);
     } catch (e: any) {
-      message.error(
-        e?.message || tr('无法进入全屏', 'Unable to enter fullscreen'),
-      );
+      setError(e?.message || tr('无法进入全屏', 'Unable to enter fullscreen'));
     }
   }, [connected, focusRemoteCanvas, tr]);
 
@@ -166,17 +292,33 @@ const WebDesktopPage: React.FC = () => {
       const res = await getWebDesktopTarget(proxyId);
       if (res.code === 200 && res.data) {
         setTarget(res.data);
-        const credentials = res.data.credentials || [];
-        if (credentials.length > 0) {
-          const item = credentials[0];
-          form.setFieldsValue({
+        const savedCredentials = res.data.credentials || [];
+        if (credentialId > 0) {
+          const item = savedCredentials.find(
+            (credential) => credential.id === credentialId,
+          );
+          if (!item) {
+            setError(
+              tr(
+                '保存的远程桌面连接不存在或已删除',
+                'Saved remote desktop connection no longer exists',
+              ),
+            );
+            return;
+          }
+          setCredentials({
             username: item.username || '',
             domain: item.domain || '',
             password: '',
             save_credential: false,
           });
-        } else {
-          form.setFieldsValue({ save_credential: false });
+        } else if (!isTemporarySession) {
+          setCredentials({
+            username: '',
+            domain: '',
+            password: '',
+            save_credential: false,
+          });
         }
         setError('');
       } else {
@@ -193,17 +335,18 @@ const WebDesktopPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [form, proxyId, tr]);
+  }, [credentialId, isTemporarySession, proxyId, tr]);
 
   useEffect(() => {
     loadTarget();
   }, [loadTarget]);
 
   useEffect(() => {
+    if (!isSessionView) return;
     document.body.classList.add('webdesktop-page-active');
     const footerElements = Array.from(
       document.querySelectorAll<HTMLElement>(
-        '.ant-pro-layout-footer, .global-footer',
+        '.global-footer',
       ),
     );
     const previousFooterStyles = footerElements.map((element) => ({
@@ -222,14 +365,14 @@ const WebDesktopPage: React.FC = () => {
         element.style.pointerEvents = pointerEvents;
       });
     };
-  }, []);
+  }, [isSessionView]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    if (!isSessionView) return;
+    return () => {
       disconnect();
-    },
-    [disconnect],
-  );
+    };
+  }, [disconnect, isSessionView]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -251,7 +394,7 @@ const WebDesktopPage: React.FC = () => {
         credentialKey(candidate.username, candidate.domain) === value,
     );
     if (!item) return;
-    form.setFieldsValue({
+    setCredentials({
       username: item.username || '',
       domain: item.domain || '',
       password: '',
@@ -268,6 +411,7 @@ const WebDesktopPage: React.FC = () => {
     )
       return;
     disconnect();
+    setSessionDurationSeconds(null);
     setConnecting(true);
     setError('');
     const width = Math.max(displayHostRef.current.clientWidth || 0, 1024);
@@ -284,7 +428,7 @@ const WebDesktopPage: React.FC = () => {
         height,
         dpi: 96,
       });
-      form.setFieldValue('password', '');
+      setCredentials((value) => ({ ...value, password: '' }));
       if (res.code !== 200 || !res.data?.ws_url) {
         throw new Error(
           res.message ||
@@ -360,18 +504,24 @@ const WebDesktopPage: React.FC = () => {
           status?.message ||
           tr('WebDesktop 连接异常', 'WebDesktop connection error');
         setError(text);
+        recordSessionEnd();
         cleanupConnection(true);
+        setCredentialOpen(true);
       };
       tunnel.onstatechange = (state: number) => {
         if (state === Guacamole.Tunnel.State.OPEN) {
+          sessionStartedAtRef.current = Date.now();
+          setSessionDurationSeconds(null);
           setConnecting(false);
           setConnected(true);
+          setCredentialOpen(false);
           inputPlane.focus({ preventScroll: true });
           if (shouldSaveCredential) {
             window.setTimeout(loadTarget, 1000);
           }
         }
         if (state === Guacamole.Tunnel.State.CLOSED) {
+          recordSessionEnd();
           cleanupConnection(false);
         }
       };
@@ -380,7 +530,9 @@ const WebDesktopPage: React.FC = () => {
           status?.message ||
           tr('远程桌面连接失败', 'Remote desktop connection failed');
         setError(text);
+        recordSessionEnd();
         cleanupConnection(true);
+        setCredentialOpen(true);
       };
 
       const mouseState = {
@@ -470,7 +622,10 @@ const WebDesktopPage: React.FC = () => {
           : 'onpointermove' in window
           ? 'pointermove'
           : 'mousemove';
-      inputPlane.addEventListener(mouseMoveEvent, handleMouseMove);
+      inputPlane.addEventListener(
+        mouseMoveEvent,
+        handleMouseMove as EventListener,
+      );
       inputPlane.addEventListener('pointerdown', handlePointerDown);
       inputPlane.addEventListener('pointerup', handlePointerUp);
       inputPlane.addEventListener('pointercancel', handlePointerUp);
@@ -491,7 +646,10 @@ const WebDesktopPage: React.FC = () => {
         cleanup: () => {
           resizeObserver?.disconnect();
           window.removeEventListener('resize', scheduleDisplayFit);
-          inputPlane.removeEventListener(mouseMoveEvent, handleMouseMove);
+          inputPlane.removeEventListener(
+            mouseMoveEvent,
+            handleMouseMove as EventListener,
+          );
           inputPlane.removeEventListener('pointerdown', handlePointerDown);
           inputPlane.removeEventListener('pointerup', handlePointerUp);
           inputPlane.removeEventListener('pointercancel', handlePointerUp);
@@ -520,196 +678,725 @@ const WebDesktopPage: React.FC = () => {
         e?.message ||
         tr('创建 WebDesktop 会话失败', 'Failed to create WebDesktop session');
       setError(text);
+      recordSessionEnd();
       setConnecting(false);
       setConnected(false);
+      setCredentialOpen(true);
     }
+  };
+
+  useEffect(() => {
+    if (
+      !pendingSessionCredentials ||
+      !isTemporarySession ||
+      loading ||
+      !active ||
+      !displayHostRef.current
+    ) {
+      return;
+    }
+    const values = pendingSessionCredentials;
+    setPendingSessionCredentials(undefined);
+    void connect(values);
+  }, [
+    active,
+    isTemporarySession,
+    loading,
+    pendingSessionCredentials,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isSessionView ||
+      isTemporarySession ||
+      credentialId <= 0 ||
+      loading ||
+      !active ||
+      connected ||
+      connecting ||
+      initialSavedConnectRef.current === credentialId
+    ) {
+      return;
+    }
+    const saved = target?.credentials?.find(
+      (credential) => credential.id === credentialId,
+    );
+    if (!saved) return;
+    initialSavedConnectRef.current = credentialId;
+    void connect({
+      username: saved.username || '',
+      domain: saved.domain || '',
+      password: '',
+      save_credential: false,
+    });
+  }, [
+    active,
+    connected,
+    connecting,
+    credentialId,
+    isSessionView,
+    isTemporarySession,
+    loading,
+    target,
+  ]);
+
+  const submitCredentialConnection = () => {
+    const username = credentials.username?.trim() || '';
+    if (protocol === 'rdp' && !username) {
+      setError(tr('请输入用户名', 'Username is required'));
+      return;
+    }
+    if (!selectedSavedCredential && !credentials.password) {
+      setError(tr('请输入密码', 'Password is required'));
+      return;
+    }
+    const values = {
+      ...credentials,
+      username,
+      domain: credentials.domain?.trim() || '',
+    };
+    if (!isSessionView) {
+      initialCredentialPromptRef.current = true;
+      setCredentialOpen(false);
+      setPendingSessionCredentials(values);
+      history.push(temporarySessionPath);
+      return;
+    }
+    void connect(values);
+  };
+
+  const deleteSavedConnection = async (
+    credential: API.WebDesktopCredential,
+  ) => {
+    await deleteWebDesktopCredential(proxyId, {
+      protocol,
+      username: credential.username || '',
+      domain: credential.domain || '',
+    });
+    await loadTarget();
   };
 
   const clearCredential = async () => {
     try {
       await deleteWebDesktopCredential(proxyId, {
         protocol,
-        username: String(form.getFieldValue('username') || '').trim(),
-        domain: String(form.getFieldValue('domain') || '').trim(),
+        username: String(credentials.username || '').trim(),
+        domain: String(credentials.domain || '').trim(),
       });
-      message.success(tr('已清除保存密码', 'Saved password cleared'));
-      form.setFieldsValue({ password: '', save_credential: false });
+      setCredentials((value) => ({
+        ...value,
+        password: '',
+        save_credential: false,
+      }));
       loadTarget();
     } catch (e: any) {
-      message.error(
+      setError(
         e?.response?.data?.message ||
           tr('清除保存密码失败', 'Failed to clear saved password'),
       );
     }
   };
 
-  return (
-    <PageContainer title={tr('WebDesktop', 'WebDesktop')}>
-      <div className="webdesktop-shell">
-        <div className="webdesktop-toolbar">
-          <Space size={12} wrap>
-            <Text strong>
-              {target?.proxy_name || tr('远程桌面访问', 'Remote Desktop Entry')}
-            </Text>
-            {target && (
-              <Text type="secondary">
-                {target.application_name} · {target.target_host}:
-                {target.target_port}
-              </Text>
+  const protocolLabel = protocol === 'vnc' ? 'VNC' : 'RDP';
+  const connectionModal = (
+    <Modal
+      title={tr(
+        protocol === 'vnc' ? '新建 VNC 连接' : '新建 RDP 连接',
+        protocol === 'vnc' ? 'New VNC connection' : 'New RDP connection',
+      )}
+      open={credentialOpen}
+      width={400}
+      className="webdesktop-credential-modal"
+      closeOnMask={!connecting}
+      onClose={closeCredentialModal}
+    >
+      {error && <Notice tone="danger">{error}</Notice>}
+      <form
+        className="webdesktop-native-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submitCredentialConnection();
+        }}
+      >
+        {protocol === 'rdp' && (
+          <>
+            <Field label={tr('域', 'Domain')}>
+              <Input
+                value={credentials.domain || ''}
+                placeholder={tr('可选', 'Optional')}
+                onChange={(event) =>
+                  setCredentials((value) => ({
+                    ...value,
+                    domain: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+            <Field label={tr('用户名', 'Username')} required>
+              <Input
+                autoFocus
+                autoComplete="username"
+                value={credentials.username || ''}
+                placeholder={tr('输入 RDP 用户名', 'Enter RDP username')}
+                onChange={(event) =>
+                  setCredentials((value) => ({
+                    ...value,
+                    username: event.target.value,
+                  }))
+                }
+              />
+            </Field>
+          </>
+        )}
+        <Field label={tr('密码', 'Password')} required>
+          <Input
+            type="password"
+            autoFocus={protocol === 'vnc'}
+            autoComplete="new-password"
+            value={credentials.password || ''}
+            placeholder={tr(
+              protocol === 'vnc' ? '输入 VNC 密码' : '输入 RDP 密码',
+              protocol === 'vnc' ? 'Enter VNC password' : 'Enter RDP password',
             )}
-            {target && <Tag color="blue">{target.protocol.toUpperCase()}</Tag>}
-            {target && (
-              <Tag color={active ? 'success' : 'error'}>
-                {active ? tr('可用', 'Available') : tr('不可用', 'Unavailable')}
-              </Tag>
-            )}
-            {savedCredentials.length > 0 && (
-              <Tag color="green">{tr('已保存凭据', 'Saved credential')}</Tag>
-            )}
-          </Space>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadTarget}>
-              {tr('刷新', 'Refresh')}
-            </Button>
-            <Button
-              icon={
-                fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
+            onChange={(event) =>
+              setCredentials((value) => ({
+                ...value,
+                password: event.target.value,
+              }))
+            }
+          />
+        </Field>
+        <div className="webdesktop-credential-options">
+          <label className="liaison-checkbox">
+            <input
+              type="checkbox"
+              checked={Boolean(credentials.save_credential)}
+              onChange={(event) =>
+                setCredentials((value) => ({
+                  ...value,
+                  save_credential: event.target.checked,
+                }))
               }
+            />
+            <span>{tr('保存密码', 'Save password')}</span>
+          </label>
+        </div>
+        <div className="webdesktop-credential-actions">
+          <Button onClick={closeCredentialModal} disabled={connecting}>
+            {tr('取消', 'Cancel')}
+          </Button>
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={!active || loading || connecting}
+          >
+            <Send size={14} />
+            {tr('连接', 'Connect')}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+
+  if (!isSessionView) {
+    return (
+      <section className="webdesktop-connections-page">
+        <div className="webdesktop-connections-header">
+          <button
+            type="button"
+            className="webdesktop-connections-back"
+            onClick={returnToAccess}
+          >
+            <ArrowLeft size={14} />
+            {tr('返回访问', 'Back to access')}
+          </button>
+          <nav
+            className="webdesktop-connections-breadcrumb"
+            aria-label={tr('页面层级', 'Breadcrumb')}
+          >
+            <span>{tr('访问', 'Access')}</span>
+            <i>/</i>
+            <span>{protocol === 'vnc' ? 'Web VNC' : 'Web RDP'}</span>
+            <i>/</i>
+            <strong>{target?.proxy_name || tr('连接', 'Connections')}</strong>
+          </nav>
+          {target && (
+            <span className="webdesktop-connections-target">
+              {target.target_host}:{target.target_port}
+            </span>
+          )}
+        </div>
+
+        <div className="webdesktop-connections-heading">
+          <div>
+            <h2>
+              {tr(
+                protocol === 'vnc' ? 'VNC 连接' : 'RDP 连接',
+                protocol === 'vnc' ? 'VNC connections' : 'RDP connections',
+              )}
+            </h2>
+            <p>
+              {savedCredentials.length
+                ? tr(
+                    '选择已保存连接可直接进入远程桌面，也可以新建临时连接。',
+                    'Open a saved connection directly, or create a temporary one.',
+                  )
+                : tr(
+                    '还没有保存的连接，可以新建一个远程桌面连接。',
+                    'No saved connection yet. Create a remote desktop connection.',
+                  )}
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            disabled={!active || loading}
+            onClick={openNewConnection}
+          >
+            <Plus size={15} />
+            {tr('新建连接', 'New connection')}
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="webdesktop-connections-loading">
+            <span className="webdesktop-native-spinner" />
+          </div>
+        ) : !active ? (
+          <Notice tone="warning">
+            {target?.effective_status_message ||
+              tr('当前远程桌面访问不可用', 'Remote desktop entry unavailable')}
+          </Notice>
+        ) : savedCredentials.length ? (
+          <div className="webdesktop-connection-list">
+            {savedCredentials.map((credential) => (
+              <article
+                className="webdesktop-connection-card"
+                key={credential.id}
+              >
+                <div className="webdesktop-connection-card-identity">
+                  <span className="webdesktop-screen-mark" aria-hidden="true">
+                    {protocolLabel}
+                  </span>
+                  <strong>
+                    {target?.proxy_name ||
+                      tr('远程桌面连接', 'Remote desktop connection')}
+                  </strong>
+                </div>
+                <div className="webdesktop-connection-card-meta">
+                  <span className="webdesktop-connection-protocol">
+                    {protocolLabel}
+                  </span>
+                  <span>
+                    {tr('应用：', 'Application:')}
+                    {target?.application_name || '-'}
+                  </span>
+                  <span>
+                    {tr('目标：', 'Target:')}
+                    {target
+                      ? target.target_host + ':' + target.target_port
+                      : '-'}
+                  </span>
+                  {protocol === 'rdp' && (
+                    <span>
+                      {tr('用户：', 'User:')}
+                      {credential.domain
+                        ? credential.domain + '\\' + credential.username
+                        : credential.username || '-'}
+                    </span>
+                  )}
+                  <span className="webdesktop-connection-password-state">
+                    <Check size={12} />
+                    {tr('密码已保存', 'Password saved')}
+                  </span>
+                </div>
+                <div className="webdesktop-connection-card-used">
+                  <span>{tr('最近使用：', 'Last used:')}</span>
+                  <time>
+                    <Clock3 size={13} />
+                    {credential.last_used_at
+                      ? formatWebDesktopTime(credential.last_used_at)
+                      : tr('尚未使用', 'Never')}
+                  </time>
+                </div>
+                <div className="webdesktop-connection-card-actions">
+                  <Button
+                    variant="primary"
+                    disabled={!active}
+                    onClick={() => openSavedConnection(credential)}
+                  >
+                    <LogIn size={14} />
+                    {tr('进入', 'Enter')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    aria-label={tr('删除连接', 'Delete connection')}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          tr('删除这个保存连接？', 'Delete this saved connection?'),
+                        )
+                      )
+                        return;
+                      void deleteSavedConnection(credential);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="webdesktop-connections-empty">
+            <Monitor size={28} />
+            <strong>
+              {tr(
+                protocol === 'vnc'
+                  ? '还没有保存的 VNC 连接'
+                  : '还没有保存的 RDP 连接',
+                protocol === 'vnc'
+                  ? 'No saved VNC connections'
+                  : 'No saved RDP connections',
+              )}
+            </strong>
+            <p>
+              {tr(
+                '新建连接时可以选择保存密码，之后直接进入远程桌面。',
+                'Save the password when connecting to enter the desktop directly next time.',
+              )}
+            </p>
+            <Button variant="primary" onClick={openNewConnection}>
+              <Plus size={15} />
+              {tr('新建连接', 'New connection')}
+            </Button>
+          </div>
+        )}
+        {connectionModal}
+      </section>
+    );
+  }
+
+  return (
+    <>
+      <div
+        className={
+          'webdesktop-shell' +
+          (credentialOpen && !connected ? ' is-credential-setup' : '')
+        }
+      >
+        <header className="webdesktop-toolbar">
+          <div className="webdesktop-identity">
+            <Button
+              className="webdesktop-back-button"
+              variant="ghost"
+              aria-label={tr('返回连接', 'Back to connections')}
+              onClick={returnToConnections}
+            >
+              <ArrowLeft size={16} />
+            </Button>
+            <span className="webdesktop-screen-mark" aria-hidden="true">
+              {protocol.toUpperCase()}
+            </span>
+            <div>
+              <strong>
+                {target?.proxy_name ||
+                  tr('远程桌面会话', 'Remote desktop session')}
+              </strong>
+              <span>
+                {protocol === 'vnc'
+                  ? tr('VNC 远程桌面', 'VNC remote desktop')
+                  : tr('RDP 远程桌面', 'RDP remote desktop')}
+              </span>
+            </div>
+          </div>
+
+          <div className="webdesktop-session-meta">
+            <div>
+              <span>{tr('应用', 'Application')}</span>
+              <strong>{target?.application_name || '-'}</strong>
+            </div>
+            <div>
+              <span>{tr('目标', 'Target')}</span>
+              <strong>
+                {target ? `${target.target_host}:${target.target_port}` : '-'}
+              </strong>
+            </div>
+            <div>
+              <span>{tr('状态', 'Status')}</span>
+              <strong
+                className={
+                  'webdesktop-status ' +
+                  (connected
+                    ? 'is-connected'
+                    : connecting
+                    ? 'is-connecting'
+                    : active
+                    ? 'is-ready'
+                    : 'is-error')
+                }
+              >
+                <i />
+                {connected
+                  ? tr('已连接', 'Connected')
+                  : connecting
+                  ? tr('连接中', 'Connecting')
+                  : active
+                  ? tr('待连接', 'Ready')
+                  : tr('不可用', 'Unavailable')}
+              </strong>
+            </div>
+          </div>
+
+          <div className="webdesktop-toolbar-actions">
+            {!connected && (
+              <Button
+                variant="primary"
+                disabled={!active || loading || connecting}
+                onClick={() => setCredentialOpen(true)}
+              >
+                <Send size={16} />
+                {connecting
+                  ? tr('连接中', 'Connecting')
+                  : tr('连接', 'Connect')}
+              </Button>
+            )}
+            <Button
               disabled={!connected}
               onClick={toggleFullscreen}
             >
+              {fullscreen ? <Minimize size={16} /> : <Fullscreen size={16} />}
               {fullscreen
                 ? tr('退出全屏', 'Exit fullscreen')
                 : tr('全屏', 'Fullscreen')}
             </Button>
-            <Button
-              icon={<DisconnectOutlined />}
-              disabled={!connected && !connecting}
-              onClick={disconnect}
-            >
-              {tr('断开', 'Disconnect')}
-            </Button>
-          </Space>
-        </div>
+            {connected && (
+              <Button onClick={disconnectAndSummarize}>
+                <PlugZap size={16} />
+                {tr('断开', 'Disconnect')}
+              </Button>
+            )}
+          </div>
+        </header>
 
         {loading && (
           <div className="webdesktop-loading">
-            <Spin />
+            <span className="ui-spinner" aria-label={tr('加载中', 'Loading')} />
           </div>
         )}
         {!loading && !active && (
-          <Alert
+          <Notice
             className="webdesktop-alert"
-            type="warning"
-            showIcon
-            message={
-              target?.effective_status_message ||
-              tr('当前远程桌面访问不可用', 'Remote desktop entry unavailable')
-            }
-          />
-        )}
-        {!loading && error && (
-          <Alert
-            className="webdesktop-alert"
-            type="error"
-            showIcon
-            message={error}
-          />
-        )}
-
-        <div className="webdesktop-login">
-          <Form
-            form={form}
-            layout="inline"
-            onFinish={connect}
-            disabled={connecting || connected || loading}
+            tone="warning"
           >
-            {protocol === 'rdp' && (
-              <>
-                <Form.Item name="domain">
-                  <Input placeholder={tr('域（可选）', 'Domain (optional)')} />
-                </Form.Item>
-                <Form.Item
-                  name="username"
-                  rules={[
-                    {
-                      required: true,
-                      message: tr('请输入用户名', 'Username is required'),
-                    },
-                  ]}
-                >
-                  <AutoComplete
-                    allowClear
-                    defaultActiveFirstOption={false}
-                    options={savedOptions}
-                    onSelect={applySelectedCredential}
-                  >
-                    <Input
-                      autoComplete="username"
-                      placeholder={tr('用户名', 'Username')}
-                    />
-                  </AutoComplete>
-                </Form.Item>
-              </>
-            )}
-            <Form.Item
-              name="password"
-              rules={[
-                {
-                  validator: async (_, value) => {
-                    if (!selectedSavedCredential && !value) {
-                      throw new Error(tr('请输入密码', 'Password is required'));
-                    }
-                  },
-                },
-              ]}
-            >
-              <Input.Password
-                autoComplete="current-password"
-                placeholder={
-                  selectedSavedCredential
-                    ? tr(
-                        '留空使用保存密码',
-                        'Leave blank to use saved password',
-                      )
-                    : tr('密码', 'Password')
-                }
-                onPressEnter={() => form.submit()}
-              />
-            </Form.Item>
-            <Form.Item name="save_credential" valuePropName="checked">
-              <Checkbox>{tr('保存密码', 'Save password')}</Checkbox>
-            </Form.Item>
-            {selectedSavedCredential && (
-              <Popconfirm
-                title={tr('清除当前保存密码？', 'Clear this saved password?')}
-                okText={tr('清除', 'Clear')}
-                cancelText={tr('取消', 'Cancel')}
-                onConfirm={clearCredential}
-              >
-                <Button type="link" disabled={connecting || connected}>
-                  {tr('清除保存密码', 'Clear saved password')}
-                </Button>
-              </Popconfirm>
-            )}
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={connecting}
-              disabled={!active || connected || loading}
-            >
-              <SendOutlined />{' '}
-              {connected ? tr('已连接', 'Connected') : tr('连接', 'Connect')}
-            </Button>
-          </Form>
-        </div>
+            {target?.effective_status_message ||
+              tr('当前远程桌面访问不可用', 'Remote desktop entry unavailable')}
+          </Notice>
+        )}
+        {!loading && error && !credentialOpen && (
+          <Notice
+            className="webdesktop-alert"
+            tone="danger"
+          >{error}</Notice>
+        )}
 
         <div className="webdesktop-display" ref={displayHostRef}>
           <div className="webdesktop-display-stage" ref={displayContentRef} />
+          {connecting && (
+            <div className="webdesktop-connecting-state">
+              <span className="webdesktop-connecting-spinner" />
+              <strong>
+                {tr(
+                  protocol === 'vnc'
+                    ? '正在连接 VNC 桌面'
+                    : '正在连接 RDP 桌面',
+                  protocol === 'vnc'
+                    ? 'Connecting to VNC desktop'
+                    : 'Connecting to RDP desktop',
+                )}
+              </strong>
+              <p>
+                <span>{target?.application_name || '-'}</span>
+                <i>·</i>
+                <span>
+                  {target
+                    ? target.target_host + ':' + target.target_port
+                    : '-'}
+                </span>
+              </p>
+              <small>
+                {tr(
+                  '正在建立安全通道并初始化远程画面',
+                  'Opening the secure tunnel and preparing the display',
+                )}
+              </small>
+            </div>
+          )}
+          {!connected && !connecting && !loading && (
+            <div className="webdesktop-empty">
+              {sessionDurationSeconds !== null ? (
+                <>
+                  <span
+                    className="webdesktop-session-finished-icon"
+                    aria-hidden="true"
+                  >
+                    <Check size={18} />
+                  </span>
+                  <strong>
+                    {tr('远程桌面会话已结束', 'Remote desktop session ended')}
+                  </strong>
+                  <p className="webdesktop-session-duration">
+                    <span>{tr('本次使用', 'Duration')}</span>
+                    <b>{formatSessionDuration(sessionDurationSeconds)}</b>
+                  </p>
+                  <div className="webdesktop-session-end-actions">
+                    <Button onClick={returnToConnections}>
+                      {tr('返回连接', 'Back to connections')}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      disabled={!active}
+                      onClick={() => setCredentialOpen(true)}
+                    >
+                      {tr('重新连接', 'Reconnect')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span
+                    className="webdesktop-screen-mark"
+                    aria-hidden="true"
+                  >
+                    {protocol.toUpperCase()}
+                  </span>
+                  <strong>
+                    {tr('远程桌面尚未连接', 'Remote desktop disconnected')}
+                  </strong>
+                  <p>
+                    {tr(
+                      '选择连接凭据后开始安全会话',
+                      'Choose connection credentials to start a secure session',
+                    )}
+                  </p>
+                  <Button
+                    variant="primary"
+                    disabled={!active}
+                    onClick={() => setCredentialOpen(true)}
+                  >
+                    {tr('连接桌面', 'Connect desktop')}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
           <SessionWatermark lines={watermarkLines} />
         </div>
       </div>
-    </PageContainer>
+
+      <Modal
+        title={tr(
+          protocol === 'vnc' ? 'VNC 连接' : 'RDP 连接',
+          protocol === 'vnc' ? 'VNC connection' : 'RDP connection',
+        )}
+        open={credentialOpen}
+        onClose={closeCredentialModal}
+        width={400}
+        className="webdesktop-credential-modal"
+        closeOnMask={!connecting}
+      >
+        <div className="webdesktop-credential-target">
+          <div>
+            <span>{tr('应用', 'Application')}</span>
+            <strong>{target?.application_name || '-'}</strong>
+          </div>
+          <div>
+            <span>{tr('目标', 'Target')}</span>
+            <strong>
+              {target ? `${target.target_host}:${target.target_port}` : '-'}
+            </strong>
+          </div>
+        </div>
+
+        {error && (
+          <Notice
+            className="webdesktop-credential-error"
+            tone="danger"
+          >{error}</Notice>
+        )}
+
+        <form
+          className="webdesktop-credential-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitCredentialConnection();
+          }}
+        >
+          {protocol === 'rdp' && (
+            <>
+              <Field label={tr('域', 'Domain')}>
+                <Input value={credentials.domain || ''} placeholder={tr('可选', 'Optional')} onChange={(event) => setCredentials((value) => ({ ...value, domain: event.target.value }))} />
+              </Field>
+              <Field label={tr('用户名', 'Username')} required>
+                <Input list="webdesktop-saved-credentials" autoFocus autoComplete="username" value={credentials.username || ''} placeholder={tr('输入用户名', 'Enter username')} onChange={(event) => setCredentials((value) => ({ ...value, username: event.target.value }))} />
+                <datalist id="webdesktop-saved-credentials">
+                  {savedOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </datalist>
+              </Field>
+            </>
+          )}
+          <Field label={tr('密码', 'Password')} required={!selectedSavedCredential}>
+            <Input
+              type="password"
+              autoFocus={protocol !== 'rdp'}
+              autoComplete="current-password"
+              value={credentials.password || ''}
+              placeholder={
+                selectedSavedCredential
+                  ? tr('留空使用保存密码', 'Leave blank to use saved password')
+                  : tr('输入访问密码', 'Enter password')
+              }
+              onChange={(event) => setCredentials((value) => ({ ...value, password: event.target.value }))}
+            />
+          </Field>
+
+          <div className="webdesktop-credential-options">
+            {selectedSavedCredential && !credentials.password ? (
+              <span className="webdesktop-credential-saved">
+                <Check size={13} />
+                {tr('密码已保存', 'Password saved')}
+              </span>
+            ) : (
+              <label className="liaison-checkbox"><input type="checkbox" checked={Boolean(credentials.save_credential)} onChange={(event) => setCredentials((value) => ({ ...value, save_credential: event.target.checked }))} /><span>{selectedSavedCredential ? tr('更新保存密码', 'Update saved password') : tr('保存密码', 'Save password')}</span></label>
+            )}
+            {selectedSavedCredential && (
+                <Button variant="ghost" disabled={connecting || connected} onClick={() => {
+                  if (window.confirm(tr('清除当前保存密码？', 'Clear this saved password?'))) void clearCredential();
+                }}>
+                  {tr('清除保存密码', 'Clear saved password')}
+                </Button>
+            )}
+          </div>
+
+          <div className="webdesktop-credential-actions">
+            <Button
+              onClick={closeCredentialModal}
+              disabled={connecting}
+            >
+              {tr('取消', 'Cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              loading={connecting}
+              disabled={!active || loading}
+            >
+              <Send size={16} />
+              {tr('连接', 'Connect')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 };
 
