@@ -83,3 +83,26 @@ func TestOrganizationHierarchyRejectsCycleAndLastAdminRemoval(t *testing.T) {
 		t.Fatalf("last admin downgrade error = %v, want ErrInvalid", err)
 	}
 }
+
+func TestCreateUserAssignsSelectedOrganization(t *testing.T) {
+	service, r, admin := newOrganizationTestService(t)
+	organization, err := service.CreateOrganizationFor(admin, "Engineering", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, _, err := service.CreateUserFor(admin, organization.ID, "Engineer", "engineer@example.com", "password123", model.IAMRoleUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	membership, err := r.GetOrganizationMembership(organization.ID, user.ID)
+	if err != nil || membership == nil {
+		t.Fatalf("selected organization membership = %#v, %v", membership, err)
+	}
+	binding, err := r.GetIAMRoleBinding(organization.ID, user.ID)
+	if err != nil || binding == nil || binding.Role == nil || binding.Role.Code != model.IAMRoleUser {
+		t.Fatalf("selected organization role binding = %#v, %v", binding, err)
+	}
+	if err := service.RequireResourcePermission(user, "applications", "create"); err != nil {
+		t.Fatalf("selected organization resource permission: %v", err)
+	}
+}

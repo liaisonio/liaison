@@ -92,13 +92,14 @@ func (web *web) handleUsersHTTP(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		var input struct {
 			Name, Email, Password string
+			OrganizationID        uint              `json:"organization_id"`
 			Role                  model.IAMRoleCode `json:"role"`
 		}
 		if err := decodeJSON(r, &input); err != nil {
 			writeIAMError(w, err)
 			return
 		}
-		user, generated, err := web.iamService.CreateUserFor(actor, input.Name, input.Email, input.Password, input.Role)
+		user, generated, err := web.iamService.CreateUserFor(actor, input.OrganizationID, input.Name, input.Email, input.Password, input.Role)
 		if err != nil {
 			writeIAMError(w, err)
 			return

@@ -9,8 +9,12 @@ import (
 
 func TestCasbinControlsPlatformAndOrganizationRoles(t *testing.T) {
 	service, r, admin := newOrganizationTestService(t)
+	root, err := r.GetOrganizationByName(model.DefaultOrganizationName)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	member, _, err := service.CreateUserFor(admin, "Member", "member@example.com", "password123", model.IAMRoleUser)
+	member, _, err := service.CreateUserFor(admin, root.ID, "Member", "member@example.com", "password123", model.IAMRoleUser)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -21,10 +25,6 @@ func TestCasbinControlsPlatformAndOrganizationRoles(t *testing.T) {
 		t.Fatalf("authenticated organization visibility denied: %v", err)
 	}
 
-	root, err := r.GetOrganizationByName(model.DefaultOrganizationName)
-	if err != nil {
-		t.Fatal(err)
-	}
 	if _, err := service.UpsertOrganizationMemberFor(admin, root.ID, member.ID, model.OrganizationRoleMember); err != nil {
 		t.Fatal(err)
 	}
@@ -49,13 +49,13 @@ func TestCasbinControlsPlatformAndOrganizationRoles(t *testing.T) {
 
 func TestCasbinControlsDefaultOrganizationResources(t *testing.T) {
 	service, _, admin := newOrganizationTestService(t)
-	member, _, err := service.CreateUserFor(admin, "Member", "resource-member@example.com", "password123", model.IAMRoleUser)
-	if err != nil {
-		t.Fatal(err)
-	}
 	root, err := service.repo.GetOrganizationByName(model.DefaultOrganizationName)
 	if err != nil || root == nil {
 		t.Fatalf("default organization = %#v, %v", root, err)
+	}
+	member, _, err := service.CreateUserFor(admin, root.ID, "Member", "resource-member@example.com", "password123", model.IAMRoleUser)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if _, err := service.UpsertOrganizationMemberFor(admin, root.ID, member.ID, model.OrganizationRoleMember); err != nil {
 		t.Fatal(err)
@@ -83,11 +83,11 @@ func TestCasbinControlsDefaultOrganizationResources(t *testing.T) {
 
 func TestCasbinAssignmentsRebuildFromBusinessData(t *testing.T) {
 	service, r, admin := newOrganizationTestService(t)
-	member, _, err := service.CreateUserFor(admin, "Member", "restart-member@example.com", "password123", model.IAMRoleUser)
+	root, err := r.GetOrganizationByName(model.DefaultOrganizationName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := r.GetOrganizationByName(model.DefaultOrganizationName)
+	member, _, err := service.CreateUserFor(admin, root.ID, "Member", "restart-member@example.com", "password123", model.IAMRoleUser)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,11 @@ func TestCasbinAssignmentsRebuildFromBusinessData(t *testing.T) {
 
 func TestCasbinSystemRoleChangeTakesEffectImmediately(t *testing.T) {
 	service, _, admin := newOrganizationTestService(t)
-	secondAdmin, _, err := service.CreateUserFor(admin, "Second admin", "second-admin@example.com", "password123", model.IAMRoleAdmin)
+	root, err := service.repo.GetOrganizationByName(model.DefaultOrganizationName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondAdmin, _, err := service.CreateUserFor(admin, root.ID, "Second admin", "second-admin@example.com", "password123", model.IAMRoleAdmin)
 	if err != nil {
 		t.Fatal(err)
 	}

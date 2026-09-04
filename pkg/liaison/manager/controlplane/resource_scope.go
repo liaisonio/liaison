@@ -65,12 +65,12 @@ func claimResource(ctx context.Context, r repo.Repo, resourceType string, resour
 	if !scoped {
 		return nil
 	}
-	root, err := r.GetRootOrganization()
+	memberships, err := r.ListUserOrganizations(userID)
 	if err != nil {
 		return err
 	}
-	if root == nil {
-		return notFound("ROOT_ORGANIZATION_NOT_FOUND", "根组织不存在", nil)
+	if len(memberships) == 0 {
+		return notFound("ORGANIZATION_NOT_FOUND", "用户所属组织不存在", nil)
 	}
 	if err := r.UpsertIAMResourceRelation(&model.IAMResourceRelation{
 		ResourceType: resourceType,
@@ -87,7 +87,7 @@ func claimResource(ctx context.Context, r repo.Repo, resourceType string, resour
 		ResourceID:   resourceID,
 		Relation:     model.IAMRelationBelongsTo,
 		SubjectType:  model.IAMSubjectOrganization,
-		SubjectID:    root.ID,
+		SubjectID:    memberships[0].OrganizationID,
 		CreatedBy:    userID,
 	})
 }

@@ -222,24 +222,31 @@ func (s *IAMService) hasPermission(actor *model.User, domain, object, action str
 	return s.authorizer.enforce(actor.ID, domain, object, action)
 }
 
-// RequireResourcePermission authorizes access to the current installation's
-// shared resource domain. Resources remain attached to the default
-// organization until organization selection and generic resource bindings are
-// introduced together; Casbin, rather than handler role checks, decides what
-// each organization role may do.
+// RequireResourcePermission authorizes an action in any organization where the
+// actor has a role binding. Resource visibility is additionally constrained by
+// iam_resource_relations in the control plane.
 func (s *IAMService) RequireResourcePermission(actor *model.User, resource, action string) error {
-	root, err := s.repo.GetRootOrganization()
-	if err != nil {
-		return fmt.Errorf("get resource organization: %w", err)
-	}
-	if root == nil {
-		return fmt.Errorf("%w: default organization not found", ErrNotFound)
-	}
 	resource = strings.Trim(strings.TrimSpace(resource), "/")
 	if resource == "" {
 		return fmt.Errorf("%w: resource type is required", ErrInvalid)
 	}
-	return s.requirePermission(actor, organizationDomain(root.ID), "/resources/"+resource, action)
+	if actor == nil {
+		return ErrForbidden
+	}
+	bindings, err := s.repo.ListIAMRoleBindingsByUser(actor.ID)
+	if err != nil {
+		return err
+	}
+	for _, binding := range bindings {
+		allowed, err := s.hasPermission(actor, organizationDomain(binding.OrganizationID), "/resources/"+resource, action)
+		if err != nil {
+			return err
+		}
+		if allowed {
+			return nil
+		}
+	}
+	return ErrForbidden
 }
 
 func (s *IAMService) ListUsersFor(actor *model.User) ([]*model.User, int64, error) {
@@ -249,8 +256,21 @@ func (s *IAMService) ListUsersFor(actor *model.User) ([]*model.User, int64, erro
 	return s.repo.ListUsers(0, 100000)
 }
 
-func (s *IAMService) CreateUserFor(actor *model.User, name, email, password string, roleCode model.IAMRoleCode) (*model.User, string, error) {
+func (s *IAMService) CreateUserFor(actor *model.User, organizationID uint, name, email, password string, roleCode model.IAMRoleCode) (*model.User, string, error) {
 	if err := s.requirePermission(actor, globalDomain, "/users", "create"); err != nil {
+		return nil, "", err
+	}
+	if organizationID == 0 {
+		return nil, "", fmt.Errorf("%w: organization is required", ErrInvalid)
+	}
+	organization, err := s.repo.GetOrganizationByID(organizationID)
+	if err != nil {
+		return nil, "", err
+	}
+	if organization == nil {
+		return nil, "", fmt.Errorf("%w: organization not found", ErrInvalid)
+	}
+	if err := s.requirePermission(actor, organizationDomain(organizationID), organizationObject(organizationID), "update"); err != nil {
 		return nil, "", err
 	}
 	name, email = strings.TrimSpace(name), strings.ToLower(strings.TrimSpace(email))
@@ -261,6 +281,12 @@ func (s *IAMService) CreateUserFor(actor *model.User, name, email, password stri
 		return nil, "", err
 	} else if exists {
 		return nil, "", fmt.Errorf("%w: email already exists", ErrInvalid)
+	}
+	if roleCode == "" {
+		roleCode = model.IAMRoleUser
+	}
+	if !model.IsValidIAMRoleCode(roleCode) {
+		return nil, "", fmt.Errorf("%w: invalid role", ErrInvalid)
 	}
 	generated := ""
 	if password == "" {
@@ -285,20 +311,7 @@ func (s *IAMService) CreateUserFor(actor *model.User, name, email, password stri
 	if err := s.repo.CreateUser(user); err != nil {
 		return nil, "", fmt.Errorf("create user: %w", err)
 	}
-	root, err := s.repo.GetRootOrganization()
-	if err != nil {
-		return nil, "", err
-	}
-	if root == nil {
-		return nil, "", fmt.Errorf("%w: root organization not found", ErrNotFound)
-	}
-	if roleCode == "" {
-		roleCode = model.IAMRoleUser
-	}
-	if !model.IsValidIAMRoleCode(roleCode) {
-		return nil, "", fmt.Errorf("%w: invalid role", ErrInvalid)
-	}
-	if err := s.setOrganizationRole(root.ID, user.ID, roleCode, roleCode == model.IAMRoleAdmin); err != nil {
+	if err := s.setOrganizationRole(organization.ID, user.ID, roleCode, roleCode == model.IAMRoleAdmin); err != nil {
 		return nil, "", err
 	}
 	return user, generated, nil
@@ -353,21 +366,26 @@ func (s *IAMService) UpdateUserFor(actor *model.User, id uint, name string, stat
 }
 
 func (s *IAMService) UserRole(userID uint) (model.IAMRoleCode, error) {
-	root, err := s.repo.GetRootOrganization()
+	bindings, err := s.repo.ListIAMRoleBindingsByUser(userID)
 	if err != nil {
 		return "", err
 	}
-	if root == nil {
+	role := model.IAMRoleCode("")
+	for _, binding := range bindings {
+		if binding.Role == nil {
+			continue
+		}
+		if binding.Role.Code == model.IAMRoleAdmin {
+			return model.IAMRoleAdmin, nil
+		}
+		if binding.Role.Code == model.IAMRoleUser {
+			role = model.IAMRoleUser
+		}
+	}
+	if role == "" {
 		return "", ErrNotFound
 	}
-	binding, err := s.repo.GetIAMRoleBinding(root.ID, userID)
-	if err != nil {
-		return "", err
-	}
-	if binding == nil || binding.Role == nil {
-		return "", ErrNotFound
-	}
-	return binding.Role.Code, nil
+	return role, nil
 }
 
 func (s *IAMService) ResetUserPasswordFor(actor *model.User, id uint, password string) error {

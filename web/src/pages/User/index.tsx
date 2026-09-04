@@ -112,6 +112,7 @@ function AddMemberModal({ open, onClose, onSubmit }: { open: boolean; onClose: (
 function UsersPanel({ currentUserId, notify }: { currentUserId?: number; notify: Notify }) {
   const { tr } = useI18n();
   const [users, setUsers] = useState<API.ManagedUser[]>([]);
+  const [organizations, setOrganizations] = useState<API.Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [dialog, setDialog] = useState<'create' | 'password' | 'delete'>();
@@ -119,7 +120,12 @@ function UsersPanel({ currentUserId, notify }: { currentUserId?: number; notify:
   const [initialPassword, setInitialPassword] = useState('');
   const load = useCallback(async () => {
     setLoading(true);
-    try { const response = await getManagedUsers(); setUsers(response.data?.users || []); setForbidden(false); }
+    try {
+      const [usersResponse, organizationsResponse] = await Promise.all([getManagedUsers(), getOrganizations()]);
+      setUsers(usersResponse.data?.users || []);
+      setOrganizations((organizationsResponse.data?.organizations || []).filter((item) => item.can_manage));
+      setForbidden(false);
+    }
     catch (error) { if (error instanceof RequestError && error.response?.status === 403) setForbidden(true); else notify('danger', (error as Error).message); }
     finally { setLoading(false); }
   }, [notify]);
@@ -135,17 +141,17 @@ function UsersPanel({ currentUserId, notify }: { currentUserId?: number; notify:
       { key: 'created', title: tr('创建时间', 'Created'), width: 170, render: (row) => <Timestamp value={row.created_at} /> },
       { key: 'actions', title: tr('操作', 'Actions'), width: 160, fixed: 'right', render: (row) => <div className="liaison-table-actions"><button className="liaison-table-link" onClick={() => { setTarget(row); setDialog('password'); }}><KeyRound size={12} />{tr('密码', 'Password')}</button>{row.id !== currentUserId ? <button className="liaison-table-link is-danger" onClick={() => { setTarget(row); setDialog('delete'); }}>{tr('删除', 'Delete')}</button> : null}</div> },
     ]} />
-    <CreateUserModal open={dialog === 'create'} onClose={() => setDialog(undefined)} onSubmit={async (values) => { try { const response = await createManagedUser(values); setDialog(undefined); setInitialPassword(response.data?.initial_password || values.password || ''); await load(); notify('success', tr('用户已创建', 'User created')); } catch (error: any) { notify('danger', error?.message); } }} />
+    <CreateUserModal open={dialog === 'create'} organizations={organizations} onClose={() => setDialog(undefined)} onSubmit={async (values) => { try { const response = await createManagedUser(values); setDialog(undefined); setInitialPassword(response.data?.initial_password || values.password || ''); await load(); notify('success', tr('用户已创建', 'User created')); } catch (error: any) { notify('danger', error?.message); } }} />
     <PasswordModal open={dialog === 'password'} title={tr(`重置 ${target?.name || ''} 的密码`, `Reset password for ${target?.name || ''}`)} onClose={() => setDialog(undefined)} onSubmit={async (password) => { if (!target) return; try { await resetManagedUserPassword(target.id, password); setDialog(undefined); notify('success', tr('密码已重置', 'Password reset')); } catch (error: any) { notify('danger', error?.message); } }} />
     <Modal open={Boolean(initialPassword)} width={440} title={tr('初始密码', 'Initial password')} onClose={() => setInitialPassword('')} footer={<Button variant="primary" onClick={() => setInitialPassword('')}>{tr('完成', 'Done')}</Button>}><Notice tone="warning">{tr('密码只展示这一次，请通过安全渠道交给用户。', 'This password is shown once. Share it securely.')}</Notice><code className="initial-password-value">{initialPassword}</code></Modal>
     <Modal open={dialog === 'delete'} width={430} title={tr('删除用户', 'Delete user')} onClose={() => setDialog(undefined)} footer={<><Button onClick={() => setDialog(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={async () => { if (!target) return; try { await deleteManagedUser(target.id); setDialog(undefined); await load(); notify('success', tr('用户已删除', 'User deleted')); } catch (error: any) { notify('danger', error?.message); } }}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${target?.name || ''}”？`, `Delete “${target?.name || ''}”?`)} description={tr('该用户的所有组织成员关系也会被移除。', 'All organization memberships for this user will also be removed.')} /></Modal>
   </section>;
 }
 
-function CreateUserModal({ open, onClose, onSubmit }: { open: boolean; onClose: () => void; onSubmit: (values: { name: string; email: string; password?: string; role: API.IAMRole }) => Promise<void> }) {
-  const { tr } = useI18n(); const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [role, setRole] = useState<API.IAMRole>('user');
-  useEffect(() => { if (open) { setName(''); setEmail(''); setPassword(''); setRole('user'); } }, [open]);
-  return <Modal open={open} width={500} title={tr('新建用户', 'New user')} onClose={onClose} footer={<><Button onClick={onClose}>{tr('取消', 'Cancel')}</Button><Button variant="primary" disabled={!email.trim()} onClick={() => onSubmit({ name, email, password: password || undefined, role })}>{tr('创建', 'Create')}</Button></>}><div className="native-modal-form"><Field label={tr('名称', 'Name')}><Input value={name} onChange={(event) => setName(event.target.value)} placeholder={tr('默认使用邮箱前缀', 'Defaults to email prefix')} /></Field><Field label={tr('邮箱', 'Email')} required><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></Field><Field label={tr('初始密码', 'Initial password')} hint={tr('留空自动生成高强度密码', 'Leave blank to generate a strong password')}><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></Field><Field label={tr('角色', 'Role')}><Select value={role} onChange={(event) => setRole(event.target.value as API.IAMRole)}><option value="user">{tr('用户', 'User')}</option><option value="admin">{tr('管理员', 'Admin')}</option></Select></Field></div></Modal>;
+function CreateUserModal({ open, organizations, onClose, onSubmit }: { open: boolean; organizations: API.Organization[]; onClose: () => void; onSubmit: (values: { organization_id: number; name: string; email: string; password?: string; role: API.IAMRole }) => Promise<void> }) {
+  const { tr } = useI18n(); const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [organizationId, setOrganizationId] = useState(''); const [role, setRole] = useState<API.IAMRole>('user');
+  useEffect(() => { if (open) { setName(''); setEmail(''); setPassword(''); setOrganizationId(organizations[0]?.id ? String(organizations[0].id) : ''); setRole('user'); } }, [open, organizations]);
+  return <Modal open={open} width={500} title={tr('新建用户', 'New user')} onClose={onClose} footer={<><Button onClick={onClose}>{tr('取消', 'Cancel')}</Button><Button variant="primary" disabled={!email.trim() || !organizationId} onClick={() => onSubmit({ organization_id: Number(organizationId), name, email, password: password || undefined, role })}>{tr('创建', 'Create')}</Button></>}><div className="native-modal-form"><Field label={tr('名称', 'Name')}><Input value={name} onChange={(event) => setName(event.target.value)} placeholder={tr('默认使用邮箱前缀', 'Defaults to email prefix')} /></Field><Field label={tr('邮箱', 'Email')} required><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></Field><Field label={tr('所属组织', 'Organization')} required><Select value={organizationId} onChange={(event) => setOrganizationId(event.target.value)}><option value="" disabled>{tr('请选择组织', 'Select organization')}</option>{flattenOrganizations(organizations).map(({ organization, depth }) => <option key={organization.id} value={organization.id}>{'— '.repeat(depth)}{organization.name === '默认组织' ? tr('默认组织', 'Default organization') : organization.name}</option>)}</Select></Field><Field label={tr('初始密码', 'Initial password')} hint={tr('留空自动生成高强度密码', 'Leave blank to generate a strong password')}><Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></Field><Field label={tr('组织角色', 'Organization role')}><Select value={role} onChange={(event) => setRole(event.target.value as API.IAMRole)}><option value="user">{tr('用户', 'User')}</option><option value="admin">{tr('管理员', 'Admin')}</option></Select></Field></div></Modal>;
 }
 
 function PasswordModal({ open, title, onClose, onSubmit }: { open: boolean; title: string; onClose: () => void; onSubmit: (password: string) => Promise<void> }) {

@@ -43,7 +43,7 @@ export async function getManagedUsers() {
   return request<API.Response<{ users: API.ManagedUser[]; total: number }>>('/api/v1/iam/users');
 }
 
-export async function createManagedUser(data: { name?: string; email: string; password?: string; role?: API.IAMRole }) {
+export async function createManagedUser(data: { organization_id: number; name?: string; email: string; password?: string; role?: API.IAMRole }) {
   return request<API.Response<{ user: API.ManagedUser; initial_password?: string }>>('/api/v1/iam/users', { method: 'POST', data });
 }
 
