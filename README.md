@@ -13,15 +13,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 
 [Features](#features) · [Install](#install) · [Product tour](#product-tour) · [Documentation](#documentation) · [Community](#community)
 
-## Product tour
-
-| Private web applications | Private AI assistants |
-|:---:|:---:|
-| ![Accessing Jellyfin through Liaison](docs/pages/jellyfin-ss.png) | ![Accessing OpenClaw through Liaison](docs/pages/openclaw-ss.png) |
-
-| Web VNC | Web RDP |
-|:---:|:---:|
-| ![A VNC desktop opened in Liaison](docs/assets/readme/web-vnc.png) | ![An RDP desktop opened in Liaison](docs/assets/readme/web-rdp.png) |
+![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark.png)
 
 ## Features
 
@@ -33,15 +25,6 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 - **Firewall policies** — restrict TCP and HTTP access by source IP and CIDR.
 - **Logs and audit** — record management actions and supported application sessions in one place.
 - **Self-hosted deployment** — run the complete control plane on your own Linux server.
-
-## How it works
-
-1. Install Liaison on a public Linux server.
-2. Create a connector in the Web console and run its generated install command on a private device.
-3. Register or discover an application reachable by that connector.
-4. Create an access policy and connect through Liaison.
-
-Connectors initiate the connection to Liaison, so the private network does not need a public address or an inbound firewall rule.
 
 ## Install
 
@@ -72,6 +55,46 @@ The bundle contains the required images. Runtime data, certificates, and logs ar
 ### Connector
 
 In the Web console, open **Connectors**, create one, copy the generated command, and run it on the target Linux, macOS, or Windows device.
+
+The connector initiates the connection to Liaison. Register or discover applications reachable from that device, then create access for them—no public address or inbound firewall rule is required on the private network.
+
+## Product tour
+
+### Private web applications
+
+Access media servers and other internal web applications through Liaison.
+
+![Accessing Jellyfin through Liaison](docs/pages/jellyfin-ss.png)
+
+### Private AI assistants
+
+Keep internal AI tools reachable without exposing the private network.
+
+![Accessing OpenClaw through Liaison](docs/pages/openclaw-ss.png)
+
+### Web MySQL
+
+Inspect schemas and run audited SQL queries directly in the browser.
+
+![Using MySQL through Liaison](docs/assets/readme/web-mysql-dark.png)
+
+### Web MongoDB
+
+Explore document databases and execute commands without a local client.
+
+![Using MongoDB through Liaison](docs/assets/readme/web-mongodb-dark.png)
+
+### Web VNC
+
+Open a private VNC desktop in a managed browser session.
+
+![A VNC desktop opened in Liaison](docs/assets/readme/web-vnc.png)
+
+### Web RDP
+
+Connect to an RDP desktop from the same access workflow.
+
+![An RDP desktop opened in Liaison](docs/assets/readme/web-rdp.png)
 
 ## Documentation
 

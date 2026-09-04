@@ -13,15 +13,7 @@
 
 [产品能力](#产品能力) · [安装](#安装) · [产品展示](#产品展示) · [文档](#文档) · [社区](#社区)
 
-## 产品展示
-
-| 私有 Web 应用 | 私有 AI 助手 |
-|:---:|:---:|
-| ![通过 Liaison 访问 Jellyfin](docs/pages/jellyfin-ss.png) | ![通过 Liaison 访问 OpenClaw](docs/pages/openclaw-ss.png) |
-
-| Web VNC | Web RDP |
-|:---:|:---:|
-| ![在 Liaison 中访问 VNC 桌面](docs/assets/readme/web-vnc.png) | ![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp.png) |
+![Liaison 多应用流量总览](docs/assets/readme/overview-dark.png)
 
 ## 产品能力
 
@@ -33,15 +25,6 @@
 - **防火墙策略**：按来源 IP 与 CIDR 限制 TCP 和 HTTP 访问。
 - **日志与审计**：集中记录管理操作与支持审计的应用会话。
 - **私有化部署**：完整控制平面运行在自己的 Linux 服务器上。
-
-## 工作方式
-
-1. 在有公网入口的 Linux 服务器上安装 Liaison。
-2. 在控制台创建连接器，并在私有网络设备上执行生成的安装命令。
-3. 登记或扫描连接器能够访问的应用。
-4. 创建访问策略并通过 Liaison 连接。
-
-连接器主动连接 Liaison，因此私有网络无需公网地址或入站防火墙规则。
 
 ## 安装
 
@@ -72,6 +55,46 @@ cd liaison-1.8.0-docker-amd64
 ### 连接器
 
 在 Web 控制台打开**连接器**，创建连接器并复制生成的命令，然后在目标 Linux、macOS 或 Windows 设备上执行。
+
+连接器会主动连接 Liaison。登记或扫描该设备能够访问的应用，再为应用创建访问即可；私有网络无需公网地址或入站防火墙规则。
+
+## 产品展示
+
+### 私有 Web 应用
+
+通过 Liaison 访问媒体服务及其他内部 Web 应用。
+
+![通过 Liaison 访问 Jellyfin](docs/pages/jellyfin-ss.png)
+
+### 私有 AI 助手
+
+无需暴露私有网络，也能安全访问内部 AI 工具。
+
+![通过 Liaison 访问 OpenClaw](docs/pages/openclaw-ss.png)
+
+### Web MySQL
+
+直接在浏览器中查看表结构并执行可审计的 SQL 查询。
+
+![通过 Liaison 使用 MySQL](docs/assets/readme/web-mysql-dark.png)
+
+### Web MongoDB
+
+无需本地客户端即可浏览文档数据库并执行命令。
+
+![通过 Liaison 使用 MongoDB](docs/assets/readme/web-mongodb-dark.png)
+
+### Web VNC
+
+通过受管的浏览器会话访问私有 VNC 桌面。
+
+![在 Liaison 中访问 VNC 桌面](docs/assets/readme/web-vnc.png)
+
+### Web RDP
+
+使用同一套访问流程连接 RDP 桌面。
+
+![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp.png)
 
 ## 文档
 
