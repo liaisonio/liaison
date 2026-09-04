@@ -15,7 +15,7 @@ export async function login(data: API.LoginParams) {
 
 /** 获取当前用户信息 GET /v1/iam/profile */
 export async function getCurrentUser() {
-  return request<API.Response<API.CurrentUser>>('/api/v1/iam/profile', {
+  return request<API.Response<API.CurrentUser>>('/api/v1/iam/account', {
     method: 'GET',
   });
 }
@@ -37,6 +37,58 @@ export async function logout() {
     method: 'POST',
     data: {},
   });
+}
+
+export async function getManagedUsers() {
+  return request<API.Response<{ users: API.ManagedUser[]; total: number }>>('/api/v1/iam/users');
+}
+
+export async function createManagedUser(data: { name?: string; email: string; password?: string; role?: API.IAMRole }) {
+  return request<API.Response<{ user: API.ManagedUser; initial_password?: string }>>('/api/v1/iam/users', { method: 'POST', data });
+}
+
+export async function updateManagedUser(id: number, data: { name?: string; status?: API.UserStatus; role?: API.IAMRole }) {
+  return request<API.Response<API.ManagedUser>>(`/api/v1/iam/users/${id}`, { method: 'PATCH', data });
+}
+
+export async function resetManagedUserPassword(id: number, password: string) {
+  return request<API.Response>(`/api/v1/iam/users/${id}/password`, { method: 'PUT', data: { password } });
+}
+
+export async function deleteManagedUser(id: number) {
+  return request<API.Response>(`/api/v1/iam/users/${id}`, { method: 'DELETE' });
+}
+
+export async function getOrganizations() {
+  return request<API.Response<{ organizations: API.Organization[] }>>('/api/v1/iam/organizations');
+}
+
+export async function createOrganization(data: { name: string; description?: string; parent_id?: number }) {
+  return request<API.Response<API.Organization>>('/api/v1/iam/organizations', { method: 'POST', data });
+}
+
+export async function updateOrganization(id: number, data: { name?: string; description?: string; parent_id?: number; set_parent?: boolean }) {
+  return request<API.Response<API.Organization>>(`/api/v1/iam/organizations/${id}`, { method: 'PATCH', data });
+}
+
+export async function deleteOrganization(id: number) {
+  return request<API.Response>(`/api/v1/iam/organizations/${id}`, { method: 'DELETE' });
+}
+
+export async function getOrganizationMembers(id: number) {
+  return request<API.Response<{ members: API.OrganizationMember[] }>>(`/api/v1/iam/organizations/${id}/members`);
+}
+
+export async function addOrganizationMember(id: number, data: { email: string; role: API.OrganizationRole }) {
+  return request<API.Response<API.OrganizationMember>>(`/api/v1/iam/organizations/${id}/members`, { method: 'POST', data });
+}
+
+export async function updateOrganizationMember(id: number, userId: number, role: API.OrganizationRole) {
+  return request<API.Response<API.OrganizationMember>>(`/api/v1/iam/organizations/${id}/members/${userId}`, { method: 'PUT', data: { role } });
+}
+
+export async function removeOrganizationMember(id: number, userId: number) {
+  return request<API.Response>(`/api/v1/iam/organizations/${id}/members/${userId}`, { method: 'DELETE' });
 }
 
 /** 获取应用列表 GET /v1/applications */

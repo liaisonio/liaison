@@ -144,7 +144,7 @@ type WebDataAuditList struct {
 }
 
 func (cp *controlPlane) GetWebDataTarget(ctx context.Context, proxyID uint) (*WebDataTarget, error) {
-	target, err := cp.loadWebDataTarget(proxyID)
+	target, err := cp.loadWebDataTarget(ctx, proxyID)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (cp *controlPlane) GetWebDataTarget(ctx context.Context, proxyID uint) (*We
 }
 
 func (cp *controlPlane) OpenWebDataStream(ctx context.Context, proxyID uint) (net.Conn, *WebDataTarget, error) {
-	target, err := cp.loadWebDataTarget(proxyID)
+	target, err := cp.loadWebDataTarget(ctx, proxyID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -200,7 +200,7 @@ func (cp *controlPlane) OpenWebDataStream(ctx context.Context, proxyID uint) (ne
 }
 
 func (cp *controlPlane) GetWebDataCredentialSecret(ctx context.Context, proxyID uint, protocol, username, database, authDatabase string) (*WebDataCredentialSecret, error) {
-	if err := cp.validateWebDataProxy(proxyID); err != nil {
+	if err := cp.validateWebDataProxy(ctx, proxyID); err != nil {
 		return nil, err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -219,7 +219,7 @@ func (cp *controlPlane) GetWebDataCredentialSecretByID(ctx context.Context, prox
 	if credentialID == 0 {
 		return nil, errors.New("连接 ID 不能为空")
 	}
-	target, err := cp.loadWebDataTarget(proxyID)
+	target, err := cp.loadWebDataTarget(ctx, proxyID)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (cp *controlPlane) SaveWebDataCredential(ctx context.Context, proxyID uint,
 }
 
 func (cp *controlPlane) SaveWebDataCredentialProfile(ctx context.Context, proxyID uint, profile *WebDataCredentialProfile) (*WebDataCredential, error) {
-	target, err := cp.loadWebDataTarget(proxyID)
+	target, err := cp.loadWebDataTarget(ctx, proxyID)
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +318,9 @@ func (cp *controlPlane) TouchWebDataCredential(ctx context.Context, proxyID uint
 	if proxyID == 0 {
 		return errors.New("访问 ID 不能为空")
 	}
+	if err := cp.validateWebDataProxy(ctx, proxyID); err != nil {
+		return err
+	}
 	userID, err := requireWebSSHUserID(ctx)
 	if err != nil {
 		return err
@@ -330,6 +333,9 @@ func (cp *controlPlane) TouchWebDataCredentialByID(ctx context.Context, proxyID,
 	if proxyID == 0 || credentialID == 0 {
 		return errors.New("访问 ID 和连接 ID 不能为空")
 	}
+	if err := cp.validateWebDataProxy(ctx, proxyID); err != nil {
+		return err
+	}
 	userID, err := requireWebSSHUserID(ctx)
 	if err != nil {
 		return err
@@ -338,7 +344,7 @@ func (cp *controlPlane) TouchWebDataCredentialByID(ctx context.Context, proxyID,
 }
 
 func (cp *controlPlane) DeleteWebDataCredential(ctx context.Context, proxyID uint, protocol, username, database, authDatabase string) error {
-	if err := cp.validateWebDataProxy(proxyID); err != nil {
+	if err := cp.validateWebDataProxy(ctx, proxyID); err != nil {
 		return err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -350,7 +356,7 @@ func (cp *controlPlane) DeleteWebDataCredential(ctx context.Context, proxyID uin
 }
 
 func (cp *controlPlane) DeleteWebDataCredentialByID(ctx context.Context, proxyID, credentialID uint) error {
-	if err := cp.validateWebDataProxy(proxyID); err != nil {
+	if err := cp.validateWebDataProxy(ctx, proxyID); err != nil {
 		return err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -476,7 +482,7 @@ func isEmptyAccessAuditDetailValue(value any) bool {
 }
 
 func (cp *controlPlane) ListWebDataAudits(ctx context.Context, proxyID uint, limit int) ([]*WebDataAuditEntry, error) {
-	if err := cp.validateWebDataProxy(proxyID); err != nil {
+	if err := cp.validateWebDataProxy(ctx, proxyID); err != nil {
 		return nil, err
 	}
 	result, err := cp.ListWebDataAuditEntries(ctx, &WebDataAuditListQuery{
@@ -490,7 +496,7 @@ func (cp *controlPlane) ListWebDataAudits(ctx context.Context, proxyID uint, lim
 }
 
 func (cp *controlPlane) ListWebDataAuditEntries(ctx context.Context, query *WebDataAuditListQuery) (*WebDataAuditList, error) {
-	userID, err := requireWebSSHUserID(ctx)
+	_, err := requireWebSSHUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -498,7 +504,7 @@ func (cp *controlPlane) ListWebDataAuditEntries(ctx context.Context, query *WebD
 		query = &WebDataAuditListQuery{}
 	}
 	if query.ProxyID > 0 {
-		if err := cp.validateAccessAuditProxy(query.ProxyID); err != nil {
+		if err := cp.validateAccessAuditProxy(ctx, query.ProxyID); err != nil {
 			return nil, err
 		}
 	}
@@ -528,31 +534,28 @@ func (cp *controlPlane) ListWebDataAuditEntries(ctx context.Context, query *WebD
 		}
 	}
 	auditQuery := &dao.ListWebDataAuditsQuery{
-		UserID:        userID,
-		IncludeSystem: normalizedProtocol == "ssh",
-		ProxyID:       query.ProxyID,
-		Protocol:      normalizedProtocol,
-		Action:        action,
-		Success:       query.Success,
-		Keyword:       strings.TrimSpace(query.Keyword),
-		StartTime:     query.StartTime,
-		EndTime:       query.EndTime,
-		Limit:         pageSize,
-		Offset:        (page - 1) * pageSize,
+		ProxyID:   query.ProxyID,
+		Protocol:  normalizedProtocol,
+		Action:    action,
+		Success:   query.Success,
+		Keyword:   strings.TrimSpace(query.Keyword),
+		StartTime: query.StartTime,
+		EndTime:   query.EndTime,
+		Limit:     pageSize,
+		Offset:    (page - 1) * pageSize,
 	}
-	audits, err := cp.repo.ListWebDataAudits(&dao.ListWebDataAuditsQuery{
-		UserID:        auditQuery.UserID,
-		IncludeSystem: auditQuery.IncludeSystem,
-		ProxyID:       auditQuery.ProxyID,
-		Protocol:      auditQuery.Protocol,
-		Action:        auditQuery.Action,
-		Success:       auditQuery.Success,
-		Keyword:       auditQuery.Keyword,
-		StartTime:     auditQuery.StartTime,
-		EndTime:       auditQuery.EndTime,
-		Limit:         auditQuery.Limit,
-		Offset:        auditQuery.Offset,
-	})
+	visibleIDs, scoped, err := visibleResourceIDs(ctx, cp.repo, resourceAccess)
+	if err != nil {
+		return nil, err
+	}
+	if scoped && query.ProxyID == 0 {
+		auditQuery.ScopeApplied = true
+		auditQuery.ProxyIDs = make([]uint, len(visibleIDs))
+		for i, id := range visibleIDs {
+			auditQuery.ProxyIDs[i] = uint(id)
+		}
+	}
+	audits, err := cp.repo.ListWebDataAudits(auditQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -662,9 +665,12 @@ func (cp *controlPlane) webDataAuditApplications(audits []*model.WebDataAudit) m
 	return applications
 }
 
-func (cp *controlPlane) loadWebDataTarget(proxyID uint) (*WebDataTarget, error) {
+func (cp *controlPlane) loadWebDataTarget(ctx context.Context, proxyID uint) (*WebDataTarget, error) {
 	if proxyID == 0 {
 		return nil, errors.New("访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, uint64(proxyID)); err != nil {
+		return nil, err
 	}
 	proxy, err := cp.repo.GetProxyByID(proxyID)
 	if err != nil {
@@ -700,14 +706,17 @@ func (cp *controlPlane) loadWebDataTarget(proxyID uint) (*WebDataTarget, error) 
 	}, nil
 }
 
-func (cp *controlPlane) validateWebDataProxy(proxyID uint) error {
-	_, err := cp.loadWebDataTarget(proxyID)
+func (cp *controlPlane) validateWebDataProxy(ctx context.Context, proxyID uint) error {
+	_, err := cp.loadWebDataTarget(ctx, proxyID)
 	return err
 }
 
-func (cp *controlPlane) validateAccessAuditProxy(proxyID uint) error {
+func (cp *controlPlane) validateAccessAuditProxy(ctx context.Context, proxyID uint) error {
 	if proxyID == 0 {
 		return errors.New("访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, uint64(proxyID)); err != nil {
+		return err
 	}
 	_, err := cp.repo.GetProxyByID(proxyID)
 	return err

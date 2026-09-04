@@ -22,13 +22,16 @@ func (cp *controlPlane) RegisterFirewallManager(firewallManager proto.FirewallMa
 	cp.firewallManager = firewallManager
 }
 
-func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyRequest) (*v1.CreateProxyResponse, error) {
+func (cp *controlPlane) CreateProxy(ctx context.Context, req *v1.CreateProxyRequest) (*v1.CreateProxyResponse, error) {
 	name, err := normalizeResourceName(req.Name, "Access")
 	if err != nil {
 		return nil, err
 	}
 	if req.ApplicationId == 0 {
 		return nil, badRequest("APPLICATION_ID_REQUIRED", "关联应用不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceApplication, req.ApplicationId); err != nil {
+		return nil, err
 	}
 	if req.Port < 0 || req.Port > 65535 {
 		return nil, badRequest("PROXY_PORT_INVALID", "公网端口必须在 1-65535 之间；SSH/RDP/VNC 可留空仅通过网页访问")
@@ -70,6 +73,10 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 		log.Warnf("failed to create proxy: %s", err)
 		return nil, err
 	}
+	if err := claimResource(ctx, cp.repo, resourceAccess, uint64(proxy.ID)); err != nil {
+		_ = cp.repo.DeleteProxy(proxy.ID)
+		return nil, err
+	}
 	proxy.Application = application
 
 	if edge.Status == model.EdgeStatusRunning {
@@ -95,7 +102,7 @@ func (cp *controlPlane) CreateProxy(_ context.Context, req *v1.CreateProxyReques
 	}, nil
 }
 
-func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesRequest) (*v1.ListProxiesResponse, error) {
+func (cp *controlPlane) ListProxies(ctx context.Context, req *v1.ListProxiesRequest) (*v1.ListProxiesResponse, error) {
 	// list proxies
 	query := dao.ListProxiesQuery{
 		Query: dao.Query{
@@ -107,6 +114,17 @@ func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesReques
 	}
 	if req.Name != "" {
 		query.Name = req.Name
+	}
+	visibleIDs, scoped, err := visibleResourceIDs(ctx, cp.repo, resourceAccess)
+	if err != nil {
+		return nil, err
+	}
+	if scoped {
+		query.ScopeApplied = true
+		query.IDs = make([]uint, len(visibleIDs))
+		for i, id := range visibleIDs {
+			query.IDs[i] = uint(id)
+		}
 	}
 	proxies, err := cp.repo.ListProxies(&query)
 	if err != nil {
@@ -162,9 +180,12 @@ func (cp *controlPlane) ListProxies(_ context.Context, req *v1.ListProxiesReques
 	}, nil
 }
 
-func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyRequest) (*v1.UpdateProxyResponse, error) {
+func (cp *controlPlane) UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequest) (*v1.UpdateProxyResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("PROXY_ID_REQUIRED", "访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, req.Id); err != nil {
+		return nil, err
 	}
 	if req.Port < 0 || req.Port > 65535 {
 		return nil, badRequest("PROXY_PORT_INVALID", "公网端口必须在 1-65535 之间")
@@ -305,14 +326,20 @@ func (cp *controlPlane) UpdateProxy(_ context.Context, req *v1.UpdateProxyReques
 	}, nil
 }
 
-func (cp *controlPlane) DeleteProxy(_ context.Context, req *v1.DeleteProxyRequest) (*v1.DeleteProxyResponse, error) {
+func (cp *controlPlane) DeleteProxy(ctx context.Context, req *v1.DeleteProxyRequest) (*v1.DeleteProxyResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("PROXY_ID_REQUIRED", "访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, req.Id); err != nil {
+		return nil, err
 	}
 	if _, err := cp.repo.GetProxyByID(uint(req.Id)); err != nil {
 		return nil, mapRecordNotFound(err, "PROXY_NOT_FOUND", "访问不存在")
 	}
 	if err := cp.deleteProxyCascade(uint(req.Id), newLifecycleDeleteTracker()); err != nil {
+		return nil, err
+	}
+	if err := cp.repo.DeleteIAMResourceRelations(resourceAccess, req.Id); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteProxyResponse{

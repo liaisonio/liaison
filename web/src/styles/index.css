@@ -142,7 +142,18 @@ button {
 }
 .liaison-input::placeholder { color: rgb(var(--muted) / 0.68); }
 .liaison-input:focus { border-color: rgb(var(--accent) / 0.62); box-shadow: 0 0 0 3px rgb(var(--accent) / 0.1); }
-.liaison-select { appearance: auto; height: 38px; min-height: 38px; max-height: 38px; padding-top: 0; padding-bottom: 0; line-height: 36px; }
+.liaison-select {
+  appearance: none;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
+  padding: 0 34px 0 11px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23818a99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 14px 14px;
+  line-height: 36px;
+}
 
 .liaison-segmented { display: inline-flex; gap: 2px; border: 1px solid rgb(var(--line)); border-radius: calc(var(--control-radius) + 2px); padding: 3px; background: rgb(var(--canvas) / 0.5); }
 .liaison-segmented button { min-height: 28px; border: 0; border-radius: calc(var(--control-radius) - 3px); padding: 0 10px; background: transparent; color: rgb(var(--muted)); font-size: 11px; cursor: pointer; }

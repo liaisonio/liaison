@@ -14,14 +14,24 @@ import (
 
 // IAMService IAM服务
 type IAMService struct {
-	repo repo.Repo
+	repo       repo.Repo
+	authorizer *authorizer
 }
 
 // NewIAMService 创建IAM服务
-func NewIAMService(repo repo.Repo) *IAMService {
-	return &IAMService{
-		repo: repo,
+func NewIAMService(repo repo.Repo) (*IAMService, error) {
+	authorizer, err := newAuthorizer()
+	if err != nil {
+		return nil, err
 	}
+	service := &IAMService{repo: repo, authorizer: authorizer}
+	if err := service.ensureIAMCatalog(); err != nil {
+		return nil, err
+	}
+	if err := service.reloadAuthorization(); err != nil {
+		return nil, err
+	}
+	return service, nil
 }
 
 // LoginRequest 登录请求
@@ -136,12 +146,16 @@ func (s *IAMService) CreateDefaultUser() error {
 
 	// 创建default用户
 	user := &model.User{
+		Name:     "default",
 		Email:    "default@liaison.local",
 		Password: hashedPassword,
 		Status:   model.UserStatusActive,
 	}
 
 	if err := s.repo.CreateUser(user); err != nil {
+		return err
+	}
+	if err := s.EnsureOrganizationBootstrap(); err != nil {
 		return err
 	}
 

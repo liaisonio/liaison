@@ -32,10 +32,40 @@ declare namespace API {
     name?: string;
     email?: string;
     avatar?: string;
-    role?: string;
+    role?: IAMRole;
     created_at?: string;
     last_login_at?: string;
     last_login_ip?: string;
+  }
+
+  type UserStatus = 'active' | 'inactive' | 'locked';
+  type IAMRole = 'admin' | 'user';
+  interface ManagedUser {
+    id: number;
+    name: string;
+    email: string;
+    status: UserStatus;
+    role: IAMRole;
+    created_at: string;
+    last_login?: string;
+    login_ip?: string;
+  }
+  interface Organization {
+    id: number;
+    name: string;
+    description: string;
+    parent_id?: number;
+    created_at: string;
+		can_manage?: boolean;
+		can_delete?: boolean;
+  }
+  type OrganizationRole = IAMRole;
+  interface OrganizationMember {
+    id: number;
+    organization_id: number;
+    user_id: number;
+    role: OrganizationRole;
+    user?: ManagedUser;
   }
 
   // ========== 应用 (Application) ==========

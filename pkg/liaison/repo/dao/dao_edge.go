@@ -49,6 +49,8 @@ func (d *dao) CountEdges(query *ListEdgesQuery) (int64, error) {
 	db := d.getDB()
 	if len(query.EdgeIDs) > 0 {
 		db = db.Where("id IN ?", query.EdgeIDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	} else if len(query.DeviceIDs) > 0 {
 		// 兼容旧逻辑：通过 EdgeDevice 关系表查询
 		db = db.Joins("JOIN edge_devices ON edge_devices.edge_id = edges.id").
@@ -70,6 +72,8 @@ func (d *dao) ListEdges(query *ListEdgesQuery) ([]*model.Edge, error) {
 	}
 	if len(query.EdgeIDs) > 0 {
 		db = db.Where("id IN ?", query.EdgeIDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	} else if len(query.DeviceIDs) > 0 {
 		// 兼容旧逻辑：通过 EdgeDevice 关系表查询
 		db = db.Joins("JOIN edge_devices ON edge_devices.edge_id = edges.id").

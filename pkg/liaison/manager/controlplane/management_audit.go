@@ -103,6 +103,11 @@ func (cp *controlPlane) ListManagementAudits(ctx context.Context, query *Managem
 	if pageSize > 500 {
 		pageSize = 500
 	}
+	if admin, adminErr := isRootAdministrator(cp.repo, userID); adminErr != nil {
+		return nil, adminErr
+	} else if admin {
+		userID = 0
+	}
 	daoQuery := &dao.ListManagementAuditsQuery{UserID: userID, Module: strings.TrimSpace(query.Module), Action: strings.TrimSpace(query.Action), Success: query.Success, Keyword: strings.TrimSpace(query.Keyword), StartTime: query.StartTime, EndTime: query.EndTime, Limit: pageSize, Offset: (page - 1) * pageSize}
 	items, err := cp.repo.ListManagementAudits(daoQuery)
 	if err != nil {

@@ -51,7 +51,7 @@ type WebSSHTarget struct {
 }
 
 func (cp *controlPlane) GetWebSSHTarget(ctx context.Context, proxyID uint) (*WebSSHTarget, error) {
-	target, err := cp.loadWebSSHTarget(proxyID)
+	target, err := cp.loadWebSSHTarget(ctx, proxyID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (cp *controlPlane) GetWebSSHTarget(ctx context.Context, proxyID uint) (*Web
 }
 
 func (cp *controlPlane) OpenWebSSHStream(ctx context.Context, proxyID uint) (net.Conn, *WebSSHTarget, error) {
-	target, err := cp.loadWebSSHTarget(proxyID)
+	target, err := cp.loadWebSSHTarget(ctx, proxyID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -106,9 +106,12 @@ func (cp *controlPlane) OpenWebSSHStream(ctx context.Context, proxyID uint) (net
 	return meteredStream, target, nil
 }
 
-func (cp *controlPlane) TrustWebSSHHostKey(_ context.Context, proxyID uint, algorithm, fingerprintSHA256, publicKey string) error {
+func (cp *controlPlane) TrustWebSSHHostKey(ctx context.Context, proxyID uint, algorithm, fingerprintSHA256, publicKey string) error {
 	if proxyID == 0 {
 		return errors.New("访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, uint64(proxyID)); err != nil {
+		return err
 	}
 	if strings.TrimSpace(algorithm) == "" || strings.TrimSpace(fingerprintSHA256) == "" || strings.TrimSpace(publicKey) == "" {
 		return errors.New("主机指纹信息不能为空")
@@ -124,9 +127,12 @@ func (cp *controlPlane) TrustWebSSHHostKey(_ context.Context, proxyID uint, algo
 	})
 }
 
-func (cp *controlPlane) DeleteWebSSHHostKey(_ context.Context, proxyID uint) error {
+func (cp *controlPlane) DeleteWebSSHHostKey(ctx context.Context, proxyID uint) error {
 	if proxyID == 0 {
 		return errors.New("访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, uint64(proxyID)); err != nil {
+		return err
 	}
 	if _, err := cp.repo.GetProxyByID(proxyID); err != nil {
 		return err
@@ -135,7 +141,7 @@ func (cp *controlPlane) DeleteWebSSHHostKey(_ context.Context, proxyID uint) err
 }
 
 func (cp *controlPlane) GetWebSSHCredentials(ctx context.Context, proxyID uint) ([]*WebSSHCredential, error) {
-	if err := cp.validateWebSSHProxy(proxyID); err != nil {
+	if err := cp.validateWebSSHProxy(ctx, proxyID); err != nil {
 		return nil, err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -146,7 +152,7 @@ func (cp *controlPlane) GetWebSSHCredentials(ctx context.Context, proxyID uint) 
 }
 
 func (cp *controlPlane) GetWebSSHCredentialSecret(ctx context.Context, proxyID uint, username string) (*WebSSHCredentialSecret, error) {
-	if err := cp.validateWebSSHProxy(proxyID); err != nil {
+	if err := cp.validateWebSSHProxy(ctx, proxyID); err != nil {
 		return nil, err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -169,7 +175,7 @@ func (cp *controlPlane) GetWebSSHCredentialSecret(ctx context.Context, proxyID u
 }
 
 func (cp *controlPlane) SaveWebSSHCredential(ctx context.Context, proxyID uint, username, encryptedPassword, nonce string) error {
-	if err := cp.validateWebSSHProxy(proxyID); err != nil {
+	if err := cp.validateWebSSHProxy(ctx, proxyID); err != nil {
 		return err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -193,6 +199,9 @@ func (cp *controlPlane) TouchWebSSHCredential(ctx context.Context, proxyID uint,
 	if proxyID == 0 {
 		return errors.New("访问 ID 不能为空")
 	}
+	if err := cp.validateWebSSHProxy(ctx, proxyID); err != nil {
+		return err
+	}
 	userID, err := requireWebSSHUserID(ctx)
 	if err != nil {
 		return err
@@ -205,7 +214,7 @@ func (cp *controlPlane) TouchWebSSHCredential(ctx context.Context, proxyID uint,
 }
 
 func (cp *controlPlane) DeleteWebSSHCredential(ctx context.Context, proxyID uint, username string) error {
-	if err := cp.validateWebSSHProxy(proxyID); err != nil {
+	if err := cp.validateWebSSHProxy(ctx, proxyID); err != nil {
 		return err
 	}
 	userID, err := requireWebSSHUserID(ctx)
@@ -219,9 +228,12 @@ func (cp *controlPlane) DeleteWebSSHCredential(ctx context.Context, proxyID uint
 	return cp.repo.DeleteWebSSHCredential(proxyID, userID, username)
 }
 
-func (cp *controlPlane) loadWebSSHTarget(proxyID uint) (*WebSSHTarget, error) {
+func (cp *controlPlane) loadWebSSHTarget(ctx context.Context, proxyID uint) (*WebSSHTarget, error) {
 	if proxyID == 0 {
 		return nil, errors.New("访问 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceAccess, uint64(proxyID)); err != nil {
+		return nil, err
 	}
 	proxy, err := cp.repo.GetProxyByID(proxyID)
 	if err != nil {
@@ -264,8 +276,8 @@ func (cp *controlPlane) loadWebSSHTarget(proxyID uint) (*WebSSHTarget, error) {
 	}, nil
 }
 
-func (cp *controlPlane) validateWebSSHProxy(proxyID uint) error {
-	_, err := cp.loadWebSSHTarget(proxyID)
+func (cp *controlPlane) validateWebSSHProxy(ctx context.Context, proxyID uint) error {
+	_, err := cp.loadWebSSHTarget(ctx, proxyID)
 	return err
 }
 

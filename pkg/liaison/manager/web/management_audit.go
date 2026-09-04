@@ -66,6 +66,10 @@ func classifyManagementOperation(method, path string) (module, action, resource 
 		module = "access"
 	case strings.HasPrefix(path, "/api/v1/iam/tokens"):
 		module = "token"
+	case strings.HasPrefix(path, "/api/v1/iam/users"):
+		module = "user"
+	case strings.HasPrefix(path, "/api/v1/iam/organizations"):
+		module = "organization"
 	case path == "/api/v1/iam/password":
 		module = "account"
 	case path == "/api/v1/iam/logout":

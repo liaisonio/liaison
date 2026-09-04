@@ -12,7 +12,7 @@ import {
   HardDrive,
   type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './index.less';
 
 type DistributionItem = { type: string; value: number };
@@ -112,9 +112,19 @@ function TrafficChart({
   data: TrafficPoint[];
   emptyText: string;
 }) {
-  const width = 1000;
-  const height = 250;
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(1000);
+  const height = 285;
   const padding = { left: 64, right: 20, top: 24, bottom: 42 };
+  useEffect(() => {
+    const element = chartRef.current;
+    if (!element) return;
+    const updateWidth = () => setWidth(Math.max(240, Math.round(element.getBoundingClientRect().width)));
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const now = Date.now();
   const minTime = now - 24 * 60 * 60 * 1000;
   const maxTime = now;
@@ -128,7 +138,7 @@ function TrafficChart({
     chartColors[index % chartColors.length];
 
   return (
-    <div className="overview-chart">
+    <div className="overview-chart" ref={chartRef}>
       <div className="overview-chart-legend">
         {applications.map((application, index) => (
           <span key={application}>

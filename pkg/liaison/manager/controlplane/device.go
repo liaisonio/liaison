@@ -10,7 +10,7 @@ import (
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
 
-func (cp *controlPlane) ListDevices(_ context.Context, req *v1.ListDevicesRequest) (*v1.ListDevicesResponse, error) {
+func (cp *controlPlane) ListDevices(ctx context.Context, req *v1.ListDevicesRequest) (*v1.ListDevicesResponse, error) {
 	query := dao.ListDevicesQuery{
 		Query: dao.Query{
 			Page:     int(req.Page),
@@ -20,6 +20,17 @@ func (cp *controlPlane) ListDevices(_ context.Context, req *v1.ListDevicesReques
 		},
 		Name: req.Name,
 		IP:   req.Ip,
+	}
+	visibleIDs, scoped, err := visibleResourceIDs(ctx, cp.repo, resourceDevice)
+	if err != nil {
+		return nil, err
+	}
+	if scoped {
+		query.ScopeApplied = true
+		query.IDs = make([]uint, len(visibleIDs))
+		for i, id := range visibleIDs {
+			query.IDs[i] = uint(id)
+		}
 	}
 	devices, err := cp.repo.ListDevices(&query)
 	if err != nil {
@@ -47,9 +58,12 @@ func (cp *controlPlane) ListDevices(_ context.Context, req *v1.ListDevicesReques
 	}, nil
 }
 
-func (cp *controlPlane) GetDevice(_ context.Context, req *v1.GetDeviceRequest) (*v1.GetDeviceResponse, error) {
+func (cp *controlPlane) GetDevice(ctx context.Context, req *v1.GetDeviceRequest) (*v1.GetDeviceResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("DEVICE_ID_REQUIRED", "设备 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceDevice, req.Id); err != nil {
+		return nil, err
 	}
 	device, err := cp.repo.GetDeviceByID(uint(req.Id))
 	if err != nil {
@@ -70,9 +84,12 @@ func (cp *controlPlane) GetDevice(_ context.Context, req *v1.GetDeviceRequest) (
 	}, nil
 }
 
-func (cp *controlPlane) UpdateDevice(_ context.Context, req *v1.UpdateDeviceRequest) (*v1.UpdateDeviceResponse, error) {
+func (cp *controlPlane) UpdateDevice(ctx context.Context, req *v1.UpdateDeviceRequest) (*v1.UpdateDeviceResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("DEVICE_ID_REQUIRED", "设备 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceDevice, req.Id); err != nil {
+		return nil, err
 	}
 	if strings.TrimSpace(req.Name) == "" {
 		return nil, badRequest("DEVICE_NAME_REQUIRED", "设备名称不能为空")
@@ -93,14 +110,20 @@ func (cp *controlPlane) UpdateDevice(_ context.Context, req *v1.UpdateDeviceRequ
 	}, nil
 }
 
-func (cp *controlPlane) DeleteDevice(_ context.Context, req *v1.DeleteDeviceRequest) (*v1.DeleteDeviceResponse, error) {
+func (cp *controlPlane) DeleteDevice(ctx context.Context, req *v1.DeleteDeviceRequest) (*v1.DeleteDeviceResponse, error) {
 	if req.Id == 0 {
 		return nil, badRequest("DEVICE_ID_REQUIRED", "设备 ID 不能为空")
+	}
+	if err := requireVisibleResource(ctx, cp.repo, resourceDevice, req.Id); err != nil {
+		return nil, err
 	}
 	if _, err := cp.repo.GetDeviceByID(uint(req.Id)); err != nil {
 		return nil, mapRecordNotFound(err, "DEVICE_NOT_FOUND", "设备不存在")
 	}
 	if err := cp.deleteDeviceCascade(uint(req.Id), newLifecycleDeleteTracker()); err != nil {
+		return nil, err
+	}
+	if err := cp.repo.DeleteIAMResourceRelations(resourceDevice, req.Id); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteDeviceResponse{

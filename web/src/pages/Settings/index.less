@@ -32,8 +32,10 @@
 .user-avatar-editor { position: relative; width: 66px; height: 66px; }
 .native-avatar { display: grid; width: 66px; height: 66px; overflow: hidden; place-items: center; border: 1px solid rgb(var(--accent) / 0.2); border-radius: 50%; background: rgb(var(--accent) / 0.1); color: rgb(var(--accent)); font-size: 20px; font-weight: 680; box-shadow: 0 0 0 4px rgb(var(--accent) / 0.055); }
 .native-avatar img { display: block; width: 100%; height: 100%; background: transparent; object-fit: cover; transform: scale(1.1); }
-.user-avatar-edit { position: absolute; right: -2px; bottom: -2px; display: grid; width: 25px; height: 25px; place-items: center; border: 2px solid rgb(var(--surface)); border-radius: 50%; background: rgb(var(--ink)); color: rgb(var(--surface)); box-shadow: 0 3px 10px rgb(0 0 0 / 0.16); cursor: pointer; }
-.user-avatar-edit:hover { background: rgb(var(--accent)); }
+.user-avatar-edit { position: absolute; right: -1px; bottom: -1px; display: grid; width: 24px; height: 24px; appearance: none; place-items: center; border: 2px solid rgb(var(--surface)); border-radius: 50%; padding: 0; background: rgb(var(--accent)); color: white; box-shadow: 0 2px 7px rgb(var(--accent) / 0.25); cursor: pointer; line-height: 0; }
+.user-avatar-edit svg { display: block; width: 12px; height: 12px; stroke-width: 2; }
+.user-avatar-edit:hover { background: rgb(var(--accent)); filter: brightness(0.92); transform: translateY(-1px); }
+.user-avatar-edit:focus-visible { outline: 2px solid rgb(var(--accent) / 0.35); outline-offset: 2px; }
 .user-info { min-width: 0; }
 .user-name-row { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .user-info h3 { overflow: hidden; margin: 0; color: rgb(var(--ink)); font-size: 17px; font-weight: 680; letter-spacing: -0.025em; text-overflow: ellipsis; white-space: nowrap; }
@@ -62,6 +64,53 @@
 .native-table-empty { height: 100px !important; color: rgb(var(--muted)); text-align: center; }
 .native-modal-form { display: grid; width: 100%; max-width: 480px; gap: 16px; }
 .native-copy-row { display: flex; justify-content: flex-end; margin-top: 12px; }
+.user-management-page { padding-bottom: 12px; }
+.user-management-shell { min-height: min(680px, calc(100vh - 166px)); }
+.user-account-panel { width: 100%; max-width: none; }
+.native-settings-tabs > span { display: contents; }
+.native-settings-tabs > .user-tab-break { display: block; margin-top: 9px; padding-top: 9px; border-top: 1px solid rgb(var(--line) / 0.55); }
+.native-settings-tabs > .user-tab-break button { width: 100%; }
+.user-section-heading { display: flex; min-height: 56px; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.user-section-heading h2 { margin: 0; color: rgb(var(--ink)); font-size: 17px; font-weight: 680; letter-spacing: -0.02em; }
+.user-section-heading p { margin: 5px 0 0; color: rgb(var(--muted)); font-size: 11px; }
+.organization-layout { display: grid; min-height: 480px; grid-template-columns: 218px minmax(0, 1fr); overflow: hidden; border: 1px solid rgb(var(--line) / 0.68); border-radius: var(--surface-radius); background: rgb(var(--surface)); }
+.organization-tree { min-width: 0; border-right: 1px solid rgb(var(--line) / 0.58); padding: 15px 10px; background: rgb(var(--canvas) / 0.24); }
+.organization-tree > strong { display: block; padding: 0 10px 10px; color: rgb(var(--muted)); font-size: 10px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; }
+.organization-tree-list { display: grid; gap: 3px; }
+.organization-tree-list button { display: flex; width: 100%; min-height: 35px; align-items: center; gap: 7px; overflow: hidden; border: 0; border-radius: var(--control-radius); background: transparent; color: rgb(var(--muted)); font-size: 11px; text-align: left; cursor: pointer; }
+.organization-tree-list button:hover { background: rgb(var(--panel)); color: rgb(var(--ink)); }
+.organization-tree-list button.is-active { background: rgb(var(--accent) / 0.1); color: rgb(var(--accent)); font-weight: 630; }
+.organization-tree-list button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.organization-empty { padding: 20px 10px; color: rgb(var(--muted)); font-size: 11px; }
+.organization-detail { min-width: 0; padding: 18px; }
+.organization-detail > header { display: flex; min-height: 58px; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 1px solid rgb(var(--line) / 0.55); padding: 0 2px 15px; }
+.organization-detail > header h3 { margin: 0; font-size: 15px; font-weight: 680; }
+.organization-detail > header p { margin: 5px 0 0; color: rgb(var(--muted)); font-size: 11px; }
+.organization-actions { display: flex; gap: 5px; }
+.organization-members-heading { display: flex; min-height: 62px; align-items: center; justify-content: space-between; }
+.organization-members-heading > div { display: flex; align-items: baseline; gap: 8px; }
+.organization-members-heading strong { font-size: 13px; font-weight: 660; }
+.organization-members-heading span { color: rgb(var(--muted)); font-size: 10px; }
+.organization-detail .liaison-table { min-width: 620px; }
+.organization-detail .liaison-select { width: 128px; height: 30px; min-height: 30px; max-height: 30px; line-height: 28px; font-size: 10px; }
+.organization-placeholder { display: grid; min-height: 420px; place-items: center; color: rgb(var(--muted)); font-size: 11px; }
+.member-identity { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.member-identity > span { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: rgb(var(--accent) / 0.1); color: rgb(var(--accent)); font-size: 10px; font-weight: 680; }
+.member-identity > div { display: grid; min-width: 0; gap: 1px; }
+.member-identity strong { overflow: hidden; font-size: 11px; font-weight: 640; text-overflow: ellipsis; white-space: nowrap; }
+.member-identity small { overflow: hidden; color: rgb(var(--muted)); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.user-status, .system-role-chip { display: inline-flex; min-height: 24px; align-items: center; border: 1px solid rgb(var(--line)); border-radius: 999px; padding: 0 8px; background: rgb(var(--panel)); color: rgb(var(--muted)); font-size: 9px; line-height: 1; }
+button.user-status, button.system-role-chip { cursor: pointer; }
+.user-status.is-active { border-color: rgb(16 185 129 / 0.28); background: rgb(16 185 129 / 0.08); color: rgb(5 150 105); }
+.system-role-chip.is-admin { border-color: rgb(var(--accent) / 0.28); background: rgb(var(--accent) / 0.08); color: rgb(var(--accent)); }
+.user-status:disabled, .system-role-chip:disabled { cursor: default; }
+.liaison-table-link { display: inline-flex; align-items: center; gap: 4px; }
+.user-admin-empty { display: grid; min-height: 360px; place-items: center; align-content: center; color: rgb(var(--muted)); text-align: center; }
+.user-admin-empty h2 { margin: 12px 0 4px; color: rgb(var(--ink)); font-size: 15px; }
+.user-admin-empty p { max-width: 440px; margin: 0; font-size: 11px; }
+.native-checkbox { display: flex; align-items: center; gap: 8px; color: rgb(var(--ink)); font-size: 11px; }
+.native-checkbox input { width: 14px; height: 14px; accent-color: rgb(var(--accent)); }
+.initial-password-value { display: block; margin-top: 14px; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 12px; background: rgb(var(--panel)); color: rgb(var(--ink)); font-size: 12px; letter-spacing: 0.04em; user-select: all; }
 .native-about h3 { margin: 0 0 20px; font-size: 16px; }
 .native-about dl { display: grid; gap: 0; margin: 0; border-top: 1px solid rgb(var(--line) / 0.65); }
 .native-about dl > div { display: grid; grid-template-columns: 120px 1fr; padding: 14px 2px; border-bottom: 1px solid rgb(var(--line) / 0.5); }
@@ -76,4 +125,6 @@
   .settings-preference-row { align-items: flex-start; flex-direction: column; gap: 12px; }
   .user-profile { grid-template-columns: auto minmax(0, 1fr); }
   .user-avatar-actions { grid-column: 1 / -1; }
+  .organization-layout { grid-template-columns: 1fr; }
+  .organization-tree { border-right: 0; border-bottom: 1px solid rgb(var(--line) / 0.58); }
 }

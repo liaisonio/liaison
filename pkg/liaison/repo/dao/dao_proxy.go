@@ -24,6 +24,11 @@ func (d *dao) CountProxies(query *ListProxiesQuery) (int64, error) {
 		if len(query.ApplicationIDs) > 0 {
 			db = db.Where("application_id IN ?", query.ApplicationIDs)
 		}
+		if len(query.IDs) > 0 {
+			db = db.Where("id IN ?", query.IDs)
+		} else if query.ScopeApplied {
+			db = db.Where("1 = 0")
+		}
 	}
 	if err := db.Model(&model.Proxy{}).Count(&count).Error; err != nil {
 		return 0, err
@@ -39,6 +44,8 @@ func (d *dao) ListProxies(query *ListProxiesQuery) ([]*model.Proxy, error) {
 	}
 	if len(query.IDs) > 0 {
 		db = db.Where("id IN ?", query.IDs)
+	} else if query.ScopeApplied {
+		db = db.Where("1 = 0")
 	}
 	if len(query.ApplicationIDs) > 0 {
 		db = db.Where("application_id IN ?", query.ApplicationIDs)

@@ -98,6 +98,41 @@ type Dao interface {
 	DeleteUser(id uint) error
 	CheckUserExists(email string) (bool, error)
 
+	// Organization / membership related methods.
+	CreateOrganization(organization *model.Organization) error
+	GetOrganizationByID(id uint) (*model.Organization, error)
+	GetOrganizationByName(name string) (*model.Organization, error)
+	ListOrganizations() ([]*model.Organization, error)
+	UpdateOrganization(organization *model.Organization) error
+	DeleteOrganization(id uint) error
+	CountOrganizationChildren(id uint) (int64, error)
+	UpsertOrganizationMembership(membership *model.OrganizationMembership) error
+	GetOrganizationMembership(organizationID, userID uint) (*model.OrganizationMembership, error)
+	ListOrganizationMembers(organizationID uint) ([]*model.OrganizationMembership, error)
+	ListUserOrganizations(userID uint) ([]*model.OrganizationMembership, error)
+	DeleteOrganizationMembership(organizationID, userID uint) error
+	DeleteOrganizationMembershipsByOrganization(organizationID uint) error
+	DeleteOrganizationMembershipsByUser(userID uint) error
+	GetRootOrganization() (*model.Organization, error)
+	UpsertIAMRole(role *model.IAMRole) error
+	GetIAMRoleByCode(code model.IAMRoleCode) (*model.IAMRole, error)
+	ListIAMRoles() ([]*model.IAMRole, error)
+	UpsertIAMPermission(permission *model.IAMPermission) error
+	GetIAMPermissionByCode(code string) (*model.IAMPermission, error)
+	ListIAMPermissionsByRole(roleID uint) ([]*model.IAMPermission, error)
+	UpsertIAMRolePermission(rolePermission *model.IAMRolePermission) error
+	UpsertIAMRoleBinding(binding *model.IAMRoleBinding) error
+	GetIAMRoleBinding(organizationID, userID uint) (*model.IAMRoleBinding, error)
+	ListIAMRoleBindings() ([]*model.IAMRoleBinding, error)
+	ListIAMRoleBindingsByUser(userID uint) ([]*model.IAMRoleBinding, error)
+	DeleteIAMRoleBinding(organizationID, userID uint) error
+	DeleteIAMRoleBindingsByOrganization(organizationID uint) error
+	DeleteIAMRoleBindingsByUser(userID uint) error
+	UpsertIAMResourceRelation(relation *model.IAMResourceRelation) error
+	ListIAMResourceRelations(resourceType string, resourceID uint64) ([]*model.IAMResourceRelation, error)
+	ListIAMResourceIDsForSubject(resourceType string, subjectType model.IAMSubjectType, subjectID uint) ([]uint64, error)
+	DeleteIAMResourceRelations(resourceType string, resourceID uint64) error
+
 	// TrafficMetric 相关方法
 	CreateTrafficMetric(metric *model.TrafficMetric) error
 	ListTrafficMetrics(query *ListTrafficMetricsQuery) ([]*model.TrafficMetric, error)
@@ -216,6 +251,13 @@ func (d *dao) initDB() error {
 		&model.Proxy{},
 		&model.Task{},
 		&model.User{},
+		&model.Organization{},
+		&model.OrganizationMembership{},
+		&model.IAMRole{},
+		&model.IAMPermission{},
+		&model.IAMRolePermission{},
+		&model.IAMRoleBinding{},
+		&model.IAMResourceRelation{},
 		&model.TrafficMetric{},
 		&model.UserAPIToken{},
 		&model.ProxyFirewallRule{},

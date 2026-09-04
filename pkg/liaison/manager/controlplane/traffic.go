@@ -14,7 +14,7 @@ import (
 // 本地时间格式（不带时区信息）
 const localTimeFormat = "2006-01-02T15:04:05"
 
-func (cp *controlPlane) ListTrafficMetrics(_ context.Context, req *v1.ListTrafficMetricsRequest) (*v1.ListTrafficMetricsResponse, error) {
+func (cp *controlPlane) ListTrafficMetrics(ctx context.Context, req *v1.ListTrafficMetricsRequest) (*v1.ListTrafficMetricsResponse, error) {
 	if req.Limit < 0 || req.Limit > 10000 {
 		return nil, badRequest("TRAFFIC_LIMIT_INVALID", "流量查询 limit 必须在 0-10000 之间")
 	}
@@ -34,6 +34,40 @@ func (cp *controlPlane) ListTrafficMetrics(_ context.Context, req *v1.ListTraffi
 	if len(req.ProxyIds) > 0 {
 		query.ProxyIDs = make([]uint, len(req.ProxyIds))
 		for i, id := range req.ProxyIds {
+			query.ProxyIDs[i] = uint(id)
+		}
+	}
+	visibleApplicationIDs, applicationScoped, err := visibleResourceIDs(ctx, cp.repo, resourceApplication)
+	if err != nil {
+		return nil, err
+	}
+	visibleAccessIDs, accessScoped, err := visibleResourceIDs(ctx, cp.repo, resourceAccess)
+	if err != nil {
+		return nil, err
+	}
+	if applicationScoped || accessScoped {
+		query.ScopeApplied = true
+		requestedApplicationIDs := make([]uint64, len(query.ApplicationIDs))
+		for i, id := range query.ApplicationIDs {
+			requestedApplicationIDs[i] = uint64(id)
+		}
+		if len(requestedApplicationIDs) > 0 {
+			visibleApplicationIDs = intersectResourceIDs(requestedApplicationIDs, visibleApplicationIDs)
+		}
+		query.ApplicationIDs = make([]uint, len(visibleApplicationIDs))
+		for i, id := range visibleApplicationIDs {
+			query.ApplicationIDs[i] = uint(id)
+		}
+
+		requestedAccessIDs := make([]uint64, len(query.ProxyIDs))
+		for i, id := range query.ProxyIDs {
+			requestedAccessIDs[i] = uint64(id)
+		}
+		if len(requestedAccessIDs) > 0 {
+			visibleAccessIDs = intersectResourceIDs(requestedAccessIDs, visibleAccessIDs)
+		}
+		query.ProxyIDs = make([]uint, len(visibleAccessIDs))
+		for i, id := range visibleAccessIDs {
 			query.ProxyIDs[i] = uint(id)
 		}
 	}

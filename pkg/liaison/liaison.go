@@ -98,7 +98,13 @@ func NewLiaison() (*Liaison, error) {
 		return nil, err
 	}
 	// IAM service
-	iamService := iam.NewIAMService(repo)
+	iamService, err := iam.NewIAMService(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize authorization: %w", err)
+	}
+	if err := iamService.EnsureOrganizationBootstrap(); err != nil {
+		return nil, fmt.Errorf("failed to initialize organizations: %w", err)
+	}
 	// 设置JWT密钥（必须从配置文件读取）
 	if config.Conf.Manager.JWTSecret == "" {
 		return nil, fmt.Errorf("JWT secret key is required in configuration file. Please set 'manager.jwt_secret' in your configuration")

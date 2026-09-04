@@ -83,6 +83,7 @@ func TestWebDataCredentialsAreScopedByIdentity(t *testing.T) {
 	if err := r.CreateProxy(proxy); err != nil {
 		t.Fatalf("create proxy: %v", err)
 	}
+	grantTestResourceToUsers(t, r, resourceAccess, proxy.ID, 1, 2)
 
 	ctxUser1 := context.WithValue(context.Background(), "user_id", uint(1))
 	ctxUser2 := context.WithValue(context.Background(), "user_id", uint(2))
@@ -137,6 +138,7 @@ func TestWebDataCredentialProfileCanBeEditedAndLoadedByID(t *testing.T) {
 	if err := r.CreateProxy(proxy); err != nil {
 		t.Fatalf("create proxy: %v", err)
 	}
+	grantTestResourceToUsers(t, r, resourceAccess, proxy.ID, 1)
 
 	ctx := context.WithValue(context.Background(), "user_id", uint(1))
 	saved, err := cp.SaveWebDataCredentialProfile(ctx, proxy.ID, &WebDataCredentialProfile{
@@ -219,6 +221,7 @@ func TestListWebDataAuditsScopesByProxyAndUser(t *testing.T) {
 	if err := r.CreateProxy(proxy); err != nil {
 		t.Fatalf("create proxy: %v", err)
 	}
+	grantTestResourceToUsers(t, r, resourceAccess, proxy.ID, 1)
 
 	audits := []*WebDataAudit{
 		{UserID: 1, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "mysql", Database: "app", StatementPreview: "SELECT 1", StatementSHA256: strings.Repeat("a", 64), Success: true, AffectedRows: 0, ClientIP: "203.0.113.10", Details: map[string]any{"client_ip_source": "x-forwarded-for"}},
@@ -235,11 +238,17 @@ func TestListWebDataAuditsScopesByProxyAndUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListWebDataAudits: %v", err)
 	}
-	if len(entries) != 1 || entries[0].StatementPreview != "SELECT 1" {
-		t.Fatalf("entries = %+v, want only user1/proxy audit", entries)
+	if len(entries) != 2 {
+		t.Fatalf("entries = %+v, want all audits on the owned proxy", entries)
 	}
-	if entries[0].Details["database"] != "app" || entries[0].Details["affected_rows"] == nil || entries[0].Details["client_ip"] != "203.0.113.10" || entries[0].Details["client_ip_source"] != "x-forwarded-for" {
-		t.Fatalf("details = %+v, want database/affected_rows/client_ip", entries[0].Details)
+	var ownEntry *WebDataAuditEntry
+	for _, entry := range entries {
+		if entry.StatementPreview == "SELECT 1" {
+			ownEntry = entry
+		}
+	}
+	if ownEntry == nil || ownEntry.Details["database"] != "app" || ownEntry.Details["affected_rows"] == nil || ownEntry.Details["client_ip"] != "203.0.113.10" || ownEntry.Details["client_ip_source"] != "x-forwarded-for" {
+		t.Fatalf("entry = %+v, want database/affected_rows/client_ip", ownEntry)
 	}
 }
 
@@ -261,6 +270,7 @@ func TestListAccessAuditsAllowsSSHProtocol(t *testing.T) {
 	if err := r.CreateProxy(proxy); err != nil {
 		t.Fatalf("create proxy: %v", err)
 	}
+	grantTestResourceToUsers(t, r, resourceAccess, proxy.ID, 1)
 
 	if err := cp.RecordWebDataAudit(context.Background(), &WebDataAudit{
 		UserID:           0,
@@ -307,6 +317,7 @@ func TestAccessAuditsSeparateSSHAndWebSSHAndIgnoreTCP(t *testing.T) {
 	if err := r.CreateProxy(proxy); err != nil {
 		t.Fatal(err)
 	}
+	grantTestResourceToUsers(t, r, resourceAccess, proxy.ID, 1)
 
 	records := []*WebDataAudit{
 		{UserID: 0, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "ssh", Action: "execute", Database: "native", StatementPreview: "uptime", Success: true},
@@ -354,8 +365,8 @@ func TestAccessAuditsSeparateSSHAndWebSSHAndIgnoreTCP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if allResult.Total != 3 {
-		t.Fatalf("user-scoped result total = %d, want WebSSH/RDP/VNC and no TCP row", allResult.Total)
+	if allResult.Total != 4 {
+		t.Fatalf("resource-scoped result total = %d, want SSH/WebSSH/RDP/VNC and no TCP row", allResult.Total)
 	}
 }
 
@@ -372,6 +383,7 @@ func TestListAccessAuditsWithoutActionIncludesSessionLifecycle(t *testing.T) {
 	if err := r.CreateProxy(proxy); err != nil {
 		t.Fatal(err)
 	}
+	grantTestResourceToUsers(t, r, resourceAccess, proxy.ID, 1)
 	for _, action := range []string{"open_session", "execute", "close_session"} {
 		if err := cp.RecordWebDataAudit(context.Background(), &WebDataAudit{UserID: 0, ProxyID: proxy.ID, ApplicationID: application.ID, Protocol: "ssh", Action: action, Database: "root", Success: true, Details: map[string]any{"auth_method": "password"}}); err != nil {
 			t.Fatal(err)
