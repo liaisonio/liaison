@@ -55,6 +55,7 @@ declare namespace API {
     name: string;
     description: string;
     parent_id?: number;
+    is_root: boolean;
     created_at: string;
 		can_manage?: boolean;
 		can_delete?: boolean;

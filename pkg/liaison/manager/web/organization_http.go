@@ -29,6 +29,7 @@ type organizationJSON struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	ParentID    *uint  `json:"parent_id,omitempty"`
+	IsRoot      bool   `json:"is_root"`
 	CreatedAt   string `json:"created_at"`
 	CanManage   bool   `json:"can_manage"`
 	CanDelete   bool   `json:"can_delete"`
@@ -68,7 +69,7 @@ func (web *web) toIAMUser(user *model.User) *iamUserJSON {
 }
 
 func toOrganization(org *model.Organization) organizationJSON {
-	return organizationJSON{ID: org.ID, Name: org.Name, Description: org.Description, ParentID: org.ParentID, CreatedAt: org.CreatedAt.Format(time.DateTime)}
+	return organizationJSON{ID: org.ID, Name: org.Name, Description: org.Description, ParentID: org.ParentID, IsRoot: org.IsRoot, CreatedAt: org.CreatedAt.Format(time.DateTime)}
 }
 
 func (web *web) handleUsersHTTP(w http.ResponseWriter, r *http.Request) {
