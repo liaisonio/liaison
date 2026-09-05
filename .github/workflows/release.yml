@@ -122,9 +122,12 @@ jobs:
           docker_root="liaison-${version}-linux-amd64"
           systemd_root="liaison-${version}-systemd-linux-amd64"
 
-          tar -tzf "${docker_root}.tar.gz" | grep -qx "${docker_root}/install.sh"
-          tar -tzf "${systemd_root}.tar.gz" | grep -qx "${systemd_root}/install.sh"
-          if tar -tzf "${docker_root}.tar.gz" | grep -q '/load\.sh$'; then
+          docker_listing="$(tar -tzf "${docker_root}.tar.gz")"
+          systemd_listing="$(tar -tzf "${systemd_root}.tar.gz")"
+
+          grep -qx "${docker_root}/install.sh" <<< "${docker_listing}"
+          grep -qx "${systemd_root}/install.sh" <<< "${systemd_listing}"
+          if grep -q '/load\.sh$' <<< "${docker_listing}"; then
             echo "legacy load.sh found in Docker bundle" >&2
             exit 1
           fi
