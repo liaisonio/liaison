@@ -41,11 +41,15 @@ sudo ./install.sh
 
 ## 集成
 
+Liaison 支持以下原生协议与浏览器工作台。
+
 <div align="center">
 
-| | | | | | | | | |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="https://api.iconify.design/mdi:lan-connect.svg?color=%2364748b" width="38" alt="TCP" /><br><sub>TCP</sub> | <img src="https://api.iconify.design/mdi:web.svg?color=%2364748b" width="38" alt="HTTP" /><br><sub>HTTP</sub> | <img src="https://api.iconify.design/mdi:console.svg?color=%2364748b" width="38" alt="SSH" /><br><sub>SSH</sub> | <img src="https://api.iconify.design/mdi:desktop-classic.svg?color=%2364748b" width="38" alt="RDP" /><br><sub>RDP</sub> | <img src="https://api.iconify.design/mdi:monitor-share.svg?color=%2364748b" width="38" alt="VNC" /><br><sub>VNC</sub> | <img src="https://api.iconify.design/logos:mysql-icon.svg" width="38" alt="MySQL" /><br><sub>MySQL</sub> | <img src="https://api.iconify.design/logos:postgresql.svg" width="38" alt="PostgreSQL" /><br><sub>PostgreSQL</sub> | <img src="https://api.iconify.design/logos:redis.svg" width="38" alt="Redis" /><br><sub>Redis</sub> | <img src="https://api.iconify.design/logos:mongodb-icon.svg" width="38" alt="MongoDB" /><br><sub>MongoDB</sub> |
+| | |
+|:---|:---|
+| **应用访问** | <img src="https://api.iconify.design/mdi:lan-connect.svg?color=%237c8da6" height="42" alt="TCP" title="TCP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/mdi:web.svg?color=%237c8da6" height="42" alt="HTTP" title="HTTP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/mdi:console.svg?color=%237c8da6" height="42" alt="SSH" title="SSH" /> |
+| **远程桌面** | <img src="https://api.iconify.design/mdi:desktop-classic.svg?color=%237c8da6" height="42" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/mdi:monitor-share.svg?color=%237c8da6" height="42" alt="VNC" title="VNC" /> |
+| **数据库** | <img src="https://api.iconify.design/logos:mysql-icon.svg" height="42" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:postgresql.svg" height="42" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:redis.svg" height="42" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:mongodb-icon.svg" height="42" alt="MongoDB" title="MongoDB" /> |
 
 </div>
 
