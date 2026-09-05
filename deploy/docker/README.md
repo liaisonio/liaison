@@ -60,7 +60,7 @@ docker compose logs liaison | grep -A5 "first-run credentials"
 make package-docker
 ```
 
-产出 `liaison-<VERSION>-docker-amd64.tar.gz`(含 `docker save` 出来的 liaison + frontier + guacd 镜像、compose 文件、`.env.example`、`load.sh`)。用户解压后执行 `./load.sh` 即可加载镜像并启动服务。
+产出默认 Linux 安装包 `liaison-<VERSION>-linux-amd64.tar.gz`(含 `docker save` 出来的 liaison + frontier + guacd 镜像、compose 文件、`.env.example`、`install.sh`)。用户解压后执行 `./install.sh` 即可加载镜像并启动服务。宿主机 systemd 版本单独发布为 `liaison-<VERSION>-systemd-linux-amd64.tar.gz`。
 
 ## 数据持久化
 

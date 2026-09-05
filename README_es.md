@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
-[![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
+[![Version](https://img.shields.io/badge/Version-v1.9.1-green)](#)
 
 [简体中文](./README_zh.md) | [English](./README.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | Español | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
@@ -55,15 +55,15 @@ Instala el paquete tar.gz del servidor y después instala un conector.
 **1. Descargar**
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
-tar -xzf liaison-1.8.0-linux-amd64.tar.gz
-cd liaison-1.8.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.9.1/liaison-1.9.1-linux-amd64.tar.gz
+tar -xzf liaison-1.9.1-linux-amd64.tar.gz
+cd liaison-1.9.1-linux-amd64
 ```
 
 **2. Ejecutar el script de instalación**
 
 ```bash
-sudo ./install.sh
+./install.sh
 ```
 
 Se te pedirá una IP pública o dominio; si no introduces nada en 30 segundos, se usará la IP pública detectada.

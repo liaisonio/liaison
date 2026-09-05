@@ -23,7 +23,7 @@ NC='\033[0m' # No Color
 
 # Get version
 VERSION=$(cat VERSION 2>/dev/null || echo "unknown")
-PACK_DIR="liaison-${VERSION}-linux-amd64"
+PACK_DIR="liaison-${VERSION}-systemd-linux-amd64"
 
 echo -e "${GREEN}Packaging Liaison ${VERSION}...${NC}"
 

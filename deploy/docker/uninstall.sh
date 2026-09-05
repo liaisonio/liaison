@@ -24,7 +24,7 @@ Usage: ./uninstall.sh [--purge]
   (no flag)    stop & remove containers and images; keep data/certs/logs/.env
   --purge      also delete data/, certs/, logs/, .env  — DESTROYS the database
 
-Re-run ./load.sh afterwards to reinstall. Without --purge the existing user
+Re-run ./install.sh afterwards to reinstall. Without --purge the existing user
 accounts, proxies, and TLS cert are restored; with --purge the install is fresh.
 EOF
             exit 0
@@ -82,7 +82,7 @@ if [ "$PURGE" -eq 1 ]; then
     rm -rf data certs logs .env
     printf "  done\n"
 else
-    printf "${YELLOW}==> Keeping data/, certs/, logs/, .env — re-run ./load.sh to reinstall.${NC}\n"
+    printf "${YELLOW}==> Keeping data/, certs/, logs/, .env — re-run ./install.sh to reinstall.${NC}\n"
 fi
 
 printf "${GREEN}✅ Uninstall complete.${NC}\n"

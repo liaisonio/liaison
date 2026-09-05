@@ -27,8 +27,8 @@ Liaison uses one repository and two release tag families:
 4. GitHub Actions runs `Server Release` and uploads:
 
    ```text
-   liaison-1.6.0-linux-amd64.tar.gz
-   liaison-1.6.0-docker-amd64.tar.gz
+   liaison-1.6.0-linux-amd64.tar.gz           # default Docker bundle
+   liaison-1.6.0-systemd-linux-amd64.tar.gz   # native systemd bundle
    SHA256SUMS
    ```
 

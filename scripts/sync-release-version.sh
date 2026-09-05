@@ -47,8 +47,10 @@ for file in "${README_FILES[@]}"; do
 
         s{Version-v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?}{Version-$tag}g;
         s{releases/download/v[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?}{releases/download/$tag}g;
-        s{liaison-[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?-(linux|docker)-amd64\.tar\.gz}{liaison-$version-$1-amd64.tar.gz}g;
-        s{cd liaison-[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?-(linux|docker)-amd64}{cd liaison-$version-$1-amd64}g;
+        s{liaison-[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?-systemd-linux-amd64\.tar\.gz}{liaison-$version-systemd-linux-amd64.tar.gz}g;
+        s{liaison-[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?-linux-amd64\.tar\.gz}{liaison-$version-linux-amd64.tar.gz}g;
+        s{cd liaison-[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?-systemd-linux-amd64}{cd liaison-$version-systemd-linux-amd64}g;
+        s{cd liaison-[0-9]+\.[0-9]+\.[0-9]+(?:-rc\.[0-9]+)?-linux-amd64}{cd liaison-$version-linux-amd64}g;
 
     ' "$file"
 done

@@ -28,13 +28,13 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 
 ## Install
 
-Download the Linux server archive, extract it, and run the installer:
+Download the self-contained Docker bundle, extract it, and run the loader (Docker 20.10+ with Compose is required):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
-tar -xzf liaison-1.8.0-linux-amd64.tar.gz
-cd liaison-1.8.0-linux-amd64
-sudo ./install.sh
+wget https://github.com/liaisonio/liaison/releases/download/v1.9.1/liaison-1.9.1-linux-amd64.tar.gz
+tar -xzf liaison-1.9.1-linux-amd64.tar.gz
+cd liaison-1.9.1-linux-amd64
+./install.sh
 ```
 
 Open `https://<server-address>` after installation. The installer prints the initial sign-in credentials.

@@ -65,12 +65,12 @@
 #      - make compose-up             # 启动（需要 deploy/docker/.env）
 #      - make compose-down           # 停止并移除容器
 #      - make compose-logs           # 跟踪两个服务的日志
-#      - make package-docker         # 输出离线分发包
-#                                    liaison-<VERSION>-docker-amd64.tar.gz 含：
+#      - make package-docker         # 输出默认 Linux 离线分发包（Docker）
+#                                    liaison-<VERSION>-linux-amd64.tar.gz 含：
 #                                    - images/{liaison,frontier,guacd}.tar（docker save）
 #                                    - docker-compose.yaml（release 版，无 build: 段）
 #                                    - .env.example（预钉镜像 tag）
-#                                    - load.sh / README.md
+#                                    - install.sh / README.md
 #
 # 注意事项：
 #   - liaison 需要 CGO（SQLite），本地构建需要 CGO_ENABLED=1

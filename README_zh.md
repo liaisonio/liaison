@@ -28,13 +28,13 @@
 
 ## 安装
 
-下载 Linux 服务端压缩包，解压后运行安装脚本：
+下载自带所有镜像的 Docker 离线包，解压后运行加载脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
-tar -xzf liaison-1.8.0-linux-amd64.tar.gz
-cd liaison-1.8.0-linux-amd64
-sudo ./install.sh
+wget https://github.com/liaisonio/liaison/releases/download/v1.9.1/liaison-1.9.1-linux-amd64.tar.gz
+tar -xzf liaison-1.9.1-linux-amd64.tar.gz
+cd liaison-1.9.1-linux-amd64
+./install.sh
 ```
 
 安装完成后访问 `https://<服务器地址>`，初始登录信息会由安装脚本输出。

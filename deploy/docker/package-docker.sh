@@ -1,13 +1,13 @@
 #!/bin/bash
 # Build a self-contained, offline-installable Docker bundle:
-#   liaison-<VERSION>-docker-amd64.tar.gz
+#   liaison-<VERSION>-linux-amd64.tar.gz
 #       ├── images/
 #       │   ├── liaison.tar    (docker save)
 #       │   ├── frontier.tar
 #       │   └── guacd.tar
 #       ├── docker-compose.yaml   (release variant — no build: section)
 #       ├── .env.example
-#       ├── load.sh
+#       ├── install.sh
 #       └── README.md
 #
 # Prereqs (run from repo root):
@@ -42,7 +42,7 @@ FRONTIER_IMAGE="${REGISTRY}/frontier:${TAG}"
 GUACD_IMAGE="${GUACD_IMAGE:-guacamole/guacd:1.5.5}"
 TARGET_ARCH="${TARGET_ARCH:-amd64}"
 
-PACK_DIR="liaison-${VERSION}-docker-amd64"
+PACK_DIR="liaison-${VERSION}-linux-amd64"
 OUT_TAR="${PACK_DIR}.tar.gz"
 
 echo -e "${GREEN}Packaging Docker bundle ${VERSION}...${NC}"
@@ -107,10 +107,10 @@ echo "LIAISON_IMAGE_REGISTRY=${REGISTRY}" >> "$PACK_DIR/.env.example"
 echo "LIAISON_IMAGE_TAG=${TAG}" >> "$PACK_DIR/.env.example"
 rm -f "$PACK_DIR/.env.example.tmp"
 
-cp deploy/docker/load.sh "$PACK_DIR/load.sh"
+cp deploy/docker/install.sh "$PACK_DIR/install.sh"
 cp deploy/docker/uninstall.sh "$PACK_DIR/uninstall.sh"
 cp LICENSE "$PACK_DIR/LICENSE"
-chmod +x "$PACK_DIR/load.sh" "$PACK_DIR/uninstall.sh"
+chmod +x "$PACK_DIR/install.sh" "$PACK_DIR/uninstall.sh"
 
 cat > "$PACK_DIR/README.md" <<EOF
 # Liaison ${VERSION} — Docker Bundle (offline)
@@ -131,7 +131,7 @@ Images shipped:
 ## Install
 
 \`\`\`bash
-./load.sh
+./install.sh
 \`\`\`
 
 That's it. The script will:
@@ -144,7 +144,7 @@ That's it. The script will:
 
 Open \`https://<LIAISON_PUBLIC_HOST>:<MANAGER_PORT>\` and log in with the printed password.
 
-Re-running \`./load.sh\` on the same host is safe — if \`.env\` already exists it is reused, and \`docker compose up -d\` is a no-op on unchanged services.
+Re-running \`./install.sh\` on the same host is safe — if \`.env\` already exists it is reused, and \`docker compose up -d\` is a no-op on unchanged services.
 
 ## Persistence
 
@@ -160,7 +160,7 @@ First launch creates three host directories next to \`docker-compose.yaml\`, bin
 
 1. Download the new bundle, extract it to a fresh directory.
 2. Copy over your \`data/\`, \`certs/\`, \`logs/\`, and \`.env\` from the old directory.
-3. \`./load.sh\` — it will detect the existing \`.env\` and skip the prompt.
+3. \`./install.sh\` — it will detect the existing \`.env\` and skip the prompt.
 
 ## Uninstall
 
@@ -169,7 +169,7 @@ First launch creates three host directories next to \`docker-compose.yaml\`, bin
 ./uninstall.sh --purge    # also delete data/certs/logs/.env — DESTROYS the database
 \`\`\`
 
-Re-running \`./load.sh\` after a plain \`uninstall\` reinstalls the stack with all existing users / proxies / certs intact. After \`--purge\` it's a fresh install.
+Re-running \`./install.sh\` after a plain \`uninstall\` reinstalls the stack with all existing users / proxies / certs intact. After \`--purge\` it's a fresh install.
 
 See the repository's \`deploy/docker/README.md\` for the full reference (reverse proxy, custom certs, password reset, etc.).
 EOF
