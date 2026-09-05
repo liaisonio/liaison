@@ -1,38 +1,87 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
-
-name: Go
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  build-test:
+    name: build + vet + test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
-  build:
-    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24.0'
+      - name: Validate release workflow
+        run: |
+          bash -n scripts/resolve-release-version.sh scripts/sync-release-version.sh scripts/test-release-version.sh
+          scripts/test-release-version.sh
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc libc6-dev libsqlite3-dev
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: true
 
-    - name: Test
-      run: |
-        # 只运行单元测试，排除 E2E 测试
-        # 明确指定要测试的目录，排除 test/e2e
-        for pkg in $(go list ./...); do
-          if [[ ! "$pkg" =~ test/e2e ]]; then
-            go test -v "$pkg"
-          fi
-        done
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc libc6-dev libsqlite3-dev
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pkg in $(go list ./...); do
+            if [[ ! "$pkg" =~ test/e2e ]]; then
+              go test -race -timeout 120s "$pkg"
+            fi
+          done
+
+  web-build:
+    name: web build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build

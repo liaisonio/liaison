@@ -1,21 +1,15 @@
-name: Server Release
+name: Release
 
 on:
   push:
     tags:
       - 'v*.*.*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version, for example 1.6.0 or v1.6.0'
-        required: true
-        type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: server-release-${{ github.ref_name || inputs.version }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -24,25 +18,16 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Resolve version
         id: version
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            raw="${{ inputs.version }}"
-          else
-            raw="${GITHUB_REF_NAME}"
-          fi
-
-          version="${raw#v}"
-          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid release version: $raw" >&2
-            exit 1
-          fi
-
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          scripts/resolve-release-version.sh "$GITHUB_REF_NAME" "$GITHUB_OUTPUT"
 
   edge-darwin:
     needs: metadata
@@ -78,6 +63,8 @@ jobs:
       - edge-darwin
     runs-on: ubuntu-latest
     timeout-minutes: 80
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -144,6 +131,7 @@ jobs:
           tag_name: ${{ needs.metadata.outputs.tag }}
           name: Liaison ${{ needs.metadata.outputs.tag }}
           generate_release_notes: true
+          prerelease: ${{ needs.metadata.outputs.prerelease == 'true' }}
           files: |
             liaison-${{ needs.metadata.outputs.version }}-linux-amd64.tar.gz
             liaison-${{ needs.metadata.outputs.version }}-docker-amd64.tar.gz
