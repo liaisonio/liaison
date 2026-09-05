@@ -72,7 +72,9 @@ certs/*.crt
 # Local design documents and visual assets
 /design/
 /docs/adr/
+/website/
 
 # Local agent and skill configuration
 /.agents/
+/.playwright-mcp/
 /.mini-wiki/
