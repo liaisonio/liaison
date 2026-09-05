@@ -13,7 +13,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 
 [Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour) · [Documentation](#documentation)
 
-![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark-v2.png)
+![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark-v3.png)
 
 ## Features
 
@@ -85,7 +85,7 @@ Open a private VNC desktop in a managed browser session.
 
 Connect to an RDP desktop from the same access workflow.
 
-![An RDP desktop opened in Liaison](docs/assets/readme/web-rdp-dark.png)
+![An RDP desktop opened in Liaison](docs/assets/readme/web-rdp-dark-v2.png)
 
 ## Documentation
 

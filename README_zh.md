@@ -13,7 +13,7 @@
 
 [产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [文档](#文档) · [社区](#社区)
 
-![Liaison 多应用流量总览](docs/assets/readme/overview-dark-v2.png)
+![Liaison 多应用流量总览](docs/assets/readme/overview-dark-v3.png)
 
 ## 产品能力
 
@@ -85,7 +85,7 @@ sudo ./install.sh
 
 使用同一套访问流程连接 RDP 桌面。
 
-![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp-dark.png)
+![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp-dark-v2.png)
 
 ## 文档
 
