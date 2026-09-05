@@ -47,8 +47,8 @@ Native protocols and browser workspaces supported by Liaison.
 
 | | |
 |:---|:---|
-| **Application access** | <img src="https://api.iconify.design/mdi:lan-connect.svg?color=%237c8da6" height="42" alt="TCP" title="TCP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/mdi:web.svg?color=%237c8da6" height="42" alt="HTTP" title="HTTP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/mdi:console.svg?color=%237c8da6" height="42" alt="SSH" title="SSH" /> |
-| **Remote desktops** | <img src="https://api.iconify.design/mdi:desktop-classic.svg?color=%237c8da6" height="42" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/mdi:monitor-share.svg?color=%237c8da6" height="42" alt="VNC" title="VNC" /> |
+| **Application access** | <img src="https://api.iconify.design/streamline-color:network-flat.svg" height="44" alt="TCP" title="TCP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/streamline-color:browser-website-1-flat.svg" height="44" alt="HTTP" title="HTTP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/streamline-color:code-monitor-1-flat.svg" height="44" alt="SSH" title="SSH" /> |
+| **Remote desktops** | <img src="https://api.iconify.design/streamline-color:computer-pc-desktop-flat.svg" height="44" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/streamline-color:screensaver-monitor-wallpaper-flat.svg" height="44" alt="VNC" title="VNC" /> |
 | **Databases** | <img src="https://api.iconify.design/logos:mysql-icon.svg" height="42" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:postgresql.svg" height="42" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:redis.svg" height="42" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:mongodb-icon.svg" height="42" alt="MongoDB" title="MongoDB" /> |
 
 </div>
