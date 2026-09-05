@@ -46,7 +46,7 @@ Native protocols and browser workspaces supported by Liaison.
 <p align="center">
   <img src="docs/assets/integrations/ssh.svg" height="52" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/windows.svg" height="52" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://upload.wikimedia.org/wikipedia/en/5/51/Virtual_Network_Computing_%28logo%29.svg" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/vnc.png" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/mysql.svg" height="52" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/postgresql.svg" height="52" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/redis.svg" height="52" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;&nbsp;
