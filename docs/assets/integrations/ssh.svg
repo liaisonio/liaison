@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">SSH</title>
+  <rect x="2" y="2" width="124" height="124" rx="24" fill="#07090b" stroke="#30363d" stroke-width="4"/>
+  <path d="M25 25 48 39 25 53" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M54 53h23" fill="none" stroke="#fff" stroke-width="9"/>
+  <text x="64" y="105" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="35" font-weight="700" text-anchor="middle">SSH</text>
+</svg>

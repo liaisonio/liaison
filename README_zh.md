@@ -43,15 +43,15 @@ sudo ./install.sh
 
 Liaison 支持以下原生协议与浏览器工作台。
 
-<div align="center">
-
-| | |
-|:---|:---|
-| **应用访问** | <img src="https://api.iconify.design/streamline-color:network-flat.svg" height="44" alt="TCP" title="TCP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/streamline-color:browser-website-1-flat.svg" height="44" alt="HTTP" title="HTTP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/streamline-color:code-monitor-1-flat.svg" height="44" alt="SSH" title="SSH" /> |
-| **远程桌面** | <img src="https://api.iconify.design/streamline-color:computer-pc-desktop-flat.svg" height="44" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/streamline-color:screensaver-monitor-wallpaper-flat.svg" height="44" alt="VNC" title="VNC" /> |
-| **数据库** | <img src="https://api.iconify.design/logos:mysql-icon.svg" height="42" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:postgresql.svg" height="42" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:redis.svg" height="42" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp; <img src="https://api.iconify.design/logos:mongodb-icon.svg" height="42" alt="MongoDB" title="MongoDB" /> |
-
-</div>
+<p align="center">
+  <img src="docs/assets/integrations/ssh.svg" height="58" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://api.iconify.design/logos:microsoft-windows-icon.svg" height="50" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://upload.wikimedia.org/wikipedia/en/5/51/Virtual_Network_Computing_%28logo%29.svg" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://api.iconify.design/logos:mysql-icon.svg" height="50" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://api.iconify.design/logos:postgresql.svg" height="50" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://api.iconify.design/logos:redis.svg" height="50" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://api.iconify.design/logos:mongodb-icon.svg" height="54" alt="MongoDB" title="MongoDB" />
+</p>
 
 ## 产品展示
 
