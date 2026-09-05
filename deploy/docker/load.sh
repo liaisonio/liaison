@@ -99,9 +99,13 @@ else
     fi
 
     cp .env.example .env
+    INSTALL_MANAGER_PORT="${MANAGER_PORT:-443}"
     # Portable in-place sed (BSD + GNU).
-    sed -e "s|^LIAISON_PUBLIC_HOST=.*|LIAISON_PUBLIC_HOST=${PUBLIC_HOST}|" .env > .env.tmp && mv .env.tmp .env
-    log "==> Wrote .env (LIAISON_PUBLIC_HOST=${PUBLIC_HOST})"
+    sed \
+        -e "s|^LIAISON_PUBLIC_HOST=.*|LIAISON_PUBLIC_HOST=${PUBLIC_HOST}|" \
+        -e "s|^MANAGER_PORT=.*|MANAGER_PORT=${INSTALL_MANAGER_PORT}|" \
+        .env > .env.tmp && mv .env.tmp .env
+    log "==> Wrote .env (LIAISON_PUBLIC_HOST=${PUBLIC_HOST}, MANAGER_PORT=${INSTALL_MANAGER_PORT})"
 fi
 
 # Keep JWT sessions valid across container recreation. Older bundles did not

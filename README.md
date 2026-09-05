@@ -55,6 +55,12 @@ Native protocols and browser workspaces supported by Liaison.
 
 ## Product tour
 
+### Web SSH
+
+Open an audited SSH terminal in the browser without exposing the private server.
+
+![Using Web SSH through Liaison](docs/assets/readme/web-ssh-dark.png)
+
 ### Private web applications
 
 Access media servers and other internal web applications through Liaison.

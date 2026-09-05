@@ -106,9 +106,12 @@ if [ ! -f "$INIT_MARKER" ]; then
 
 EOF
 
-    # Hand liaison back to PID 1 semantics: wait on the child.
-    wait "$LIAISON_PID"
-    exit $?
+    # The bootstrap process loaded IAM/Casbin state before the first user
+    # existed. Restart it once so the new administrator membership and role
+    # binding are loaded into the in-memory authorizer before serving traffic.
+    kill "$LIAISON_PID" 2>/dev/null || true
+    wait "$LIAISON_PID" 2>/dev/null || true
+    exec "$@"
 fi
 
 exec "$@"

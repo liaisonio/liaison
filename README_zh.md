@@ -55,6 +55,12 @@ Liaison 支持以下原生协议与浏览器工作台。
 
 ## 产品展示
 
+### Web SSH
+
+无需暴露私有服务器，即可直接在浏览器中打开可审计的 SSH 终端。
+
+![通过 Liaison 使用 Web SSH](docs/assets/readme/web-ssh-dark.png)
+
 ### 私有 Web 应用
 
 通过 Liaison 访问媒体服务及其他内部 Web 应用。
