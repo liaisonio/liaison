@@ -4,7 +4,7 @@
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
 [![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
@@ -48,9 +48,9 @@ Casos de uso:
 
 ## Inicio rápido
 
-Elige una de las dos opciones de despliegue del servidor y luego instala un conector.
+Instala el paquete tar.gz del servidor y después instala un conector.
 
-### Instalar el servidor — Opción 1: Binario + systemd
+### Instalar el servidor — tar.gz
 
 **1. Descargar**
 
@@ -73,21 +73,6 @@ Se te pedirá una IP pública o dominio; si no introduces nada en 30 segundos, s
 Visita `https://tu-ip-publica` para acceder a la consola web.
 
 > **Sugerencia:** Las credenciales de admin por defecto aparecen en la salida de install.sh o en el archivo de configuración.
-
-### Instalar el servidor — Opción 2: Docker Compose
-
-Requiere Docker 20.10+ y el plugin `docker compose`. El paquete provee `liaison` (consola web + API) y `frontier` (gateway de conectores) como dos contenedores; las imágenes vienen pre-compiladas — no se necesita registry ni checkout del código fuente.
-
-```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
-tar -xzf liaison-1.8.0-docker-amd64.tar.gz
-cd liaison-1.8.0-docker-amd64
-./load.sh
-```
-
-`load.sh` detecta automáticamente tu IP pública (con una confirmación de 30 segundos), carga las imágenes, arranca el stack e imprime la contraseña de admin de un solo uso cuando liaison está listo. Guarda la contraseña y abre `https://<ip-publica>` para iniciar sesión.
-
-Los datos (`data/` SQLite), certificados TLS (`certs/`) y logs (`logs/`) se montan mediante bind-mount junto a `docker-compose.yaml` para persistencia. Consulta [`deploy/docker/README.md`](deploy/docker/README.md) para compilación desde fuente, upgrade, reset, proxy inverso y certificado personalizado.
 
 ### Instalar el conector
 
@@ -187,7 +172,7 @@ Las contribuciones son bienvenidas.
 
 ## Licencia
 
-[Apache License 2.0](LICENSE).
+[GNU Affero General Public License v3.0](LICENSE).
 
 ---
 

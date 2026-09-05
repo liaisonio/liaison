@@ -4,7 +4,7 @@
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
 [![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
@@ -48,9 +48,9 @@ Anwendungsfälle:
 
 ## Schnellstart
 
-Wähle eine der beiden Server-Deployment-Optionen, danach installiere einen Konnektor.
+Installiere das tar.gz-Serverpaket und anschließend einen Konnektor.
 
-### Server installieren — Option 1: Binary + systemd
+### Server installieren — tar.gz
 
 **1. Herunterladen**
 
@@ -73,21 +73,6 @@ sudo ./install.sh
 Öffne `https://deine-öffentliche-ip`, um die Web-Konsole zu erreichen.
 
 > **Hinweis:** Die Standard-Admin-Zugangsdaten erscheinen in der Ausgabe von install.sh oder in der Konfiguration.
-
-### Server installieren — Option 2: Docker Compose
-
-Erfordert Docker 20.10+ und das `docker compose`-Plugin. Das Bundle liefert `liaison` (Web-Konsole + API) und `frontier` (Konnektor-Gateway) als zwei Container; die Images sind vorgebaut — kein Registry oder Source-Checkout nötig.
-
-```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
-tar -xzf liaison-1.8.0-docker-amd64.tar.gz
-cd liaison-1.8.0-docker-amd64
-./load.sh
-```
-
-`load.sh` erkennt automatisch die öffentliche IP (mit 30-Sekunden-Bestätigungszähler), lädt die Images, startet den Stack und gibt das einmalige Admin-Passwort aus, sobald liaison bereit ist. Speichere das Passwort und melde dich unter `https://<öffentliche-ip>` an.
-
-Daten (`data/` SQLite), TLS-Zertifikate (`certs/`) und Logs (`logs/`) werden neben der `docker-compose.yaml` als Bind-Mount persistiert. Siehe [`deploy/docker/README.md`](deploy/docker/README.md) für Source-Builds, Upgrade, Reset, Reverse-Proxy und eigene Zertifikate.
 
 ### Konnektor installieren
 
@@ -187,7 +172,7 @@ Beiträge sind willkommen.
 
 ## Lizenz
 
-[Apache License 2.0](LICENSE).
+[GNU Affero General Public License v3.0](LICENSE).
 
 ---
 

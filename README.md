@@ -7,30 +7,28 @@ Connect private web apps, servers, remote desktops, and databases through outbou
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 
 English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[Features](#features) · [Install](#install) · [Product tour](#product-tour) · [Documentation](#documentation) · [Community](#community)
+[Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour) · [Documentation](#documentation)
 
-![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark.png)
+![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark-v2.png)
 
 ## Features
 
-- **Outbound-only connectors** — connect private networks without opening inbound ports on them.
-- **Application access** — publish TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
-- **Browser workspaces** — use Web SSH, RDP, VNC, MySQL, PostgreSQL, Redis, and MongoDB without local clients.
-- **Application discovery** — scan connector devices and register discovered services from the console.
-- **Identity and access management** — organize users and resources, with Casbin-backed authorization.
-- **Firewall policies** — restrict TCP and HTTP access by source IP and CIDR.
-- **Logs and audit** — record management actions and supported application sessions in one place.
-- **Self-hosted deployment** — run the complete control plane on your own Linux server.
+- 🔌 **Outbound-only connectors** — connect private networks without opening inbound ports on them.
+- 🔐 **Application access** — publish TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
+- 🖥️ **Browser workspaces** — use Web SSH, RDP, VNC, MySQL, PostgreSQL, Redis, and MongoDB without local clients.
+- 🔎 **Application discovery** — scan connector devices and register discovered services from the console.
+- 👥 **Identity and access management** — organize users and resources, with Casbin-backed authorization.
+- 🛡️ **Firewall policies** — restrict TCP and HTTP access by source IP and CIDR.
+- 📋 **Logs and audit** — record management actions and supported application sessions in one place.
+- 📦 **Self-hosted deployment** — run the complete control plane on your own Linux server.
 
 ## Install
 
-Choose a server package from the [latest release](https://github.com/liaisonio/liaison/releases/latest), then install a connector from the Web console.
-
-### Binary and systemd
+Download the Linux server archive, extract it, and run the installer:
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
@@ -41,22 +39,15 @@ sudo ./install.sh
 
 Open `https://<server-address>` after installation. The installer prints the initial sign-in credentials.
 
-### Docker Compose
+## Integrations
 
-```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
-tar -xzf liaison-1.8.0-docker-amd64.tar.gz
-cd liaison-1.8.0-docker-amd64
-./load.sh
-```
+<div align="center">
 
-The bundle contains the required images. Runtime data, certificates, and logs are stored beside the Compose file. See the [Docker deployment guide](deploy/docker/README.md) for configuration, upgrades, reverse proxies, and custom certificates.
+| | | | | | | | | |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="https://api.iconify.design/mdi:lan-connect.svg?color=%2364748b" width="38" alt="TCP" /><br><sub>TCP</sub> | <img src="https://api.iconify.design/mdi:web.svg?color=%2364748b" width="38" alt="HTTP" /><br><sub>HTTP</sub> | <img src="https://api.iconify.design/mdi:console.svg?color=%2364748b" width="38" alt="SSH" /><br><sub>SSH</sub> | <img src="https://api.iconify.design/mdi:desktop-classic.svg?color=%2364748b" width="38" alt="RDP" /><br><sub>RDP</sub> | <img src="https://api.iconify.design/mdi:monitor-share.svg?color=%2364748b" width="38" alt="VNC" /><br><sub>VNC</sub> | <img src="https://api.iconify.design/logos:mysql-icon.svg" width="38" alt="MySQL" /><br><sub>MySQL</sub> | <img src="https://api.iconify.design/logos:postgresql.svg" width="38" alt="PostgreSQL" /><br><sub>PostgreSQL</sub> | <img src="https://api.iconify.design/logos:redis.svg" width="38" alt="Redis" /><br><sub>Redis</sub> | <img src="https://api.iconify.design/logos:mongodb-icon.svg" width="38" alt="MongoDB" /><br><sub>MongoDB</sub> |
 
-### Connector
-
-In the Web console, open **Connectors**, create one, copy the generated command, and run it on the target Linux, macOS, or Windows device.
-
-The connector initiates the connection to Liaison. Register or discover applications reachable from that device, then create access for them—no public address or inbound firewall rule is required on the private network.
+</div>
 
 ## Product tour
 
@@ -88,13 +79,13 @@ Explore document databases and execute commands without a local client.
 
 Open a private VNC desktop in a managed browser session.
 
-![A VNC desktop opened in Liaison](docs/assets/readme/web-vnc.png)
+![A VNC desktop opened in Liaison](docs/assets/readme/web-vnc-dark.png)
 
 ### Web RDP
 
 Connect to an RDP desktop from the same access workflow.
 
-![An RDP desktop opened in Liaison](docs/assets/readme/web-rdp.png)
+![An RDP desktop opened in Liaison](docs/assets/readme/web-rdp-dark.png)
 
 ## Documentation
 
@@ -104,20 +95,10 @@ Connect to an RDP desktop from the same access workflow.
 - [Issues](https://github.com/liaisonio/liaison/issues)
 - [Discussions](https://github.com/liaisonio/liaison/discussions)
 
-## Community
-
-<div align="center">
-
-<img src="docs/assets/readme/wechat-community.jpg" width="260" alt="Liaison WeChat community QR code" />
-
-Scan with WeChat to join the Liaison developer community.
-
-</div>
-
 ## Contributing
 
 Bug reports, feature proposals, documentation improvements, and pull requests are welcome. Start with [Issues](https://github.com/liaisonio/liaison/issues) or open a [Pull Request](https://github.com/liaisonio/liaison/pulls).
 
 ## License
 
-Liaison is licensed under the [Apache License 2.0](LICENSE).
+Liaison is licensed under the [GNU Affero General Public License v3.0](LICENSE).

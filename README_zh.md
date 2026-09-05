@@ -7,30 +7,28 @@
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 
 [English](./README.md) | 简体中文 | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[产品能力](#产品能力) · [安装](#安装) · [产品展示](#产品展示) · [文档](#文档) · [社区](#社区)
+[产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [文档](#文档) · [社区](#社区)
 
-![Liaison 多应用流量总览](docs/assets/readme/overview-dark.png)
+![Liaison 多应用流量总览](docs/assets/readme/overview-dark-v2.png)
 
 ## 产品能力
 
-- **主动出站连接器**：私有网络无需开放入站端口。
-- **应用访问**：支持 TCP、HTTP、HTTPS、WebSocket 与 SSH，并可独立配置访问策略。
-- **浏览器工作台**：无需本地客户端即可使用 Web SSH、RDP、VNC、MySQL、PostgreSQL、Redis 和 MongoDB。
-- **应用发现**：扫描连接器所在设备，并在控制台中登记发现的服务。
-- **身份与权限**：管理组织、用户与资源，权限由 Casbin 统一执行。
-- **防火墙策略**：按来源 IP 与 CIDR 限制 TCP 和 HTTP 访问。
-- **日志与审计**：集中记录管理操作与支持审计的应用会话。
-- **私有化部署**：完整控制平面运行在自己的 Linux 服务器上。
+- 🔌 **主动出站连接器**：私有网络无需开放入站端口。
+- 🔐 **应用访问**：支持 TCP、HTTP、HTTPS、WebSocket 与 SSH，并可独立配置访问策略。
+- 🖥️ **浏览器工作台**：无需本地客户端即可使用 Web SSH、RDP、VNC、MySQL、PostgreSQL、Redis 和 MongoDB。
+- 🔎 **应用发现**：扫描连接器所在设备，并在控制台中登记发现的服务。
+- 👥 **身份与权限**：管理组织、用户与资源，权限由 Casbin 统一执行。
+- 🛡️ **防火墙策略**：按来源 IP 与 CIDR 限制 TCP 和 HTTP 访问。
+- 📋 **日志与审计**：集中记录管理操作与支持审计的应用会话。
+- 📦 **私有化部署**：完整控制平面运行在自己的 Linux 服务器上。
 
 ## 安装
 
-从[最新版本](https://github.com/liaisonio/liaison/releases/latest)选择服务端安装包，完成后从 Web 控制台安装连接器。
-
-### 二进制与 systemd
+下载 Linux 服务端压缩包，解压后运行安装脚本：
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-linux-amd64.tar.gz
@@ -41,22 +39,15 @@ sudo ./install.sh
 
 安装完成后访问 `https://<服务器地址>`，初始登录信息会由安装脚本输出。
 
-### Docker Compose
+## 集成
 
-```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
-tar -xzf liaison-1.8.0-docker-amd64.tar.gz
-cd liaison-1.8.0-docker-amd64
-./load.sh
-```
+<div align="center">
 
-安装包已包含所需镜像，运行数据、证书与日志保存在 Compose 文件同级目录。配置、升级、反向代理和自定义证书参见 [Docker 部署文档](deploy/docker/README.md)。
+| | | | | | | | | |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="https://api.iconify.design/mdi:lan-connect.svg?color=%2364748b" width="38" alt="TCP" /><br><sub>TCP</sub> | <img src="https://api.iconify.design/mdi:web.svg?color=%2364748b" width="38" alt="HTTP" /><br><sub>HTTP</sub> | <img src="https://api.iconify.design/mdi:console.svg?color=%2364748b" width="38" alt="SSH" /><br><sub>SSH</sub> | <img src="https://api.iconify.design/mdi:desktop-classic.svg?color=%2364748b" width="38" alt="RDP" /><br><sub>RDP</sub> | <img src="https://api.iconify.design/mdi:monitor-share.svg?color=%2364748b" width="38" alt="VNC" /><br><sub>VNC</sub> | <img src="https://api.iconify.design/logos:mysql-icon.svg" width="38" alt="MySQL" /><br><sub>MySQL</sub> | <img src="https://api.iconify.design/logos:postgresql.svg" width="38" alt="PostgreSQL" /><br><sub>PostgreSQL</sub> | <img src="https://api.iconify.design/logos:redis.svg" width="38" alt="Redis" /><br><sub>Redis</sub> | <img src="https://api.iconify.design/logos:mongodb-icon.svg" width="38" alt="MongoDB" /><br><sub>MongoDB</sub> |
 
-### 连接器
-
-在 Web 控制台打开**连接器**，创建连接器并复制生成的命令，然后在目标 Linux、macOS 或 Windows 设备上执行。
-
-连接器会主动连接 Liaison。登记或扫描该设备能够访问的应用，再为应用创建访问即可；私有网络无需公网地址或入站防火墙规则。
+</div>
 
 ## 产品展示
 
@@ -88,13 +79,13 @@ cd liaison-1.8.0-docker-amd64
 
 通过受管的浏览器会话访问私有 VNC 桌面。
 
-![在 Liaison 中访问 VNC 桌面](docs/assets/readme/web-vnc.png)
+![在 Liaison 中访问 VNC 桌面](docs/assets/readme/web-vnc-dark.png)
 
 ### Web RDP
 
 使用同一套访问流程连接 RDP 桌面。
 
-![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp.png)
+![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp-dark.png)
 
 ## 文档
 
@@ -120,4 +111,4 @@ cd liaison-1.8.0-docker-amd64
 
 ## 许可证
 
-Liaison 使用 [Apache License 2.0](LICENSE) 开源许可证。
+Liaison 使用 [GNU Affero 通用公共许可证 v3.0](LICENSE) 开源许可证。

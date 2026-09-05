@@ -4,7 +4,7 @@
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
 [![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
@@ -48,9 +48,9 @@ Liaison 은 엔터프라이즈급 애플리케이션 접근 솔루션으로, 언
 
 ## 빠른 시작
 
-두 가지 서버 배포 방식 중 하나를 선택한 뒤 커넥터를 설치하세요.
+다음 tar.gz 서버 패키지를 설치한 뒤 커넥터를 설치하세요.
 
-### 서버 설치 — 옵션 1: 바이너리 + systemd
+### 서버 설치 — tar.gz
 
 **1. 다운로드**
 
@@ -73,21 +73,6 @@ sudo ./install.sh
 `https://공용IP` 에 접속해 웹 콘솔로 이동합니다.
 
 > **팁:** 기본 관리자 자격 증명은 install.sh 출력 또는 설정 파일에서 확인하세요.
-
-### 서버 설치 — 옵션 2: Docker Compose
-
-Docker 20.10+ 과 `docker compose` 플러그인이 필요합니다. 번들은 `liaison`(웹 콘솔 + API)과 `frontier`(커넥터 게이트웨이) 두 컨테이너를 제공하며, 이미지가 미리 빌드되어 있어 레지스트리 pull 이나 소스 체크아웃이 필요 없습니다.
-
-```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
-tar -xzf liaison-1.8.0-docker-amd64.tar.gz
-cd liaison-1.8.0-docker-amd64
-./load.sh
-```
-
-`load.sh` 는 공용 IP 를 자동 감지하고(30 초 카운트다운 확인 포함), 이미지를 로드하여 스택을 기동한 뒤 liaison 이 준비되면 일회성 관리자 비밀번호를 출력합니다. 비밀번호를 저장한 다음 `https://<공용IP>` 로 접속해 로그인하세요.
-
-데이터(`data/` SQLite), TLS 인증서(`certs/`), 로그(`logs/`)는 영속화를 위해 `docker-compose.yaml` 과 동일한 경로에 bind mount 됩니다. 소스 빌드, 업그레이드 / 초기화 / 리버스 프록시 / 커스텀 인증서 등의 자세한 사용법은 [`deploy/docker/README.md`](deploy/docker/README.md) 를 참고하세요.
 
 ### 커넥터 설치
 
@@ -187,7 +172,7 @@ Liaison 은 Frontier 가 모든 커넥터를 관리하는 중앙 집중식 아�
 
 ## 라이선스
 
-[Apache License 2.0](LICENSE).
+[GNU Affero General Public License v3.0](LICENSE).
 
 ---
 

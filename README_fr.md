@@ -4,7 +4,7 @@
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
 [![Version](https://img.shields.io/badge/Version-v1.8.0-green)](#)
 
@@ -48,9 +48,9 @@ Cas d'usage :
 
 ## Démarrage rapide
 
-Choisissez l'une des deux options de déploiement serveur, puis installez un connecteur.
+Installez le paquet tar.gz du serveur, puis installez un connecteur.
 
-### Installer le serveur — Option 1 : Binaire + systemd
+### Installer le serveur — tar.gz
 
 **1. Télécharger**
 
@@ -73,21 +73,6 @@ L'IP publique ou le domaine vous seront demandés ; sans saisie dans les 30 seco
 Visitez `https://votre-ip-publique` pour accéder à la console Web.
 
 > **Astuce :** Les identifiants admin par défaut apparaissent dans la sortie de install.sh ou dans la configuration.
-
-### Installer le serveur — Option 2 : Docker Compose
-
-Nécessite Docker 20.10+ et le plugin `docker compose`. Le bundle fournit `liaison` (console Web + API) et `frontier` (passerelle des connecteurs) en deux conteneurs ; les images sont pré-construites — aucun registre ou checkout des sources n'est requis.
-
-```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.8.0/liaison-1.8.0-docker-amd64.tar.gz
-tar -xzf liaison-1.8.0-docker-amd64.tar.gz
-cd liaison-1.8.0-docker-amd64
-./load.sh
-```
-
-`load.sh` détecte automatiquement votre IP publique (avec une confirmation de 30 secondes), charge les images, démarre la stack et imprime le mot de passe admin à usage unique dès que liaison est prêt. Enregistrez ce mot de passe, puis ouvrez `https://<ip-publique>` pour vous connecter.
-
-Les données (`data/` SQLite), les certificats TLS (`certs/`) et les logs (`logs/`) sont montés en bind à côté de `docker-compose.yaml` pour la persistance. Voir [`deploy/docker/README.md`](deploy/docker/README.md) pour la compilation depuis les sources, mise à jour / reset / reverse proxy / certificat personnalisé.
 
 ### Installer un connecteur
 
@@ -187,7 +172,7 @@ Les contributions sont bienvenues.
 
 ## Licence
 
-[Apache License 2.0](LICENSE).
+[GNU Affero General Public License v3.0](LICENSE).
 
 ---
 

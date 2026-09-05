@@ -136,7 +136,7 @@ const SettingsPage: React.FC = () => {
           ) : null}
 
           {active === 'about' ? (
-            <section className="settings-section native-about"><h3>{tr('关于', 'About')} {APP_NAME}</h3><dl><div><dt>{tr('产品名称', 'Product')}</dt><dd>{APP_NAME}</dd></div><div><dt>GitHub</dt><dd><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"><Github size={14} />{GITHUB_URL}</a></dd></div><div><dt>{tr('许可证', 'License')}</dt><dd>Apache License 2.0</dd></div></dl></section>
+            <section className="settings-section native-about"><h3>{tr('关于', 'About')} {APP_NAME}</h3><dl><div><dt>{tr('产品名称', 'Product')}</dt><dd>{APP_NAME}</dd></div><div><dt>GitHub</dt><dd><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer"><Github size={14} />{GITHUB_URL}</a></dd></div><div><dt>{tr('许可证', 'License')}</dt><dd>GNU AGPLv3</dd></div></dl></section>
           ) : null}
         </main>
       </div>
