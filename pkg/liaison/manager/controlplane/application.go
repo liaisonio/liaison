@@ -238,8 +238,9 @@ func (cp *controlPlane) ListApplications(ctx context.Context, req *v1.ListApplic
 	if req.ApplicationType != nil && *req.ApplicationType != "" {
 		query.ApplicationType = *req.ApplicationType
 	}
-	// 应用名称筛选（如果提供了 application_name，需要在这里处理）
-	// 注意：目前 DAO 层还没有实现 name 筛选，如果需要可以后续添加
+	if req.ApplicationName != nil {
+		query.Name = *req.ApplicationName
+	}
 	applications, err := cp.repo.ListApplications(query)
 	if err != nil {
 		return nil, err
@@ -325,6 +326,7 @@ func (cp *controlPlane) ListApplications(ctx context.Context, req *v1.ListApplic
 	}
 
 	countQuery := &dao.ListApplicationsQuery{
+		Name:      query.Name,
 		Query:     dao.Query{ScopeApplied: query.ScopeApplied},
 		DeviceIDs: deviceIDs,
 		IDs:       query.IDs,

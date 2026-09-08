@@ -6,14 +6,17 @@ import { ACCENT_PRESETS, useAccentColor, useThemeMode } from '@/store/theme';
 import { Check, Copy, Github, Globe2, Info, KeyRound, Palette, Plus, Sun } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import './index.less';
+import Models from './Models';
+import { useFeature } from '@/store/permissions';
 
 const GITHUB_URL = 'https://github.com/liaisonio/liaison';
 
 const SettingsPage: React.FC = () => {
+  const modelsAllowed = useFeature('settings.global.read');
   const { tr, locale, setLocale } = useI18n();
   const { preference, setPreference } = useThemeMode();
   const { accentId, setAccentId } = useAccentColor();
-  const [active, setActive] = useState<'preferences' | 'tokens' | 'about'>('preferences');
+  const [active, setActive] = useState<'preferences' | 'tokens' | 'models' | 'about'>('preferences');
   const [tokens, setTokens] = useState<API.APIToken[]>([]);
   const [tokensLoading, setTokensLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,9 +94,11 @@ const SettingsPage: React.FC = () => {
         <aside className="native-settings-tabs">
           <button className={active === 'preferences' ? 'is-active' : ''} onClick={() => setActive('preferences')}><Palette size={15} />{tr('界面偏好', 'Appearance')}</button>
           <button className={active === 'tokens' ? 'is-active' : ''} onClick={() => setActive('tokens')}><KeyRound size={15} />{tr('API Token', 'API Tokens')}</button>
+          {modelsAllowed && <button className={active === 'models' ? 'is-active' : ''} onClick={() => setActive('models')}><Globe2 size={15} />{tr('模型配置', 'Models')}</button>}
           <button className={active === 'about' ? 'is-active' : ''} onClick={() => setActive('about')}><Info size={15} />{tr('关于', 'About')}</button>
         </aside>
         <main className="native-settings-content">
+          {active === 'models' && modelsAllowed && <Models />}
           {active === 'preferences' ? (
             <section className="settings-section settings-preferences">
               <header className="settings-section-heading">

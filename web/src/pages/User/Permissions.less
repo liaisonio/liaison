@@ -1,0 +1,38 @@
+.permission-settings {
+  .permission-tree { font-family: inherit; font-size: 12px; line-height: 1.55; }
+  .permission-tree ul { list-style: none; margin: 0; padding: 0; }
+  .permission-tree > ul > li { display: grid; grid-template-columns: 180px minmax(0, 1fr); column-gap: 24px; padding: 20px 2px; border-bottom: 1px solid rgb(var(--line) / .45); align-items: start; }
+  .permission-tree li > ul { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 28px; min-width: 0; }
+  .permission-tree > ul > li > ul { position: relative; padding: 8px 16px; border-left: 2px solid rgb(var(--line)); border-radius: 0 7px 7px 0; background: rgb(var(--panel) / .65); }
+  .permission-tree > ul > li > ul::before { position: absolute; top: 24px; left: -18px; width: 16px; border-top: 1px solid rgb(var(--line)); content: ''; }
+  .permission-tree li > ul > li { min-width: 0; }
+  .permission-tree li > ul > li > ul { margin: 4px 0 0 26px; padding-left: 14px; border-left: 1px solid rgb(var(--line) / .65); }
+  .permission-tree-toolbar, .permission-tree-row { display: flex; align-items: center; gap: 11px; cursor: pointer; min-height: 34px; }
+  .permission-tree-toolbar { padding: 10px 2px; border-bottom: 1px solid rgb(var(--line) / .65); flex-wrap: wrap; }
+  .permission-tree-toolbar > strong { color: rgb(var(--ink)); font-size: 13px; font-weight: 650; letter-spacing: -0.01em; }
+  .permission-tree-toolbar > span:last-child { margin-left: auto; font-size: 11px; font-weight: 400; color: rgb(var(--muted)); }
+  .permission-tree-row { border-radius: 6px; padding: 4px 0; color: rgb(var(--ink)); font-size: 12px; font-weight: 400; line-height: 1.55; letter-spacing: normal; }
+  .permission-tree-row > span { font-weight: inherit; }
+  .permission-tree-row:hover { background: rgb(var(--ink) / .025); }
+  .permission-tree-row.is-module { grid-column: 1; grid-row: 1 / span 2; flex-wrap: wrap; align-content: start; gap: 4px 11px; padding-top: 12px; font-size: 13px; font-weight: 650; letter-spacing: -0.01em; }
+  .permission-check { position: relative; flex: 0 0 18px; width: 18px; height: 18px; display: inline-flex; }
+  .permission-check input { position: absolute; inset: 0; margin: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; }
+  .permission-check > span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid rgb(var(--muted) / .75); background: rgb(var(--surface)); color: rgb(var(--accent-ink)); }
+  .permission-check input:checked + span, .permission-check input:indeterminate + span { border-color: rgb(var(--accent)); background: rgb(var(--accent)); }
+  .permission-check input:focus-visible + span { outline: 2px solid rgb(var(--accent)); outline-offset: 3px; }
+  .permission-check input:disabled { cursor: wait; }
+  .permission-check input:disabled + span { opacity: .55; }
+  .permission-tree-row > .permission-state { flex-basis: 100%; margin-left: 29px; color: rgb(var(--muted)); font-size: 11px; font-weight: 400; letter-spacing: normal; }
+  .permission-tree-row > .permission-state.is-enabled { color: rgb(var(--accent)); }
+  .permission-tree-note { grid-column: 2; margin: 7px 0 0 18px; color: rgb(var(--muted)); font-size: 11px; font-weight: 400; line-height: 1.55; }
+  .permission-settings-footer { margin-top: 20px; }
+  @media (max-width: 600px) {
+    .permission-tree > ul > li { grid-template-columns: 1fr; row-gap: 8px; padding: 16px 2px; }
+    .permission-tree-row.is-module { grid-row: auto; }
+    .permission-tree-row > .permission-state { flex-basis: auto; margin-left: auto; }
+    .permission-tree > ul > li > ul { margin-left: 29px; }
+    .permission-tree > ul > li > ul::before { display: none; }
+    .permission-tree-note { grid-column: 1; margin-left: 29px; }
+    .permission-tree-toolbar > span:last-child { margin-left: 29px; width: 100%; }
+  }
+}

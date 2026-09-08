@@ -1,0 +1,43 @@
+syntax = "proto3";
+package liaison.agent.v1;
+option go_package = "github.com/liaisonio/liaison/api/agent/v1";
+
+// GET /api/v1/webssh/session-references/{reference}?agent=session_xxx
+// Owner-scoped routing metadata only. Never returns a connection token/password.
+message ResolveSSHSessionReferenceResponse {
+ uint64 access_id = 1;
+}
+
+// JSON HTTP contract for POST /api/v1/agent/sessions. Actor/organization are
+// derived by the server, never supplied by the client or model.
+message CreateAgentSessionRequest {
+  string handle_id = 1; // Required for access, forbidden for management.
+  string title = 2;
+  string kind = 3; // access (default) or management.
+}
+
+// Only IDs from GET /api/v1/agent/status are accepted. Never accepts credentials or URLs.
+message AgentModelSelection {
+  string provider_id = 1;
+  string model = 2;
+}
+message RunAgentTurnRequest {
+  string prompt = 1;
+  AgentModelSelection model_selection = 2; // Omitted: system default.
+  repeated AgentResourceReference references = 3; // Management only, max 8; server reauthorizes every ID.
+}
+
+message AgentResourceReference {
+  string type = 1; // connector, device, application
+  string id = 2; // Positive decimal ID; names are resolved by the server.
+}
+message AgentModelChoice {
+  string provider_id = 1;
+  string model = 2;
+  string provider_type = 3;
+  bool is_default = 4;
+}
+message AgentStatus {
+  bool enabled = 1;
+  repeated AgentModelChoice models = 2;
+}

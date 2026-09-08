@@ -22,6 +22,7 @@ type permissionSeed struct {
 }
 
 var builtInPermissionSeeds = []permissionSeed{
+	{"settings.model.manage", "/settings/model", "(read|update|test)", []model.IAMRoleCode{model.IAMRoleAdmin}},
 	{"users.collection.manage", "/users", "(read|create)", []model.IAMRoleCode{model.IAMRoleAdmin}},
 	{"users.item.manage", "/users/:id", "(update|delete)", []model.IAMRoleCode{model.IAMRoleAdmin}},
 	{"users.password.reset", "/users/:id/password", "reset", []model.IAMRoleCode{model.IAMRoleAdmin}},
@@ -33,6 +34,17 @@ var builtInPermissionSeeds = []permissionSeed{
 	{"organizations.item.read", "/organizations/:id", "read", []model.IAMRoleCode{model.IAMRoleUser}},
 	{"organizations.members.read", "/organizations/:id/members", "read", []model.IAMRoleCode{model.IAMRoleUser}},
 	{"resources.own", "/resources/*", "(read|create|update|delete|use)", []model.IAMRoleCode{model.IAMRoleUser}},
+}
+
+// Global model configuration is scoped to the root organization through Casbin.
+func (s *IAMService) RequireModelSettingsPermission(actor *model.User, action string) error {
+	if action == "read" {
+		return s.RequireFeature(actor, FeatureSettingsRead)
+	}
+	if action == "update" || action == "test" {
+		return s.RequireFeature(actor, FeatureSettingsWrite)
+	}
+	return ErrForbidden
 }
 
 func (s *IAMService) ensureIAMCatalog() error {
@@ -133,6 +145,8 @@ func accountName(email string) string {
 }
 
 func (s *IAMService) reloadAuthorization() error {
+	s.authorizationMu.Lock()
+	defer s.authorizationMu.Unlock()
 	s.authorizer.reset()
 	roles, err := s.repo.ListIAMRoles()
 	if err != nil {
@@ -202,6 +216,13 @@ func isOrganizationDescendant(organizations []*model.Organization, candidateID, 
 }
 
 func (s *IAMService) requirePermission(actor *model.User, domain, object, action string) error {
+	if strings.HasPrefix(object, "/organizations") && action == "read" {
+		if err := s.RequireFeature(actor, FeatureOrganizations); err != nil {
+			return err
+		}
+	}
+	s.authorizationMu.RLock()
+	defer s.authorizationMu.RUnlock()
 	if actor == nil {
 		return ErrForbidden
 	}
@@ -216,6 +237,8 @@ func (s *IAMService) requirePermission(actor *model.User, domain, object, action
 }
 
 func (s *IAMService) hasPermission(actor *model.User, domain, object, action string) (bool, error) {
+	s.authorizationMu.RLock()
+	defer s.authorizationMu.RUnlock()
 	if actor == nil {
 		return false, nil
 	}
@@ -226,6 +249,9 @@ func (s *IAMService) hasPermission(actor *model.User, domain, object, action str
 // actor has a role binding. Resource visibility is additionally constrained by
 // iam_resource_relations in the control plane.
 func (s *IAMService) RequireResourcePermission(actor *model.User, resource, action string) error {
+	if err := s.requireResourceFeature(actor, resource); err != nil {
+		return err
+	}
 	resource = strings.Trim(strings.TrimSpace(resource), "/")
 	if resource == "" {
 		return fmt.Errorf("%w: resource type is required", ErrInvalid)
@@ -247,6 +273,20 @@ func (s *IAMService) RequireResourcePermission(actor *model.User, resource, acti
 		}
 	}
 	return ErrForbidden
+}
+
+// RequireOrganizationResourcePermission authorizes a resource action in one
+// concrete organization. Business services use this when the organization is
+// derived from a trusted resource relation instead of supplied by the client.
+func (s *IAMService) RequireOrganizationResourcePermission(actor *model.User, organizationID uint, resource, action string) error {
+	if err := s.requireResourceFeature(actor, resource); err != nil {
+		return err
+	}
+	resource = strings.Trim(strings.TrimSpace(resource), "/")
+	if organizationID == 0 || resource == "" {
+		return fmt.Errorf("%w: organization and resource type are required", ErrInvalid)
+	}
+	return s.requirePermission(actor, organizationDomain(organizationID), "/resources/"+resource, action)
 }
 
 func (s *IAMService) ListUsersFor(actor *model.User) ([]*model.User, int64, error) {

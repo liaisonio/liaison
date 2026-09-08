@@ -29,6 +29,7 @@ type ListTasksQuery struct {
 
 type ListApplicationsQuery struct {
 	Query
+	Name            string
 	DeviceIDs       []uint
 	IDs             []uint
 	ApplicationType string

@@ -21,8 +21,8 @@ func TestCasbinControlsPlatformAndOrganizationRoles(t *testing.T) {
 	if _, _, err := service.ListUsersFor(member); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("member ListUsersFor error = %v, want ErrForbidden", err)
 	}
-	if _, err := service.ListOrganizationsFor(member); err != nil {
-		t.Fatalf("authenticated organization visibility denied: %v", err)
+	if _, err := service.ListOrganizationsFor(member); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("organization feature should be disabled by default: %v", err)
 	}
 
 	if _, err := service.UpsertOrganizationMemberFor(admin, root.ID, member.ID, model.OrganizationRoleMember); err != nil {
@@ -61,7 +61,7 @@ func TestCasbinControlsDefaultOrganizationResources(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, resource := range []string{"connectors", "devices", "applications", "accesses", "logs", "overview"} {
+	for _, resource := range []string{"connectors", "devices", "applications", "accesses", "overview"} {
 		if err := service.RequireResourcePermission(member, resource, "read"); err != nil {
 			t.Fatalf("member read %s: %v", resource, err)
 		}

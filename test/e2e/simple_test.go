@@ -48,21 +48,20 @@ func TestIAMEndpoints(t *testing.T) {
 	}
 
 	t.Run("Login endpoint accessible without auth", func(t *testing.T) {
-		resp, err := client.Post(baseURL+"/api/v1/iam/login", "application/json", nil)
+		ts.createDefaultUser(t)
+		resp, err := ts.makeRequest("POST", "/api/v1/iam/login", LoginRequest{Email: testEmail, Password: testPassword}, "")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// 应该返回400或422（缺少请求体），而不是401（未认证）
-		assert.NotEqual(t, http.StatusUnauthorized, resp.StatusCode)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	t.Run("Logout endpoint accessible without auth", func(t *testing.T) {
+	t.Run("Logout requires a valid session", func(t *testing.T) {
 		resp, err := client.Post(baseURL+"/api/v1/iam/logout", "application/json", nil)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// 应该返回200或400，而不是401（未认证）
-		assert.NotEqual(t, http.StatusUnauthorized, resp.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	})
 }
 

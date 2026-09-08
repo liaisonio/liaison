@@ -72,7 +72,10 @@ certs/*.crt
 # Local design documents and visual assets
 /design/
 /docs/adr/
+/docs/design/
 /website/
+/output/
+/liaison-*.png
 
 # Local agent and skill configuration
 /.agents/

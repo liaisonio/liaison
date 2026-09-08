@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RuntimeBridge } from '@/lib/runtime';
+import { FeatureGate, PermissionRefresh } from '@/store/permissions';
 import { useSession } from '@/store/session';
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -7,6 +8,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 const Login = lazy(() => import('@/pages/Login'));
 const CliAuth = lazy(() => import('@/pages/CliAuth'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Home = lazy(() => import('@/pages/ManagementAgent'));
 const Proxy = lazy(() => import('@/pages/Proxy'));
 const Device = lazy(() => import('@/pages/Device'));
 const Application = lazy(() => import('@/pages/App'));
@@ -36,13 +38,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
 function PublicOnly({ children }: { children: ReactNode }) {
   const token = useSession((state) => state.token);
-  return token ? <Navigate to="/dashboard" replace /> : <>{children}</>;
+  return token ? <Navigate to="/" replace /> : <>{children}</>;
 }
 
 export default function App() {
   return (
     <>
       <RuntimeBridge />
+      <PermissionRefresh />
       <Suspense
         fallback={
           <div className="liaison-route-loading">
@@ -67,36 +70,38 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<FeatureGate code="ai.home.use" home><Home /></FeatureGate>} />
+            <Route path="/agent/sessions/:agentSessionId" element={<FeatureGate code="ai.home.use"><Home /></FeatureGate>} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/proxy" element={<Proxy />} />
             <Route path="/resource/device" element={<Device />} />
             <Route path="/resource/app" element={<Application />} />
             <Route path="/connector" element={<Connector />} />
-            <Route path="/logs/management" element={<ManagementLog />} />
-            <Route path="/logs/audit" element={<Audit />} />
+            <Route path="/logs/management" element={<FeatureGate code="audit.read"><ManagementLog /></FeatureGate>} />
+            <Route path="/logs/audit" element={<FeatureGate code="audit.read"><Audit /></FeatureGate>} />
             <Route path="/audit" element={<Navigate to="/logs/audit" replace />} />
             <Route path="/users" element={<User />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/webssh/:proxyId" element={<WebSSH />} />
+            <Route path="/webssh/sessions/:connectionReference" element={<WebSSH />} />
             <Route
-              path="/webssh/:proxyId/connections/:credentialId"
+              path="/webssh/:proxyId/connections/:credentialId/*"
               element={<WebSSH />}
             />
-            <Route path="/webssh/:proxyId/session" element={<WebSSH />} />
+            <Route path="/webssh/:proxyId/session/*" element={<WebSSH />} />
             <Route path="/webdesktop/:proxyId" element={<WebDesktop />} />
             <Route
-              path="/webdesktop/:proxyId/connections/:credentialId"
+              path="/webdesktop/:proxyId/connections/:credentialId/*"
               element={<WebDesktop />}
             />
-            <Route path="/webdesktop/:proxyId/session" element={<WebDesktop />} />
+            <Route path="/webdesktop/:proxyId/session/*" element={<WebDesktop />} />
             <Route path="/webdata/:proxyId" element={<WebData />} />
             <Route
-              path="/webdata/:proxyId/connections/:credentialId"
+              path="/webdata/:proxyId/connections/:credentialId/*"
               element={<WebData />}
             />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </>

@@ -74,7 +74,9 @@ func newTestControlPlane(t *testing.T) (*controlPlane, repo.Repo) {
 	if err != nil {
 		t.Fatalf("new repo: %v", err)
 	}
-	cp := &controlPlane{conf: conf, repo: r}
+	// Resource/data tests use an explicit permissive feature authorizer. Feature
+	// denial and production IAM integration are tested separately.
+	cp := &controlPlane{conf: conf, repo: r, authorizeFeature: func(context.Context, string) error { return nil }}
 	return cp, r
 }
 

@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"errors"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 	"net/http"
 	"strconv"
 	"strings"
@@ -92,6 +94,10 @@ func (web *web) handleManagementAuditListHTTP(w http.ResponseWriter, r *http.Req
 	ctx := context.WithValue(r.Context(), "user_id", user.ID)
 	result, err := web.controlPlane.ListManagementAudits(ctx, &controlplane.ManagementAuditListQuery{Module: strings.TrimSpace(r.URL.Query().Get("module")), Action: strings.TrimSpace(r.URL.Query().Get("action")), Success: success, Keyword: strings.TrimSpace(r.URL.Query().Get("keyword")), StartTime: startTime, EndTime: endTime, Page: page, PageSize: pageSize})
 	if err != nil {
+		if errors.Is(err, iam.ErrForbidden) {
+			writeIAMError(w, err)
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"code": http.StatusInternalServerError, "message": "failed to load management logs"})
 		return
 	}

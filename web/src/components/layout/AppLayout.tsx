@@ -23,7 +23,7 @@ export function AppLayout() {
 
   const pages: Record<string, { title: string; description: string }> = {
     '/dashboard': {
-      title: tr('总览', 'Overview'),
+      title: tr('仪表盘', 'Dashboard'),
       description: tr(
         '设备、应用与零信任访问状态',
         'Devices, applications, and zero-trust access status',
@@ -93,7 +93,7 @@ export function AppLayout() {
       }
     : pages[location.pathname];
   const webDataRoute = location.pathname.match(
-    /^\/webdata\/(\d+)(?:\/connections\/(\d+))?$/,
+    /^\/webdata\/(\d+)(?:\/connections\/(\d+))?(?:\/sessions\/[^/]+(?:\/agent\/[^/]+)?)?$/,
   );
   const isWebDataPage = Boolean(webDataRoute);
   const webDataReturn = (() => {
@@ -169,14 +169,14 @@ export function AppLayout() {
   ]);
 
   useEffect(() => {
-    document.title = `${page?.title || 'Liaison'} · Liaison`;
-  }, [page?.title]);
+    document.title = `${location.pathname === '/' || location.pathname.startsWith('/agent/sessions/') ? tr('首页', 'Home') : page?.title || 'Liaison'} · Liaison`;
+  }, [page?.title, location.pathname, tr]);
 
   return (
     <div className="liaison-app-frame">
       <header className="liaison-global-header">
         <div className={`liaison-global-left${sidebarCollapsed ? ' is-collapsed' : ''}`}>
-          <Link to="/dashboard" className="liaison-brand-link">
+          <Link to="/" className="liaison-brand-link">
             <span className="liaison-brand-mark">
               <LiaisonLogo size={30} />
             </span>

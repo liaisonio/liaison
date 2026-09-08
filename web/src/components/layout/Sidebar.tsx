@@ -12,6 +12,7 @@ import { ApplicationIcon } from '@/components/icons/ApplicationIcon';
 import { useI18n } from '@/i18n';
 import { getProxyList } from '@/services/api';
 import { useUi } from '@/store/ui';
+import { useFeature } from '@/store/permissions';
 import type { LucideIcon } from 'lucide-react';
 import {
   Boxes,
@@ -21,6 +22,7 @@ import {
   ChevronRight,
   FileClock,
   Gauge,
+  House,
   Globe2,
   Settings,
   Users,
@@ -36,6 +38,8 @@ type NavItem = {
 };
 
 export function Sidebar() {
+  const homeAI = useFeature('ai.home.use');
+  const audit = useFeature('audit.read');
   const { tr } = useI18n();
   const collapsed = useUi((state) => state.sidebarCollapsed);
   const toggleSidebar = useUi((state) => state.toggleSidebar);
@@ -47,7 +51,8 @@ export function Sidebar() {
   );
 
   const primary: NavItem[] = [
-    { to: '/dashboard', label: tr('总览', 'Overview'), icon: Gauge },
+    { to: '/', label: tr('首页', 'Home'), icon: House, end: true },
+    { to: '/dashboard', label: tr('仪表盘', 'Dashboard'), icon: Gauge },
     { to: '/connector', label: tr('连接器', 'Connectors'), icon: Cable },
     { to: '/resource/device', label: tr('设备', 'Devices'), icon: Boxes },
   ];
@@ -101,14 +106,14 @@ export function Sidebar() {
   }, [location.pathname]);
 
   const renderItems = (items: NavItem[]) =>
-    items.map(({ to, label, icon: Icon, end }) => (
+    items.filter(item => item.to !== '/' || homeAI).map(({ to, label, icon: Icon, end }) => (
       <NavLink
         key={to}
         to={to}
         end={end}
         title={collapsed ? label : undefined}
         className={({ isActive }) =>
-          `liaison-nav-item${isActive ? ' is-active' : ''}`
+          `liaison-nav-item${isActive || (to === '/' && location.pathname.startsWith('/agent/sessions/')) ? ' is-active' : ''}`
         }
       >
         <Icon size={17} strokeWidth={1.8} />
@@ -129,7 +134,7 @@ export function Sidebar() {
       </button>
       <nav className="liaison-nav">
         <div className="liaison-nav-primary">
-          {renderItems(primary.slice(0, 1))}
+          {renderItems(primary.slice(0, 2))}
           {collapsed || visibleAccessTypes.length === 0 ? (
             <NavLink
               to="/proxy"
@@ -195,7 +200,7 @@ export function Sidebar() {
               )}
             </div>
           )}
-          {renderItems(primary.slice(1))}
+          {renderItems(primary.slice(2))}
           <NavLink
             to="/resource/app"
             title={collapsed ? tr('应用', 'Applications') : undefined}
@@ -211,7 +216,7 @@ export function Sidebar() {
 
       <div className="liaison-sidebar-bottom">
         <nav className="liaison-nav-lower" aria-label={tr('系统', 'System')}>
-          {collapsed ? (
+          {audit && (collapsed ? (
             <NavLink to="/logs/management" title={tr('日志与审计', 'Logs & Audit')} className={({ isActive }) => `liaison-nav-item${isActive || location.pathname.startsWith('/logs/') ? ' is-active' : ''}`}>
               <AuditLogIcon size={17} />
             </NavLink>
@@ -227,7 +232,7 @@ export function Sidebar() {
                 <Link to="/logs/audit" className={`liaison-nav-child${location.pathname === '/logs/audit' ? ' is-active' : ''}`}><AuditLogIcon size={13} /><span>{tr('审计日志', 'Audit logs')}</span></Link>
               </div> : null}
             </div>
-          )}
+          ))}
           {renderItems(lowerNav)}
         </nav>
       </div>

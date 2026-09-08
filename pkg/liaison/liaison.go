@@ -1,13 +1,24 @@
 package liaison
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"runtime"
 
 	"github.com/liaisonio/liaison/pkg/entry"
 	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/accesssession"
+	agentapplication "github.com/liaisonio/liaison/pkg/liaison/manager/agent/application"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/agent/assistance"
+	agentexecutor "github.com/liaisonio/liaison/pkg/liaison/manager/agent/executor"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/agent/management"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/agent/modelsettings"
+	agentpolicy "github.com/liaisonio/liaison/pkg/liaison/manager/agent/policy"
+	agentruntime "github.com/liaisonio/liaison/pkg/liaison/manager/agent/runtime"
+	agenttool "github.com/liaisonio/liaison/pkg/liaison/manager/agent/tool"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/frontierbound"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
@@ -24,6 +35,7 @@ type Liaison struct {
 	entry            *entry.Entry
 	repo             repo.Repo
 	iamService       *iam.IAMService
+	accessSessions   *accesssession.Registry
 	trafficCollector *traffic.TrafficCollector
 }
 
@@ -92,11 +104,6 @@ func NewLiaison() (*Liaison, error) {
 			_ = frontierBound.Close()
 		}
 	}()
-	// service layer
-	controlPlane, err := controlplane.NewControlPlane(config.Conf, repo, frontierBound, trafficCollector)
-	if err != nil {
-		return nil, err
-	}
 	// IAM service
 	iamService, err := iam.NewIAMService(repo)
 	if err != nil {
@@ -104,6 +111,20 @@ func NewLiaison() (*Liaison, error) {
 	}
 	if err := iamService.EnsureOrganizationBootstrap(); err != nil {
 		return nil, fmt.Errorf("failed to initialize organizations: %w", err)
+	}
+	controlPlane, err := controlplane.NewControlPlane(config.Conf, repo, frontierBound, trafficCollector, func(ctx context.Context, feature string) error {
+		id, ok := ctx.Value("user_id").(uint)
+		if !ok || id == 0 {
+			return iam.ErrForbidden
+		}
+		actor, err := repo.GetUserByID(id)
+		if err != nil {
+			return err
+		}
+		return iamService.RequireFeature(actor, feature)
+	})
+	if err != nil {
+		return nil, err
 	}
 	// 设置JWT密钥（必须从配置文件读取）
 	if config.Conf.Manager.JWTSecret == "" {
@@ -113,7 +134,43 @@ func NewLiaison() (*Liaison, error) {
 		return nil, fmt.Errorf("failed to set JWT secret: %w", err)
 	}
 	// web layer
-	webServer, err := web.NewWebServerWithListener(config.Conf, controlPlane, iamService, webListener)
+	accessSessions := accesssession.NewRegistry()
+	agentStore, err := agentruntime.NewDurableStore(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize agent store: %w", err)
+	}
+	agentBinder, err := agentexecutor.NewAttachmentBinder(accessSessions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize agent attachment binder: %w", err)
+	}
+	agentEvents := agentruntime.NewEventBroker(128)
+	agentConfig := config.Conf.Manager.Agent
+	models, err := modelsettings.New(repo, config.Conf.Manager.JWTSecret, modelsettings.Config{
+		Enabled: agentConfig.Enabled, BaseURL: agentConfig.BaseURL, Model: agentConfig.Model, APIKey: os.Getenv(agentConfig.APIKeyEnv),
+	}, func(ctx context.Context, userID uint, action string) error {
+		actor, err := iamService.GetUserByID(userID)
+		if err != nil {
+			return err
+		}
+		return iamService.RequireModelSettingsPermission(actor, action)
+	})
+	if err != nil {
+		return nil, err
+	}
+	agentLoop, err := newAgentLoop(agentConfig, agentStore, repo, iamService, accessSessions, agentEvents, models, controlPlane)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize agent runtime: %w", err)
+	}
+	generator, err := assistance.NewModelGenerator(models)
+	if err != nil {
+		return nil, err
+	}
+	agentOptions := []agentapplication.Option{agentapplication.WithTurnRunner(agentLoop), agentapplication.WithAssistanceGenerator(generator), agentapplication.WithModelSettings(models), agentapplication.WithResourceReferences(controlPlane)}
+	agentService, err := agentapplication.NewService(agentStore, agentBinder, repo, iamService, nil, agentOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize agent application service: %w", err)
+	}
+	webServer, err := web.NewWebServerWithListener(config.Conf, controlPlane, iamService, webListener, accessSessions, agentService, agentEvents)
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +206,54 @@ func NewLiaison() (*Liaison, error) {
 		entry:            entry,
 		repo:             repo,
 		iamService:       iamService,
+		accessSessions:   accessSessions,
 		trafficCollector: trafficCollector,
 	}, nil
+}
+
+func newAgentLoop(agentConfig config.Agent, store agentruntime.Store, repository repo.Repo, iamService *iam.IAMService,
+	accessSessions *accesssession.Registry, events agentruntime.EventSink, provider agentruntime.ModelProvider, cp management.ControlPlane,
+) (*agentruntime.Loop, error) {
+	policy, err := agentpolicy.NewAuthorizationPolicy(func(_ context.Context, principal agenttool.Principal, resource, action string) error {
+		actor, getErr := iamService.GetUserByID(principal.UserID)
+		if getErr != nil {
+			return getErr
+		}
+		return iamService.RequireOrganizationResourcePermission(actor, principal.OrganizationID, resource, action)
+	})
+	if err != nil {
+		return nil, err
+	}
+	managementSource, err := management.NewSource(cp, iamService)
+	if err != nil {
+		return nil, err
+	}
+	engine := agenttool.NewEngine(managementSource, policy)
+	if err := agenttool.NewSourceManager(engine).Load(context.Background(), managementSource); err != nil {
+		return nil, fmt.Errorf("load management tools: %w", err)
+	}
+	router := agentexecutor.NewRouter()
+	sessionExecutor, err := agentexecutor.NewSessionExecutor(accessSessions)
+	if err != nil {
+		return nil, err
+	}
+	if err := router.Register(sessionExecutor); err != nil {
+		return nil, fmt.Errorf("register access session executor: %w", err)
+	}
+	if err := agenttool.NewSourceManager(engine).Load(context.Background(), agentexecutor.NewToolSource(router)); err != nil {
+		return nil, fmt.Errorf("load protocol tools: %w", err)
+	}
+	if err := agenttool.RegisterDiscoveryTools(context.Background(), engine); err != nil {
+		return nil, err
+	}
+	approvals, err := agentruntime.NewDurableApprovalCoordinator(repository)
+	if err != nil {
+		return nil, err
+	}
+	return agentruntime.NewLoop(store, engine, provider, approvals, events, nil, agentruntime.LoopConfig{
+		MaxModelSteps:  agentConfig.MaxModelSteps,
+		ApprovalExpiry: agentConfig.ApprovalExpiry,
+	})
 }
 
 func (l *Liaison) Serve() error {

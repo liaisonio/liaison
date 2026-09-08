@@ -42,7 +42,7 @@ const Login: React.FC = () => {
       const redirect = new URL(window.location.href).searchParams.get(
         'redirect',
       );
-      history.replace(redirect || '/dashboard');
+      history.replace(redirect || '/');
     } catch (error: any) {
       const backendMessage = error?.response?.data?.message;
       setError(

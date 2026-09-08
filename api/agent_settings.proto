@@ -1,0 +1,40 @@
+syntax = "proto3";
+package liaison.agent.settings.v1;
+option go_package = "github.com/liaisonio/liaison/api/agent/settings/v1";
+// GET/PUT /api/v1/settings/model; POST /api/v1/settings/model/test.
+// Root-organization settings.model.manage permission is required.
+message ModelSettingsUpdate {
+  bool enabled = 1;
+  string base_url = 2;
+  string model = 3;
+  string api_key = 4; // Write-only. Empty preserves the saved key.
+  bool clear_key = 5;
+  string default_provider = 6;
+  repeated ModelProviderConfiguration providers = 7;
+  string test_provider = 8;
+}
+message ModelSettingsView {
+  bool enabled = 1;
+  string base_url = 2;
+  string model = 3;
+  bool has_api_key = 4;
+  string default_provider = 5;
+  repeated ModelProviderView providers = 6;
+}
+message ModelProviderConfiguration {
+  string id = 1;
+  string type = 2;
+  string base_url = 3;
+  repeated string models = 4;
+  string model = 5;
+  string api_key = 6;
+  bool clear_key = 7;
+}
+message ModelProviderView {
+  string id = 1;
+  string type = 2;
+  string base_url = 3;
+  repeated string models = 4;
+  string model = 5;
+  bool has_api_key = 6;
+}

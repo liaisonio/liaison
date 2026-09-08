@@ -7,12 +7,14 @@ import (
 	v1 "github.com/liaisonio/liaison/api/v1"
 	"github.com/liaisonio/liaison/pkg/liaison/config"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/frontierbound"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 	"github.com/liaisonio/liaison/pkg/liaison/repo"
 	"github.com/liaisonio/liaison/pkg/proto"
 	"github.com/liaisonio/liaison/pkg/trafficconn"
 )
 
 type ControlPlane interface {
+	ResolveAgentResource(ctx context.Context, userID uint, resourceType string, resourceID uint64) (string, error)
 	CreateEdge(ctx context.Context, req *v1.CreateEdgeRequest) (*v1.CreateEdgeResponse, error)
 	GetEdge(ctx context.Context, req *v1.GetEdgeRequest) (*v1.GetEdgeResponse, error)
 	ListEdges(ctx context.Context, req *v1.ListEdgesRequest) (*v1.ListEdgesResponse, error)
@@ -88,7 +90,7 @@ type ControlPlane interface {
 	RestoreProxyListeners() error
 }
 
-func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound frontierbound.FrontierBound, trafficRecorder trafficconn.Recorder) (ControlPlane, error) {
+func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound frontierbound.FrontierBound, trafficRecorder trafficconn.Recorder, authorize ...func(context.Context, string) error) (ControlPlane, error) {
 	cp := &controlPlane{
 		conf:            conf,
 		repo:            repo,
@@ -96,6 +98,9 @@ func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound f
 		trafficRecorder: trafficRecorder,
 	}
 
+	if len(authorize) > 0 {
+		cp.authorizeFeature = authorize[0]
+	}
 	// 初始化任务检查
 	go cp.checkTask()
 
@@ -103,12 +108,20 @@ func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound f
 }
 
 type controlPlane struct {
-	conf            *config.Configuration
-	repo            repo.Repo
-	frontierBound   frontierbound.FrontierBound
-	trafficRecorder trafficconn.Recorder
+	authorizeFeature func(context.Context, string) error
+	conf             *config.Configuration
+	repo             repo.Repo
+	frontierBound    frontierbound.FrontierBound
+	trafficRecorder  trafficconn.Recorder
 
 	// deps
 	proxyManager    proto.ProxyManager
 	firewallManager proto.FirewallManager
+}
+
+func (cp *controlPlane) requireAuditFeature(ctx context.Context) error {
+	if cp.authorizeFeature == nil {
+		return iam.ErrForbidden
+	}
+	return cp.authorizeFeature(ctx, iam.FeatureAudit)
 }

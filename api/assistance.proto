@@ -1,0 +1,18 @@
+syntax = "proto3";
+package liaison.assistance.v1;
+option go_package = "github.com/liaisonio/liaison/api/assistance/v1";
+// JSON HTTP contract: POST /api/v1/assistance/suggestions.
+// DELETE at the same path releases this editor's in-memory session.
+// HTTP 400: invalid editing input. HTTP 502: invalid model suggestion.
+message SuggestRequest {
+  string handle_id = 1;
+  string editor_id = 2;
+  uint64 revision = 3;
+  string text = 4;
+  uint32 cursor = 5; // UTF-8 byte offset.
+}
+message SuggestResponse {
+  uint64 revision = 1;
+  uint32 cursor = 2;
+  string text = 3;
+}

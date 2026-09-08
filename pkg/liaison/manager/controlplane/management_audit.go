@@ -86,6 +86,9 @@ func (cp *controlPlane) RecordManagementAudit(ctx context.Context, audit *Manage
 }
 
 func (cp *controlPlane) ListManagementAudits(ctx context.Context, query *ManagementAuditListQuery) (*ManagementAuditList, error) {
+	if err := cp.requireAuditFeature(ctx); err != nil {
+		return nil, err
+	}
 	userID, err := requireWebSSHUserID(ctx)
 	if err != nil {
 		return nil, err

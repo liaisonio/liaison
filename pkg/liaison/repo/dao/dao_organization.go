@@ -168,6 +168,20 @@ func (d *dao) UpsertIAMRoleBinding(binding *model.IAMRoleBinding) error {
 	}).Create(binding).Error
 }
 
+func (d *dao) ReplaceIAMRolePermissionSubset(roleID uint, subset, enabled []uint) error {
+	return d.getDB().Transaction(func(tx *gorm.DB) error {
+		if err := tx.Unscoped().Where("role_id = ? AND permission_id IN ?", roleID, subset).Delete(&model.IAMRolePermission{}).Error; err != nil {
+			return err
+		}
+		for _, id := range enabled {
+			if err := tx.Create(&model.IAMRolePermission{RoleID: roleID, PermissionID: id}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (d *dao) GetIAMRoleBinding(organizationID, userID uint) (*model.IAMRoleBinding, error) {
 	var binding model.IAMRoleBinding
 	err := d.getDB().Preload("Role").Where("organization_id = ? AND user_id = ?", organizationID, userID).First(&binding).Error

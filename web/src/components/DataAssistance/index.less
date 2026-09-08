@@ -1,0 +1,8 @@
+.data-assistance { flex: 0 0 auto; padding: 8px 12px; border-top: 1px solid rgb(var(--line) / .3); color: rgb(var(--muted)); }
+.data-assistance-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.data-assistance button { display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 6px; padding: 5px 7px; background: rgb(var(--panel)); color: rgb(var(--ink)); cursor: pointer; font-size: 11px; }
+.data-assistance button:disabled { opacity: .5; cursor: default; }
+.data-assistance button:hover:not(:disabled) { background: rgb(var(--accent) / .12); }
+.data-assistance small { font-size: 10px; }
+.data-assistance-candidate { margin-top: 8px; }
+.data-assistance-candidate pre { max-height: 120px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: rgb(var(--muted)); font: 12px/1.6 ui-monospace, monospace; margin: 0 0 8px; }

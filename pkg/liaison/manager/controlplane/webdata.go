@@ -496,6 +496,9 @@ func (cp *controlPlane) ListWebDataAudits(ctx context.Context, proxyID uint, lim
 }
 
 func (cp *controlPlane) ListWebDataAuditEntries(ctx context.Context, query *WebDataAuditListQuery) (*WebDataAuditList, error) {
+	if err := cp.requireAuditFeature(ctx); err != nil {
+		return nil, err
+	}
 	_, err := requireWebSSHUserID(ctx)
 	if err != nil {
 		return nil, err
