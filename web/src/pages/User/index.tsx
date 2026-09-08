@@ -12,14 +12,19 @@ import { getAccountLabel, getAvatarIdentity, useAvatarStore } from '@/store/avat
 import { Building2, Camera, ChevronRight, KeyRound, Lock, Pencil, Plus, ShieldCheck, Trash2, User, UserMinus, Users } from 'lucide-react';
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../Settings/index.less';
+import { useFeature } from '@/store/permissions';
+import Permissions from './Permissions';
 
-type Tab = 'organizations' | 'users' | 'account' | 'password';
+type Tab = 'organizations' | 'users' | 'account' | 'password' | 'permissions';
 type Notify = (tone: 'danger' | 'success', text: string) => void;
 
 const UserPage: React.FC = () => {
+  const organizationsAllowed = useFeature('organizations.read');
+  const managePermissions = useFeature('permissions.manage');
   const { initialState } = useModel('@@initialState');
   const { tr } = useI18n();
   const [active, setActive] = useState<Tab>('organizations');
+  useEffect(() => { if ((active === 'organizations' && !organizationsAllowed) || ((active === 'users' || active === 'permissions') && !managePermissions)) setActive('account'); }, [active, organizationsAllowed, managePermissions]);
   const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
   const notify: Notify = useCallback((tone, text) => {
     setNotice({ tone, text });
@@ -28,6 +33,7 @@ const UserPage: React.FC = () => {
   const tabs: Array<[Tab, React.ReactNode, string]> = [
     ['organizations', <Building2 size={15} />, tr('组织架构', 'Organizations')],
     ['users', <Users size={15} />, tr('用户', 'Users')],
+    ['permissions', <ShieldCheck size={15} />, tr('权限策略', 'Permissions')],
     ['account', <User size={15} />, tr('我的账户', 'My account')],
     ['password', <Lock size={15} />, tr('修改密码', 'Password')],
   ];
@@ -35,11 +41,12 @@ const UserPage: React.FC = () => {
     {notice ? <div className="settings-floating-notice"><Notice tone={notice.tone}>{notice.text}</Notice></div> : null}
     <div className="settings-shell native-settings-shell user-management-shell">
       <aside className="native-settings-tabs">
-        {tabs.map(([key, icon, label], index) => <span key={key} className={index === 2 ? 'user-tab-break' : undefined}><button className={active === key ? 'is-active' : ''} onClick={() => setActive(key)}>{icon}{label}</button></span>)}
+        {tabs.filter(([key]) => key === 'organizations' ? organizationsAllowed : (key === 'users' || key === 'permissions') ? managePermissions : true).map(([key, icon, label]) => <span key={key} className={key === 'account' && (organizationsAllowed || managePermissions) ? 'user-tab-break' : undefined}><button className={active === key ? 'is-active' : ''} onClick={() => setActive(key)}>{icon}{label}</button></span>)}
       </aside>
       <main className="native-settings-content">
-        {active === 'organizations' ? <OrganizationsPanel notify={notify} /> : null}
-        {active === 'users' ? <UsersPanel currentUserId={initialState?.currentUser?.id} notify={notify} /> : null}
+        {active === 'permissions' && managePermissions ? <Permissions /> : null}
+        {active === 'organizations' && organizationsAllowed ? <OrganizationsPanel notify={notify} /> : null}
+        {active === 'users' && managePermissions ? <UsersPanel currentUserId={initialState?.currentUser?.id} notify={notify} /> : null}
         {active === 'account' ? <AccountPanel /> : null}
         {active === 'password' ? <PasswordPanel notify={notify} /> : null}
       </main>

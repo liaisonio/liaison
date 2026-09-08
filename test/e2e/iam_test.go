@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,6 +30,8 @@ const (
 )
 
 var repoRoot string
+var testRoot string
+var frontierCmd *exec.Cmd
 
 // TestConfig 测试配置
 type TestConfig struct {
@@ -49,7 +52,7 @@ type LoginResponse struct {
 	Data    struct {
 		Token string `json:"token"`
 		User  struct {
-			ID    uint   `json:"id"`
+			ID    string `json:"id"`
 			Email string `json:"email"`
 		} `json:"user"`
 	} `json:"data"`
@@ -60,7 +63,7 @@ type ProfileResponse struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    struct {
-		ID    uint   `json:"id"`
+		ID    string `json:"id"`
 		Email string `json:"email"`
 	} `json:"data"`
 }
@@ -82,13 +85,13 @@ type TestSuite struct {
 
 // NewTestSuite 创建测试套件
 func NewTestSuite() *TestSuite {
-	dbPath := filepath.Join(repoRoot, testDB)
+	dbPath := filepath.Join(testRoot, testDB)
 	return &TestSuite{
 		config: &TestConfig{
 			BaseURL: baseURL,
 			DBPath:  dbPath,
 		},
-		configPath: filepath.Join(repoRoot, "test_config.yaml"),
+		configPath: filepath.Join(testRoot, "test_config.yaml"),
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -100,6 +103,8 @@ func (ts *TestSuite) Setup(t *testing.T) {
 	if os.Getenv("LIAISON_E2E") != "1" {
 		t.Skip("set LIAISON_E2E=1 to run manager process e2e tests")
 	}
+	t.Cleanup(func() { ts.Teardown(t) })
+	startTestFrontier(t)
 	// 清理测试数据库
 	ts.cleanupTestDB(t)
 
@@ -116,10 +121,43 @@ func (ts *TestSuite) Teardown(t *testing.T) {
 	if ts.serverCmd != nil {
 		ts.serverCmd.Process.Kill()
 		ts.serverCmd.Wait()
+		ts.serverCmd = nil
 	}
 
 	// 清理测试数据库
 	ts.cleanupTestDB(t)
+}
+
+// The manager requires Frontier even for IAM-only tests. Keep it loopback-only
+// and owned by this test process instead of relying on an existing installation.
+func startTestFrontier(t *testing.T) {
+	t.Helper()
+	if frontierCmd != nil {
+		return
+	}
+	for _, port := range []string{"127.0.0.1:13010", "127.0.0.1:13011", "127.0.0.1:13012", "127.0.0.1:18088"} {
+		listener, err := net.Listen("tcp", port)
+		require.NoErrorf(t, err, "E2E port already in use: %s", port)
+		require.NoError(t, listener.Close())
+	}
+	binary := filepath.Join(testRoot, "frontier")
+	build := exec.Command("go", "install", "github.com/singchia/frontier/cmd/frontier@v1.2.3-rc.1")
+	build.Dir = repoRoot
+	build.Env = append(os.Environ(), "GOBIN="+testRoot)
+	out, err := build.CombinedOutput()
+	require.NoErrorf(t, err, "build test frontier: %s", out)
+	conf := filepath.Join(testRoot, "frontier.yaml")
+	require.NoError(t, os.WriteFile(conf, []byte("controlplane:\n  enable: true\n  listen:\n    network: tcp\n    addr: 127.0.0.1:13010\nedgebound:\n  listen:\n    network: tcp\n    addr: 127.0.0.1:13012\nservicebound:\n  listen:\n    network: tcp\n    addr: 127.0.0.1:13011\n"), 0600))
+	frontierCmd = exec.Command(binary, "--config", conf)
+	require.NoError(t, frontierCmd.Start())
+	require.Eventually(t, func() bool {
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:13011", time.Second)
+		if err != nil {
+			return false
+		}
+		conn.Close()
+		return true
+	}, 10*time.Second, 100*time.Millisecond)
 }
 
 // cleanupTestDB 清理测试数据库
@@ -139,7 +177,7 @@ func (ts *TestSuite) startServer(t *testing.T) {
 	ts.ensureServerBinary(t)
 
 	// 启动服务器进程
-	ts.serverCmd = exec.Command(filepath.Join(repoRoot, "bin", "liaison"), "-c", ts.configPath)
+	ts.serverCmd = exec.Command(filepath.Join(testRoot, "liaison"), "-c", ts.configPath)
 	ts.serverCmd.Dir = repoRoot
 
 	// 设置环境变量
@@ -177,14 +215,14 @@ log:
   file: "%s"
   maxsize: 10
   maxrolls: 1
-`, ts.config.DBPath, filepath.Join(repoRoot, "test_e2e.log"))
+`, ts.config.DBPath, filepath.Join(testRoot, "test_e2e.log"))
 
 	err := os.WriteFile(ts.configPath, []byte(configContent), 0644)
 	require.NoError(t, err, "Failed to create test config")
 }
 
 func (ts *TestSuite) ensureServerBinary(t *testing.T) {
-	binaryPath := filepath.Join(repoRoot, "bin", "liaison")
+	binaryPath := filepath.Join(testRoot, "liaison")
 	if _, err := os.Stat(binaryPath); err == nil {
 		return
 	}
@@ -354,12 +392,20 @@ func TestAuthenticationMiddleware(t *testing.T) {
 	ts.loginAndGetToken(t)
 
 	t.Run("Access protected endpoint with valid token", func(t *testing.T) {
-		resp, err := ts.makeRequest("GET", "/api/v1/applications", nil, ts.token)
+		// Authentication alone permits the user's own profile. This fixture has
+		// no IAM role assignment and must not implicitly grant application access.
+		resp, err := ts.makeRequest("GET", "/api/v1/iam/profile", nil, ts.token)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
-		// 应该能正常访问，返回200或相应的业务状态码
-		assert.True(t, resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("Authenticated user without a role cannot list applications", func(t *testing.T) {
+		resp, err := ts.makeRequest("GET", "/api/v1/applications", nil, ts.token)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusForbidden, resp.StatusCode)
 	})
 
 	t.Run("Access protected endpoint without token", func(t *testing.T) {
@@ -476,16 +522,25 @@ func TestMain(m *testing.M) {
 	// 确保在项目根目录
 	_ = os.Chdir("../..")
 	repoRoot, _ = os.Getwd()
+	var err error
+	testRoot, err = os.MkdirTemp("", "liaison-manager-e2e-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	// 运行测试
 	code := m.Run()
+	if frontierCmd != nil {
+		frontierCmd.Process.Kill()
+		frontierCmd.Wait()
+	}
 
-	// 清理测试配置文件
-	os.Remove("test_config.yaml")
-	os.Remove(testDB)
-	os.Remove(testDB + "-wal")
-	os.Remove(testDB + "-shm")
-	os.Remove("test_e2e.log")
+	// Only remove the private temporary directory created by this test run.
+	if err := os.RemoveAll(testRoot); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		code = 1
+	}
 
 	os.Exit(code)
 }

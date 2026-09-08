@@ -24,6 +24,9 @@ func (d *dao) UpdateApplication(application *model.Application) error {
 
 func (d *dao) CountApplications(query *ListApplicationsQuery) (int64, error) {
 	db := d.getDB()
+	if query.Name != "" {
+		db = db.Where("name LIKE ?", "%"+query.Name+"%")
+	}
 	if len(query.DeviceIDs) > 0 {
 		db = db.Where("device_id IN ?", query.DeviceIDs)
 	}
@@ -45,6 +48,9 @@ func (d *dao) CountApplications(query *ListApplicationsQuery) (int64, error) {
 func (d *dao) ListApplications(query *ListApplicationsQuery) ([]*model.Application, error) {
 	var applications []*model.Application
 	db := d.getDB()
+	if query.Name != "" {
+		db = db.Where("name LIKE ?", "%"+query.Name+"%")
+	}
 	// device_ids
 	if len(query.DeviceIDs) > 0 {
 		db = db.Where("device_id IN ?", query.DeviceIDs)

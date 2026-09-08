@@ -1,0 +1,18 @@
+.session-reference { display:inline-flex; flex-direction:column; min-width:0; max-width:100%; vertical-align:middle; }
+.session-reference > button { display:flex; align-items:center; gap:6px; max-width:100%; padding:3px 0; border:0; background:transparent; color:rgb(var(--muted)); font-size:11px; cursor:pointer; }
+.session-reference code { font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; user-select:text; }
+.session-reference svg { flex-shrink:0; }
+.session-info-trigger {display:inline-flex;vertical-align:middle;align-items:center;justify-content:center;width:26px;height:26px;margin-left:6px;padding:0;border:0;border-radius:6px;background:transparent;color:rgb(var(--muted));cursor:pointer;}
+.session-info-trigger:hover {color:rgb(var(--ink));background:rgb(var(--panel));}
+.session-info-dialog {width:min(440px,calc(100vw - 40px));box-sizing:border-box;padding:20px;border:1px solid rgb(var(--line));border-radius:14px;background:rgb(var(--surface));color:rgb(var(--ink));box-shadow:0 20px 60px #0004;}
+.session-info-dialog::backdrop {background:#0005;}
+.session-info-dialog header {display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-size:15px;}
+.session-info-dialog header button {display:grid;place-items:center;width:28px;height:28px;background:transparent;color:rgb(var(--muted));border:0;cursor:pointer;}
+.session-info-dialog .session-reference {display:flex;margin:8px 0;}
+.session-info-dialog .session-reference button {flex-wrap:wrap;text-align:left;}
+.session-info-dialog .session-reference code {white-space:normal;overflow-wrap:anywhere;}
+.session-info-dialog p {font-size:12px;line-height:1.7;color:rgb(var(--muted));margin:16px 0 0;}
+.session-reference small { color:rgb(var(--muted)); font-size:11px; }
+.session-path-notice { padding:12px 16px; border:1px solid rgb(var(--line)); border-radius:10px; color:rgb(var(--muted)); font-size:13px; line-height:1.7; }
+.session-path-notice a { color:rgb(var(--accent)); }
+.agent-session-references { padding:0 20px 8px; display:flex; flex-direction:column; gap:2px; border-bottom:1px solid rgb(var(--line) / .35); }

@@ -30,6 +30,33 @@
   --webdata-code-operator: #cbd5e1;
 }
 
+.webdata-shell.is-connected { height: calc(100dvh - 116px); min-height: 420px; }
+.webdata-shell:has(> .agent-workspace-root.is-docked) {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--agent-width, 420px);
+  grid-template-rows: minmax(64px, auto) minmax(0, 1fr) auto;
+  gap: 0;
+  border: 1px solid var(--webdata-border-soft);
+  border-radius: var(--surface-radius);
+  overflow: hidden;
+  background: var(--webdata-panel);
+}
+.webdata-shell:has(> .agent-workspace-root.is-docked) > .webdata-header {
+  grid-column: 1; grid-row: 1; padding: 12px 16px;
+  border-bottom: 1px solid rgb(var(--line) / .35);
+  flex-wrap: wrap; gap: 6px;
+}
+.webdata-shell:has(> .agent-workspace-root.is-docked) .webdata-header-breadcrumb { display: none; }
+.webdata-shell:has(> .agent-workspace-root.is-docked) > .webdata-workbench {
+  grid-column: 1; grid-row: 2 / 4; min-width: 0;
+  grid-template-columns: minmax(140px, min(23%, var(--webdata-navigator-width))) 5px minmax(0, 1fr);
+  border: 0; border-radius: 0;
+}
+.webdata-shell:has(> .agent-workspace-root.is-docked) > .webdata-alert { grid-column: 1; grid-row: 2; z-index: 5; align-self: start; }
+.webdata-shell:has(> .agent-workspace-root.is-docked) .webdata-main { overflow-y: auto; }
+.webdata-shell:has(> .agent-workspace-root.is-docked) .webdata-result { min-height: 180px; }
+
 .webdata-shell .liaison-button {
   transition: border-color 160ms var(--webdata-ease-out),
     background-color 160ms var(--webdata-ease-out),

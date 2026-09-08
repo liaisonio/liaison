@@ -17,6 +17,10 @@ func TestResourcePermissionForRequest(t *testing.T) {
 		{"open web ssh", http.MethodPost, "/api/v1/webssh/proxies/1/session", "accesses", "use", true},
 		{"query web data", http.MethodPost, "/api/v1/webdata/sessions/token/execute", "accesses", "use", true},
 		{"read audits", http.MethodGet, "/api/v1/audits/access", "logs", "read", true},
+		{"create agent session", http.MethodPost, "/api/v1/agent/sessions", "agent_session_api", "create", true},
+		{"run agent turn", http.MethodPost, "/api/v1/agent/sessions/session-1/turns", "agent_session_api", "use", true},
+		{"resolve agent approval", http.MethodPost, "/api/v1/agent/sessions/session-1/approvals/approval-1", "agent_session_api", "use", true},
+		{"stream agent events", http.MethodGet, "/api/v1/agent/sessions/session-1/events", "agent_session_api", "use", true},
 		{"unrelated iam", http.MethodGet, "/api/v1/iam/account", "", "", false},
 	}
 	for _, tc := range tests {

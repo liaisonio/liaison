@@ -203,8 +203,18 @@ image-gen-api:
 build-local: build-liaison build-edge
 
 .PHONY: build-liaison
+LIAISON_BINARY ?= ./bin/liaison
 build-liaison:
-	CGO_ENABLED=1 go build -trimpath -ldflags "-s -w" -o ./bin/liaison cmd/manager/main.go
+	CGO_ENABLED=1 go build -trimpath -ldflags "-s -w" -o $(LIAISON_BINARY) cmd/manager/main.go
+
+.PHONY: image-overlay deploy-overlay
+image-overlay: ## Build a test overlay from an explicitly supplied context and image tag
+	test -n "$(OVERLAY_CONTEXT)" && test -n "$(OVERLAY_IMAGE)"
+	docker build -t "$(OVERLAY_IMAGE)" "$(OVERLAY_CONTEXT)"
+
+deploy-overlay: ## Recreate only the manager using explicitly supplied Compose files
+	test -n "$(COMPOSE_BASE)" && test -n "$(COMPOSE_OVERRIDE)" && test -n "$(COMPOSE_PROJECT)"
+	docker compose -p "$(COMPOSE_PROJECT)" -f "$(COMPOSE_BASE)" -f "$(COMPOSE_OVERRIDE)" up -d --no-deps liaison
 
 .PHONY: build-edge
 build-edge:

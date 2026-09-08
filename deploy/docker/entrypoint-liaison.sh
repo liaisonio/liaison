@@ -26,6 +26,12 @@ mkdir -p "$DATA_DIR" "$CERTS_DIR" "$LOG_DIR"
 : "${GUACD_ADDR:=127.0.0.1:4822}"
 : "${GUACD_BRIDGE_ADDR:=127.0.0.1:0}"
 : "${GUACD_BRIDGE_HOST:=127.0.0.1}"
+: "${AGENT_ENABLED:=false}"
+: "${AGENT_BASE_URL:=https://api.openai.com/v1}"
+: "${AGENT_MODEL:=gpt-4.1-mini}"
+: "${AGENT_REQUEST_TIMEOUT:=2m}"
+: "${AGENT_MAX_MODEL_STEPS:=12}"
+: "${AGENT_APPROVAL_EXPIRY:=15m}"
 
 # server_url: omit :PORT for the well-known TLS / HTTP defaults so the URL
 # baked into the web console / install commands is canonical.
@@ -42,8 +48,9 @@ if [ ! -f "$CONF_DIR/liaison.yaml" ]; then
         JWT_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
     fi
     export FRONTIER_PORT FRONTIER_CONTROLPLANE_PORT MANAGER_PORT SERVER_URL JWT_SECRET GUACD_ADDR GUACD_BRIDGE_ADDR GUACD_BRIDGE_HOST
+    export AGENT_ENABLED AGENT_BASE_URL AGENT_MODEL AGENT_REQUEST_TIMEOUT AGENT_MAX_MODEL_STEPS AGENT_APPROVAL_EXPIRY
     # shellcheck disable=SC2016
-    envsubst '${FRONTIER_PORT} ${FRONTIER_CONTROLPLANE_PORT} ${MANAGER_PORT} ${SERVER_URL} ${JWT_SECRET} ${GUACD_ADDR} ${GUACD_BRIDGE_ADDR} ${GUACD_BRIDGE_HOST}' \
+    envsubst '${FRONTIER_PORT} ${FRONTIER_CONTROLPLANE_PORT} ${MANAGER_PORT} ${SERVER_URL} ${JWT_SECRET} ${GUACD_ADDR} ${GUACD_BRIDGE_ADDR} ${GUACD_BRIDGE_HOST} ${AGENT_ENABLED} ${AGENT_BASE_URL} ${AGENT_MODEL} ${AGENT_REQUEST_TIMEOUT} ${AGENT_MAX_MODEL_STEPS} ${AGENT_APPROVAL_EXPIRY}' \
         < "$CONF_DIR/liaison.yaml.template" > "$CONF_DIR/liaison.yaml"
     echo "[entrypoint] rendered $CONF_DIR/liaison.yaml (public_host=$LIAISON_PUBLIC_HOST manager_port=$MANAGER_PORT frontier_port=$FRONTIER_PORT controlplane_port=$FRONTIER_CONTROLPLANE_PORT)"
 fi

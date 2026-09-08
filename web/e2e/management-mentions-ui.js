@@ -1,0 +1,44 @@
+// Development fixture only: no real resources or model calls.
+async (page) => {
+ const assert=(condition,message)=>{if(!condition)throw Error(message);};
+ await page.goto('http://127.0.0.1:8012/e2e/fixtures/management-agent.html');
+ await page.setViewportSize({width:1440,height:1000});
+ const input=page.locator('textarea[aria-label="消息"]');
+ const options=page.locator('.agent-mention-picker [role=option]');
+ await input.fill('检查 @办公');
+ await options.first().waitFor();
+ assert(await options.count()===3,'search should include all three resource types');
+ await input.press('ArrowDown');await input.press('Enter');
+ assert(await page.locator('.agent-reference-tag').count()===1,'keyboard mention selection');
+ assert(await input.inputValue()==='检查 ','mention trigger replaced without changing prompt');
+ assert(await input.evaluate(el=>el===document.activeElement),'selection keeps input focus');
+ assert(!await page.evaluate(()=>window.__managementSubmits),'selection must not send');
+ await page.screenshot({path:'/tmp/liaison-mentions-home.png'});
+ await page.getByRole('button',{name:'发送',exact:true}).click();
+ await page.locator('.agent-workspace').waitFor();
+ await page.waitForFunction(()=>window.__managementSubmits===1);
+ await page.locator('.agent-message .agent-reference-tag').waitFor();
+ const refs=await page.evaluate(()=>window.__references);
+ assert(refs.length===1&&refs[0].type==='device'&&refs[0].id==='7'&&!refs[0].name,'send only canonical ID/type');
+ await input.fill('继续 @测试');await options.first().waitFor();
+ await input.press('Escape');
+ await page.locator('.agent-mention-picker').waitFor({state:'hidden'});
+ assert(await page.getByRole('listbox').count()===0,'Escape dismisses picker');
+ await input.fill('继续 @办公');await options.first().waitFor();
+ await options.first().click();
+ await page.getByRole('button',{name:'移除引用 办公室',exact:true}).click();
+ assert(await page.locator('.agent-composer .agent-reference-tag').count()===0,'remove chip');
+ await input.fill('继续 @找不到');await page.getByText('没有匹配的可见资源',{exact:true}).waitFor();
+ await input.press('Enter');
+ assert(await page.evaluate(()=>window.__managementSubmits)===1,'empty picker Enter must not submit');
+ await input.fill('继续 @测试');await options.first().waitFor();await input.press('Enter');
+ await page.getByRole('button',{name:'发送',exact:true}).click();await page.waitForFunction(()=>window.__managementSubmits===2);
+ await page.waitForFunction(()=>document.querySelectorAll('.agent-message .agent-reference-tag').length===2);
+ await input.fill('@');await options.first().waitFor();
+ await page.screenshot({path:'/tmp/liaison-mentions-chat.png'});
+ await page.setViewportSize({width:390,height:844});
+ const bounds=await page.locator('.agent-mention-picker').boundingBox();
+ assert(bounds.x>=0&&bounds.x+bounds.width<=390,'mobile picker bounds');
+ await page.screenshot({path:'/tmp/liaison-mentions-mobile.png'});
+ return {passed:true,checks:12};
+}

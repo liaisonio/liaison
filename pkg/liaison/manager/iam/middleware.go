@@ -90,6 +90,10 @@ func resourcePermissionForRequest(r *http.Request) (resource, action string, ok 
 		resource = "accesses"
 	case strings.HasPrefix(path, "/api/v1/audits"):
 		resource = "logs"
+	case strings.HasPrefix(path, "/api/v1/agent"):
+		// Session kind is server-owned; the application service enforces the
+		// distinct home/access feature after resolving it.
+		resource = "agent_session_api"
 	case path == "/api/v1/traffic-metrics":
 		resource = "overview"
 	default:
@@ -102,6 +106,29 @@ func resourcePermissionForRequest(r *http.Request) (resource, action string, ok 
 			action = "read"
 		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 			action = "use"
+		default:
+			return "", "", false
+		}
+		return resource, action, true
+	}
+	if strings.HasPrefix(path, "/api/v1/agent") {
+		if strings.Contains(path, "/turns") || strings.Contains(path, "/approvals/") || strings.HasSuffix(path, "/events") {
+			switch r.Method {
+			case http.MethodGet, http.MethodPost:
+				return resource, "use", true
+			default:
+				return "", "", false
+			}
+		}
+		switch r.Method {
+		case http.MethodGet:
+			action = "read"
+		case http.MethodPost:
+			action = "create"
+		case http.MethodPut, http.MethodPatch:
+			action = "update"
+		case http.MethodDelete:
+			action = "delete"
 		default:
 			return "", "", false
 		}

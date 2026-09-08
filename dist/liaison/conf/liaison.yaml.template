@@ -20,6 +20,16 @@ manager:
   guacd_addr: 127.0.0.1:4822  # WebDesktop 使用的 guacd 地址；未安装 guacd 时不影响普通代理
   guacd_bridge_addr: 127.0.0.1:0  # manager 临时桥接监听地址
   guacd_bridge_host: 127.0.0.1  # guacd 回连 manager 临时桥接端口时使用的主机名
+  # Agent Runtime is opt-in. Put OPENAI_API_KEY in
+  # /opt/liaison/conf/liaison.env (mode 600), never in this YAML file.
+  agent:
+    enabled: false
+    base_url: https://api.openai.com/v1
+    model: gpt-4.1-mini
+    api_key_env: OPENAI_API_KEY
+    request_timeout: 2m
+    max_model_steps: 12
+    approval_expiry: 15m
 frontier:
   controlplane_url: http://127.0.0.1:${FRONTIER_CONTROLPLANE_PORT}
   dial:

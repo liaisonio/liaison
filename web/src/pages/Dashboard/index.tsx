@@ -1,4 +1,5 @@
 import { APPLICATION_TYPES } from '@/constants/applicationTypes';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '@/i18n';
 import {
   getApplicationList,
@@ -192,6 +193,7 @@ function TrafficChart({
 }
 
 const DashboardPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const { tr } = useI18n();
   const [loading, setLoading] = useState(true);
   const [deviceData, setDeviceData] = useState<DistributionItem[]>([]);
@@ -409,6 +411,8 @@ const DashboardPage: React.FC = () => {
       activeApplications: rankedApplications.length,
     };
   }, [otherTrafficLabel, totalTrafficData, trafficData]);
+
+  if (searchParams.get('view') === 'agent') return <Navigate to="/" replace />;
 
   return (
     <div className="overview-page">

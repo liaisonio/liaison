@@ -128,3 +128,33 @@ button.user-status, button.system-role-chip { cursor: pointer; }
   .organization-layout { grid-template-columns: 1fr; }
   .organization-tree { border-right: 0; border-bottom: 1px solid rgb(var(--line) / 0.58); }
 }
+.model-settings-fields {
+  border: 0;
+  padding: 0;
+  margin: 24px 0 0;
+  max-width: 640px;
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.model-enable { display: flex; align-items: center; gap: 10px; }
+.model-enable input { accent-color: rgb(var(--accent)); }
+.model-settings-actions { display: flex; gap: 12px; margin-top: 8px; }
+.model-provider-form { border: 0; padding: 0; margin: 24px 0 0; min-width: 0; max-width: 960px; }
+.model-provider-toolbar, .model-provider-header, .model-add-row, .model-add-provider { display: flex; align-items: center; gap: 12px; }
+.model-provider-toolbar { justify-content: space-between; margin-bottom: 24px; }
+.model-provider-list { display: grid; gap: 16px; }
+.model-provider-card { border: 1px solid rgba(128,128,148,.23); border-radius: 12px; overflow: hidden; }
+.model-provider-header { padding: 16px 20px; justify-content: space-between; }
+.model-provider-title { display: flex; align-items: center; text-align: left; gap: 12px; border: 0; background: none; color: inherit; cursor: pointer; min-width: 0; }
+.model-provider-title span { font-weight: 600; }
+.model-provider-title small { display: block; margin-top: 5px; font-size: 12px; opacity: .6; font-weight: 400; }
+.model-provider-body { display: grid; gap: 18px; padding: 20px; border-top: 1px solid rgba(128,128,148,.18); }
+.model-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.model-chip { display: inline-flex; align-items: center; border: 1px solid rgba(128,128,148,.25); border-radius: 6px; }
+.model-chip button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 0; background: none; color: inherit; cursor: pointer; font-size: 12px; }
+.model-add-row > input { flex: 1; min-width: 0; }
+.model-add-provider { margin-top: 20px; }
+.model-add-provider select { color: inherit; background: transparent; border: 1px solid rgba(128,128,148,.3); border-radius: 8px; padding: 8px 32px 8px 12px; }
+.model-save-hint { margin-top: 14px; opacity: .6; font-size: 12px; }
+@media (max-width: 600px) { .model-provider-header { padding: 12px; flex-wrap: wrap; } .model-provider-body { padding: 14px; } }

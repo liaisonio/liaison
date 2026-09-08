@@ -38,6 +38,16 @@ type Daemon struct {
 	PProf  PProf  `yaml:"pprof,omitempty" json:"pprof"`
 }
 
+type Agent struct {
+	Enabled        bool          `yaml:"enabled,omitempty" json:"enabled"`
+	BaseURL        string        `yaml:"base_url,omitempty" json:"base_url"`
+	Model          string        `yaml:"model,omitempty" json:"model"`
+	APIKeyEnv      string        `yaml:"api_key_env,omitempty" json:"api_key_env"`
+	RequestTimeout time.Duration `yaml:"request_timeout,omitempty" json:"request_timeout"`
+	MaxModelSteps  int           `yaml:"max_model_steps,omitempty" json:"max_model_steps"`
+	ApprovalExpiry time.Duration `yaml:"approval_expiry,omitempty" json:"approval_expiry"`
+}
+
 type Manager struct {
 	Listen           config.Listen `yaml:"listen,omitempty" json:"listen"`
 	DB               string        `yaml:"db,omitempty" json:"db"`
@@ -53,6 +63,7 @@ type Manager struct {
 	GuacdAddr        string        `yaml:"guacd_addr,omitempty" json:"guacd_addr"`                 // guacd 地址，用于 WebDesktop
 	GuacdBridgeAddr  string        `yaml:"guacd_bridge_addr,omitempty" json:"guacd_bridge_addr"`   // manager 本地临时桥接监听地址
 	GuacdBridgeHost  string        `yaml:"guacd_bridge_host,omitempty" json:"guacd_bridge_host"`   // guacd 回连 manager 临时桥接端口时使用的主机名
+	Agent            Agent         `yaml:"agent,omitempty" json:"agent"`
 }
 
 type Frontier struct {
@@ -133,6 +144,18 @@ func initConf() error {
 	}
 	if Conf.Manager.SSHMaxDuration == 0 {
 		Conf.Manager.SSHMaxDuration = 8 * time.Hour
+	}
+	if Conf.Manager.Agent.APIKeyEnv == "" {
+		Conf.Manager.Agent.APIKeyEnv = "OPENAI_API_KEY"
+	}
+	if Conf.Manager.Agent.RequestTimeout == 0 {
+		Conf.Manager.Agent.RequestTimeout = 2 * time.Minute
+	}
+	if Conf.Manager.Agent.MaxModelSteps == 0 {
+		Conf.Manager.Agent.MaxModelSteps = 12
+	}
+	if Conf.Manager.Agent.ApprovalExpiry == 0 {
+		Conf.Manager.Agent.ApprovalExpiry = 15 * time.Minute
 	}
 	return nil
 }

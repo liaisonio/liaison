@@ -5,6 +5,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -439,7 +440,9 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	defer unregister()
 
 	_ = writer.write(webSSHServerMessage{Type: "status", Status: "connecting"})
-	log.Debugf("webssh session starting: proxy_id=%d user_id=%d", webSession.proxyID, webSession.userID)
+	digest := sha256.Sum256([]byte(webSession.token))
+	log.Infof("webssh session starting: connection_id=conn_%x proxy_id=%d user_id=%d", digest[:12], webSession.proxyID, webSession.userID)
+	defer log.Infof("webssh session ended: connection_id=conn_%x proxy_id=%d", digest[:12], webSession.proxyID)
 	connectStarted := time.Now()
 	targetConn, target, err := web.controlPlane.OpenWebSSHStream(ctx, webSession.proxyID)
 	if err != nil {
@@ -492,6 +495,13 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	webSession.zero()
 	client := ssh.NewClient(sshConn, chans, reqs)
 	defer client.Close()
+	agentHandle, unregisterAgent, err := web.registerWebSSHAgentSession(client, webSession, target, clientIP, clientIPSource)
+	if err != nil {
+		log.Warnf("webssh agent session registration failed: proxy_id=%d user_id=%d err=%v", webSession.proxyID, webSession.userID, err)
+		agentHandle = nil
+		unregisterAgent = func() {}
+	}
+	defer unregisterAgent()
 
 	terminalSession, err := client.NewSession()
 	if err != nil {
@@ -546,9 +556,15 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	defer auditClose()
 
 	commandCollector := &webSSHCommandCollector{}
+	observeOutput := func(data string) {
+		commandCollector.observeOutput(data)
+		if agentHandle != nil {
+			agentHandle.observe(data)
+		}
+	}
 	done := make(chan struct{})
-	go web.copyWebSSHOutput(writer, stdout, done, commandCollector.observeOutput)
-	go web.copyWebSSHOutput(writer, stderr, done, commandCollector.observeOutput)
+	go web.copyWebSSHOutput(writer, stdout, done, observeOutput)
+	go web.copyWebSSHOutput(writer, stderr, done, observeOutput)
 	waitDone := make(chan error, 1)
 	go func() {
 		waitDone <- terminalSession.Wait()

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 	"net"
 	"net/http"
 	"net/url"
@@ -200,6 +201,8 @@ type webDataSession struct {
 	redisClient      *redis.Client
 	mongoClient      *mongo.Client
 	mu               sync.Mutex
+	agentGeneration  uint64
+	agentUnregister  func()
 }
 
 type webDataSessionStore struct {
@@ -338,6 +341,10 @@ func (s *webDataSessionStore) cleanupLocked(now time.Time) {
 }
 
 func (s *webDataSession) close() {
+	if s.agentUnregister != nil {
+		s.agentUnregister()
+		s.agentUnregister = nil
+	}
 	if s.sqlDB != nil {
 		_ = s.sqlDB.Close()
 		s.sqlDB = nil
@@ -532,6 +539,9 @@ func (web *web) handleCreateWebDataSessionHTTP(w http.ResponseWriter, r *http.Re
 		web.recordWebDataAudit(r, target, user.ID, "open_session", req.Protocol, webDataAuditDatabase(&req), "", false, 0, elapsed, "failed to create session")
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"code": http.StatusInternalServerError, "message": "failed to create session"})
 		return
+	}
+	if err := web.registerWebDataAgentSession(created); err != nil {
+		log.Warnf("webdata agent session registration failed: proxy_id=%d user_id=%d protocol=%s err=%v", proxyID, user.ID, req.Protocol, err)
 	}
 	web.recordWebDataAudit(r, target, user.ID, "open_session", req.Protocol, webDataAuditDatabase(&req), "", true, 0, elapsed, "")
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -3046,6 +3056,9 @@ func parseWebDataSessionToken(r *http.Request, suffix string) (string, error) {
 }
 
 func webDataHTTPStatus(err error) int {
+	if errors.Is(err, iam.ErrForbidden) {
+		return http.StatusForbidden
+	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return http.StatusNotFound
 	}

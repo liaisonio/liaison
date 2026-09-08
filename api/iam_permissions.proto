@@ -1,0 +1,10 @@
+syntax = "proto3";
+package liaison.iam.permissions.v1;
+option go_package = "github.com/liaisonio/liaison/api/iam/permissions/v1";
+// GET /api/v1/iam/permissions: authenticated user's effective Casbin grants.
+message EffectivePermissions { map<string, bool> permissions = 1; }
+// GET/PUT /api/v1/iam/roles/user/permissions: requires permissions.manage.
+// PUT replaces only optional feature grants, not basic or administrator permissions.
+message UserPermissionsUpdate { repeated string enabled = 1; }
+message FeaturePermission { string code = 1; string name = 2; }
+message UserPermissionsView { repeated FeaturePermission catalog = 1; repeated string enabled = 2; }

@@ -2,6 +2,9 @@ import SessionWatermark, {
   buildSessionWatermarkLabel,
   useSessionWatermarkTime,
 } from '@/components/SessionWatermark';
+import AgentWorkspace from '@/components/AgentWorkspace';
+import { useSessionPath, SessionPathNotice } from '@/components/SessionReference/useSessionPath';
+import { useFeature } from '@/store/permissions';
 import { useI18n } from '@/i18n';
 import { history, useLocation, useModel, useParams, useSearchParams } from '@/lib/runtime';
 import {
@@ -22,6 +25,7 @@ import {
   Plus,
   PlugZap,
   Send,
+  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -60,7 +64,7 @@ const WebDesktopPage: React.FC = () => {
   const [routeSearch] = useSearchParams();
   const proxyId = Number(params.proxyId);
   const credentialId = Number(params.credentialId || 0);
-  const isTemporarySession = location.pathname.endsWith('/session');
+  const isTemporarySession = /\/session(?:\/|$)/.test(location.pathname);
   const isSessionView = isTemporarySession || credentialId > 0;
   const [credentials, setCredentials] =
     useState<API.CreateWebDesktopSessionRequest>({
@@ -73,6 +77,10 @@ const WebDesktopPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [agentHandleID, setAgentHandleID] = useState('');
+  const [agentOpen, setAgentOpen] = useState(false);
+  const canAI = useFeature('ai.access.use');
+  const sessionPath = useSessionPath(agentHandleID, agentOpen, setAgentOpen);
   const [fullscreen, setFullscreen] = useState(false);
   const [credentialOpen, setCredentialOpen] = useState(false);
   const [pendingSessionCredentials, setPendingSessionCredentials] =
@@ -246,6 +254,8 @@ const WebDesktopPage: React.FC = () => {
       }
       setConnected(false);
       setConnecting(false);
+      setAgentOpen(false);
+      setAgentHandleID('');
     },
     [],
   );
@@ -438,6 +448,7 @@ const WebDesktopPage: React.FC = () => {
             ),
         );
       }
+      setAgentHandleID(res.data.token);
 
       const tunnel = new Guacamole.WebSocketTunnel(res.data.ws_url);
       const client = new Guacamole.Client(tunnel);
@@ -708,6 +719,7 @@ const WebDesktopPage: React.FC = () => {
   useEffect(() => {
     if (
       !isSessionView ||
+      sessionPath.connectionId ||
       isTemporarySession ||
       credentialId <= 0 ||
       loading ||
@@ -1078,6 +1090,7 @@ const WebDesktopPage: React.FC = () => {
 
   return (
     <>
+      <SessionPathNotice show={!!sessionPath.connectionId && !agentHandleID && !connecting} href={sessionPath.reconnectURL} />
       <div
         className={
           'webdesktop-shell' +
@@ -1148,6 +1161,12 @@ const WebDesktopPage: React.FC = () => {
           </div>
 
           <div className="webdesktop-toolbar-actions">
+            {canAI && connected && agentHandleID && (
+              <Button onClick={sessionPath.toggleAgent}>
+                <Sparkles size={14} />
+                Agent
+              </Button>
+            )}
             {!connected && (
               <Button
                 variant="primary"
@@ -1293,6 +1312,19 @@ const WebDesktopPage: React.FC = () => {
         </div>
       </div>
 
+      <AgentWorkspace
+        open={sessionPath.agentOpen}
+        accessSessionId={sessionPath.agentSessionId}
+        connectionId={sessionPath.connectionId}
+        accessId={proxyId}
+        connectionAvailable={connected && sessionPath.matching}
+        onSessionReady={sessionPath.onAgentSessionReady}
+        handleId={agentHandleID}
+        title={target?.proxy_name || tr('远程桌面会话', 'Remote desktop session')}
+        protocol={protocol === 'vnc' ? 'Web VNC' : 'Web RDP'}
+        onClose={sessionPath.closeAgent}
+      />
+
       <Modal
         title={tr(
           protocol === 'vnc' ? 'VNC 连接' : 'RDP 连接',
@@ -1352,7 +1384,7 @@ const WebDesktopPage: React.FC = () => {
               value={credentials.password || ''}
               placeholder={
                 selectedSavedCredential
-                  ? tr('留空使用保存密码', 'Leave blank to use saved password')
+                  ? '••••••••'
                   : tr('输入访问密码', 'Enter password')
               }
               onChange={(event) => setCredentials((value) => ({ ...value, password: event.target.value }))}

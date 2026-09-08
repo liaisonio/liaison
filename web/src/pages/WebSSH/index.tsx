@@ -2,6 +2,12 @@ import SessionWatermark, {
   buildSessionWatermarkLabel,
   useSessionWatermarkTime,
 } from '@/components/SessionWatermark';
+import AgentWorkspace from '@/components/AgentWorkspace';
+import SessionInfo from '@/components/SessionReference/SessionInfo';
+import {request} from '@/api/client';
+import { useSessionPath, SessionPathNotice } from '@/components/SessionReference/useSessionPath';
+import TerminalAssistant from '@/components/TerminalAssistant';
+import { useFeature } from '@/store/permissions';
 import { Button, Field, Input, Modal, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { history, useLocation, useModel, useParams, useSearchParams } from '@/lib/runtime';
@@ -14,7 +20,7 @@ import {
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { ArrowLeft, Check, Clock3, Fullscreen, LogIn, Minimize, Plus, PlugZap, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Clock3, Fullscreen, LogIn, Minimize, Plus, PlugZap, Send, Sparkles, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './index.less';
 
@@ -42,10 +48,20 @@ const WebSSHPage: React.FC = () => {
   const params = useParams();
   const location = useLocation();
   const [routeSearch] = useSearchParams();
-  const proxyId = Number(params.proxyId);
-  const credentialId = Number(params.credentialId || 0);
-  const isTemporarySession = location.pathname.endsWith('/session');
-  const isTerminalView = isTemporarySession || credentialId > 0;
+  const [resolvedProxyId,setResolvedProxyId]=useState(0);
+  const shortSession=Boolean(params.connectionReference);
+  const proxyId = Number(params.proxyId || location.state?.sessionRoute?.proxyId || resolvedProxyId);
+  const credentialId = Number(params.credentialId || location.state?.sessionRoute?.credentialId || 0);
+  useEffect(()=>{
+    if(!shortSession)return;
+    let active=true;
+    void request<API.Response<{access_id:number}>>(`/api/v1/webssh/session-references/${encodeURIComponent(params.connectionReference!)}`,{params:{agent:routeSearch.get('agent')||undefined}})
+      .then(r=>{if(active&&r.data)setResolvedProxyId(r.data.access_id);})
+      .catch(()=>{/* Expired sessions do not reconnect automatically. */});
+    return()=>{active=false;};
+  },[params.connectionReference]);
+  const isTemporarySession = /\/session(?:\/|$)/.test(location.pathname);
+  const isTerminalView = shortSession || isTemporarySession || credentialId > 0;
   const [credentials, setCredentials] = useState<API.CreateWebSSHSessionRequest>({ username: '', password: '', save_credential: false });
   const [pendingSessionCredentials, setPendingSessionCredentials] = useState<API.CreateWebSSHSessionRequest>();
   const watchedUsername = credentials.username;
@@ -53,6 +69,11 @@ const WebSSHPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [agentHandleID, setAgentHandleID] = useState('');
+  const [connectionReferenceHandle, setConnectionReferenceHandle] = useState('');
+  const [agentOpen, setAgentOpen] = useState(false);
+  const canAI = useFeature('ai.access.use');
+  const sessionPath = useSessionPath(agentHandleID, agentOpen, setAgentOpen);
   const [fullscreen, setFullscreen] = useState(false);
   const [credentialOpen, setCredentialOpen] = useState(false);
   const [sessionDurationSeconds, setSessionDurationSeconds] = useState<
@@ -224,14 +245,15 @@ const WebSSHPage: React.FC = () => {
     [flushTerminalOutput],
   );
 
-  const focusTerminal = useCallback(() => {
+  const focusTerminal = useCallback((force = false) => {
+    if (!force && document.activeElement?.closest('.agent-workspace, .terminal-assistant')) return;
     if (!terminalRef.current) {
       terminalFrameRef.current?.focus();
       return;
     }
     terminalRef.current.focus();
     requestAnimationFrame(() => {
-      terminalRef.current?.focus();
+      if (!document.activeElement?.closest('.agent-workspace, .terminal-assistant')) terminalRef.current?.focus();
     });
   }, []);
 
@@ -350,7 +372,7 @@ const WebSSHPage: React.FC = () => {
 
   const loadTarget = useCallback(async () => {
     if (!proxyId) {
-      setError(tr('访问 ID 无效', 'Invalid entry ID'));
+      setError(shortSession ? tr('此会话已结束或不可访问，请返回访问列表重新连接。', 'This session has ended or is unavailable. Return to Access to reconnect.') : tr('访问 ID 无效', 'Invalid entry ID'));
       setLoading(false);
       return;
     }
@@ -496,6 +518,8 @@ const WebSSHPage: React.FC = () => {
     socketRef.current = undefined;
     setConnected(false);
     setConnecting(false);
+    setAgentOpen(false);
+    setAgentHandleID('');
   }, [flushTerminalInput, flushTerminalOutput, recordSessionEnd, stopHeartbeat]);
 
   const disconnectAndSummarize = useCallback(() => {
@@ -556,6 +580,8 @@ const WebSSHPage: React.FC = () => {
             tr('创建 WebSSH 会话失败', 'Failed to create WebSSH session'),
         );
       }
+      setAgentHandleID(res.data.token);
+      setConnectionReferenceHandle(res.data.token);
       const socket = new WebSocket(res.data.ws_url);
       lastResizeRef.current = undefined;
       socketRef.current = socket;
@@ -593,6 +619,8 @@ const WebSSHPage: React.FC = () => {
               pendingCredentialSaveRef.current = false;
               setConnected(false);
               setConnecting(false);
+              setAgentOpen(false);
+              setAgentHandleID('');
             }
           } else if (msg.type === 'error') {
             pendingCredentialSaveRef.current = false;
@@ -619,6 +647,8 @@ const WebSSHPage: React.FC = () => {
         setError(tr('WebSSH 连接异常', 'WebSSH connection error'));
         setConnected(false);
         setConnecting(false);
+        setAgentOpen(false);
+        setAgentHandleID('');
         setCredentialOpen(true);
       };
       socket.onclose = () => {
@@ -628,6 +658,8 @@ const WebSSHPage: React.FC = () => {
         stopHeartbeat();
         setConnected(false);
         setConnecting(false);
+        setAgentOpen(false);
+        setAgentHandleID('');
       };
     } catch (e: any) {
       pendingCredentialSaveRef.current = false;
@@ -687,6 +719,7 @@ const WebSSHPage: React.FC = () => {
   useEffect(() => {
     if (
       !isTerminalView ||
+      sessionPath.connectionId ||
       isTemporarySession ||
       credentialId <= 0 ||
       loading ||
@@ -748,7 +781,7 @@ const WebSSHPage: React.FC = () => {
           <Input autoFocus autoComplete="username" value={credentials.username || ''} onChange={(event) => setCredentials((value) => ({ ...value, username: event.target.value }))} placeholder={tr('输入 SSH 用户名', 'Enter SSH username')} />
         </Field>
         <Field label={tr('密码', 'Password')} required={isNewCredentialFlow}>
-          <Input type="password" autoComplete="new-password" value={credentials.password || ''} onChange={(event) => { const password = event.target.value; setCredentials((value) => ({ ...value, password })); }} placeholder={selectedSavedCredential ? tr('密码已保存，留空直接连接', 'Password saved; leave blank to connect') : tr('输入 SSH 密码', 'Enter SSH password')} />
+          <Input type="password" autoComplete="new-password" value={credentials.password || ''} onChange={(event) => { const password = event.target.value; setCredentials((value) => ({ ...value, password })); }} placeholder={selectedSavedCredential ? '••••••••' : tr('输入 SSH 密码', 'Enter SSH password')} />
         </Field>
 
         <div className="webssh-credential-options">
@@ -912,6 +945,7 @@ const WebSSHPage: React.FC = () => {
 
   return (
     <>
+      <SessionPathNotice show={!!sessionPath.connectionId && !agentHandleID && !connecting} href={sessionPath.reconnectURL} />
       <div className={`webssh-shell ${credentialOpen && !connected ? 'is-credential-setup' : ''}`}>
         <header className="webssh-toolbar">
           <div className="webssh-identity">
@@ -927,6 +961,7 @@ const WebSSHPage: React.FC = () => {
             <div>
               <strong>
                 {target?.proxy_name || tr('WebSSH 会话', 'WebSSH session')}
+                <SessionInfo connectionId={sessionPath.connectionId} handle={connectionReferenceHandle} agentId={sessionPath.agentSessionId}/>
               </strong>
               <span>{tr('安全终端', 'Secure terminal')}</span>
             </div>
@@ -969,6 +1004,12 @@ const WebSSHPage: React.FC = () => {
           </div>
 
           <div className="webssh-toolbar-actions">
+            {canAI && connected && agentHandleID && (
+              <Button onClick={sessionPath.toggleAgent}>
+                <Sparkles size={14} />
+                Agent
+              </Button>
+            )}
             {!connected && (
               <Button
                 variant="primary"
@@ -1017,8 +1058,8 @@ const WebSSHPage: React.FC = () => {
           className="webssh-terminal"
           ref={terminalFrameRef}
           tabIndex={0}
-          onClick={focusTerminal}
-          onMouseDown={focusTerminal}
+          onClick={() => focusTerminal(true)}
+          onMouseDown={() => focusTerminal(true)}
         >
           <div className="webssh-terminal-screen" ref={terminalHostRef} />
           {connecting && !connected && !loading && (
@@ -1083,6 +1124,20 @@ const WebSSHPage: React.FC = () => {
           )}
           <SessionWatermark lines={watermarkLines} />
         </div>
+        {canAI && connected && agentHandleID && <TerminalAssistant key={agentHandleID} handleId={agentHandleID} onInsert={(text) => { sendTerminalInput(text); focusTerminal(true); }} />}
+        <AgentWorkspace
+          docked
+          open={sessionPath.agentOpen}
+          accessSessionId={sessionPath.agentSessionId}
+          connectionId={sessionPath.connectionId}
+          accessId={proxyId}
+          connectionAvailable={connected && sessionPath.matching}
+          onSessionReady={sessionPath.onAgentSessionReady}
+          handleId={agentHandleID}
+          title={target?.proxy_name || tr('WebSSH 会话', 'WebSSH session')}
+          protocol="WebSSH"
+          onClose={sessionPath.closeAgent}
+        />
       </div>
 
       {credentialModal}

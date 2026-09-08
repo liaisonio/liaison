@@ -43,6 +43,13 @@ services:
       GUACD_ADDR: ${GUACD_ADDR:-127.0.0.1:4822}
       GUACD_BRIDGE_ADDR: ${GUACD_BRIDGE_ADDR:-127.0.0.1:0}
       GUACD_BRIDGE_HOST: ${GUACD_BRIDGE_HOST:-127.0.0.1}
+      AGENT_ENABLED: ${AGENT_ENABLED:-false}
+      AGENT_BASE_URL: ${AGENT_BASE_URL:-https://api.openai.com/v1}
+      AGENT_MODEL: ${AGENT_MODEL:-gpt-4.1-mini}
+      AGENT_REQUEST_TIMEOUT: ${AGENT_REQUEST_TIMEOUT:-2m}
+      AGENT_MAX_MODEL_STEPS: ${AGENT_MAX_MODEL_STEPS:-12}
+      AGENT_APPROVAL_EXPIRY: ${AGENT_APPROVAL_EXPIRY:-15m}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # Optional: override the URL the Web console advertises for itself.
       # SERVER_URL: "https://${LIAISON_PUBLIC_HOST}"
     volumes:

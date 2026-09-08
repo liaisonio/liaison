@@ -14,6 +14,8 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v2/transport/http"
 	v1 "github.com/liaisonio/liaison/api/v1"
 	"github.com/liaisonio/liaison/pkg/liaison/config"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/accesssession"
+	agentruntime "github.com/liaisonio/liaison/pkg/liaison/manager/agent/runtime"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 	"github.com/liaisonio/liaison/pkg/utils"
@@ -40,6 +42,9 @@ type web struct {
 	webSSH          *webSSHSessionStore
 	webDesktop      *webDesktopSessionStore
 	webData         *webDataSessionStore
+	accessSessions  *accesssession.Registry
+	agentService    AgentService
+	agentEvents     *agentruntime.EventBroker
 	credentialKey   []byte
 	guacdAddr       string
 	guacdBridgeAddr string
@@ -51,7 +56,7 @@ func NewWebServer(conf *config.Configuration, controlPlane controlplane.ControlP
 	if err != nil {
 		return nil, err
 	}
-	web, err := NewWebServerWithListener(conf, controlPlane, iamService, ln)
+	web, err := NewWebServerWithListener(conf, controlPlane, iamService, ln, accesssession.NewRegistry(), nil, nil)
 	if err != nil {
 		_ = ln.Close()
 		return nil, err
@@ -63,9 +68,12 @@ func NewListener(conf *config.Configuration) (net.Listener, error) {
 	return utils.Listen(&conf.Manager.Listen)
 }
 
-func NewWebServerWithListener(conf *config.Configuration, controlPlane controlplane.ControlPlane, iamService *iam.IAMService, ln net.Listener) (Web, error) {
+func NewWebServerWithListener(conf *config.Configuration, controlPlane controlplane.ControlPlane, iamService *iam.IAMService, ln net.Listener, accessSessions *accesssession.Registry, agentService AgentService, agentEvents *agentruntime.EventBroker) (Web, error) {
 	if ln == nil {
 		return nil, errors.New("web listener is nil")
+	}
+	if accessSessions == nil {
+		return nil, errors.New("access session registry is nil")
 	}
 	credentialKey := deriveWebSSHCredentialKey(conf)
 	web := &web{
@@ -74,6 +82,9 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 		webSSH:          newWebSSHSessionStore(),
 		webDesktop:      newWebDesktopSessionStore(),
 		webData:         newWebDataSessionStore(),
+		accessSessions:  accessSessions,
+		agentService:    agentService,
+		agentEvents:     agentEvents,
 		credentialKey:   credentialKey,
 		guacdAddr:       managerGuacdAddr(conf),
 		guacdBridgeAddr: managerGuacdBridgeAddr(conf),
@@ -83,6 +94,10 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	authMiddleware := iam.AuthMiddleware(web.iamService)
 
 	opts := []kratoshttp.ServerOption{
+		// Agent turns and SSE outlive Kratos' default one-second deadline.
+		// The filter keeps that deadline for existing non-Agent routes.
+		kratoshttp.Timeout(0),
+		kratoshttp.Filter(requestTimeoutFilter),
 		kratoshttp.Middleware(
 			recovery.Recovery(),
 			authMiddleware,
@@ -97,6 +112,8 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	srv.HandleFunc("/api/v1/iam/tokens", web.handleTokensHTTP)
 	srv.HandleFunc("/api/v1/iam/tokens/{id}", web.handleTokenByIDHTTP)
 	srv.HandleFunc("/api/v1/iam/account", web.handleAccountHTTP)
+	srv.HandleFunc("/api/v1/iam/permissions", web.handlePermissionsHTTP)
+	srv.HandleFunc("/api/v1/iam/roles/user/permissions", web.handleUserPermissionsHTTP)
 	// Users and organization hierarchy. Membership rows are the business
 	// source of truth; resource authorization is wired separately.
 	srv.HandleFunc("/api/v1/iam/users", web.handleUsersHTTP)
@@ -138,9 +155,22 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	srv.HandleFunc("/api/v1/webdata/sessions/{token}", web.handleWebDataSessionHTTP)
 
 	// Audit
+	srv.HandleFunc("/api/v1/webssh/session-references/{reference}", web.handleSSHSessionReferenceHTTP)
 	srv.HandleFunc("/api/v1/audits/access", web.handleAccessAuditListHTTP)
 	srv.HandleFunc("/api/v1/audits/webdata", web.handleWebDataAuditListHTTP)
 	srv.HandleFunc("/api/v1/audits/management", web.handleManagementAuditListHTTP)
+
+	if web.agentService != nil {
+		srv.HandleFunc("/api/v1/assistance/suggestions", web.handleAssistanceHTTP)
+		srv.HandleFunc("/api/v1/agent/status", web.handleAgentStatusHTTP)
+		srv.HandleFunc("/api/v1/settings/model", web.handleModelSettingsHTTP)
+		srv.HandleFunc("/api/v1/settings/model/test", web.handleModelSettingsHTTP)
+		srv.HandleFunc("/api/v1/agent/sessions", web.handleAgentSessionsHTTP)
+		srv.HandleFunc("/api/v1/agent/sessions/{id}", web.handleAgentSessionHTTP)
+		srv.HandleFunc("/api/v1/agent/sessions/{id}/turns", web.handleAgentTurnHTTP)
+		srv.HandleFunc("/api/v1/agent/sessions/{id}/approvals/{approval_id}", web.handleAgentApprovalHTTP)
+		srv.HandleFunc("/api/v1/agent/sessions/{id}/events", web.handleAgentSessionEventsHTTP)
+	}
 
 	// 文件服务
 	if err := web.serveFiles(conf, srv); err != nil {

@@ -1,5 +1,9 @@
 import { useI18n } from '@/i18n';
 import { AuditLogIcon } from '@/components/icons/AuditLogIcon';
+import AgentWorkspace from '@/components/AgentWorkspace';
+import { connectionReference, useSessionPath, SessionPathNotice } from '@/components/SessionReference/useSessionPath';
+import DataAssistance from '@/components/DataAssistance';
+import { useFeature } from '@/store/permissions';
 import {
   createWebDataSession,
   deleteWebDataCredential,
@@ -55,6 +59,7 @@ import {
   Save as SaveOutlined,
   Search as SearchOutlined,
   Settings as SettingOutlined,
+  Sparkles,
 } from 'lucide-react';
 import type { ChangeEvent, KeyboardEvent, PointerEvent as ReactPointerEvent, UIEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -225,6 +230,10 @@ const WebDataPage: React.FC = () => {
   const [auditOpen, setAuditOpen] = useState(false);
   const [target, setTarget] = useState<API.WebDataTarget>();
   const [session, setSession] = useState<API.CreateWebDataSessionResponse>();
+  const [agentOpen, setAgentOpen] = useState(false);
+  const canAI = useFeature('ai.access.use');
+  const canAudit = useFeature('audit.read');
+  const sessionPath = useSessionPath(session?.token, agentOpen, setAgentOpen);
   const [statement, setStatement] = useState('');
   const [result, setResult] = useState<API.WebDataExecuteResult>();
   const [metadata, setMetadata] = useState<API.WebDataMetadataNode[]>([]);
@@ -568,6 +577,7 @@ const WebDataPage: React.FC = () => {
       );
     }
     setSession(undefined);
+    setAgentOpen(false);
     setMetadata([]);
     objectRequestSeq.current += 1;
     setSelectedNode(undefined);
@@ -744,6 +754,7 @@ const WebDataPage: React.FC = () => {
     if (cached) {
       void (async () => {
         try {
+          if (sessionPath.connectionId && await connectionReference(cached.token) !== sessionPath.connectionId) return;
           const metadataResponse = await getWebDataMetadata(cached.token);
           if (metadataResponse.code === 200 && metadataResponse.data) {
             setSession(cached);
@@ -755,15 +766,15 @@ const WebDataPage: React.FC = () => {
         }
         window.sessionStorage.removeItem(webDataSessionKey(proxyId, credentialId));
         setSession(undefined);
-        await connectCredentialSession(credential);
+        if (!sessionPath.connectionId) await connectCredentialSession(credential);
       })();
       return;
     }
-    void connectCredentialSession(credential);
+    if (!sessionPath.connectionId) void connectCredentialSession(credential);
   }, [credentialId, isConnectionDetail, target]);
 
   const loadAudits = async () => {
-    if (!proxyId) return;
+    if (!proxyId || !canAudit) return;
     setAuditLoading(true);
     try {
       const res = await getWebDataAudits(proxyId, { limit: 100 });
@@ -2078,8 +2089,8 @@ const WebDataPage: React.FC = () => {
             <Input.Password
               autoComplete="current-password"
               placeholder={
-                editingCredential
-                  ? tr('留空则保留原密码', 'Leave blank to keep password')
+                editingCredential?.saved
+                  ? '••••••••'
                   : undefined
               }
             />
@@ -2845,7 +2856,8 @@ const WebDataPage: React.FC = () => {
 
   return (
     <PageContainer title={false}>
-      <div className="webdata-shell">
+      <SessionPathNotice show={!!sessionPath.connectionId && !session} href={sessionPath.reconnectURL} />
+      <div className={`webdata-shell${connected ? ' is-connected' : ''}`}>
         <div className="webdata-header">
           <div className="webdata-header-main">
             <nav className="webdata-header-breadcrumb" aria-label={tr('页面层级', 'Breadcrumb')}>
@@ -2868,7 +2880,7 @@ const WebDataPage: React.FC = () => {
                   {tr('会话有效', 'Session active')}
                 </Tag>
               )}
-              {target && (
+              {target && canAudit && (
                 <Button
                   type="link"
                   className="webdata-audit-button"
@@ -2876,6 +2888,15 @@ const WebDataPage: React.FC = () => {
                   onClick={() => history.push(`/logs/audit?proxy_id=${proxyId}`)}
                 >
                   {tr('审计日志', 'Audit Log')}
+                </Button>
+              )}
+              {canAI && isConnectionDetail && connected && session?.token && (
+                <Button
+                  type="link"
+                  icon={<Sparkles size={14} />}
+                  onClick={sessionPath.toggleAgent}
+                >
+                  Agent
                 </Button>
               )}
               {isConnectionDetail && connected && (
@@ -2967,8 +2988,8 @@ const WebDataPage: React.FC = () => {
                         {tr('字段', 'Fields')}
                       </span>
                     </>
-                  )}
-                </div>
+        )}
+      </div>
                 <div className="webdata-object-tree">
                   <Spin spinning={metadataLoading}>
                     {treeData.length ? (
@@ -3181,6 +3202,7 @@ const WebDataPage: React.FC = () => {
                 </div>
               </div>
 
+              {canAI && session?.token && <DataAssistance key={session.token} handleId={session.token} text={statement} onApply={replaceStatement} />}
               <div className="webdata-result">
                 <div className="webdata-result-meta">
                   <Text strong>{workspaceCopy.resultTitle}</Text>
@@ -3240,10 +3262,24 @@ const WebDataPage: React.FC = () => {
         ) : (
           <div className="webdata-console-loading"><Spin /></div>
         )}
-        {renderAuditDrawer()}
+        {canAudit && renderAuditDrawer()}
         {renderConnectionDrawer()}
         {renderQuickActionModal()}
         {renderObjectDetailDrawer()}
+        <AgentWorkspace
+          open={sessionPath.agentOpen && (connected || !!sessionPath.agentSessionId)}
+          accessSessionId={sessionPath.agentSessionId}
+          connectionId={sessionPath.connectionId}
+          accessId={proxyId}
+          connectionAvailable={connected && sessionPath.matching}
+          onSessionReady={sessionPath.onAgentSessionReady}
+          docked
+          dockBreakpoint={1180}
+          handleId={session?.token}
+          title={target?.proxy_name || tr('数据控制台', 'Data Console')}
+          protocol={accessTypeLabel(webAccessType)}
+          onClose={sessionPath.closeAgent}
+        />
       </div>
     </PageContainer>
   );

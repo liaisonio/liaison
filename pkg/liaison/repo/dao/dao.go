@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -13,6 +14,8 @@ import (
 
 // Dao 接口定义
 type Dao interface {
+	ReadAgentModelConfig(context.Context) ([]byte, error)
+	WriteAgentModelConfig(context.Context, []byte) error
 	// 事务相关方法
 	Begin() Dao
 	Commit() error
@@ -121,6 +124,7 @@ type Dao interface {
 	GetIAMPermissionByCode(code string) (*model.IAMPermission, error)
 	ListIAMPermissionsByRole(roleID uint) ([]*model.IAMPermission, error)
 	UpsertIAMRolePermission(rolePermission *model.IAMRolePermission) error
+	ReplaceIAMRolePermissionSubset(roleID uint, subset, enabled []uint) error
 	UpsertIAMRoleBinding(binding *model.IAMRoleBinding) error
 	GetIAMRoleBinding(organizationID, userID uint) (*model.IAMRoleBinding, error)
 	ListIAMRoleBindings() ([]*model.IAMRoleBinding, error)
@@ -132,6 +136,36 @@ type Dao interface {
 	ListIAMResourceRelations(resourceType string, resourceID uint64) ([]*model.IAMResourceRelation, error)
 	ListIAMResourceIDsForSubject(resourceType string, subjectType model.IAMSubjectType, subjectID uint) ([]uint64, error)
 	DeleteIAMResourceRelations(resourceType string, resourceID uint64) error
+
+	// Agent runtime persistence. Updates use optimistic versions so a turn can
+	// be resumed safely after process restarts without double execution.
+	CreateAgentSession(ctx context.Context, session *model.AgentSession) error
+	GetAgentSession(ctx context.Context, id string) (*model.AgentSession, error)
+	ListAgentSessions(ctx context.Context, createdBy uint) ([]*model.AgentSession, error)
+	UpdateAgentSessionCAS(ctx context.Context, session *model.AgentSession, expectedVersion uint64) (bool, error)
+	CreateAgentAttachment(ctx context.Context, attachment *model.AgentAttachment) error
+	GetAgentAttachment(ctx context.Context, id string) (*model.AgentAttachment, error)
+	ListAgentAttachments(ctx context.Context, sessionID string) ([]*model.AgentAttachment, error)
+	UpdateAgentAttachmentCAS(ctx context.Context, attachment *model.AgentAttachment, expectedGeneration uint64) (bool, error)
+	CreateAgentTurn(ctx context.Context, turn *model.AgentTurn) error
+	GetAgentTurn(ctx context.Context, id string) (*model.AgentTurn, error)
+	ListAgentTurns(ctx context.Context, sessionID string) ([]*model.AgentTurn, error)
+	UpdateAgentTurnCAS(ctx context.Context, turn *model.AgentTurn, expectedVersion uint64) (bool, error)
+	CreateAgentStep(ctx context.Context, step *model.AgentStep) error
+	GetAgentStep(ctx context.Context, id string) (*model.AgentStep, error)
+	ListAgentSessionSteps(ctx context.Context, sessionID string) ([]*model.AgentStep, error)
+	NextAgentStepSequence(ctx context.Context, turnID string) (uint32, error)
+	UpdateAgentStepCAS(ctx context.Context, step *model.AgentStep, expectedVersion uint64) (bool, error)
+	CreateAgentMessage(ctx context.Context, message *model.AgentMessage) error
+	ListAgentMessages(ctx context.Context, turnID string) ([]*model.AgentMessage, error)
+	ListAgentSessionMessages(ctx context.Context, sessionID string) ([]*model.AgentMessage, error)
+	NextAgentMessageSequence(ctx context.Context, turnID string) (uint32, error)
+	CreateAgentApproval(ctx context.Context, approval *model.AgentApproval) error
+	GetAgentApproval(ctx context.Context, id string) (*model.AgentApproval, error)
+	ListAgentApprovals(ctx context.Context, sessionID string) ([]*model.AgentApproval, error)
+	UpdateAgentApprovalCAS(ctx context.Context, approval *model.AgentApproval, expectedStatus uint8) (bool, error)
+	CreateAgentToolsetSnapshot(ctx context.Context, snapshot *model.AgentToolsetSnapshot) error
+	GetAgentToolsetSnapshot(ctx context.Context, id string) (*model.AgentToolsetSnapshot, error)
 
 	// TrafficMetric 相关方法
 	CreateTrafficMetric(metric *model.TrafficMetric) error
@@ -267,6 +301,14 @@ func (d *dao) initDB() error {
 		&model.WebDataCredential{},
 		&model.WebDataAudit{},
 		&model.ManagementAudit{},
+		&model.AgentSession{},
+		&model.AgentModelSetting{},
+		&model.AgentAttachment{},
+		&model.AgentTurn{},
+		&model.AgentMessage{},
+		&model.AgentStep{},
+		&model.AgentApproval{},
+		&model.AgentToolsetSnapshot{},
 	); err != nil {
 		return err
 	}

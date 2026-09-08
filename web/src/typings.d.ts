@@ -85,6 +85,7 @@ declare namespace API {
   }
 
   interface ApplicationListParams extends PageParams {
+    application_name?: string;
     device_id?: number;
     name?: string;
     application_type?: string;
@@ -412,6 +413,120 @@ declare namespace API {
     token: string;
     expires_at: string;
     capabilities: string[];
+  }
+
+  // ========== Agent Runtime ==========
+  interface AgentSession {
+    kind?: 'access' | 'management';
+    id: string;
+    organization_id: number;
+    created_by: number;
+    title: string;
+    status: number;
+    active_turn_id?: string;
+    active_attachment_id?: string;
+    summary?: string;
+    version: number;
+    created_at: string;
+    updated_at: string;
+  }
+
+  interface AgentAttachment {
+    id: string;
+    agent_session_id: string;
+    access_id: number;
+    application_id: number;
+    protocol: string;
+    capabilities: string[];
+    generation: number;
+    state: number;
+  }
+
+  interface AgentTurn {
+    id: string;
+    agent_session_id: string;
+    status: number;
+    active_step_id?: string;
+    error_code?: string;
+    error_message?: string;
+    version: number;
+    created_at: string;
+    updated_at: string;
+  }
+
+  interface AgentMessageValue {
+    references?: import('./services/agent').AgentResourceReference[];
+    role: 'system' | 'user' | 'assistant' | 'tool';
+    content?: string;
+    tool_name?: string;
+    tool_call_id?: string;
+  }
+
+  interface AgentMessage {
+    id: string;
+    agent_session_id: string;
+    turn_id: string;
+    sequence: number;
+    value: AgentMessageValue;
+    created_at: string;
+  }
+
+  interface AgentToolID {
+    namespace: string;
+    name: string;
+    version: string;
+  }
+
+  interface AgentStep {
+    id: string;
+    turn_id: string;
+    sequence: number;
+    kind: number;
+    status: number;
+    tool_id?: AgentToolID;
+    input?: unknown;
+    output?: unknown;
+    error_code?: string;
+    error_message?: string;
+  }
+
+  interface AgentApproval {
+    id: string;
+    turn_id: string;
+    step_id: string;
+    status: number;
+    tool_id: AgentToolID;
+    input?: unknown;
+    reason: string;
+    risk: number;
+    expires_at: string;
+    decision_note?: string;
+    decided_at?: string;
+  }
+
+  interface AgentSessionDetail {
+    session: AgentSession;
+    attachments: AgentAttachment[];
+    turns: AgentTurn[];
+    steps: AgentStep[];
+    messages: AgentMessage[];
+    approvals: AgentApproval[];
+  }
+
+  interface AgentRunResult {
+    turn: AgentTurn;
+    text?: string;
+    approval_id?: string;
+  }
+
+  interface AgentEvent {
+    sequence: number;
+    session_id: string;
+    turn_id?: string;
+    step_id?: string;
+    type: string;
+    payload?: { kind?: number; delta?: string; approval_id?: string; reason?: string };
+    occurred_at: string;
   }
 
   interface WebDataExecuteResult {

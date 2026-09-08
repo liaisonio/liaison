@@ -23,6 +23,14 @@ manager:
   guacd_addr: ${GUACD_ADDR}
   guacd_bridge_addr: ${GUACD_BRIDGE_ADDR}
   guacd_bridge_host: ${GUACD_BRIDGE_HOST}
+  agent:
+    enabled: ${AGENT_ENABLED}
+    base_url: ${AGENT_BASE_URL}
+    model: ${AGENT_MODEL}
+    api_key_env: OPENAI_API_KEY
+    request_timeout: ${AGENT_REQUEST_TIMEOUT}
+    max_model_steps: ${AGENT_MAX_MODEL_STEPS}
+    approval_expiry: ${AGENT_APPROVAL_EXPIRY}
 frontier:
   controlplane_url: http://127.0.0.1:${FRONTIER_CONTROLPLANE_PORT}
   dial:

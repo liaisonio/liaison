@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/liaisonio/liaison/pkg/liaison/repo"
@@ -14,8 +15,10 @@ import (
 
 // IAMService IAM服务
 type IAMService struct {
-	repo       repo.Repo
-	authorizer *authorizer
+	featureMu       sync.Mutex
+	authorizationMu sync.RWMutex
+	repo            repo.Repo
+	authorizer      *authorizer
 }
 
 // NewIAMService 创建IAM服务
@@ -26,6 +29,9 @@ func NewIAMService(repo repo.Repo) (*IAMService, error) {
 	}
 	service := &IAMService{repo: repo, authorizer: authorizer}
 	if err := service.ensureIAMCatalog(); err != nil {
+		return nil, err
+	}
+	if err := service.ensureFeatureCatalog(); err != nil {
 		return nil, err
 	}
 	if err := service.reloadAuthorization(); err != nil {

@@ -398,6 +398,12 @@ func (web *web) runWebDesktop(ctx context.Context, wsConn *websocket.Conn, sessi
 		_ = wsConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1011, err.Error()))
 		return
 	}
+	unregisterAgent, err := web.registerWebDesktopAgentSession(session)
+	if err != nil {
+		log.Warnf("webdesktop agent session registration failed: proxy_id=%d user_id=%d protocol=%s err=%v", session.proxyID, session.userID, session.protocol, err)
+	} else {
+		defer unregisterAgent()
+	}
 	if session.saveCredential {
 		encryptedPassword, nonce, err := web.encryptWebSSHPassword(session.password)
 		sessionCtx := context.WithValue(context.Background(), "user_id", session.userID)
