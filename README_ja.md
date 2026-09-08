@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Tech](https://img.shields.io/badge/Tech-Go%20%7C%20TypeScript%20%7C%20React-blue)](#)
-[![Version](https://img.shields.io/badge/Version-v1.9.1-green)](#)
+[![Version](https://img.shields.io/badge/Version-v1.10.0-green)](#)
 
 [简体中文](./README_zh.md) | [English](./README.md) | 日本語 | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
@@ -55,9 +55,9 @@ Liaison はエンタープライズ向けのアプリケーション接続ソリ
 **1. ダウンロード**
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.9.1/liaison-1.9.1-linux-amd64.tar.gz
-tar -xzf liaison-1.9.1-linux-amd64.tar.gz
-cd liaison-1.9.1-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
+tar -xzf liaison-1.10.0-linux-amd64.tar.gz
+cd liaison-1.10.0-linux-amd64
 ```
 
 **2. インストールスクリプトを実行**
