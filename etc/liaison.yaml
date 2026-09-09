@@ -5,7 +5,7 @@ manager:
     tls:
       enable: false
   db: /opt/liaison/data/liaison.db
-  jwt_secret: "YJEVmDSDk1FCTzUCJVFsugywxcEUQ4vh"
+  jwt_secret: "" # Set in your ignored *.local.yaml configuration.
   ssh_host_key_file: /opt/liaison/data/ssh_host_ed25519_key
   ssh_idle_timeout: 30m
   ssh_max_duration: 8h
