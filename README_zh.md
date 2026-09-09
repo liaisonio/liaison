@@ -11,7 +11,7 @@
 
 [English](./README.md) | 简体中文 | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [文档](#文档) · [社区](#社区)
+[官网](https://liaison.cloud) · [产品文档](https://liaison.cloud/zh/docs/get-started/introduction) · [产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [社区](#社区)
 
 ![Liaison 多应用流量总览](docs/assets/readme/overview-dark-v3.png)
 
@@ -33,7 +33,7 @@
 下载自带所有镜像的 Docker 离线包，解压后运行安装脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
+wget https://liaison.cloud/dl/liaison-1.10.0-linux-amd64.tar.gz
 tar -xzf liaison-1.10.0-linux-amd64.tar.gz
 cd liaison-1.10.0-linux-amd64
 ./install.sh

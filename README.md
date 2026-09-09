@@ -11,7 +11,7 @@ Connect to private servers, databases, desktops, and web apps. Work with an AI A
 
 English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour) · [Documentation](#documentation)
+[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour)
 
 ![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark-v3.png)
 
@@ -33,7 +33,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
+wget https://liaison.cloud/dl/liaison-1.10.0-linux-amd64.tar.gz
 tar -xzf liaison-1.10.0-linux-amd64.tar.gz
 cd liaison-1.10.0-linux-amd64
 ./install.sh
