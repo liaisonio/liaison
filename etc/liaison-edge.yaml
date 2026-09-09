@@ -6,8 +6,8 @@ manager:
     tls:
       enable: false
   auth:
-    access_key: "MTc1ODY3NjI3NzIyMTcy"
-    secret_key: "kSwZqzxupTtKB4SmcZ3-oCVWGvbpbfehTVtckTG78q0"
+    access_key: "" # Set in your ignored *.local.yaml configuration.
+    secret_key: "" # Set in your ignored *.local.yaml configuration.
 log:
   level: debug
   file: ./logs/liaison-edge.log

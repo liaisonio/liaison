@@ -19,18 +19,18 @@
 set -e
 
 # 配置 - Manager
-MANAGER_HOST="49.232.250.11"
-MANAGER_USER="root"
-MANAGER_PORT="22"
+MANAGER_HOST="${MANAGER_HOST:-}"
+MANAGER_USER="${MANAGER_USER:-root}"
+MANAGER_PORT="${MANAGER_PORT:-22}"
 MANAGER_BIN_PATH="/opt/liaison/bin"
 MANAGER_WEB_PATH="/opt/liaison/web"
 MANAGER_SERVICE="liaison"
 MANAGER_BIN="./bin/liaison"
 
 # 配置 - Edge
-EDGE_HOST="49.232.238.228"
-EDGE_USER="root"
-EDGE_PORT="22"
+EDGE_HOST="${EDGE_HOST:-}"
+EDGE_USER="${EDGE_USER:-root}"
+EDGE_PORT="${EDGE_PORT:-22}"
 EDGE_BIN_PATH="/opt/liaison/bin"
 EDGE_SERVICE="liaison-edge"
 EDGE_BIN="./bin/liaison-edge"
@@ -85,6 +85,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --help, -h          显示帮助信息"
             echo ""
             echo "示例:"
+            echo "  MANAGER_HOST=manager.example.com EDGE_HOST=edge.example.com $0"
+            echo "  MANAGER_HOST=manager.example.com $0 --web"
             echo "  $0                  # 部署所有（前端、liaison、edge）"
             echo "  $0 --web            # 仅部署前端"
             echo "  $0 --liaison        # 仅部署 liaison"
@@ -104,6 +106,16 @@ if [ "$DEPLOY_WEB" = false ] && [ "$DEPLOY_LIAISON" = false ] && [ "$DEPLOY_EDGE
     DEPLOY_WEB=true
     DEPLOY_LIAISON=true
     DEPLOY_EDGE=true
+fi
+
+# Require only the hosts needed by the selected deployment, before any build or SSH.
+if { [ "$DEPLOY_WEB" = true ] || [ "$DEPLOY_LIAISON" = true ]; } && [ -z "$MANAGER_HOST" ]; then
+    echo "错误: 请通过 MANAGER_HOST 指定部署目标。" >&2
+    exit 1
+fi
+if [ "$DEPLOY_EDGE" = true ] && [ -z "$EDGE_HOST" ]; then
+    echo "错误: 请通过 EDGE_HOST 指定部署目标。" >&2
+    exit 1
 fi
 
 # 显示部署计划

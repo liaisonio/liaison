@@ -26,6 +26,14 @@ go.work.sum
 
 # env file
 .env
+.env.*
+!.env.example
+*.local.yaml
+*.local.yml
+*.local.env
+*.pem
+*.p12
+*.pfx
 
 # binary
 bin/
@@ -79,5 +87,6 @@ certs/*.crt
 
 # Local agent and skill configuration
 /.agents/
+/.agent/
 /.playwright-mcp/
 /.mini-wiki/
