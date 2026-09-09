@@ -177,6 +177,7 @@ declare namespace API {
   }
 
   interface EdgeCreateResult {
+    windows_command?: string;
     access_key: string;
     secret_key: string;
     command?: string; // 安装命令由后端返回

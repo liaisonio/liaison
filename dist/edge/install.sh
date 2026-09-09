@@ -29,7 +29,7 @@ show_help() {
     echo "Options:"
     echo "  --access-key=KEY        Access key (required)"
     echo "  --secret-key=KEY        Secret key (required)"
-    echo "  --server-http-addr=ADDR HTTP download address (host:port, for downloading packages)"
+    echo "  --server-http-addr=ADDR HTTP download address (URL or host:port, for downloading packages)"
     echo "  --server-edge-addr=ADDR Edge connection address (host:port, for establishing connection)"
     echo "  -h, --help              Show this help message"
     echo ""
@@ -175,7 +175,12 @@ if [[ "$HTTP_PORT" == "$SERVER_HTTP_ADDR" ]]; then
     HTTP_PORT="443"
 fi
 
-PACKAGE_URL="https://${SERVER_HTTP_ADDR}/packages/edge/${PACKAGE_NAME}"
+# 兼容旧命令的 host:port，新命令可携带协议及路径前缀。
+case "$SERVER_HTTP_ADDR" in
+    http://*|https://*) DOWNLOAD_BASE="${SERVER_HTTP_ADDR%/}" ;;
+    *) DOWNLOAD_BASE="https://${SERVER_HTTP_ADDR%/}" ;;
+esac
+PACKAGE_URL="${DOWNLOAD_BASE}/packages/edge/${PACKAGE_NAME}"
 
 echo -e "${YELLOW}HTTPS download address: ${SERVER_HTTP_ADDR}${NC}"
 echo -e "${YELLOW}Edge connection address: ${SERVER_EDGE_ADDR}${NC}"

@@ -20,7 +20,7 @@
 ```bash
 cd deploy/docker
 cp .env.example .env
-# 编辑 .env,把 LIAISON_PUBLIC_HOST 改成你的公网 IP 或域名
+# 编辑 .env,把 LIAISON_PUBLIC_HOST 改成连接器设备可访问的服务端 IP 或域名（支持内网 IP）
 vim .env
 
 # 构建镜像
@@ -86,7 +86,7 @@ liaison / frontier / guacd 容器以 `network_mode: host` 运行 —— 不走 d
 | 127.0.0.1:30011 | liaison ↔ frontier 本地通信 | 否(loopback) |
 | 127.0.0.1:4822 | liaison ↔ guacd WebDesktop 转换 | 否(loopback) |
 
-Edge 连接器在 Web 里创建时会自动把 `LIAISON_PUBLIC_HOST:FRONTIER_PORT` 写进安装命令。改了 `FRONTIER_PORT` 之后,已发出去的 edge 安装命令也会指向新端口,老的 edge 需要重新下发。
+Linux、macOS、Windows 安装命令统一使用 `manager.server_url`（默认由 `LIAISON_PUBLIC_HOST` 和 `MANAGER_PORT` 生成），不随浏览器访问地址变化。连接地址使用该 URL 的主机和 `FRONTIER_PORT`。内网部署可填写设备能访问的内网 IP；自动探测的公网 IP 不代表服务端口已可达。修改配置并重建容器后，新生成的命令使用新地址和端口，已经复制的命令和已安装的连接器需要另行更新。
 
 WebDesktop(RDP/VNC) 依赖 `guacd` sidecar。Compose 默认启动 `guacamole/guacd:1.5.5`，绑定 `127.0.0.1:4822`，并让 liaison 连接这个本机地址。guacd 回连 manager 创建的临时桥接端口也走 `127.0.0.1`，所以临时端口不会暴露到公网。
 
