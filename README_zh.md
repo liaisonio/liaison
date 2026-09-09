@@ -33,7 +33,7 @@
 下载自带所有镜像的 Docker 离线包，解压后运行安装脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
-wget https://liaison.cloud/dl/liaison-1.10.0-linux-amd64.tar.gz
+wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
 tar -xzf liaison-1.10.0-linux-amd64.tar.gz
 cd liaison-1.10.0-linux-amd64
 ./install.sh
