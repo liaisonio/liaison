@@ -2186,10 +2186,12 @@ const WebDataPage: React.FC = () => {
                           autoSize={{ minRows: 3, maxRows: 8 }}
                           className="webdata-textarea"
                           placeholder={
-                            protocol === 'mysql'
+                            (protocol === 'mysql' || protocol === 'mariadb')
                               ? 'charset=utf8mb4\nloc=Local'
                               : protocol === 'postgresql'
                               ? 'application_name=liaison-webdata'
+                              : protocol === 'sqlserver'
+                              ? 'app name=Liaison'
                               : 'replicaSet=rs0\nreadPreference=primary'
                           }
                         />
@@ -2967,11 +2969,11 @@ const WebDataPage: React.FC = () => {
                     <>
                       <span>
                         <strong>
-                          {target?.protocol === 'postgresql'
+                          {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver')
                             ? metadataSummary.schemas
                             : metadataSummary.databases}
                         </strong>
-                        {target?.protocol === 'postgresql'
+                        {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver')
                           ? 'Schema'
                           : tr('库', 'DB')}
                       </span>

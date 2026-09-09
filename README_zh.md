@@ -21,7 +21,7 @@
 - 💬 **用对话查询资源** — 通过首页 Agent 查找和了解连接器、设备与应用，资源可见范围始终限定为当前登录用户。
 - 🔌 **主动出站连接器**：私有网络无需开放入站端口。
 - 🔐 **应用访问**：支持 TCP、HTTP、HTTPS、WebSocket 与 SSH，并可独立配置访问策略。
-- 🖥️ **浏览器工作台**：无需本地客户端即可使用 Web SSH、RDP、VNC、MySQL、PostgreSQL、Redis 和 MongoDB。
+- 🖥️ **浏览器工作台**：无需本地客户端即可使用 Web SSH、RDP、VNC、MySQL、MariaDB、PostgreSQL、Redis 和 MongoDB。
 - 🔎 **应用发现**：扫描连接器所在设备，并在控制台中登记发现的服务。
 - 👥 **身份与权限**：管理组织、用户与资源，权限由 Casbin 统一执行。
 - 🛡️ **防火墙策略**：按来源 IP 与 CIDR 限制 TCP 和 HTTP 访问。

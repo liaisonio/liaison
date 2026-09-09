@@ -17,6 +17,8 @@ const (
 	ApplicationTypeRDP        ApplicationType = "rdp"  // RDP 应用
 	ApplicationTypeVNC        ApplicationType = "vnc"  // VNC 应用
 	ApplicationTypeMySQL      ApplicationType = "mysql"
+	ApplicationTypeMariaDB    ApplicationType = "mariadb"
+	ApplicationTypeSQLServer  ApplicationType = "sqlserver"
 	ApplicationTypePostgreSQL ApplicationType = "postgresql"
 	ApplicationTypeRedis      ApplicationType = "redis"
 	ApplicationTypeMongoDB    ApplicationType = "mongodb"

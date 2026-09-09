@@ -1013,7 +1013,9 @@ func (web *web) handleWebDataObjectHTTP(w http.ResponseWriter, r *http.Request) 
 
 func (web *web) openWebDataClient(ctx context.Context, session *webDataSession, password string) error {
 	switch session.protocol {
-	case "mysql":
+	case "sqlserver":
+		return web.openWebDataSQLServer(ctx, session, password)
+	case "mysql", "mariadb":
 		return web.openWebDataMySQL(ctx, session, password)
 	case "postgresql":
 		return web.openWebDataPostgreSQL(ctx, session, password)
@@ -1038,7 +1040,7 @@ func (web *web) openWebDataMySQL(ctx context.Context, session *webDataSession, p
 	cfg.Timeout = webDataConnectTimeout
 	cfg.ReadTimeout = webDataExecuteTimeout
 	cfg.WriteTimeout = webDataExecuteTimeout
-	cfg.DialFunc = web.webDataDeadlineSafeDialContext(session.proxyID, "mysql")
+	cfg.DialFunc = web.webDataDeadlineSafeDialContext(session.proxyID, session.protocol)
 	if session.tlsMode == "require" || session.tlsMode == "true" {
 		cfg.TLSConfig = "true"
 	} else if session.tlsMode == "skip-verify" || session.tlsMode == "preferred" {
@@ -1251,7 +1253,9 @@ func (web *web) ensureWebDataSessionActive(ctx context.Context, session *webData
 
 func (s *webDataSession) execute(ctx context.Context, statement string) (*webDataExecuteResponse, error) {
 	switch s.protocol {
-	case "mysql", "postgresql":
+	case "sqlserver":
+		return s.executeSQL(ctx, statement)
+	case "mysql", "mariadb", "postgresql":
 		return s.executeSQL(ctx, statement)
 	case "redis":
 		return s.executeRedis(ctx, statement)
@@ -1486,7 +1490,9 @@ func mongoCommandInt64(command bson.D, key string, fallback int64) int64 {
 
 func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, error) {
 	switch s.protocol {
-	case "mysql":
+	case "sqlserver":
+		return s.sqlServerMetadata(ctx)
+	case "mysql", "mariadb":
 		return s.mysqlMetadata(ctx)
 	case "postgresql":
 		return s.postgresMetadata(ctx)
@@ -1501,7 +1507,9 @@ func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, e
 
 func (s *webDataSession) metadataChildren(ctx context.Context, req webDataMetadataRequest) ([]webDataMetadataNode, error) {
 	switch s.protocol {
-	case "mysql":
+	case "sqlserver":
+		return s.sqlServerMetadataChildren(ctx, req)
+	case "mysql", "mariadb":
 		return s.mysqlMetadataChildren(ctx, req)
 	case "postgresql":
 		return s.postgresMetadataChildren(ctx, req)
@@ -1775,7 +1783,9 @@ func (s *webDataSession) mongoMetadata(ctx context.Context) ([]webDataMetadataNo
 
 func (s *webDataSession) objectDetails(ctx context.Context, req webDataObjectRequest) (*webDataObjectResponse, error) {
 	switch s.protocol {
-	case "mysql":
+	case "sqlserver":
+		return s.sqlServerObjectDetails(ctx, req)
+	case "mysql", "mariadb":
 		return s.mysqlObjectDetails(ctx, req)
 	case "postgresql":
 		return s.postgresObjectDetails(ctx, req)
@@ -2404,7 +2414,9 @@ func webDataShouldAuditExecute(protocol, statement string) bool {
 
 func webDataExecuteIsQuery(protocol, statement string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "mysql", "postgresql":
+	case "sqlserver":
+		return webDataSQLIsQuery(statement)
+	case "mysql", "mariadb", "postgresql":
 		return webDataSQLIsQuery(statement)
 	case "redis":
 		return webDataRedisIsQuery(statement)

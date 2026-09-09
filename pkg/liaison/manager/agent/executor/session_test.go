@@ -60,7 +60,7 @@ func TestProtocolResult_DatabaseErrorAndTruncation(t *testing.T) {
 }
 
 func TestSessionExecutor_AllDataProtocolsAndClosedHandles(t *testing.T) {
-	for _, protocol := range []accesssession.Protocol{accesssession.ProtocolMySQL, accesssession.ProtocolPostgreSQL, accesssession.ProtocolRedis, accesssession.ProtocolMongoDB} {
+	for _, protocol := range []accesssession.Protocol{accesssession.ProtocolMySQL, accesssession.ProtocolMariaDB, accesssession.ProtocolSQLServer, accesssession.ProtocolPostgreSQL, accesssession.ProtocolRedis, accesssession.ProtocolMongoDB} {
 		t.Run(string(protocol), func(t *testing.T) {
 			registry := accesssession.NewRegistry()
 			descriptor, unregister, err := registry.Register(accesssession.Handle{
@@ -75,6 +75,10 @@ func TestSessionExecutor_AllDataProtocolsAndClosedHandles(t *testing.T) {
 			}}}
 			_, err = executor.Execute(context.Background(), request)
 			require.NoError(t, err)
+			request.Invocation.Binding.Principal.UserID = 8
+			_, err = executor.Execute(context.Background(), request)
+			require.ErrorIs(t, err, accesssession.ErrHandleMismatch)
+			request.Invocation.Binding.Principal.UserID = 7
 			unregister()
 			_, err = executor.Execute(context.Background(), request)
 			require.Error(t, err)

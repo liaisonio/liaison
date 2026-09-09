@@ -112,7 +112,7 @@ if (require.main === module) {
     if (!process.env.E2E_BASE_URL) throw Error('Set E2E_BASE_URL to an isolated test deployment');
     let password=''; for await(const part of process.stdin) password+=part;
     const protocols=process.argv.slice(2);
-    for (const protocol of protocols.length ? protocols : ['mysql','postgresql','mongodb','redis']) {
+    for (const protocol of protocols.length ? protocols : ['mysql','mariadb','postgresql','mongodb','redis']) {
       try { console.log(JSON.stringify(await exports.run(request,process.env.E2E_BASE_URL,process.env.E2E_EMAIL||'default@liaison.com',password.trim(),protocol))); }
       catch(error) {console.error(JSON.stringify({protocol,passed:false,error:error.message,stack:error.stack}));process.exitCode=1;}
     }

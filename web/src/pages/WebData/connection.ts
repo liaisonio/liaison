@@ -176,11 +176,12 @@ export const tlsOptionsForProtocol = (
   protocol: string,
   tr: (zh: string, en: string) => string,
 ) => {
-  if (protocol === 'mysql') {
+  if (protocol === 'mysql' || protocol === 'mariadb') {
     return [
       { label: tr('关闭', 'Disabled'), value: 'disable' },
-      { label: 'MySQL skip-verify', value: 'skip-verify' },
-      { label: 'MySQL preferred', value: 'preferred' },
+      { label: tr('启用/要求', 'Enabled/Required'), value: 'require' },
+      { label: 'skip-verify', value: 'skip-verify' },
+      { label: 'preferred', value: 'preferred' },
     ];
   }
   return [

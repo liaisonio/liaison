@@ -9,13 +9,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import './index.less';
 
 const pageSize = 10;
-const auditProtocols = ['ssh', 'webssh', 'rdp', 'vnc', 'mysql', 'postgresql', 'redis', 'mongodb'] as const;
+const auditProtocols = ['ssh', 'webssh', 'rdp', 'vnc', 'mysql', 'mariadb', 'sqlserver', 'postgresql', 'redis', 'mongodb'] as const;
 type AuditProtocol = typeof auditProtocols[number];
 const routeProtocolAliases: Record<string, AuditProtocol> = {
   webssh: 'webssh',
   webrdp: 'rdp',
   webvnc: 'vnc',
   webmysql: 'mysql',
+  webmariadb: 'mariadb',
+  websqlserver: 'sqlserver',
   webpostgresql: 'postgresql',
   webredis: 'redis',
   webmongodb: 'mongodb',
@@ -54,7 +56,7 @@ const AuditPage: React.FC = () => {
   const isSSHProtocol = applied.protocol === 'ssh' || applied.protocol === 'webssh';
   const isDesktopProtocol = applied.protocol === 'rdp' || applied.protocol === 'vnc';
   const protocolLabel = (protocol: AuditProtocol) => {
-    if (protocol === 'rdp' || protocol === 'vnc' || protocol === 'mysql' || protocol === 'postgresql' || protocol === 'redis' || protocol === 'mongodb') return `Web ${accessTypeLabel(protocol)}`;
+    if (protocol === 'rdp' || protocol === 'vnc' || (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'sqlserver') || protocol === 'postgresql' || protocol === 'redis' || protocol === 'mongodb') return `Web ${accessTypeLabel(protocol)}`;
     return accessTypeLabel(protocol);
   };
   const sshAuthLabel = (row: API.WebDataAuditItem) => {

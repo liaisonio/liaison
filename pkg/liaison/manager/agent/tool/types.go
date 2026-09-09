@@ -33,6 +33,8 @@ const (
 	ProtocolSSH        Protocol = "ssh"
 	ProtocolWebSSH     Protocol = "web_ssh"
 	ProtocolMySQL      Protocol = "mysql"
+	ProtocolMariaDB    Protocol = "mariadb"
+	ProtocolSQLServer  Protocol = "sqlserver"
 	ProtocolPostgreSQL Protocol = "postgresql"
 	ProtocolRedis      Protocol = "redis"
 	ProtocolMongoDB    Protocol = "mongodb"

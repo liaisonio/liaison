@@ -5,6 +5,8 @@ export const APPLICATION_TYPES = [
   { value: 'rdp', label: 'RDP' },
   { value: 'vnc', label: 'VNC' },
   { value: 'mysql', label: 'MySQL' },
+  { value: 'mariadb', label: 'MariaDB' },
+  { value: 'sqlserver', label: 'SQL Server' },
   { value: 'postgresql', label: 'PostgreSQL' },
   { value: 'redis', label: 'Redis' },
   { value: 'mongodb', label: 'MongoDB' },

@@ -21,7 +21,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 - 💬 **Ask about your resources** — Find and inspect your connectors, devices, and applications from the home Agent. Resource visibility stays scoped to the signed-in user.
 - 🔌 **Outbound-only connectors** — connect private networks without opening inbound ports on them.
 - 🔐 **Application access** — publish TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
-- 🖥️ **Browser workspaces** — use Web SSH, RDP, VNC, MySQL, PostgreSQL, Redis, and MongoDB without local clients.
+- 🖥️ **Browser workspaces** — use Web SSH, RDP, VNC, MySQL, MariaDB, PostgreSQL, Redis, and MongoDB without local clients.
 - 🔎 **Application discovery** — scan connector devices and register discovered services from the console.
 - 👥 **Identity and access management** — organize users and resources, with Casbin-backed authorization.
 - 🛡️ **Firewall policies** — restrict TCP and HTTP access by source IP and CIDR.

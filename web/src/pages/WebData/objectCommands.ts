@@ -481,9 +481,11 @@ export const sqlIdentityColumn = (
   row: Record<string, any>,
 ) => {
   const primaryColumn =
-    protocol === 'mysql'
+    (protocol === 'mysql' || protocol === 'mariadb')
       ? mysqlPrimaryColumn(detail)
-      : postgresPrimaryColumn(detail);
+      : protocol === 'sqlserver'
+        ? String((detail.indexes || []).find((item) => item.is_primary_key === true || item.is_primary_key === 1)?.column_name || '')
+        : postgresPrimaryColumn(detail);
   const fallbackColumn =
     primaryColumn || objectColumnNames(detail).find((column) => column in row);
   if (!fallbackColumn) {
@@ -554,7 +556,8 @@ export const isGeneratedColumn = (row: Record<string, any>) => {
     row.Default || row.default || row.column_default || '',
   ).toLowerCase();
   return (
-    extra.includes('auto_increment') || defaultValue.startsWith('nextval(')
+    extra.includes('auto_increment') || defaultValue.startsWith('nextval(') ||
+    row.is_identity === 1 || row.is_computed === 1
   );
 };
 
@@ -565,7 +568,7 @@ export const sqlLiteralForColumn = (
   protocol: string,
   column: WebDataColumnInfo | undefined,
   value: any,
-) => sqlLiteral(sqlNormalizeColumnValue(protocol, column, value));
+) => sqlDialectLiteral(protocol, sqlLiteral(sqlNormalizeColumnValue(protocol, column, value)));
 
 export const sqlNormalizeColumnValue = (
   protocol: string,
@@ -574,7 +577,8 @@ export const sqlNormalizeColumnValue = (
 ) => {
   const text = String(value ?? '').trim();
   if (!text || /^null$/i.test(text)) return text;
-  if (protocol !== 'mysql' || !isSQLTemporalColumn(column)) return text;
+  if (protocol === 'sqlserver' && /^(true|false)$/i.test(text)) return /^true$/i.test(text) ? '1' : '0';
+  if ((protocol !== 'mysql' && protocol !== 'mariadb') || !isSQLTemporalColumn(column)) return text;
   return normalizeMySQLTemporalLiteral(column?.type || '', text);
 };
 
@@ -608,6 +612,13 @@ export const sqlLiteral = (value: any) => {
   if (/^-?\d+(\.\d+)?$/.test(text)) return text;
   if (/^(true|false)$/i.test(text)) return text.toLowerCase();
   return `'${text.replace(/'/g, "''")}'`;
+};
+
+export const sqlDialectLiteral = (protocol: string, literal: string) => {
+  if (protocol !== 'sqlserver') return literal;
+  if (literal === 'true') return '1';
+  if (literal === 'false') return '0';
+  return literal.startsWith("'") ? `N${literal}` : literal;
 };
 
 export const createObjectFilterCondition = (
@@ -916,6 +927,7 @@ export const buildSQLFilterCommand = (
       );
     })
     .join('\n  AND ');
+  if (protocol === 'sqlserver') return `SELECT TOP (${normalizeFilterLimit(filter.limit)}) *\nFROM ${tableName}\nWHERE ${where};`;
   return `SELECT *\nFROM ${tableName}\nWHERE ${where}\nLIMIT ${normalizeFilterLimit(
     filter.limit,
   )};`;
@@ -932,7 +944,7 @@ export const buildSQLFilterCondition = (
   const likeEscape = ` ESCAPE ${sqlLiteral(SQL_LIKE_ESCAPE_CHAR)}`;
   switch (operator) {
     case 'ne':
-      return `${quotedField} <> ${sqlFilterLiteral(kind, value)}`;
+      return `${quotedField} <> ${sqlDialectLiteral(protocol, sqlFilterLiteral(kind, value))}`;
     case 'contains':
       return `${quotedField} LIKE ${sqlLiteral(
         `%${escapeSQLLikeValue(String(value || ''))}%`,
@@ -946,19 +958,19 @@ export const buildSQLFilterCondition = (
         `%${escapeSQLLikeValue(String(value || ''))}`,
       )}${likeEscape}`;
     case 'gt':
-      return `${quotedField} > ${sqlFilterLiteral(kind, value)}`;
+      return `${quotedField} > ${sqlDialectLiteral(protocol, sqlFilterLiteral(kind, value))}`;
     case 'gte':
-      return `${quotedField} >= ${sqlFilterLiteral(kind, value)}`;
+      return `${quotedField} >= ${sqlDialectLiteral(protocol, sqlFilterLiteral(kind, value))}`;
     case 'lt':
-      return `${quotedField} < ${sqlFilterLiteral(kind, value)}`;
+      return `${quotedField} < ${sqlDialectLiteral(protocol, sqlFilterLiteral(kind, value))}`;
     case 'lte':
-      return `${quotedField} <= ${sqlFilterLiteral(kind, value)}`;
+      return `${quotedField} <= ${sqlDialectLiteral(protocol, sqlFilterLiteral(kind, value))}`;
     case 'is_null':
       return `${quotedField} IS NULL`;
     case 'not_null':
       return `${quotedField} IS NOT NULL`;
     default:
-      return `${quotedField} = ${sqlFilterLiteral(kind, value)}`;
+      return `${quotedField} = ${sqlDialectLiteral(protocol, sqlFilterLiteral(kind, value))}`;
   }
 };
 
@@ -1206,7 +1218,9 @@ export const buildObjectTemplate = (
   if (!tableName) return '';
   const columns = objectColumnNames(detail);
   const firstColumn = columns[0] || 'id';
-  if (action === 'preview') return `SELECT *\nFROM ${tableName}\nLIMIT 100;`;
+  if (action === 'preview') return protocol === 'sqlserver'
+    ? `SELECT TOP (100) *\nFROM ${tableName};`
+    : `SELECT *\nFROM ${tableName}\nLIMIT 100;`;
   if (action === 'ddl') return detail.ddl || '';
   if (action === 'insert') {
     const names = columns.length ? columns : ['id', 'name'];
@@ -1261,7 +1275,7 @@ export const sqlQualifiedName = (
   detail: API.WebDataObjectResult,
 ) => {
   if (!detail.name) return '';
-  if (protocol === 'mysql') {
+  if (protocol === 'mysql' || protocol === 'mariadb') {
     return detail.database
       ? `${sqlQuoteIdent(protocol, detail.database)}.${sqlQuoteIdent(
           protocol,
@@ -1269,8 +1283,8 @@ export const sqlQualifiedName = (
         )}`
       : sqlQuoteIdent(protocol, detail.name);
   }
-  if (protocol === 'postgresql') {
-    const schema = detail.schema || 'public';
+  if (protocol === 'postgresql' || protocol === 'sqlserver') {
+    const schema = detail.schema || (protocol === 'sqlserver' ? 'dbo' : 'public');
     return `${sqlQuoteIdent(protocol, schema)}.${sqlQuoteIdent(
       protocol,
       detail.name,
@@ -1280,7 +1294,8 @@ export const sqlQualifiedName = (
 };
 
 export const sqlQuoteIdent = (protocol: string, value: string) => {
-  if (protocol === 'mysql') return `\`${value.replace(/`/g, '``')}\``;
+  if (protocol === 'sqlserver') return `[${value.replace(/]/g, ']]')}]`;
+  if (protocol === 'mysql' || protocol === 'mariadb') return `\`${value.replace(/`/g, '``')}\``;
   return `"${value.replace(/"/g, '""')}"`;
 };
 
