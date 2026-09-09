@@ -1,6 +1,6 @@
 # <img src="docs/diagrams/liaison-logo.svg" height="40" align="absmiddle" alt="" /> Liaison
 
-> **커넥터 기반으로 NAT 뒤의 기기와 앱에 접근**
+> **AI 기반 프라이빗 애플리케이션 제로 트러스트 액세스.**
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
@@ -22,7 +22,10 @@
 
 ## 소개
 
-Liaison 은 엔터프라이즈급 애플리케이션 접근 솔루션으로, 언제든지 켜고 끌 수 있으며 LAN 이나 홈 네트워크의 포트를 외부에 노출할 필요가 없습니다. 연결된 기기의 애플리케이션을 자동으로 발견하고, 실시간 트래픽 메트릭을 제공하며, TLS 로 암호화된 안전한 전송을 지원합니다.
+프라이빗 서버, 데이터베이스, 데스크톱, 웹 앱에 연결하세요. SSH 및 데이터베이스 세션의 AI Agent와 작업하고 홈 Agent에서 접근 가능한 커넥터, 기기, 앱을 확인하세요. 셀프 호스팅을 지원하며 도구는 사용자 권한을 따릅니다.
+
+- ✨ **작업 흐름 속 AI** — 현재 연결의 Agent가 터미널 출력 확인, 명령 작성, 데이터베이스 조회를 돕습니다. 승인이 필요한 작업은 확인을 기다립니다.
+- 💬 **대화로 리소스 확인** — 홈 Agent에서 커넥터, 기기, 앱을 찾으세요. 리소스는 로그인한 사용자의 권한 범위로 제한됩니다.
 
 이 프로젝트는 다음 문제를 해결합니다:
 

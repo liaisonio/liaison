@@ -1,6 +1,6 @@
 # <img src="docs/diagrams/liaison-logo.svg" height="40" align="absmiddle" alt="" /> Liaison
 
-> **NAT の内側にあるデバイスとアプリケーションへ、コネクター経由でアクセス**
+> **AI を搭載した、プライベートアプリのゼロトラストアクセス。**
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
@@ -22,7 +22,10 @@
 
 ## 概要
 
-Liaison はエンタープライズ向けのアプリケーション接続ソリューションで、いつでも有効化・無効化でき、LAN や家庭ネットワークのポートを公開する必要がありません。接続済みデバイスのアプリを自動検出し、リアルタイムのトラフィックメトリクスを取得し、TLS 暗号化された安全な通信を提供します。
+プライベートサーバー、データベース、デスクトップ、Web アプリに接続。SSH・データベースセッションの AI Agent と作業し、ホームの Agent からアクセス可能なコネクター、デバイス、アプリを確認できます。セルフホストに対応し、ツールはユーザー権限に従います。
+
+- ✨ **作業を支える AI** — 接続に紐づく Agent が端末出力の確認、コマンド作成、データベース照会を支援。承認が必要な操作は確認を待ちます。
+- 💬 **リソースを対話で確認** — ホームの Agent からコネクター、デバイス、アプリを検索。表示範囲はログインユーザーの権限内です。
 
 本プロジェクトが解決する課題:
 

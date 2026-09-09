@@ -1,6 +1,6 @@
 # <img src="docs/diagrams/liaison-logo.svg" height="40" align="absmiddle" alt="" /> Liaison
 
-> **Konnektor-basierter Zugriff auf Geräte und Apps hinter NAT**
+> **KI-gestützter Zero-Trust-Zugriff auf private Anwendungen.**
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
@@ -22,7 +22,10 @@
 
 ## Einführung
 
-Liaison ist eine Enterprise-taugliche Lösung für Anwendungszugriff, die jederzeit ein- und ausgeschaltet werden kann, ohne Ports im LAN oder Heimnetz zu öffnen. Sie bietet ein vollständiges Feature-Set: automatische App-Erkennung auf verbundenen Geräten, Echtzeit-Traffic-Metriken und sichere TLS-verschlüsselte Kommunikation.
+Verbinden Sie private Server, Datenbanken, Desktops und Web-Apps. Arbeiten Sie mit einem KI-Agenten in SSH- und Datenbanksitzungen oder fragen Sie auf der Startseite nach verfügbaren Connectoren, Geräten und Anwendungen. Selbst gehostet, mit benutzergebundenen Werkzeugrechten.
+
+- ✨ **KI im Arbeitsablauf** — Der Agent Ihrer Verbindung hilft beim Lesen der Terminalausgabe, Entwerfen von Befehlen und Abfragen von Datenbanken. Genehmigungspflichtige Vorgänge warten auf Ihre Bestätigung.
+- 💬 **Ressourcen im Dialog** — Finden Sie Connectoren, Geräte und Anwendungen mit dem Startseiten-Agenten innerhalb Ihrer Benutzerrechte.
 
 Dieses Projekt adressiert:
 
