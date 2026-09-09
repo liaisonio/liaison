@@ -1,8 +1,8 @@
 # <img src="docs/diagrams/liaison-logo.svg" height="40" align="absmiddle" alt="Liaison Logo" /> Liaison
 
-> **面向私有应用的零信任访问。**
+> **AI 驱动的私有应用零信任访问。**
 
-通过主动出站的连接器访问私有 Web 应用、服务器、远程桌面与数据库，无需暴露私有网络。
+连接私有服务器、数据库、远程桌面与 Web 应用。在 SSH 和数据库会话中使用 AI Agent，或通过首页 Agent 查询自己可见的连接器、设备与应用。支持私有化部署，通过主动出站连接器接入，工具调用受用户权限约束。
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
@@ -11,12 +11,14 @@
 
 [English](./README.md) | 简体中文 | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [文档](#文档) · [社区](#社区)
+[官网](https://liaison.cloud) · [产品文档](https://liaison.cloud/zh/docs/get-started/introduction) · [产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [社区](#社区)
 
 ![Liaison 多应用流量总览](docs/assets/readme/overview-dark-v3.png)
 
 ## 产品能力
 
+- ✨ **工作流中的 AI** — 让与当前连接关联的 Agent 读取终端输出、辅助编写命令和查询数据库。工具遵循用户权限，需要审批的操作会等待确认。
+- 💬 **用对话查询资源** — 通过首页 Agent 查找和了解连接器、设备与应用，资源可见范围始终限定为当前登录用户。
 - 🔌 **主动出站连接器**：私有网络无需开放入站端口。
 - 🔐 **应用访问**：支持 TCP、HTTP、HTTPS、WebSocket 与 SSH，并可独立配置访问策略。
 - 🖥️ **浏览器工作台**：无需本地客户端即可使用 Web SSH、RDP、VNC、MySQL、PostgreSQL、Redis 和 MongoDB。
@@ -28,7 +30,7 @@
 
 ## 安装
 
-下载自带所有镜像的 Docker 离线包，解压后运行加载脚本（需要 Docker 20.10+ 及 Compose）：
+下载自带所有镜像的 Docker 离线包，解压后运行安装脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
@@ -57,7 +59,7 @@ Liaison 支持以下原生协议与浏览器工作台。
 
 ### Web SSH
 
-无需暴露私有服务器，即可直接在浏览器中打开可审计的 SSH 终端。
+在可审计的浏览器终端中工作，让关联当前会话的 Agent 读取输出并辅助编写命令。
 
 ![通过 Liaison 使用 Web SSH](docs/assets/readme/web-ssh-dark.png)
 
@@ -75,13 +77,13 @@ Liaison 支持以下原生协议与浏览器工作台。
 
 ### Web MySQL
 
-直接在浏览器中查看表结构并执行可审计的 SQL 查询。
+查看表结构、执行 SQL，让会话 Agent 查询并解释结果，需要审批的操作先确认。
 
 ![通过 Liaison 使用 MySQL](docs/assets/readme/web-mysql-dark.png)
 
 ### Web MongoDB
 
-无需本地客户端即可浏览文档数据库并执行命令。
+无需本地客户端即可浏览集合，让会话 Agent 执行已批准的查询并解释文档。
 
 ![通过 Liaison 使用 MongoDB](docs/assets/readme/web-mongodb-dark.png)
 

@@ -1,8 +1,8 @@
 # <img src="docs/diagrams/liaison-logo.svg" height="40" align="absmiddle" alt="Liaison logo" /> Liaison
 
-> **Zero-trust access for private applications.**
+> **AI-powered zero-trust access for private applications.**
 
-Connect private web apps, servers, remote desktops, and databases through outbound connectors, without exposing the private network.
+Connect to private servers, databases, desktops, and web apps. Work with an AI Agent in your SSH and database sessions, or ask the home Agent about the connectors, devices, and applications you can access. Self-hosted, with outbound connectors and permission-controlled tools.
 
 [![Go](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/liaisonio/liaison)](https://goreportcard.com/report/github.com/liaisonio/liaison)
@@ -11,12 +11,14 @@ Connect private web apps, servers, remote desktops, and databases through outbou
 
 English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour) · [Documentation](#documentation)
+[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour)
 
 ![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark-v3.png)
 
 ## Features
 
+- ✨ **AI in your workflow** — Inspect terminal output, draft commands, and query databases with an Agent tied to your connection. Tool access follows user permissions; operations requiring approval wait for your confirmation.
+- 💬 **Ask about your resources** — Find and inspect your connectors, devices, and applications from the home Agent. Resource visibility stays scoped to the signed-in user.
 - 🔌 **Outbound-only connectors** — connect private networks without opening inbound ports on them.
 - 🔐 **Application access** — publish TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
 - 🖥️ **Browser workspaces** — use Web SSH, RDP, VNC, MySQL, PostgreSQL, Redis, and MongoDB without local clients.
@@ -28,7 +30,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 
 ## Install
 
-Download the self-contained Docker bundle, extract it, and run the loader (Docker 20.10+ with Compose is required):
+Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
@@ -57,7 +59,7 @@ Native protocols and browser workspaces supported by Liaison.
 
 ### Web SSH
 
-Open an audited SSH terminal in the browser without exposing the private server.
+Work in an audited browser terminal with an Agent that can inspect session output and help draft commands.
 
 ![Using Web SSH through Liaison](docs/assets/readme/web-ssh-dark.png)
 
@@ -75,13 +77,13 @@ Keep internal AI tools reachable without exposing the private network.
 
 ### Web MySQL
 
-Inspect schemas and run audited SQL queries directly in the browser.
+Browse schemas, run SQL, and ask the session Agent to query and explain results, with approval where required.
 
 ![Using MySQL through Liaison](docs/assets/readme/web-mysql-dark.png)
 
 ### Web MongoDB
 
-Explore document databases and execute commands without a local client.
+Explore collections and ask the session Agent to run approved queries and explain documents, without a local client.
 
 ![Using MongoDB through Liaison](docs/assets/readme/web-mongodb-dark.png)
 
