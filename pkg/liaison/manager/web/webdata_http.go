@@ -1013,6 +1013,8 @@ func (web *web) handleWebDataObjectHTTP(w http.ResponseWriter, r *http.Request) 
 
 func (web *web) openWebDataClient(ctx context.Context, session *webDataSession, password string) error {
 	switch session.protocol {
+	case "oracle":
+		return web.openWebDataOracle(ctx, session, password)
 	case "sqlserver":
 		return web.openWebDataSQLServer(ctx, session, password)
 	case "mysql", "mariadb":
@@ -1253,6 +1255,8 @@ func (web *web) ensureWebDataSessionActive(ctx context.Context, session *webData
 
 func (s *webDataSession) execute(ctx context.Context, statement string) (*webDataExecuteResponse, error) {
 	switch s.protocol {
+	case "oracle":
+		return s.executeSQL(ctx, oracleStatement(statement))
 	case "sqlserver":
 		return s.executeSQL(ctx, statement)
 	case "mysql", "mariadb", "postgresql":
@@ -1490,6 +1494,8 @@ func mongoCommandInt64(command bson.D, key string, fallback int64) int64 {
 
 func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, error) {
 	switch s.protocol {
+	case "oracle":
+		return s.oracleMetadata(ctx)
 	case "sqlserver":
 		return s.sqlServerMetadata(ctx)
 	case "mysql", "mariadb":
@@ -1507,6 +1513,8 @@ func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, e
 
 func (s *webDataSession) metadataChildren(ctx context.Context, req webDataMetadataRequest) ([]webDataMetadataNode, error) {
 	switch s.protocol {
+	case "oracle":
+		return s.oracleMetadataChildren(ctx, req)
 	case "sqlserver":
 		return s.sqlServerMetadataChildren(ctx, req)
 	case "mysql", "mariadb":
@@ -1783,6 +1791,8 @@ func (s *webDataSession) mongoMetadata(ctx context.Context) ([]webDataMetadataNo
 
 func (s *webDataSession) objectDetails(ctx context.Context, req webDataObjectRequest) (*webDataObjectResponse, error) {
 	switch s.protocol {
+	case "oracle":
+		return s.oracleObjectDetails(ctx, req)
 	case "sqlserver":
 		return s.sqlServerObjectDetails(ctx, req)
 	case "mysql", "mariadb":
@@ -2414,7 +2424,7 @@ func webDataShouldAuditExecute(protocol, statement string) bool {
 
 func webDataExecuteIsQuery(protocol, statement string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "sqlserver":
+	case "sqlserver", "oracle":
 		return webDataSQLIsQuery(statement)
 	case "mysql", "mariadb", "postgresql":
 		return webDataSQLIsQuery(statement)

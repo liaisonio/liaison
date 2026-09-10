@@ -164,7 +164,7 @@ export const buildMetadataChildParams = (
       name: node.meta?.name || node.title,
     };
   }
-  if (protocol === 'postgresql' || protocol === 'sqlserver') {
+  if (protocol === 'postgresql' || protocol === 'sqlserver' || protocol === 'oracle') {
     return {
       type: 'table',
       schema: node.meta?.schema,

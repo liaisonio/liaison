@@ -16,7 +16,7 @@ const { isSQLProtocol, protocolLabels } = require('../src/pages/WebData/protocol
 const { tlsOptionsForProtocol } = require('../src/pages/WebData/connection.ts');
 const { sqlQualifiedName, sqlQuoteIdent } = require('../src/pages/WebData/objectCommands.ts');
 
-for (const protocol of ['mysql', 'mariadb', 'postgresql', 'sqlserver']) {
+for (const protocol of ['mysql', 'mariadb', 'postgresql', 'sqlserver', 'oracle']) {
   assert.equal(isSQLProtocol(protocol), true);
   assert.ok(protocolLabels[protocol]);
   const webType = 'web' + protocol;
@@ -36,4 +36,12 @@ const commands = require('../src/pages/WebData/objectCommands.ts');
 const filter = commands.buildSQLFilterCommand('sqlserver', {name:'orders', columns:[{column_name:'id', data_type:'int'}]}, {limit:20, conditions:[{field:'id',operator:'eq',value:'1'}]});
 assert.match(filter, /SELECT TOP \(20\)/);
 assert.ok(!filter.includes('LIMIT'));
-console.log('SQL protocol frontend checks passed (MySQL, MariaDB, PostgreSQL, SQL Server).');
+assert.equal(sqlQualifiedName('oracle', {schema:'SALES',name:'ORDERS'}), '"SALES"."ORDERS"');
+assert.equal(sqlQuoteIdent('oracle', 'odd"name'), '"odd""name"');
+const oracleFilter = commands.buildSQLFilterCommand('oracle', {schema:'SALES',name:'ORDERS',columns:[{column_name:'ID',data_type:'NUMBER'}]}, {limit:20,conditions:[{field:'ID',operator:'eq',value:'1'}]});
+assert.match(oracleFilter, /FETCH FIRST 20 ROWS ONLY/);
+assert.ok(!oracleFilter.includes('LIMIT'));
+assert.equal(commands.isGeneratedColumn({is_identity:'1'}), true);
+assert.equal(commands.isGeneratedColumn({is_computed:'1'}), true);
+assert.equal(commands.sqlIdentityColumn('oracle', {columns:[{column_name:'CUSTOMER'}, {column_name:'ID'}],indexes:[{is_primary_key:'1',column_name:'ID'}]}, {CUSTOMER:'demo',ID:'1'}).column, 'ID');
+console.log('SQL protocol frontend checks passed (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle).');

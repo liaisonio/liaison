@@ -35,6 +35,7 @@ const (
 	ProtocolMySQL      Protocol = "mysql"
 	ProtocolMariaDB    Protocol = "mariadb"
 	ProtocolSQLServer  Protocol = "sqlserver"
+	ProtocolOracle     Protocol = "oracle"
 	ProtocolPostgreSQL Protocol = "postgresql"
 	ProtocolRedis      Protocol = "redis"
 	ProtocolMongoDB    Protocol = "mongodb"

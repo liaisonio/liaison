@@ -16,6 +16,7 @@ require (
 	github.com/pion/transport/v2 v2.2.10
 	github.com/redis/go-redis/v9 v9.5.5
 	github.com/shirou/gopsutil v3.21.11+incompatible
+	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/singchia/frontier v1.2.3-rc.1
 	github.com/singchia/geminio v1.2.2-rc.2
 	github.com/stretchr/testify v1.11.1
@@ -29,7 +30,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/sqlite v1.5.4
-	gorm.io/gorm v1.25.5
+	gorm.io/gorm v1.25.11
 	k8s.io/klog/v2 v2.120.1
 )
 

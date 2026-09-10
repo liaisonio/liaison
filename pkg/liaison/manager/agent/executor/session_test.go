@@ -60,7 +60,7 @@ func TestProtocolResult_DatabaseErrorAndTruncation(t *testing.T) {
 }
 
 func TestSessionExecutor_AllDataProtocolsAndClosedHandles(t *testing.T) {
-	for _, protocol := range []accesssession.Protocol{accesssession.ProtocolMySQL, accesssession.ProtocolMariaDB, accesssession.ProtocolSQLServer, accesssession.ProtocolPostgreSQL, accesssession.ProtocolRedis, accesssession.ProtocolMongoDB} {
+	for _, protocol := range []accesssession.Protocol{accesssession.ProtocolMySQL, accesssession.ProtocolMariaDB, accesssession.ProtocolSQLServer, accesssession.ProtocolOracle, accesssession.ProtocolPostgreSQL, accesssession.ProtocolRedis, accesssession.ProtocolMongoDB} {
 		t.Run(string(protocol), func(t *testing.T) {
 			registry := accesssession.NewRegistry()
 			descriptor, unregister, err := registry.Register(accesssession.Handle{

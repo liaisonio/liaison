@@ -2099,13 +2099,14 @@ const WebDataPage: React.FC = () => {
             <Form.Item
               name="database"
               className="is-full"
+              rules={protocol === 'oracle' ? [{ required: true, message: tr('请输入 Service Name', 'Enter a Service Name') }] : undefined}
               label={
                 isMongo
                   ? tr('默认数据库', 'Default DB')
-                  : tr('数据库', 'Database')
+                  : protocol === 'oracle' ? 'Service Name' : tr('数据库', 'Database')
               }
             >
-              <Input placeholder={isMongo ? 'admin' : undefined} />
+              <Input placeholder={isMongo ? 'admin' : protocol === 'oracle' ? 'FREEPDB1' : undefined} />
             </Form.Item>
           )}
           {isRedis && (
@@ -2130,12 +2131,12 @@ const WebDataPage: React.FC = () => {
                     <Form.Item name="tls_mode" label="TLS">
                       <Select options={tlsOptionsForProtocol(protocol, tr)} />
                     </Form.Item>
-                    {protocol === 'postgresql' && (
+                    {(protocol === 'postgresql' || protocol === 'oracle') && (
                       <Form.Item
                         name="schema"
                         label={tr('默认 Schema', 'Default Schema')}
                       >
-                        <Input placeholder="public" />
+                        <Input placeholder={protocol === 'oracle' ? tr('默认为登录用户', 'Defaults to login user') : 'public'} />
                       </Form.Item>
                     )}
                     {isMongo && (
@@ -2173,7 +2174,7 @@ const WebDataPage: React.FC = () => {
                         </Form.Item>
                       </>
                     )}
-                    {(isSQL || isMongo) && (
+                    {((isSQL && protocol !== 'oracle') || isMongo) && (
                       <Form.Item
                         name="connection_params"
                         label={tr('连接参数', 'Connection Parameters')}
@@ -2969,11 +2970,11 @@ const WebDataPage: React.FC = () => {
                     <>
                       <span>
                         <strong>
-                          {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver')
+                          {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver' || target?.protocol === 'oracle')
                             ? metadataSummary.schemas
                             : metadataSummary.databases}
                         </strong>
-                        {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver')
+                        {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver' || target?.protocol === 'oracle')
                           ? 'Schema'
                           : tr('库', 'DB')}
                       </span>

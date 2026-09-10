@@ -2,13 +2,14 @@ export const protocolLabels: Record<string, string> = {
   mysql: 'MySQL',
   mariadb: 'MariaDB',
   sqlserver: 'SQL Server',
+  oracle: 'Oracle',
   postgresql: 'PostgreSQL',
   redis: 'Redis',
   mongodb: 'MongoDB',
 };
 
 export const isSQLProtocol = (protocol?: string) =>
-  ['mysql', 'mariadb', 'sqlserver', 'postgresql'].includes(String(protocol || '').toLowerCase());
+  ['mysql', 'mariadb', 'sqlserver', 'oracle', 'postgresql'].includes(String(protocol || '').toLowerCase());
 
 type Translate = (zh: string, en: string) => string;
 

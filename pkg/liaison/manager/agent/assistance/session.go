@@ -63,7 +63,7 @@ func NewSession(binding Binding, generator Generator, guard Guard) (*Session, er
 		return nil, ErrInvalid
 	}
 	switch binding.Protocol {
-	case "ssh", "mysql", "mariadb", "sqlserver", "postgresql", "redis", "mongodb":
+	case "ssh", "mysql", "mariadb", "sqlserver", "oracle", "postgresql", "redis", "mongodb":
 	default:
 		return nil, ErrInvalid
 	}

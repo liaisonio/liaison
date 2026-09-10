@@ -11,7 +11,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 const pageSize = 10;
 const scanPollInterval = 500;
 const scanPollLimit = 120;
-const portTypes: Record<number, string> = { 22: 'ssh', 80: 'http', 443: 'http', 3389: 'rdp', 5900: 'vnc', 3306: 'mysql', 5432: 'postgresql', 1433: 'sqlserver', 6379: 'redis', 27017: 'mongodb' };
+const portTypes: Record<number, string> = { 22: 'ssh', 80: 'http', 443: 'http', 3389: 'rdp', 5900: 'vnc', 3306: 'mysql', 5432: 'postgresql', 1433: 'sqlserver', 1521: 'oracle', 6379: 'redis', 27017: 'mongodb' };
 
 const defaultConnectorName = () => {
   const bytes = new Uint8Array(4);

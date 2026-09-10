@@ -19,6 +19,7 @@ const (
 	ApplicationTypeMySQL      ApplicationType = "mysql"
 	ApplicationTypeMariaDB    ApplicationType = "mariadb"
 	ApplicationTypeSQLServer  ApplicationType = "sqlserver"
+	ApplicationTypeOracle     ApplicationType = "oracle"
 	ApplicationTypePostgreSQL ApplicationType = "postgresql"
 	ApplicationTypeRedis      ApplicationType = "redis"
 	ApplicationTypeMongoDB    ApplicationType = "mongodb"

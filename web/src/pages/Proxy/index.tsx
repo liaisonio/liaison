@@ -181,7 +181,7 @@ const ProxyPage: React.FC = () => {
     const internalPath = (path: string) => `${path}?from=${encodeURIComponent(returnTo)}`;
     if (type === 'webssh') history.push(internalPath(`/webssh/${row.id}`));
     else if (type === 'webrdp' || type === 'webvnc') history.push(internalPath(`/webdesktop/${row.id}`));
-    else if (['webmysql', 'webmariadb', 'websqlserver', 'webpostgresql', 'webredis', 'webmongodb'].includes(type || '')) history.push(internalPath(`/webdata/${row.id}`));
+    else if (['webmysql', 'webmariadb', 'websqlserver', 'weboracle', 'webpostgresql', 'webredis', 'webmongodb'].includes(type || '')) history.push(internalPath(`/webdata/${row.id}`));
     else if (row.access_url) window.open(row.access_url, '_blank', 'noopener,noreferrer');
   };
 
