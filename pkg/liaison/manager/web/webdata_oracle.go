@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"database/sql"
 	"errors"
@@ -17,6 +18,38 @@ import (
 
 var oracleServiceName = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 var oraclePLSQLBlock = regexp.MustCompile(`(?is)^\s*(begin\b|declare\b|create\s+(or\s+replace\s+)?(procedure|function|package|trigger|type)\b)`)
+var oracleExplainPrefix = regexp.MustCompile(`(?is)^explain\s+(?:plan\s+for\s+)?`)
+
+func (s *webDataSession) executeOracle(ctx context.Context, statement string) (*webDataExecuteResponse, error) {
+	if !oracleExplainPrefix.MatchString(statement) {
+		return s.executeSQL(ctx, statement)
+	}
+	if s.sqlDB == nil {
+		return nil, errors.New("SQL session is not connected")
+	}
+	// A transaction pins the physical connection and rolls back PLAN_TABLE rows.
+	// EXPLAIN PLAN compiles the statement; it does not execute the target query.
+	tx, err := s.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() // Read-only explain transaction; never commit its plan rows.
+	var nonce [12]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return nil, err
+	}
+	planID := fmt.Sprintf("LIA_%x", nonce)
+	query := oracleExplainPrefix.ReplaceAllString(statement, "")
+	if _, err := tx.ExecContext(ctx, "EXPLAIN PLAN SET STATEMENT_ID = '"+planID+"' FOR "+query); err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, "SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY('PLAN_TABLE', :1, 'TYPICAL'))", planID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return readSQLRows(rows)
+}
 
 func oracleDSN(s *webDataSession, password string) (string, error) {
 	if !oracleServiceName.MatchString(s.database) {

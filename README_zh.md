@@ -21,7 +21,7 @@
 - 💬 **用对话查询资源** — 通过首页 Agent 查找和了解连接器、设备与应用，资源可见范围始终限定为当前登录用户。
 - 🔌 **主动出站连接器**：私有网络无需开放入站端口。
 - 🔐 **应用访问**：支持 TCP、HTTP、HTTPS、WebSocket 与 SSH，并可独立配置访问策略。
-- 🖥️ **浏览器工作台**：无需本地客户端即可使用 Web SSH、RDP、VNC、MySQL、MariaDB、PostgreSQL、Redis 和 MongoDB。
+- 🖥️ **浏览器工作台**：无需本地客户端即可使用 Web SSH、RDP、VNC、MySQL、MariaDB、PostgreSQL、SQL Server、Oracle、Redis 和 MongoDB。
 - 🔎 **应用发现**：扫描连接器所在设备，并在控制台中登记发现的服务。
 - 👥 **身份与权限**：管理组织、用户与资源，权限由 Casbin 统一执行。
 - 🛡️ **防火墙策略**：按来源 IP 与 CIDR 限制 TCP 和 HTTP 访问。
@@ -33,9 +33,9 @@
 下载自带所有镜像的 Docker 离线包，解压后运行安装脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
-tar -xzf liaison-1.10.0-linux-amd64.tar.gz
-cd liaison-1.10.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.11.0/liaison-1.11.0-linux-amd64.tar.gz
+tar -xzf liaison-1.11.0-linux-amd64.tar.gz
+cd liaison-1.11.0-linux-amd64
 ./install.sh
 ```
 
@@ -51,6 +51,9 @@ Liaison 支持以下原生协议与浏览器工作台。
   <img src="docs/assets/integrations/vnc.png" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/mysql.svg" height="52" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/postgresql.svg" height="52" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/mariadb.svg" width="64" height="52" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/sqlserver.svg" width="52" height="52" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/oracle.svg" width="64" height="52" alt="Oracle" title="Oracle" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/redis.svg" height="52" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/mongodb.svg" height="52" alt="MongoDB" title="MongoDB" />
 </p>

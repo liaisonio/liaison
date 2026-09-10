@@ -350,7 +350,9 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
           ))}
           {busy && !streamText ? <div className="agent-workspace-state"><span className="ui-spinner" />{tr('Agent 正在处理…', 'Agent is working…')}</div> : null}
           {error || detail?.turns.at(-1)?.status === 5 ? <div className="agent-workspace-error">
-            {error || tr('本轮处理失败，可以重新提问。', 'This turn failed. You can try again.')}
+            {error.startsWith('agent connection unavailable;')
+              ? tr('连接已断开或不可用，请重新连接并开启新的 Agent 会话。', 'Connection unavailable. Reconnect and start a new Agent session.')
+              : error || tr('本轮处理失败，可以重新提问。', 'This turn failed. You can try again.')}
             <SessionReference id={detail?.turns.at(-1)?.id} label={tr('轮次', 'Turn')} />
           </div> : null}
         </div>

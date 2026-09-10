@@ -19,13 +19,36 @@ import (
 )
 
 var (
-	ErrInvalid     = errors.New("invalid agent request")
-	ErrNotFound    = errors.New("agent resource not found")
-	ErrUnavailable = errors.New("agent runtime unavailable")
+	ErrInvalid               = errors.New("invalid agent request")
+	ErrNotFound              = errors.New("agent resource not found")
+	ErrUnavailable           = errors.New("agent runtime unavailable")
+	ErrConnectionUnavailable = errors.New("agent connection unavailable")
 )
 
 const accessResourceType = "access"
 const policyRevision = "agent-medium-risk-v1"
+
+// Revalidate before spending model tokens, including approval resumption. The
+// executor still validates again at invocation time to cover disconnect races.
+func (service *Service) checkLiveAttachments(ctx context.Context, actor *model.User, session runtime.Session) error {
+	if session.Kind == tool.SessionManagement {
+		return nil
+	}
+	attachments, err := service.store.ListAttachments(ctx, session.ID)
+	if err != nil {
+		return fmt.Errorf("list agent attachments: %w", err)
+	}
+	for _, attachment := range attachments {
+		live, err := service.binder.Bind(ctx, tool.Principal{UserID: actor.ID, OrganizationID: session.OrganizationID}, attachment.ID)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrConnectionUnavailable, err)
+		}
+		if attachment.State != runtime.AttachmentConnected || live.Generation != attachment.Generation || live.AccessID != attachment.AccessID || live.ApplicationID != attachment.ApplicationID || live.Protocol != attachment.Protocol {
+			return ErrConnectionUnavailable
+		}
+	}
+	return nil
+}
 
 type Store interface {
 	CreateSession(ctx context.Context, session runtime.Session) error
@@ -182,6 +205,9 @@ func (service *Service) RunTurn(ctx context.Context, request RunTurnRequest) (ru
 		return runtime.RunResult{}, err
 	}
 	selection := request.ModelSelection
+	if err := service.checkLiveAttachments(ctx, request.Actor, session); err != nil {
+		return runtime.RunResult{}, err
+	}
 	refs, err := service.resolveReferences(ctx, request.Actor, session, request.References)
 	if err != nil {
 		return runtime.RunResult{}, err
@@ -221,6 +247,9 @@ func (service *Service) ResolveApproval(ctx context.Context, request ResolveAppr
 	}
 	session, err := service.ownedSession(ctx, request.Actor, request.SessionID, "use")
 	if err != nil {
+		return runtime.RunResult{}, err
+	}
+	if err := service.checkLiveAttachments(ctx, request.Actor, session); err != nil {
 		return runtime.RunResult{}, err
 	}
 	return service.approvals.ResolveApproval(ctx, runtime.RunRequest{

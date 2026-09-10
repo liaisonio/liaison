@@ -1076,7 +1076,7 @@ const WebDataPage: React.FC = () => {
       message.warning(tr('请输入命令', 'Enter a command'));
       return;
     }
-    await executeStatement(buildExplainStatement(trimmed), {
+    await executeStatement(buildExplainStatement(trimmed, target?.protocol), {
       refreshMetadata: false,
     });
   };

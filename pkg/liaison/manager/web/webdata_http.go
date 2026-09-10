@@ -1256,7 +1256,7 @@ func (web *web) ensureWebDataSessionActive(ctx context.Context, session *webData
 func (s *webDataSession) execute(ctx context.Context, statement string) (*webDataExecuteResponse, error) {
 	switch s.protocol {
 	case "oracle":
-		return s.executeSQL(ctx, oracleStatement(statement))
+		return s.executeOracle(ctx, oracleStatement(statement))
 	case "sqlserver":
 		return s.executeSQL(ctx, statement)
 	case "mysql", "mariadb", "postgresql":

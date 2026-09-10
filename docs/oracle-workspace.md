@@ -10,6 +10,8 @@ Implementation branch: `feature/oracle-webdata`.
 - TCP or explicitly selected TCPS, with TLS 1.2 minimum and certificate verification.
 - Schema/table/view navigation, columns, indexes and primary-key metadata.
 - Quoted identifiers, FETCH FIRST previews and filters, SQL execution and row editing.
+- Explain plans returned through DBMS_XPLAN on a pinned transaction; plan rows
+  are rolled back and the analyzed statement is never executed.
 - Existing Agent schema/query tools, approval policy and user/session isolation.
 
 Requires Oracle 12c or newer for pagination and identity-column metadata.
@@ -34,5 +36,17 @@ column handling has regression coverage for that representation.
 
 The SQL Server demo was stopped with user approval to provide memory; its data
 and saved connection are retained. Oracle has a 2 GB container limit and its port
-is bound only to the internal host address. Browser/Agent E2E remains pending;
-API acceptance does not establish complete UI, model or TCPS compatibility.
+is bound only to the internal host address.
+
+Follow-up acceptance on 2026-09-10 passed two consecutive live Oracle API/Agent
+runs (nine checks each), eight browser Agent interaction/layout checks, four
+deterministic assistance checks, native Unicode query results and the Explain
+button. A separate test verified that explaining DELETE does not mutate the
+temporary test table and plan records are rolled back between requests.
+Disconnected Agent requests now fail before model execution with an actionable
+409 reconnect message; approvals also revalidate the live connection.
+
+One earlier model run did not request the expected approval. It did not recur
+in the two latest full runs; its cause remains unconfirmed. Other database access
+entries were disabled, so their live suites were skipped rather than enabled.
+TCPS, temporal/LOB editing and complete cross-protocol acceptance remain pending.
