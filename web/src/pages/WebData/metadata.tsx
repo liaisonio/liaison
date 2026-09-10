@@ -11,6 +11,7 @@ import {
   Waves,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { isSQLProtocol } from './protocol';
 import type { MetadataSummary, MetadataTreeNode } from './types';
 
 export const filterMetadataNodes = (
@@ -156,14 +157,14 @@ export const buildMetadataChildParams = (
   node: API.WebDataMetadataNode,
 ): API.WebDataMetadataParams | undefined => {
   if (node.type !== 'table') return undefined;
-  if (protocol === 'mysql') {
+  if (protocol === 'mysql' || protocol === 'mariadb') {
     return {
       type: 'table',
       database: node.meta?.database,
       name: node.meta?.name || node.title,
     };
   }
-  if (protocol === 'postgresql') {
+  if (protocol === 'postgresql' || protocol === 'sqlserver' || protocol === 'oracle') {
     return {
       type: 'table',
       schema: node.meta?.schema,
@@ -215,7 +216,7 @@ export const buildObjectParams = (
   node: API.WebDataMetadataNode,
 ): API.WebDataObjectParams | undefined => {
   if (
-    (protocol === 'mysql' || protocol === 'postgresql') &&
+    isSQLProtocol(protocol) &&
     node.type === 'column'
   ) {
     return {
@@ -225,7 +226,7 @@ export const buildObjectParams = (
       name: node.meta?.name,
     };
   }
-  if (protocol === 'mysql' || protocol === 'postgresql') {
+  if (isSQLProtocol(protocol)) {
     if (node.type !== 'table') return undefined;
     return {
       type: 'table',

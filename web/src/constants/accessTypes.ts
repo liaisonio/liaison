@@ -5,6 +5,9 @@ export type WebAccessType =
   | 'webrdp'
   | 'webvnc'
   | 'webmysql'
+  | 'webmariadb'
+  | 'websqlserver'
+  | 'weboracle'
   | 'webpostgresql'
   | 'webredis'
   | 'webmongodb';
@@ -26,6 +29,9 @@ const NATIVE_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
 // types until a protocol-aware server implementation exists.
 const UNSUPPORTED_NATIVE_DATA_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'mysql', label: 'MySQL' },
+  { value: 'mariadb', label: 'MariaDB' },
+  { value: 'sqlserver', label: 'SQL Server' },
+  { value: 'oracle', label: 'Oracle' },
   { value: 'postgresql', label: 'PostgreSQL' },
   { value: 'redis', label: 'Redis' },
   { value: 'mongodb', label: 'MongoDB' },
@@ -36,6 +42,9 @@ const WEB_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'webrdp', label: 'Web RDP' },
   { value: 'webvnc', label: 'Web VNC' },
   { value: 'webmysql', label: 'Web MySQL' },
+  { value: 'webmariadb', label: 'Web MariaDB' },
+  { value: 'websqlserver', label: 'Web SQL Server' },
+  { value: 'weboracle', label: 'Web Oracle' },
   { value: 'webpostgresql', label: 'Web PostgreSQL' },
   { value: 'webredis', label: 'Web Redis' },
   { value: 'webmongodb', label: 'Web MongoDB' },
@@ -58,6 +67,9 @@ const WEB_TYPE_BY_APPLICATION: Partial<Record<ApplicationType, WebAccessType>> =
   rdp: 'webrdp',
   vnc: 'webvnc',
   mysql: 'webmysql',
+  mariadb: 'webmariadb',
+  sqlserver: 'websqlserver',
+  oracle: 'weboracle',
   postgresql: 'webpostgresql',
   redis: 'webredis',
   mongodb: 'webmongodb',

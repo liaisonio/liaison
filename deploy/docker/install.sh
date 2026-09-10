@@ -89,7 +89,7 @@ else
     fi
 
     DEFAULT_HOST="${DETECTED_IP:-localhost}"
-    printf "\n${BOLD}Enter public IP or domain${NC} [${CYAN}%s${NC}] (auto-accept in 30s): " "$DEFAULT_HOST"
+    printf "\n${BOLD}Enter server IP or domain reachable by connectors (LAN IP is supported)${NC} [${CYAN}%s${NC}] (auto-accept in 30s): " "$DEFAULT_HOST"
     if [ -r /dev/tty ] && read -r -t 30 INPUT_HOST </dev/tty; then
         PUBLIC_HOST="${INPUT_HOST:-$DEFAULT_HOST}"
     else

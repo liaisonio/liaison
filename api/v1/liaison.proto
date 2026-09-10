@@ -24,6 +24,7 @@ message Edges {
 message AccessKey {
     string access_key = 1 [json_name = "access_key"]; // 连接器Access Key
     string secret_key = 2 [json_name = "secret_key"]; // 连接器Secret Key
+    string windows_command = 4 [json_name = "windows_command"]; // Windows PowerShell 安装命令
     string command = 3 [json_name = "command"]; // 连接器安装命令: `curl -LsSf https://liaison.cc/install.sh | bash`
 }
 

@@ -739,7 +739,7 @@ func (cp *controlPlane) loadWebDataCredentials(proxyID, userID uint, protocol st
 
 func isWebDataProtocol(protocol string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "mysql", "postgresql", "redis", "mongodb":
+	case "mysql", "mariadb", "sqlserver", "oracle", "postgresql", "redis", "mongodb":
 		return true
 	default:
 		return false

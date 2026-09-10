@@ -1,7 +1,11 @@
 import { formatCellValue } from './metadata';
 
-export const buildExplainStatement = (statement: string) => {
+export const buildExplainStatement = (statement: string, protocol?: string) => {
   const trimmed = stripTrailingSemicolons(statement.trim());
+  if (protocol === 'oracle') {
+    const query = trimmed.replace(/^explain\s+(?:plan\s+for\s+)?/i, '');
+    return `EXPLAIN PLAN FOR ${query};`;
+  }
   if (/^explain\b/i.test(trimmed)) return `${trimmed};`;
   return `EXPLAIN ${trimmed};`;
 };

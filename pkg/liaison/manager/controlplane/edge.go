@@ -22,6 +22,12 @@ func (cp *controlPlane) CreateEdge(ctx context.Context, req *v1.CreateEdgeReques
 	if err != nil {
 		return nil, err
 	}
+	// 在创建数据前校验安装地址，避免配置错误留下无法安装的连接器。
+	accessKey, secretKey := generateAccessKeyPair()
+	installCommand, windowsCommand, err := connectorInstallCommands(cp.conf.Manager, accessKey, secretKey)
+	if err != nil {
+		return nil, err
+	}
 	// 在事务中创建edge和ak/sk
 	tx := cp.repo.Begin()
 
@@ -42,9 +48,6 @@ func (cp *controlPlane) CreateEdge(ctx context.Context, req *v1.CreateEdgeReques
 		return nil, err
 	}
 
-	// 生成 AK/SK
-	accessKey, secretKey := generateAccessKeyPair()
-
 	err = tx.CreateAccessKey(&model.AccessKey{
 		EdgeID:    edge.ID,
 		AccessKey: accessKey,
@@ -61,54 +64,15 @@ func (cp *controlPlane) CreateEdge(ctx context.Context, req *v1.CreateEdgeReques
 		return nil, err
 	}
 
-	// 生成安装命令
-	serverURL := cp.conf.Manager.ServerURL
-	httpAddr := "" // HTTP下载地址（host:port）
-	edgeAddr := "" // Edge连接地址（host:port）
-
-	if serverURL == "" {
-		// 如果没有配置，从 Listen 地址生成
-		listen := cp.conf.Manager.Listen
-		if listen.TLS.Enable {
-			serverURL = fmt.Sprintf("https://%s", listen.Addr)
-		} else {
-			serverURL = fmt.Sprintf("http://%s", listen.Addr)
-		}
-		httpAddr = listen.Addr
-	} else {
-		// 从 serverURL 中提取地址（移除 http:// 或 https:// 前缀）
-		if strings.HasPrefix(serverURL, "https://") {
-			httpAddr = strings.TrimPrefix(serverURL, "https://")
-		} else if strings.HasPrefix(serverURL, "http://") {
-			httpAddr = strings.TrimPrefix(serverURL, "http://")
-		} else {
-			httpAddr = serverURL
-		}
-	}
-
-	// Edge连接地址（使用FrontierEdgePort端口）
-	edgePort := cp.conf.Manager.FrontierEdgePort
-	if edgePort == 0 {
-		edgePort = 30012
-	}
-	// 从httpAddr中提取host（如果包含端口，去掉端口）
-	httpHost := httpAddr
-	if strings.Contains(httpAddr, ":") {
-		httpHost = strings.Split(httpAddr, ":")[0]
-	}
-	edgeAddr = fmt.Sprintf("%s:%d", httpHost, edgePort)
-
-	installCommand := fmt.Sprintf("curl -k -sSL %s/install.sh | bash -s -- --access-key=%s --secret-key=%s --server-http-addr=%s --server-edge-addr=%s",
-		serverURL, accessKey, secretKey, httpAddr, edgeAddr)
-
 	// 返回响应
 	return &v1.CreateEdgeResponse{
 		Code:    200,
 		Message: "success",
 		Data: &v1.AccessKey{
-			AccessKey: accessKey,
-			SecretKey: secretKey,
-			Command:   installCommand,
+			AccessKey:      accessKey,
+			SecretKey:      secretKey,
+			Command:        installCommand,
+			WindowsCommand: windowsCommand,
 		},
 	}, nil
 }

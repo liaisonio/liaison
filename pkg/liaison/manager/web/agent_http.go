@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jumboframes/armorigo/log"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/accesssession"
 	"net/http"
 	"strconv"
 	"strings"
@@ -337,6 +338,8 @@ func writeAgentError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
 	message := "agent operation failed"
 	switch {
+	case errors.Is(err, agentapplication.ErrConnectionUnavailable), errors.Is(err, accesssession.ErrHandleNotFound), errors.Is(err, accesssession.ErrHandleMismatch):
+		status, message = http.StatusConflict, "agent connection unavailable; reconnect and start a new agent session"
 	case errors.Is(err, agentapplication.ErrReferenceUnavailable):
 		status, message = http.StatusNotFound, "referenced resource unavailable; remove it and select again"
 	case errors.Is(err, agentapplication.ErrInvalid):

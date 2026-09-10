@@ -7,7 +7,7 @@ async(page)=>{
   const api=async(path,method='GET')=>{const r=await context.request.fetch(baseURL+path,{method,headers:{Authorization:'Bearer '+token}});if(!r.ok())throw Error('API '+r.status());return(await r.json()).data;};
   const apps=(await api('/api/v1/applications?page=1&page_size=100')).applications;
   const results=[];
-  for(const protocol of ['mysql','postgresql','mongodb','redis']){
+  for(const protocol of ['mysql','mariadb','postgresql','mongodb','redis']){
     const app=apps.find(a=>a.name==='Agent Demo '+protocol);
     const target=await api('/api/v1/webdata/proxies/'+app.proxy.id);
     const credential=target.credentials.find(c=>c.name==='Agent demo '+protocol);

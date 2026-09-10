@@ -11,7 +11,7 @@ async (page) => {
   };
   const report=[];
   const apps=(await api('/api/v1/applications?page=1&page_size=100')).applications;
-  for(const protocol of ['mysql','postgresql','mongodb','redis']) {
+  for(const protocol of ['mysql','mariadb','postgresql','mongodb','redis']) {
     const app=apps.find(a=>a.application_type===protocol&&a.name==='Agent Demo '+protocol);
     const id=app.proxy.id;
     const target=await api('/api/v1/webdata/proxies/'+id);

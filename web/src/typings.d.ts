@@ -177,6 +177,7 @@ declare namespace API {
   }
 
   interface EdgeCreateResult {
+    windows_command?: string;
     access_key: string;
     secret_key: string;
     command?: string; // 安装命令由后端返回
@@ -350,7 +351,7 @@ declare namespace API {
     id?: number;
     saved: boolean;
     name?: string;
-    protocol: 'mysql' | 'postgresql' | 'redis' | 'mongodb';
+    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'postgresql' | 'redis' | 'mongodb';
     username?: string;
     database?: string;
     auth_database?: string;
@@ -368,7 +369,7 @@ declare namespace API {
     proxy_name: string;
     application_id: number;
     application_name: string;
-    protocol: 'mysql' | 'postgresql' | 'redis' | 'mongodb';
+    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'postgresql' | 'redis' | 'mongodb';
     application_type: string;
     target_host: string;
     target_port: number;

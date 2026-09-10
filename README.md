@@ -21,7 +21,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 - 💬 **Ask about your resources** — Find and inspect your connectors, devices, and applications from the home Agent. Resource visibility stays scoped to the signed-in user.
 - 🔌 **Outbound-only connectors** — connect private networks without opening inbound ports on them.
 - 🔐 **Application access** — publish TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
-- 🖥️ **Browser workspaces** — use Web SSH, RDP, VNC, MySQL, PostgreSQL, Redis, and MongoDB without local clients.
+- 🖥️ **Browser workspaces** — use Web SSH, RDP, VNC, MySQL, MariaDB, PostgreSQL, SQL Server, Oracle, Redis, and MongoDB without local clients.
 - 🔎 **Application discovery** — scan connector devices and register discovered services from the console.
 - 👥 **Identity and access management** — organize users and resources, with Casbin-backed authorization.
 - 🛡️ **Firewall policies** — restrict TCP and HTTP access by source IP and CIDR.
@@ -33,9 +33,9 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.10.0/liaison-1.10.0-linux-amd64.tar.gz
-tar -xzf liaison-1.10.0-linux-amd64.tar.gz
-cd liaison-1.10.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.11.0/liaison-1.11.0-linux-amd64.tar.gz
+tar -xzf liaison-1.11.0-linux-amd64.tar.gz
+cd liaison-1.11.0-linux-amd64
 ./install.sh
 ```
 
@@ -51,6 +51,9 @@ Native protocols and browser workspaces supported by Liaison.
   <img src="docs/assets/integrations/vnc.png" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/mysql.svg" height="52" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/postgresql.svg" height="52" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/mariadb.svg" width="64" height="52" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/sqlserver.svg" width="52" height="52" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/oracle.svg" width="64" height="52" alt="Oracle" title="Oracle" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/redis.svg" height="52" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/assets/integrations/mongodb.svg" height="52" alt="MongoDB" title="MongoDB" />
 </p>

@@ -17,7 +17,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Show-Help {
-    Write-Host "Usage: install.ps1 -AccessKey xxx -SecretKey yyy -ServerHttpAddr host -ServerEdgeAddr host:port"
+    Write-Host "Usage: install.ps1 -AccessKey xxx -SecretKey yyy -ServerHttpAddr URL-or-host:port -ServerEdgeAddr host:port"
     exit 0
 }
 
@@ -43,7 +43,9 @@ New-Item -ItemType Directory -Path $TempDir | Out-Null
 
 # ---------------- Download ----------------
 $PackageName = "liaison-edge-windows-amd64.tar.gz"
-$PackageUrl  = "https://$ServerHttpAddr/packages/edge/$PackageName"
+$DownloadBase = $ServerHttpAddr.TrimEnd('/')
+if ($DownloadBase -notmatch '^https?://') { $DownloadBase = "https://$DownloadBase" }
+$PackageUrl  = "$DownloadBase/packages/edge/$PackageName"
 $PackagePath = Join-Path $TempDir $PackageName
 
 Write-Host "Downloading package..." -ForegroundColor Yellow
