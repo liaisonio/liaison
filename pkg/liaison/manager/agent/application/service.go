@@ -39,7 +39,7 @@ func (service *Service) checkLiveAttachments(ctx context.Context, actor *model.U
 		return fmt.Errorf("list agent attachments: %w", err)
 	}
 	for _, attachment := range attachments {
-		live, err := service.binder.Bind(ctx, tool.Principal{UserID: actor.ID, OrganizationID: session.OrganizationID}, attachment.ID)
+		live, err := service.binder.Bind(ctx, tool.Principal{UserID: actor.ID, OrganizationID: session.OrganizationID}, attachment.HandleID())
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrConnectionUnavailable, err)
 		}
@@ -274,6 +274,9 @@ func (service *Service) CreateSession(ctx context.Context, request CreateSession
 	if err != nil {
 		return SessionDetail{}, fmt.Errorf("bind live access session: %w", err)
 	}
+	if request.Kind == tool.SessionShell && snapshot.Protocol != tool.ProtocolWebSSH {
+		return SessionDetail{}, fmt.Errorf("%w: shell sessions require WebSSH", ErrInvalid)
+	}
 	organizationID, err := service.resourceOrganization(snapshot.AccessID)
 	if err != nil {
 		return SessionDetail{}, err
@@ -286,7 +289,7 @@ func (service *Service) CreateSession(ctx context.Context, request CreateSession
 		return SessionDetail{}, fmt.Errorf("create agent session ID: %w", err)
 	}
 	session := runtime.Session{
-		Kind:           tool.SessionAccess,
+		Kind:           request.Kind.Effective(),
 		ID:             sessionID,
 		OrganizationID: organizationID,
 		CreatedBy:      request.Actor.ID,
@@ -302,6 +305,10 @@ func (service *Service) CreateSession(ctx context.Context, request CreateSession
 		Capabilities:   append([]tool.Capability(nil), snapshot.Capabilities...),
 		Generation:     snapshot.Generation,
 		State:          runtime.AttachmentConnected,
+	}
+	if request.Kind == tool.SessionShell {
+		attachment.ID = sessionID
+		attachment.AccessHandleID = snapshot.AccessHandleID
 	}
 	session, attachment, err = service.store.CreateSessionWithAttachment(ctx, session, attachment)
 	if err != nil {

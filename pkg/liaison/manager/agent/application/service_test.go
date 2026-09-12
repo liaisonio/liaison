@@ -38,6 +38,25 @@ func TestCreateSession_DerivesBindingAndOrganizationFromServerState(t *testing.T
 	assert.Equal(t, []permissionCall{{organizationID: 7, resource: "agent_sessions", action: "create"}}, authorizer.organizationCalls)
 }
 
+func TestShellSession_BindsWebSSHAndKeepsKind(t *testing.T) {
+	for _, protocol := range []tool.Protocol{tool.ProtocolWebSSH, tool.ProtocolMySQL} {
+		t.Run(string(protocol), func(t *testing.T) {
+			store := runtime.NewMemoryStore()
+			service := newTestService(t, store, &fakeAuthorizer{}, []*model.IAMResourceRelation{{ResourceType: accessResourceType, ResourceID: 41, Relation: model.IAMRelationBelongsTo, SubjectType: model.IAMSubjectOrganization, SubjectID: 7}})
+			service.binder = fakeBinder{snapshot: tool.AttachmentSnapshot{AccessHandleID: "live-1", AccessID: 41, ApplicationID: 51, Protocol: protocol, Generation: 3, Capabilities: []tool.Capability{"terminal.read", "terminal.execute"}}}
+			detail, err := service.CreateSession(context.Background(), CreateSessionRequest{Actor: &model.User{Model: gorm.Model{ID: 9}}, HandleID: "live-1", Kind: tool.SessionShell})
+			if protocol != tool.ProtocolWebSSH {
+				require.ErrorIs(t, err, ErrInvalid)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tool.SessionShell, detail.Session.Kind)
+			_, err = service.GetSession(context.Background(), &model.User{Model: gorm.Model{ID: 10}}, detail.Session.ID)
+			require.ErrorIs(t, err, ErrNotFound)
+		})
+	}
+}
+
 func TestCreateSession_WhenOrganizationRelationMissing_DoesNotPersistPartialSession(t *testing.T) {
 	store := runtime.NewMemoryStore()
 	service := newTestService(t, store, &fakeAuthorizer{}, nil)

@@ -25,6 +25,7 @@ type AgentSession struct {
 func (AgentSession) TableName() string { return "agent_sessions" }
 
 type AgentAttachment struct {
+	AccessHandleID string         `gorm:"column:access_handle_id;type:varchar(64);not null;default:''" json:"-"`
 	ID             string         `gorm:"column:id;type:varchar(64);primaryKey" json:"id"`
 	CreatedAt      time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`

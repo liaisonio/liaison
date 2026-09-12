@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -59,13 +60,20 @@ func TestSelection_RoutesActualInferenceWithoutChangingDefault(t *testing.T) {
 	var received string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Model string `json:"model"`
+			Model    string `json:"model"`
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 			return
 		}
 		received = body.Model
+		if len(body.Messages) != 2 || body.Messages[0].Role != "system" || !strings.Contains(body.Messages[0].Content, "Simplified Chinese") {
+			t.Error("global language missing from provider request")
+		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		if _, err := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"OK\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\n")); err != nil {
 			t.Error(err)

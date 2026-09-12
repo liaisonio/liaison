@@ -155,7 +155,7 @@ const AppPage: React.FC = () => {
     } },
     { key: 'created', title: tr('创建时间', 'Created'), width: 150, render: (row) => row.created_at },
     { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
-    { key: 'actions', title: tr('操作', 'Actions'), width: 180, fixed: 'right', render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" onClick={() => openAccess(row)}>{tr('创建访问', 'Create access')}</button><button className="liaison-table-link" onClick={() => { setEditRow(row); setEditName(row.name); }}>{tr('编辑', 'Edit')}</button><button className="liaison-table-link is-danger" onClick={() => setDeleteRow(row)}>{tr('删除', 'Delete')}</button></span> },
+    { key: 'actions', title: tr('操作', 'Actions'), width: 240, fixed: 'right', render: (row) => <span className="liaison-table-actions">{row.application_type === 'llm' && <button className="liaison-table-link" onClick={() => history.push(`/ai/applications/${row.id}`)}>{tr('模型接口', 'Model API')}</button>}<button className="liaison-table-link" onClick={() => openAccess(row)}>{tr('创建访问', 'Create access')}</button><button className="liaison-table-link" onClick={() => { setEditRow(row); setEditName(row.name); }}>{tr('编辑', 'Edit')}</button><button className="liaison-table-link is-danger" onClick={() => setDeleteRow(row)}>{tr('删除', 'Delete')}</button></span> },
   ];
 
   return <div className="liaison-page-stack">

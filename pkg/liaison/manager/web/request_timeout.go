@@ -11,6 +11,8 @@ func requestTimeoutFilter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		timeout := time.Second
 		switch {
+		case strings.HasPrefix(r.URL.Path, "/api/v1/ai/"):
+			timeout = 5 * time.Minute
 		case strings.HasPrefix(r.URL.Path, "/api/v1/agent/sessions/") && strings.HasSuffix(r.URL.Path, "/events"):
 			timeout = 30 * time.Minute
 		case strings.HasPrefix(r.URL.Path, "/api/v1/agent/sessions/"):

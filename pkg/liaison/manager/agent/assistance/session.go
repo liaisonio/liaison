@@ -1,4 +1,5 @@
-// Package assistance 管理独立于聊天历史和工具循环的短生命周期输入辅助。
+// Package assistance manages cancellable editor lanes. Shell completion uses
+// the owning Agent session context but does not start a tool loop or save drafts.
 package assistance
 
 import (
@@ -8,6 +9,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/liaisonio/liaison/pkg/liaison/manager/agent/runtime"
 )
 
 var (
@@ -23,13 +26,17 @@ type Binding struct {
 	Protocol string
 }
 
-// Input 仅包含本次编辑上下文，不接受聊天历史。Cursor 为 UTF-8 字节偏移。
+// Input contains editing context plus server-resolved Agent context. Clients
+// cannot supply Agent history. Cursor is a UTF-8 byte offset.
 type Input struct {
-	Revision     uint64
-	Text         string
-	Cursor       int
-	RecentOutput string
-	Schema       string
+	AgentSessionID string
+	AgentContext   []runtime.ModelMessage // Server-resolved Shell Agent context; never accepted from HTTP.
+	Revision       uint64
+	Text           string
+	Cursor         int
+	RecentOutput   string
+	Schema         string
+	ShellContext   string // Server-resolved, explicitly shared WebSSH context only.
 }
 
 type Suggestion struct {
@@ -63,7 +70,7 @@ func NewSession(binding Binding, generator Generator, guard Guard) (*Session, er
 		return nil, ErrInvalid
 	}
 	switch binding.Protocol {
-	case "ssh", "mysql", "mariadb", "sqlserver", "oracle", "postgresql", "redis", "mongodb":
+	case "ssh", "mysql", "mariadb", "sqlserver", "oracle", "clickhouse", "elasticsearch", "opensearch", "postgresql", "redis", "mongodb":
 	default:
 		return nil, ErrInvalid
 	}
@@ -71,7 +78,7 @@ func NewSession(binding Binding, generator Generator, guard Guard) (*Session, er
 }
 
 func (s *Session) Suggest(ctx context.Context, input Input) (Suggestion, error) {
-	if input.Revision == 0 || len(input.Text) > 8192 || len(input.RecentOutput) > 16384 || len(input.Schema) > 32768 ||
+	if input.Revision == 0 || len(input.Text) > 8192 || len(input.RecentOutput) > 16384 || len(input.Schema) > 32768 || len(input.ShellContext) > 16384 || !utf8.ValidString(input.ShellContext) ||
 		input.Cursor < 0 || input.Cursor > len(input.Text) || !utf8.ValidString(input.Text) ||
 		!utf8.ValidString(input.Text[:input.Cursor]) || !utf8.ValidString(input.RecentOutput) || !utf8.ValidString(input.Schema) {
 		return Suggestion{}, ErrInvalid

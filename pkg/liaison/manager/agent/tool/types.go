@@ -28,19 +28,22 @@ var (
 type Protocol string
 
 const (
-	ProtocolAny        Protocol = "any"
-	ProtocolTCP        Protocol = "tcp"
-	ProtocolSSH        Protocol = "ssh"
-	ProtocolWebSSH     Protocol = "web_ssh"
-	ProtocolMySQL      Protocol = "mysql"
-	ProtocolMariaDB    Protocol = "mariadb"
-	ProtocolSQLServer  Protocol = "sqlserver"
-	ProtocolOracle     Protocol = "oracle"
-	ProtocolPostgreSQL Protocol = "postgresql"
-	ProtocolRedis      Protocol = "redis"
-	ProtocolMongoDB    Protocol = "mongodb"
-	ProtocolRDP        Protocol = "rdp"
-	ProtocolVNC        Protocol = "vnc"
+	ProtocolAny           Protocol = "any"
+	ProtocolTCP           Protocol = "tcp"
+	ProtocolSSH           Protocol = "ssh"
+	ProtocolWebSSH        Protocol = "web_ssh"
+	ProtocolMySQL         Protocol = "mysql"
+	ProtocolMariaDB       Protocol = "mariadb"
+	ProtocolSQLServer     Protocol = "sqlserver"
+	ProtocolOracle        Protocol = "oracle"
+	ProtocolClickHouse    Protocol = "clickhouse"
+	ProtocolElasticsearch Protocol = "elasticsearch"
+	ProtocolOpenSearch    Protocol = "opensearch"
+	ProtocolPostgreSQL    Protocol = "postgresql"
+	ProtocolRedis         Protocol = "redis"
+	ProtocolMongoDB       Protocol = "mongodb"
+	ProtocolRDP           Protocol = "rdp"
+	ProtocolVNC           Protocol = "vnc"
 )
 
 type Capability string

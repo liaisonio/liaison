@@ -492,6 +492,55 @@ body.webssh-page-active .liaison-page-body {
   height: 100%;
 }
 
+.webssh-completion {
+  position: absolute;
+  z-index: 6;
+  width: 256px;
+  max-width: calc(100% - 28px);
+  padding: 5px;
+  background: #1b1c24;
+  border: 1px solid #353441;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #0006;
+  &.is-above { transform: translateY(-100%); }
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 4px;
+    text-align: left;
+    background: transparent;
+    color: #ecebf2;
+    font: 13px/20px Menlo, Monaco, Consolas, monospace;
+    cursor: pointer;
+    &.is-selected, &:hover { background: #7861b735; }
+  }
+  .typed { color: #a9a5b5; display: inline-block; max-width: 45%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: pre; }
+  button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  kbd { flex-shrink: 0; margin-left: 8px; }
+  kbd { color: #b5adc9; font: 10px/16px inherit; }
+  small { display: block; padding: 5px 8px 2px; color: #95909f; font-size: 11px; }
+  &.is-risky {
+    border-color: #b58125;
+    button, .typed, kbd, .command-risk {color:#f3c86b;}
+    button.is-selected, button:hover {background:#b5812526;}
+    .command-risk {font-weight:500; line-height:1.5;}
+  }
+}
+
+.webssh-shell .terminal-assistant {padding:10px 16px 6px;}
+.webssh-shell .terminal-assistant-help {padding:6px 0 0; height:auto; min-height:20px;}
+
+.webssh-shell .terminal-assistant-help {
+  height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .webssh-connecting-state {
   position: absolute;
   z-index: 4;
@@ -745,3 +794,6 @@ body.webssh-page-active .liaison-page-body {
   }
 
 }
+.webssh-shell .terminal-assistant-meta { flex-wrap: wrap; }
+.webssh-shell .terminal-assistant-meta select { max-width: 100%; border: 1px solid rgb(var(--line)); border-radius: 6px; background: rgb(var(--panel)); color: rgb(var(--ink)); font: inherit; font-size: 11px; padding: 5px 8px; }
+.webssh-shell .terminal-assistant-meta small { flex-basis: 100%; margin-left: 0; display: block; }

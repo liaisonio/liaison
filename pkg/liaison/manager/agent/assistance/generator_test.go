@@ -11,6 +11,37 @@ import (
 
 type providerFunc func(context.Context, runtime.ModelRequest, runtime.ModelEventSink) (runtime.ModelResponse, error)
 
+func TestModelGenerator_ShellModeSharesSessionIdentityAndMemoryWithoutTools(t *testing.T) {
+	g, err := NewModelGenerator(providerFunc(func(_ context.Context, r runtime.ModelRequest, _ runtime.ModelEventSink) (runtime.ModelResponse, error) {
+		require.Equal(t, "shell-1", r.SessionID)
+		require.Empty(t, r.TurnID)
+		require.Empty(t, r.Tools)
+		require.Equal(t, "shared shell identity", r.Messages[0].Content)
+		require.Contains(t, r.Messages[1].Content, "/srv/project")
+		require.Contains(t, r.Messages[2].Content, "Current mode: inline")
+		require.Contains(t, r.Messages[2].Content, "never numbered prose")
+		require.Contains(t, r.Messages[2].Content, "Preserve legitimate names")
+		return runtime.ModelResponse{Text: `{"insertion":" /srv/project"}`}, nil
+	}))
+	require.NoError(t, err)
+	_, err = g.Suggest(context.Background(), Binding{Protocol: "ssh"}, Input{AgentSessionID: "shell-1", Text: "cd", Cursor: 2, AgentContext: []runtime.ModelMessage{{Role: runtime.RoleSystem, Content: "shared shell identity"}, {Role: runtime.RoleUser, Content: "project located at /srv/project"}}})
+	require.NoError(t, err)
+}
+
+func TestModelGenerator_ShellContextRemainsUntrustedData(t *testing.T) {
+	g, err := NewModelGenerator(providerFunc(func(_ context.Context, r runtime.ModelRequest, _ runtime.ModelEventSink) (runtime.ModelResponse, error) {
+		require.Empty(t, r.Tools)
+		require.Contains(t, r.Messages[0].Content, "untrusted data")
+		var payload map[string]string
+		require.NoError(t, json.Unmarshal([]byte(r.Messages[1].Content), &payload))
+		require.Equal(t, `{"directory":"/tmp/demo"}`, payload["shell_context"])
+		return runtime.ModelResponse{Text: `{"insertion":"file"}`}, nil
+	}))
+	require.NoError(t, err)
+	_, err = g.Suggest(context.Background(), Binding{Protocol: "ssh"}, Input{Text: "cat ", Cursor: 4, ShellContext: `{"directory":"/tmp/demo"}`})
+	require.NoError(t, err)
+}
+
 func (f providerFunc) Generate(ctx context.Context, r runtime.ModelRequest, emit runtime.ModelEventSink) (runtime.ModelResponse, error) {
 	return f(ctx, r, emit)
 }

@@ -11,7 +11,7 @@ Connect to private servers, databases, desktops, and web apps. Work with an AI A
 
 English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour)
+[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Access protocols](#supported-access-protocols) · [Agent models](#agent-model-providers) · [Product tour](#product-tour)
 
 ![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark-v3.png)
 
@@ -33,30 +33,55 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.11.0/liaison-1.11.0-linux-amd64.tar.gz
-tar -xzf liaison-1.11.0-linux-amd64.tar.gz
-cd liaison-1.11.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.12.0/liaison-1.12.0-linux-amd64.tar.gz
+tar -xzf liaison-1.12.0-linux-amd64.tar.gz
+cd liaison-1.12.0-linux-amd64
 ./install.sh
 ```
 
 Open `https://<server-address>` after installation. The installer prints the initial sign-in credentials.
 
-## Integrations
+## Supported access protocols
 
-Native protocols and browser workspaces supported by Liaison.
+Access your existing private services through Liaison.
 
-<p align="center">
-  <img src="docs/assets/integrations/ssh.svg" height="52" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/windows.svg" height="52" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/vnc.png" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mysql.svg" height="52" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/postgresql.svg" height="52" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mariadb.svg" width="64" height="52" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/sqlserver.svg" width="52" height="52" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/oracle.svg" width="64" height="52" alt="Oracle" title="Oracle" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/redis.svg" height="52" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mongodb.svg" height="52" alt="MongoDB" title="MongoDB" />
-</p>
+<table>
+  <tr>
+    <th align="left">Terminals & desktops</th>
+    <td><img src="docs/assets/integrations/ssh.svg" width="40" height="40" alt="SSH" title="SSH" />&nbsp;&nbsp; <img src="docs/assets/integrations/windows.svg" width="40" height="40" alt="RDP" title="RDP" />&nbsp;&nbsp; <img src="docs/assets/integrations/vnc.png" width="40" height="40" alt="VNC" title="VNC" /></td>
+  </tr>
+  <tr>
+    <th align="left">SQL databases</th>
+    <td><img src="docs/assets/integrations/mysql.svg" width="40" height="40" alt="MySQL" title="MySQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/mariadb.svg" width="40" height="40" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/postgresql.svg" width="40" height="40" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/sqlserver.svg" width="40" height="40" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp; <img src="docs/assets/integrations/oracle.svg" width="40" height="40" alt="Oracle" title="Oracle" /></td>
+  </tr>
+  <tr>
+    <th align="left">Data & search</th>
+    <td><img src="docs/assets/integrations/mongodb.svg" width="40" height="40" alt="MongoDB" title="MongoDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/redis.svg" width="40" height="40" alt="Redis" title="Redis" />&nbsp;&nbsp; <img src="docs/assets/integrations/clickhouse.svg" width="40" height="40" alt="ClickHouse" title="ClickHouse" />&nbsp;&nbsp; <img src="docs/assets/integrations/elasticsearch.svg" width="40" height="40" alt="Elasticsearch" title="Elasticsearch" />&nbsp;&nbsp; <img src="docs/assets/integrations/opensearch.svg" width="40" height="40" alt="OpenSearch" title="OpenSearch" /></td>
+  </tr>
+  <tr>
+    <th align="left">LLM upstream protocols</th>
+    <td><img src="docs/assets/integrations/openai.svg" width="40" height="40" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" /></td>
+  </tr>
+  <tr>
+    <th align="left">Web & TCP</th>
+    <td>HTTP · HTTPS · WebSocket · TCP</td>
+  </tr>
+</table>
+
+LLM upstreams support **OpenAI-compatible** and **Anthropic Messages** protocols. The public endpoint uses the OpenAI-compatible protocol.
+
+## Agent model providers
+
+Configure the model behind Liaison’s built-in Agent, independently of service access.
+
+<table>
+  <tr>
+    <th align="left">Models</th>
+    <td><img src="docs/assets/integrations/openai.svg" width="40" height="40" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp; <img src="docs/assets/integrations/gemini.svg" width="40" height="40" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp; <img src="docs/assets/integrations/deepseek.svg" width="40" height="40" alt="DeepSeek" title="DeepSeek" />&nbsp;&nbsp; <img src="docs/assets/integrations/zhipu.svg" width="40" height="40" alt="Z.ai / GLM" title="Z.ai / GLM" />&nbsp;&nbsp; <img src="docs/assets/integrations/kimi.svg" width="40" height="40" alt="Moonshot / Kimi" title="Moonshot / Kimi" />&nbsp;&nbsp; <img src="docs/assets/integrations/minimax.svg" width="40" height="40" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp; <img src="docs/assets/integrations/mimo.svg" width="40" height="40" alt="Xiaomi MiMo" title="Xiaomi MiMo" /></td>
+  </tr>
+</table>
+
+Eight provider presets, plus custom OpenAI-compatible services.
 
 ## Product tour
 

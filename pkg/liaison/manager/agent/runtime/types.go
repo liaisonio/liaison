@@ -77,6 +77,7 @@ type Session struct {
 }
 
 type Attachment struct {
+	AccessHandleID string            `json:"-"`
 	ID             string            `json:"id"`
 	AgentSessionID string            `json:"agent_session_id"`
 	AccessID       uint              `json:"access_id"`
@@ -87,6 +88,15 @@ type Attachment struct {
 	State          AttachmentState   `json:"state"`
 	CreatedAt      time.Time         `json:"created_at"`
 	UpdatedAt      time.Time         `json:"updated_at"`
+}
+
+// HandleID keeps legacy attachments readable while allowing several independent
+// Agent sessions to bind the same live transport. Never expose this as a URL ID.
+func (attachment Attachment) HandleID() string {
+	if attachment.AccessHandleID != "" {
+		return attachment.AccessHandleID
+	}
+	return attachment.ID
 }
 
 func validateAttachment(attachment Attachment) error {

@@ -7,14 +7,15 @@
 .management-agent-input .agent-mention-trigger,.agent-composer .agent-mention-trigger {width:30px;height:30px;display:grid;place-items:center;flex-shrink:0;border:0;border-radius:7px;background:transparent;color:rgb(var(--muted));}
 .agent-mention-trigger:hover {color:rgb(var(--accent));background:rgb(var(--accent) / .08);}
 .agent-composer-options {display:flex;align-items:center;gap:8px;min-width:0;}
-.agent-mention-picker {position:absolute;bottom:calc(100% + 8px);left:0;right:0;z-index:30;border:1px solid rgb(var(--line));border-radius:12px;background:rgb(var(--panel));box-shadow:0 12px 36px rgb(0 0 0 / .2);overflow:hidden;}
-.management-agent-input > .agent-mention-picker {top:calc(100% + 8px);bottom:auto;}
+.agent-mention-picker {position:fixed;z-index:1100;display:flex;flex-direction:column;box-sizing:border-box;border:1px solid rgb(var(--line));border-radius:10px;background:rgb(var(--panel));box-shadow:0 8px 24px rgb(0 0 0 / .14);overflow:hidden;font-family:inherit;font-size:13px;line-height:1.4;}
 .agent-mention-picker header {display:flex;align-items:center;gap:12px;padding:12px 14px;font-size:12px;color:rgb(var(--ink));border-bottom:1px solid rgb(var(--line) / .5);}
 .agent-mention-picker header small {flex:1;color:rgb(var(--muted));font-size:10px;}
 .agent-mention-picker header button {width:22px;height:22px;display:grid;place-items:center;padding:0;background:transparent;color:rgb(var(--muted));border:0;}
-.agent-mention-picker [role=listbox] {max-height:240px;overflow:auto;padding:6px;}
+.agent-mention-picker [role=listbox] {min-height:0;max-height:240px;overflow:auto;overscroll-behavior:contain;padding:4px;}
 .agent-mention-picker [role=option] {display:flex;align-items:center;gap:10px;width:100%;height:auto;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:rgb(var(--ink));text-align:left;font-size:13px;}
-.agent-mention-picker [role=option] > span {display:flex;flex-direction:column;gap:3px;overflow:hidden;text-overflow:ellipsis;}
+.agent-mention-picker [role=option] {font-family:inherit;line-height:18px;cursor:pointer;}
+.agent-mention-picker [role=option] > svg {flex-shrink:0;}
+.agent-mention-picker [role=option] > span {display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .agent-mention-picker [role=option] small {color:rgb(var(--muted));font-size:11px;}
 .agent-mention-picker [role=option]:hover,.agent-mention-picker [aria-selected=true] {background:rgb(var(--accent) / .1);}
 .agent-mention-picker p {padding:10px 14px;margin:0;color:rgb(var(--muted));font-size:12px;}

@@ -11,19 +11,23 @@ import (
 type ApplicationType string
 
 const (
-	ApplicationTypeTCP        ApplicationType = "tcp"  // TCP 应用
-	ApplicationTypeHTTP       ApplicationType = "http" // HTTP 应用
-	ApplicationTypeSSH        ApplicationType = "ssh"  // SSH 应用
-	ApplicationTypeRDP        ApplicationType = "rdp"  // RDP 应用
-	ApplicationTypeVNC        ApplicationType = "vnc"  // VNC 应用
-	ApplicationTypeMySQL      ApplicationType = "mysql"
-	ApplicationTypeMariaDB    ApplicationType = "mariadb"
-	ApplicationTypeSQLServer  ApplicationType = "sqlserver"
-	ApplicationTypeOracle     ApplicationType = "oracle"
-	ApplicationTypePostgreSQL ApplicationType = "postgresql"
-	ApplicationTypeRedis      ApplicationType = "redis"
-	ApplicationTypeMongoDB    ApplicationType = "mongodb"
-	ApplicationTypeDatabase   ApplicationType = "database"
+	ApplicationTypeLLM ApplicationType = "llm"
+	ApplicationTypeTCP           ApplicationType = "tcp"  // TCP 应用
+	ApplicationTypeHTTP          ApplicationType = "http" // HTTP 应用
+	ApplicationTypeSSH           ApplicationType = "ssh"  // SSH 应用
+	ApplicationTypeRDP           ApplicationType = "rdp"  // RDP 应用
+	ApplicationTypeVNC           ApplicationType = "vnc"  // VNC 应用
+	ApplicationTypeMySQL         ApplicationType = "mysql"
+	ApplicationTypeMariaDB       ApplicationType = "mariadb"
+	ApplicationTypeSQLServer     ApplicationType = "sqlserver"
+	ApplicationTypeOracle        ApplicationType = "oracle"
+	ApplicationTypeClickHouse    ApplicationType = "clickhouse"
+	ApplicationTypeElasticsearch ApplicationType = "elasticsearch"
+	ApplicationTypeOpenSearch    ApplicationType = "opensearch"
+	ApplicationTypePostgreSQL    ApplicationType = "postgresql"
+	ApplicationTypeRedis         ApplicationType = "redis"
+	ApplicationTypeMongoDB       ApplicationType = "mongodb"
+	ApplicationTypeDatabase      ApplicationType = "database"
 )
 
 // UintSlice 为 []uint 实现 Scanner 和 Valuer 接口，用于 SQLite JSON 字段处理

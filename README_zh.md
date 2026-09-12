@@ -11,7 +11,7 @@
 
 [English](./README.md) | 简体中文 | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[官网](https://liaison.cloud) · [产品文档](https://liaison.cloud/zh/docs/get-started/introduction) · [产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [社区](#社区)
+[官网](https://liaison.cloud) · [产品文档](https://liaison.cloud/zh/docs/get-started/introduction) · [产品能力](#产品能力) · [安装](#安装) · [访问协议](#支持的访问协议) · [Agent 模型](#agent-模型提供方) · [产品展示](#产品展示) · [社区](#社区)
 
 ![Liaison 多应用流量总览](docs/assets/readme/overview-dark-v3.png)
 
@@ -33,30 +33,55 @@
 下载自带所有镜像的 Docker 离线包，解压后运行安装脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.11.0/liaison-1.11.0-linux-amd64.tar.gz
-tar -xzf liaison-1.11.0-linux-amd64.tar.gz
-cd liaison-1.11.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.12.0/liaison-1.12.0-linux-amd64.tar.gz
+tar -xzf liaison-1.12.0-linux-amd64.tar.gz
+cd liaison-1.12.0-linux-amd64
 ./install.sh
 ```
 
 安装完成后访问 `https://<服务器地址>`，初始登录信息会由安装脚本输出。
 
-## 集成
+## 支持的访问协议
 
-Liaison 支持以下原生协议与浏览器工作台。
+通过 Liaison 访问已有的私有服务。
 
-<p align="center">
-  <img src="docs/assets/integrations/ssh.svg" height="52" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/windows.svg" height="52" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/vnc.png" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mysql.svg" height="52" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/postgresql.svg" height="52" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mariadb.svg" width="64" height="52" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/sqlserver.svg" width="52" height="52" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/oracle.svg" width="64" height="52" alt="Oracle" title="Oracle" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/redis.svg" height="52" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mongodb.svg" height="52" alt="MongoDB" title="MongoDB" />
-</p>
+<table>
+  <tr>
+    <th align="left">终端与桌面</th>
+    <td><img src="docs/assets/integrations/ssh.svg" width="40" height="40" alt="SSH" title="SSH" />&nbsp;&nbsp; <img src="docs/assets/integrations/windows.svg" width="40" height="40" alt="RDP" title="RDP" />&nbsp;&nbsp; <img src="docs/assets/integrations/vnc.png" width="40" height="40" alt="VNC" title="VNC" /></td>
+  </tr>
+  <tr>
+    <th align="left">关系型数据库</th>
+    <td><img src="docs/assets/integrations/mysql.svg" width="40" height="40" alt="MySQL" title="MySQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/mariadb.svg" width="40" height="40" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/postgresql.svg" width="40" height="40" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/sqlserver.svg" width="40" height="40" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp; <img src="docs/assets/integrations/oracle.svg" width="40" height="40" alt="Oracle" title="Oracle" /></td>
+  </tr>
+  <tr>
+    <th align="left">数据与搜索</th>
+    <td><img src="docs/assets/integrations/mongodb.svg" width="40" height="40" alt="MongoDB" title="MongoDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/redis.svg" width="40" height="40" alt="Redis" title="Redis" />&nbsp;&nbsp; <img src="docs/assets/integrations/clickhouse.svg" width="40" height="40" alt="ClickHouse" title="ClickHouse" />&nbsp;&nbsp; <img src="docs/assets/integrations/elasticsearch.svg" width="40" height="40" alt="Elasticsearch" title="Elasticsearch" />&nbsp;&nbsp; <img src="docs/assets/integrations/opensearch.svg" width="40" height="40" alt="OpenSearch" title="OpenSearch" /></td>
+  </tr>
+  <tr>
+    <th align="left">LLM 上游协议</th>
+    <td><img src="docs/assets/integrations/openai.svg" width="40" height="40" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" /></td>
+  </tr>
+  <tr>
+    <th align="left">Web 与 TCP</th>
+    <td>HTTP · HTTPS · WebSocket · TCP</td>
+  </tr>
+</table>
+
+LLM 上游支持 **OpenAI 兼容**与 **Anthropic Messages**，对外统一提供 OpenAI 兼容接口。
+
+## Agent 模型提供方
+
+为 Liaison 内置 Agent 配置模型，独立于上述服务访问能力。
+
+<table>
+  <tr>
+    <th align="left">模型</th>
+    <td><img src="docs/assets/integrations/openai.svg" width="40" height="40" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp; <img src="docs/assets/integrations/gemini.svg" width="40" height="40" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp; <img src="docs/assets/integrations/deepseek.svg" width="40" height="40" alt="DeepSeek" title="DeepSeek" />&nbsp;&nbsp; <img src="docs/assets/integrations/zhipu.svg" width="40" height="40" alt="Z.ai / GLM" title="Z.ai / GLM" />&nbsp;&nbsp; <img src="docs/assets/integrations/kimi.svg" width="40" height="40" alt="Moonshot / Kimi" title="Moonshot / Kimi" />&nbsp;&nbsp; <img src="docs/assets/integrations/minimax.svg" width="40" height="40" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp; <img src="docs/assets/integrations/mimo.svg" width="40" height="40" alt="Xiaomi MiMo" title="Xiaomi MiMo" /></td>
+  </tr>
+</table>
+
+支持以上 8 家预置厂商，以及自定义 OpenAI 兼容服务。
 
 ## 产品展示
 

@@ -21,10 +21,10 @@ const normalizeDetail = (response: API.Response<API.AgentSessionDetail>) => {
   return response;
 };
 
-export async function createAgentSession(handleId: string, title: string) {
+export async function createAgentSession(handleId: string, title: string, kind: 'access' | 'shell' = 'access') {
   return normalizeDetail(await request<API.Response<API.AgentSessionDetail>>('/api/v1/agent/sessions', {
     method: 'POST',
-    data: { handle_id: handleId, title },
+    data: { handle_id: handleId, title, kind },
   }));
 }
 

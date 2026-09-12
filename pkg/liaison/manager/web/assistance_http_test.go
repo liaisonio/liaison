@@ -14,12 +14,14 @@ import (
 
 type fakeAssistanceService struct {
 	fakeAgentService
-	calls int
-	err   error
+	calls     int
+	err       error
+	lastInput assistance.Input
 }
 
 func (s *fakeAssistanceService) Suggest(_ context.Context, actor *model.User, handle, editor string, input assistance.Input, closeSession bool) (assistance.Suggestion, error) {
 	s.calls++
+	s.lastInput = input
 	if s.err != nil {
 		return assistance.Suggestion{}, s.err
 	}

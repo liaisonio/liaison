@@ -48,6 +48,13 @@ export const downloadTextFile = (
 };
 
 export const isDangerousStatement = (protocol?: string, statement?: string) => {
+  if (protocol === 'elasticsearch' || protocol === 'opensearch') {
+    try {
+      const cmd = JSON.parse(statement || '');
+      const method = String(cmd.method || '').toUpperCase();
+      return !(method === 'GET' || (method === 'POST' && /\/(?:_search|_count)$/.test(cmd.path || '')));
+    } catch { return true; }
+  }
   const value = String(statement || '')
     .trim()
     .toLowerCase();

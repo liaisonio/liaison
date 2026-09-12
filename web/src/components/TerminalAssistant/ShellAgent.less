@@ -1,0 +1,20 @@
+.shell-agent {
+  min-width: 0;
+  .shell-agent-toolbar {display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px;}
+  .shell-agent-toolbar > strong {display:flex; align-items:center; gap:6px; margin-right:2px; white-space:nowrap;}
+  .shell-agent-content {margin-top:10px; padding-top:8px; border-top:1px solid rgb(var(--line));}
+  .shell-agent-toolbar select {max-width:220px; min-width:0; font-size:11px; padding:5px 8px; border:1px solid rgb(var(--line)); border-radius:6px; background:rgb(var(--panel)); color:rgb(var(--ink));}
+  .shell-agent-toolbar button[aria-pressed=true] {color:rgb(var(--accent)); background:rgb(var(--accent) / .1); border-color:rgb(var(--accent) / .35);}
+  button {background: transparent; color: inherit; border: 1px solid var(--border-color, #343440); border-radius: 6px; padding: 5px 9px; cursor: pointer; font: inherit;}
+  button:disabled {opacity: .45; cursor: default;}
+  .shell-agent-failure {color: #d8aa64;}
+  .shell-agent-scope {display: block; color: #9696a2; font-size: 11px; line-height: 1.6; margin: 8px 0;}
+  .shell-agent-results {max-height: 240px; overflow: auto; overflow-wrap: anywhere;}
+  article {margin: 10px 0; font-size: 12px; line-height: 1.65;}
+  article small {color: #9696a2;}
+  pre {max-width: 100%; overflow: auto; white-space: pre-wrap;}
+  .shell-agent-approval {padding: 10px; border: 1px solid #735a38; border-radius: 8px; margin: 10px 0; button {margin-right: 8px;}}
+  form {display: flex; gap: 8px; margin-top: 10px;}
+  input {min-width: 0; flex: 1; background: transparent; border: 1px solid var(--border-color, #343440); border-radius: 6px; color: inherit; padding: 8px; font: inherit;}
+  [role=alert] {color: #e98484;}
+}

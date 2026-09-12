@@ -12,6 +12,7 @@ message ModelSettingsUpdate {
   string default_provider = 6;
   repeated ModelProviderConfiguration providers = 7;
   string test_provider = 8;
+  string output_language = 9; // zh or en. Omitted preserves current value; legacy default zh.
 }
 message ModelSettingsView {
   bool enabled = 1;
@@ -20,6 +21,7 @@ message ModelSettingsView {
   bool has_api_key = 4;
   string default_provider = 5;
   repeated ModelProviderView providers = 6;
+  string output_language = 7;
 }
 message ModelProviderConfiguration {
   string id = 1;

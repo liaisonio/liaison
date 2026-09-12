@@ -535,7 +535,7 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 		_ = writer.write(webSSHServerMessage{Type: "error", Message: "SSH PTY 创建失败"})
 		return
 	}
-	if err := terminalSession.Shell(); err != nil {
+	if err := startWebSSHShell(terminalSession); err != nil {
 		log.Debugf("webssh shell start failed: proxy_id=%d err=%v", webSession.proxyID, err)
 		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "open_session", webSession.username, "", false, time.Since(connectStarted).Milliseconds(), "SSH Shell 启动失败")
 		_ = writer.write(webSSHServerMessage{Type: "error", Message: "SSH Shell 启动失败"})

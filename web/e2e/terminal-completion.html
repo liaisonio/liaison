@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>AI terminal completion integration test</title></head>
+<body style="margin:24px;background:#101418;color:#d7dee8">
+<div id="terminal" style="width:800px;height:440px;position:relative"></div>
+<pre id="result">Starting…</pre>
+<script type="module">
+import {Terminal} from '@xterm/xterm';
+import '@xterm/xterm/css/xterm.css';
+import {attachTerminalCompletion} from '../src/components/TerminalAssistant/terminalCompletion.ts';
+const term=new Terminal({cols:90,rows:24});term.open(document.querySelector('#terminal'));term.focus();
+let view=null, status='', calls=0, result=' -type f', deferred=null, seenSignal;
+const sent=[];
+const controller=attachTerminalCompletion(term,v=>view=v,s=>sent.push(s),async (_input,_revision,signal)=>{
+ calls++; seenSignal=signal;
+ if(result==='DEFER')return new Promise(resolve=>deferred=resolve);
+ if(result==='ERROR')throw Error('provider unavailable');
+ return result;
+},s=>status=s);
+const write=text=>new Promise(resolve=>term.write(text,resolve));
+const sleep=(ms=40)=>new Promise(resolve=>setTimeout(resolve,ms));
+const prompt=()=>write('\r\n\x1b]633;D;0\x07\x1b]633;A\x07demo$ \x1b]633;B\x07');
+const check=(value,name)=>{if(!value)throw Error(name)};
+try{
+ await write('Password: find .');controller.suggest();await sleep();check(calls===0,'No model outside shell input');
+ await prompt();await write('find .');await sleep(900);check(calls===0,'Automatic AI requires opt-in');
+ controller.suggest();await sleep();check(view?.candidates[0]==='find . -type f','Only provider result is shown');
+ check(controller.accept(),'Accept fresh AI response');check(sent[0]===' -type f','Only suffix, never newline');
+ await prompt();await write('find .');result='DEFER';controller.suggest();await sleep();
+ term.input('x',true);await write('x');check(seenSignal.aborted,'Editing aborts model request');deferred(' stale');await sleep();check(!view,'Stale response discarded');
+ await prompt();await write('find .');result='bad\ncommand';controller.suggest();await sleep();check(!view && status==='error','Reject terminal control characters');
+ result='';controller.suggest();await sleep();check(!view && status==='empty','No static fallback');
+ result='ERROR';controller.suggest();await sleep();check(!view && status==='error','Visible provider failure');
+ result=' -type f';controller.setAutomatic(true);await sleep(450);check(!!view,'Automatic AI responds after the shorter 300ms debounce');
+ await prompt();await write('ip');controller.suggest();await sleep();check(view?.input==='ip','Bare command reaches model');
+ const beforeResize=calls;term.resize(89,24);await sleep(900);check(calls>beforeResize && !!view,'Resize must resume completion without another prompt');
+ term.blur();await sleep();check(!view,'Blur hides candidate');term.focus();await sleep(900);check(!!view,'Focus restores automatic candidate');
+ const beforeNavigation=calls;term.input('\x1b[D',true);await write('\x1b[D');await sleep(900);check(calls===beforeNavigation,'No completion in middle of line');
+ term.input('\x1b[C',true);await write('\x1b[C');await sleep(900);check(calls>beforeNavigation && !!view,'Returning to line end restores completion');
+ await write('\x1b]633;C\x07');check(!view,'Hide on execution');
+ await prompt();await write('find .');const before=calls;
+ term.element.dispatchEvent(new Event('paste',{bubbles:true}));await sleep(900);check(calls===before,'Paste cancels pending AI');
+ await prompt();term.input('f',true);term.input('i',true);term.input('n',true);term.input('d',true);
+ await write('fi');const partial=calls;await sleep(900);check(calls===partial,'No request before complete remote echo');
+ await write('nd');await sleep(900);check(calls>partial,'Matching remote echo permits AI');
+ await write('\x1b[?1049h');await sleep(900);check(!view,'No alternate screen suggestions');await write('\x1b[?1049l');
+ controller.reset();await prompt();await write('find .');controller.suggest();await sleep();
+ window.terminalCompletionTest={sent,controller,term};
+ document.querySelector('#result').textContent='PASS: opt-in, provider-only, suffix, cancellation, stale response, controls, empty/error, debounce, paste, echo, alternate screen';
+}catch(error){document.querySelector('#result').textContent='FAIL: '+error.message;throw error}
+</script>
+</body></html>

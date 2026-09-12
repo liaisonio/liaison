@@ -14,6 +14,19 @@ import (
 
 // Dao 接口定义
 type Dao interface {
+	GetAIApplication(context.Context, uint) (*model.AIApplication, error)
+	SaveAIApplication(context.Context, *model.AIApplication) error
+	GetAIAccess(context.Context, uint) (*model.AIAccess, error)
+	SaveAIAccess(context.Context, *model.AIAccess) error
+	CreateAIKey(context.Context, *model.AIKey) error
+	GetAIKey(context.Context, string) (*model.AIKey, error)
+	ListAIKeys(context.Context, uint, uint) ([]model.AIKey, error)
+	GetAIKeyUsage(context.Context, uint, uint, uint) (*model.AIKeyUsage, error)
+	UpdateAIKeyQuota(context.Context, uint, uint, uint, *int64) error
+	RevokeAIKey(context.Context, uint, uint, uint) error
+	RecordAIRequest(context.Context, *model.AIRequest) error
+	GetLLMTokenUsage(context.Context, uint, uint, time.Time) (*model.LLMTokenUsageReport, error)
+	ListAIRequests(context.Context, uint, uint, int) ([]model.AIRequest, error)
 	ReadAgentModelConfig(context.Context) ([]byte, error)
 	WriteAgentModelConfig(context.Context, []byte) error
 	// 事务相关方法
@@ -276,6 +289,8 @@ func (d *dao) initDB() error {
 		return err
 	}
 	if err := d.db.AutoMigrate(
+		&model.AIApplication{}, &model.AIAccess{}, &model.AIKey{}, &model.AIRequest{},
+		&model.LLMTokenUsage{},
 		&model.Edge{},
 		&model.AccessKey{},
 		&model.Device{},

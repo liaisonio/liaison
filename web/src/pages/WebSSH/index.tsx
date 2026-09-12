@@ -3,10 +3,14 @@ import SessionWatermark, {
   useSessionWatermarkTime,
 } from '@/components/SessionWatermark';
 import AgentWorkspace from '@/components/AgentWorkspace';
+import ShellAgent from '@/components/TerminalAssistant/ShellAgent';
+import {createAgentSession} from '@/services/agent';
 import SessionInfo from '@/components/SessionReference/SessionInfo';
 import {request} from '@/api/client';
 import { useSessionPath, SessionPathNotice } from '@/components/SessionReference/useSessionPath';
-import TerminalAssistant from '@/components/TerminalAssistant';
+import '@/components/TerminalAssistant/index.less';
+import { attachTerminalCompletion, type TerminalCompletionView } from '@/components/TerminalAssistant/terminalCompletion';
+import CommandCompletion from '@/components/TerminalAssistant/CommandCompletion';
 import { useFeature } from '@/store/permissions';
 import { Button, Field, Input, Modal, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
@@ -70,9 +74,49 @@ const WebSSHPage: React.FC = () => {
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [agentHandleID, setAgentHandleID] = useState('');
+  const [shellDetail, setShellDetail] = useState<{handle: string; detail: API.AgentSessionDetail}>();
+  const shellSession = useRef<{handle: string; pending: Promise<API.AgentSessionDetail>}>();
+  const ensureShellSession = async (handle: string) => {
+    if (shellSession.current?.handle === handle) return shellSession.current.pending;
+    const pending = createAgentSession(handle, 'Shell Agent', 'shell').then(result => {
+      if (!result.data) throw new Error('Shell Agent session unavailable');
+      if (completionBinding.current.handle === handle && completionBinding.current.allowed) setShellDetail({handle, detail: result.data});
+      return result.data;
+    });
+    const binding = {handle, pending};
+    shellSession.current = binding;
+    try {return await pending;} catch (error) {
+      if (shellSession.current === binding) shellSession.current = undefined;
+      throw error;
+    }
+  };
+  const [completion, setCompletion] = useState<TerminalCompletionView | null>(null);
+  const completionRef = useRef<ReturnType<typeof attachTerminalCompletion>>();
+  const [automaticAI, setAutomaticAI] = useState(true);
+  const [contextMode, setContextMode] = useState<'none'|'commands'|'output'>('none');
+  const [shellExitCode, setShellExitCode] = useState<number>();
+  const [completionStatus, setCompletionStatus] = useState<'idle' | 'busy' | 'empty' | 'error' | 'unavailable'>('idle');
+  const completionBinding = useRef({ handle: '', allowed: false, editor: crypto.randomUUID(), contextMode: 'none' });
+  const completionRevision = useRef(0);
   const [connectionReferenceHandle, setConnectionReferenceHandle] = useState('');
   const [agentOpen, setAgentOpen] = useState(false);
   const canAI = useFeature('ai.access.use');
+  completionBinding.current.handle = agentHandleID;
+  completionBinding.current.allowed = canAI && connected;
+  completionBinding.current.contextMode = contextMode;
+  useEffect(() => {
+    completionRef.current?.reset();
+    completionRef.current?.setAutomatic(canAI && connected);
+    setAutomaticAI(true); setContextMode('none'); setShellExitCode(undefined);
+    const editor = crypto.randomUUID();
+    completionBinding.current.editor = editor;
+    return () => {
+      completionRef.current?.reset();
+      if (agentHandleID) void request('/api/v1/assistance/suggestions', {
+        method: 'DELETE', data: { handle_id: agentHandleID, editor_id: editor }, skipErrorHandler: true,
+      }).catch(() => undefined);
+    };
+  }, [agentHandleID, canAI, connected]);
   const sessionPath = useSessionPath(agentHandleID, agentOpen, setAgentOpen);
   const [fullscreen, setFullscreen] = useState(false);
   const [credentialOpen, setCredentialOpen] = useState(false);
@@ -476,6 +520,23 @@ const WebSSHPage: React.FC = () => {
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(terminalHostRef.current);
+    const completionController = attachTerminalCompletion(terminal, setCompletion, sendTerminalInput, async (text, _revision, signal) => {
+      const { handle, editor, allowed, contextMode } = completionBinding.current;
+      if (!handle || !allowed) throw new Error('AI access unavailable');
+      const revision = ++completionRevision.current;
+      const shell = await ensureShellSession(handle);
+      if (signal.aborted || completionBinding.current.handle !== handle || !completionBinding.current.allowed) throw new Error('Stale AI suggestion');
+      const response = await request<API.Response<{text: string; revision: number}>>('/api/v1/assistance/suggestions', {
+        method: 'POST', signal, skipErrorHandler: true,
+        data: { agent_session_id: shell.session.id, handle_id: handle, editor_id: editor, revision, text, cursor: new TextEncoder().encode(text).length,
+          ...(contextMode !== 'none' ? {context_mode:contextMode} : {}) },
+      });
+      if (response.data?.revision !== revision || completionBinding.current.handle !== handle
+        || !completionBinding.current.allowed || completionBinding.current.contextMode !== contextMode) throw new Error('Stale AI suggestion');
+      return response.data?.text || '';
+    }, setCompletionStatus, setShellExitCode);
+    completionRef.current = completionController;
+    completionController.setAutomatic(completionBinding.current.allowed);
     terminal.onData(sendTerminalInput);
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
@@ -501,6 +562,8 @@ const WebSSHPage: React.FC = () => {
         outputFlushTimerRef.current = undefined;
       }
       socketRef.current?.close();
+      completionController.dispose();
+      completionRef.current = undefined;
       terminal.dispose();
       terminalRef.current = undefined;
       fitAddonRef.current = undefined;
@@ -1062,6 +1125,9 @@ const WebSSHPage: React.FC = () => {
           onMouseDown={() => focusTerminal(true)}
         >
           <div className="webssh-terminal-screen" ref={terminalHostRef} />
+          {connected && completion && (
+            <CommandCompletion view={completion} onAccept={candidate=>completionRef.current?.accept(candidate)}/>
+          )}
           {connecting && !connected && !loading && (
             <div className="webssh-connecting-state" role="status" aria-live="polite">
               <span className="webssh-connecting-spinner" aria-hidden="true" />
@@ -1124,7 +1190,30 @@ const WebSSHPage: React.FC = () => {
           )}
           <SessionWatermark lines={watermarkLines} />
         </div>
-        {canAI && connected && agentHandleID && <TerminalAssistant key={agentHandleID} handleId={agentHandleID} onInsert={(text) => { sendTerminalInput(text); focusTerminal(true); }} />}
+        {canAI && connected && agentHandleID && <section className="terminal-assistant">
+          <ShellAgent key={agentHandleID} handleId={agentHandleID} initialDetail={shellDetail?.handle === agentHandleID ? shellDetail.detail : undefined} ensureSession={ensureShellSession} exitCode={shellExitCode} controls={<>
+            <button type="button" aria-pressed={automaticAI} onClick={() => {
+              focusTerminal(true); completionRef.current?.setAutomatic(!automaticAI); setAutomaticAI(!automaticAI);
+            }}>{automaticAI ? tr('关闭自动提示', 'Disable automatic AI') : tr('开启自动提示', 'Enable automatic AI')}</button>
+            <select aria-label={tr('AI 上下文共享', 'AI context sharing')} title={tr('补全复用 Agent 记忆；额外共享命令和输出需在此选择。点击分析会共享最近命令与输出。', 'Completion uses Agent memory; choose additional command/output sharing here. Analysis shares recent commands and output.')} value={contextMode} onChange={event=>{
+              const mode=event.target.value as 'none'|'commands'|'output';
+              completionRef.current?.reset();
+              completionBinding.current.contextMode=mode; setContextMode(mode);
+              completionRef.current?.setAutomatic(automaticAI);
+            }}>
+              <option value="none">{tr('草稿与 Agent 记忆', 'Draft & Agent memory')}</option>
+              <option value="commands">{tr('共享目录与最近命令', 'Share directory & recent commands')}</option>
+              <option value="output">{tr('同时共享最近输出', 'Also share recent output')}</option>
+            </select>
+          </>}/>
+          <div className="terminal-assistant-help" role="status">
+            {completionStatus === 'busy' ? tr('AI 正在生成…', 'AI is generating…')
+              : completionStatus === 'empty' ? tr('AI 暂无建议，可补充输入后重试', 'No AI suggestion; add more input and retry')
+              : completionStatus === 'error' ? tr('AI 提示暂不可用，请检查权限、模型配置或重试', 'AI unavailable; check permissions, model configuration or retry')
+              : completionStatus === 'unavailable' ? tr('请在 Shell 提示符处输入命令，等待回显后重试', 'Type at a shell prompt and wait for remote echo before retrying')
+              : tr('AI 自动提示会发送当前草稿 · Ctrl+Space 立即提示 · Tab 接受 · Esc 忽略 · 回车前请检查', 'Automatic AI sends the current draft · Ctrl+Space suggests · Tab accepts · Esc dismisses · Review before Enter')}
+          </div>
+        </section>}
         <AgentWorkspace
           docked
           open={sessionPath.agentOpen}

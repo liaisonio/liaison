@@ -1,5 +1,6 @@
 import {useEffect,useState} from 'react';
-import {ChevronDown} from 'lucide-react';
+import BrandSelect from './BrandSelect';
+import {ModelIcon} from './ProviderIcon';
 import {useI18n} from '@/i18n';
 import {getAgentStatus, type AgentModelChoice, type AgentModelSelection} from '@/services/agent';
 import './ModelSelector.less';
@@ -15,11 +16,8 @@ export default function ModelSelector({value,onChange,disabled}:{value?:AgentMod
  const unavailable=!!value&&!choices.some(m=>key(m)===current);
  const groups=[...new Set(choices.map(m=>m.provider_id))];
  const fallback=choices.find(m=>m.is_default);
- return <label className="agent-model-selector" title={tr('选择本次对话使用的模型','Choose a model for this conversation')}>
-  <select aria-label={tr('对话模型','Conversation model')} value={current} disabled={disabled||!loaded||failed||!choices.length} onChange={e=>{const selected=choices.find(m=>key(m)===e.target.value);onChange(selected?{provider_id:selected.provider_id,model:selected.model}:undefined);}}>
-   <option value="">{!loaded?tr('加载模型…','Loading models…'):failed?tr('模型加载失败','Models unavailable'):fallback?`${fallback.model} · ${tr('默认','Default')}`:tr('系统默认模型','System default')}</option>
-   {unavailable&&<option value={current} disabled>{value.model} · {tr('不可用，请重新选择','Unavailable; select another')}</option>}
-   {groups.map(id=><optgroup key={id} label={id}>{choices.filter(m=>m.provider_id===id).map(m=><option key={key(m)} value={key(m)}>{m.model}</option>)}</optgroup>)}
-  </select><ChevronDown size={13} aria-hidden="true"/>
- </label>;
+ const options=[{value:'',label:!loaded?tr('加载模型…','Loading models…'):failed?tr('模型加载失败','Models unavailable'):fallback?`${fallback.model} · ${tr('默认','Default')}`:tr('系统默认模型','System default'),icon:<ModelIcon model={fallback?.model||''} provider={fallback?.provider_type}/>},
+ ...(unavailable?[{value:current,label:`${value.model} · ${tr('不可用','Unavailable')}`,disabled:true,icon:<ModelIcon model={value.model} provider={value.provider_id}/>}]:[]),
+ ...groups.flatMap(id=>choices.filter(m=>m.provider_id===id).map(m=>({value:key(m),label:`${m.model} · ${id}`,icon:<ModelIcon model={m.model} provider={m.provider_type}/>})))];
+ return <span className="agent-model-selector"><BrandSelect label={tr('对话模型','Conversation model')} value={current} options={options} disabled={disabled||!loaded||failed||!choices.length} onChange={v=>{const selected=choices.find(m=>key(m)===v);onChange(selected?{provider_id:selected.provider_id,model:selected.model}:undefined);}}/></span>;
 }

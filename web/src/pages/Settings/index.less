@@ -7,6 +7,14 @@
 .native-settings-tabs button:hover { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 .native-settings-tabs button.is-active { background: rgb(var(--accent) / 0.1); color: rgb(var(--accent)); }
 .native-settings-content { min-width: 0; padding: 24px; }
+.settings-page > .native-settings-shell { min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.settings-page > .native-settings-shell > .native-settings-tabs { min-height: 0; overflow-y: auto; }
+.settings-page > .native-settings-shell > .native-settings-content { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+@media (max-width: 720px) {
+  .settings-page > .native-settings-shell { grid-template-rows: auto minmax(0, 1fr); }
+  .settings-page > .native-settings-shell > .native-settings-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .settings-page > .native-settings-shell > .native-settings-tabs button { flex-shrink: 0; }
+}
 .settings-section { max-width: 900px; }
 .settings-section-heading { margin-bottom: 6px; padding: 0 2px 20px; border-bottom: 1px solid rgb(var(--line) / 0.58); }
 .settings-section-heading h2 { margin: 0; color: rgb(var(--ink)); font-size: 17px; font-weight: 680; letter-spacing: -0.02em; }
@@ -141,6 +149,15 @@ button.user-status, button.system-role-chip { cursor: pointer; }
 .model-enable input { accent-color: rgb(var(--accent)); }
 .model-settings-actions { display: flex; gap: 12px; margin-top: 8px; }
 .model-provider-form { border: 0; padding: 0; margin: 24px 0 0; min-width: 0; max-width: 960px; }
+.model-general-card { padding: 20px; margin-bottom: 16px; border: 1px solid rgb(var(--line) / .75); border-radius: 12px; background: rgb(var(--panel) / .35); }
+.model-general-card h3, .model-providers-heading h3 { display:flex; align-items:center; gap:8px; margin:0; color:rgb(var(--ink)); font-size:14px; font-weight:600; }
+.model-general-card h3 svg { color:rgb(var(--muted)); }
+.model-general-card p { margin:10px 0 16px; color:rgb(var(--muted)); font-size:12px; line-height:1.7; }
+.model-general-card small { display:block; margin-top:14px; color:rgb(var(--muted)); font-size:11px; line-height:1.6; }
+.model-language-field { max-width:384px; }
+.model-providers-heading { margin:28px 0 16px; display:grid; gap:6px; }
+.model-providers-heading span, .model-save-bar span { color:rgb(var(--muted)); font-size:12px; }
+.model-save-bar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; padding-top:20px; border-top:1px solid rgb(var(--line) / .65); }
 .model-provider-toolbar, .model-provider-header, .model-add-row, .model-add-provider { display: flex; align-items: center; gap: 12px; }
 .model-provider-toolbar { justify-content: space-between; margin-bottom: 24px; }
 .model-provider-list { display: grid; gap: 16px; }

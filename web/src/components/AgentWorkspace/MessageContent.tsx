@@ -1,14 +1,8 @@
 import { useI18n } from '@/i18n';
 import { Check, ChevronRight, CircleAlert, Copy, Terminal } from 'lucide-react';
-import { Fragment, useState } from 'react';
-
-// Render a small, safe Markdown subset as React nodes. Never interpret model HTML.
-function inline(text: string) {
-  return text.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/g).map((part, index) =>
-    part.startsWith('`') && part.endsWith('`') ? <code key={index}>{part.slice(1, -1)}</code>
-      : part.startsWith('**') && part.endsWith('**') ? <strong key={index}>{part.slice(2, -2)}</strong>
-        : <Fragment key={index}>{part}</Fragment>);
-}
+import { Children, isValidElement, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export function CodeBlock({ text, language = '' }: { text: string; language?: string }) {
   const { tr } = useI18n();
@@ -22,19 +16,17 @@ export function CodeBlock({ text, language = '' }: { text: string; language?: st
 }
 
 export function MessageContent({ text }: { text: string }) {
-  const blocks = text.split(/```/g);
-  return <div className="agent-markdown">{blocks.map((block, index) => {
-    if (index % 2) {
-      const newline = block.indexOf('\n');
-      return <CodeBlock key={index} language={newline >= 0 ? block.slice(0, newline).trim() : ''} text={(newline >= 0 ? block.slice(newline + 1) : block).replace(/\n$/, '')} />;
-    }
-    return block.split(/\n\s*\n/).filter(part => part.trim()).map((part, partIndex) => {
-      const lines = part.trim().split('\n');
-      if (lines.every(line => /^\s*[-*]\s/.test(line))) return <ul key={`${index}-${partIndex}`}>{lines.map((line, i) => <li key={i}>{inline(line.replace(/^\s*[-*]\s+/, ''))}</li>)}</ul>;
-      if (lines.every(line => /^\s*\d+[.)]\s/.test(line))) return <ol key={`${index}-${partIndex}`}>{lines.map((line, i) => <li key={i}>{inline(line.replace(/^\s*\d+[.)]\s+/, ''))}</li>)}</ol>;
-      return <p key={`${index}-${partIndex}`}>{lines.map((line, i) => <Fragment key={i}>{i > 0 && <br />}{/^#{1,6}\s/.test(line) ? <strong>{inline(line.replace(/^#{1,6}\s+/, ''))}</strong> : inline(line)}</Fragment>)}</p>;
-    });
-  })}</div>;
+  return <div className="agent-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml components={{
+    pre({children}) {
+      const child = Children.toArray(children)[0];
+      if (!isValidElement<{children?: React.ReactNode; className?: string}>(child)) return <pre>{children}</pre>;
+      return <CodeBlock language={child.props.className?.replace(/^language-/, '')} text={String(child.props.children ?? '').replace(/\n$/, '')}/>;
+    },
+    table({children}) { return <div className="agent-markdown-table"><table>{children}</table></div>; },
+    a({href, children}) { return href ? <a href={href} target="_blank" rel="noopener noreferrer">{children}</a> : <span>{children}</span>; },
+    // Model-supplied images must not initiate tracking requests.
+    img({alt}) { return <span>{alt}</span>; },
+  }}>{text}</ReactMarkdown></div>;
 }
 
 export function ToolMessage({ name, content, command }: { name: string; content: string; command?: string }) {

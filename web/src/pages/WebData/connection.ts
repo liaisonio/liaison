@@ -34,7 +34,9 @@ export const connectionMeta = (
   const items = [
     credential.username
       ? `${tr('用户', 'User')}：${credential.username}`
-      : tr('无用户名', 'No user'),
+      : credential.protocol === 'elasticsearch' || credential.protocol === 'opensearch'
+        ? tr('匿名访问', 'Anonymous access')
+        : tr('无用户名', 'No user'),
   ];
   if (credential.protocol === 'redis') {
     items.splice(1, 0, `${tr('数据库', 'DB')}：${credential.redis_db ?? 0}`);

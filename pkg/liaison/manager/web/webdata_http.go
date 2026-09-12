@@ -200,6 +200,9 @@ type webDataSession struct {
 	sqlDB            *sql.DB
 	redisClient      *redis.Client
 	mongoClient      *mongo.Client
+	searchClient     *http.Client
+	searchURL        string
+	searchPassword   string
 	mu               sync.Mutex
 	agentGeneration  uint64
 	agentUnregister  func()
@@ -341,6 +344,11 @@ func (s *webDataSessionStore) cleanupLocked(now time.Time) {
 }
 
 func (s *webDataSession) close() {
+	if s.searchClient != nil {
+		s.searchClient.CloseIdleConnections()
+		s.searchClient = nil
+		s.searchPassword = ""
+	}
 	if s.agentUnregister != nil {
 		s.agentUnregister()
 		s.agentUnregister = nil
@@ -1013,8 +1021,12 @@ func (web *web) handleWebDataObjectHTTP(w http.ResponseWriter, r *http.Request) 
 
 func (web *web) openWebDataClient(ctx context.Context, session *webDataSession, password string) error {
 	switch session.protocol {
+	case "elasticsearch", "opensearch":
+		return web.openWebDataSearch(ctx, session, password)
 	case "oracle":
 		return web.openWebDataOracle(ctx, session, password)
+	case "clickhouse":
+		return web.openWebDataClickHouse(ctx, session, password)
 	case "sqlserver":
 		return web.openWebDataSQLServer(ctx, session, password)
 	case "mysql", "mariadb":
@@ -1255,11 +1267,13 @@ func (web *web) ensureWebDataSessionActive(ctx context.Context, session *webData
 
 func (s *webDataSession) execute(ctx context.Context, statement string) (*webDataExecuteResponse, error) {
 	switch s.protocol {
+	case "elasticsearch", "opensearch":
+		return s.executeSearch(ctx, statement)
 	case "oracle":
 		return s.executeOracle(ctx, oracleStatement(statement))
 	case "sqlserver":
 		return s.executeSQL(ctx, statement)
-	case "mysql", "mariadb", "postgresql":
+	case "clickhouse", "mysql", "mariadb", "postgresql":
 		return s.executeSQL(ctx, statement)
 	case "redis":
 		return s.executeRedis(ctx, statement)
@@ -1285,6 +1299,9 @@ func (s *webDataSession) executeSQL(ctx context.Context, statement string) (*web
 	result, err := s.sqlDB.ExecContext(ctx, statement)
 	if err != nil {
 		return &webDataExecuteResponse{Type: "message"}, err
+	}
+	if s.protocol == "clickhouse" {
+		return &webDataExecuteResponse{Type: "message", Message: "Statement accepted. Mutations may continue asynchronously; inspect system.mutations for completion."}, nil
 	}
 	affected, _ := result.RowsAffected()
 	return &webDataExecuteResponse{
@@ -1494,8 +1511,12 @@ func mongoCommandInt64(command bson.D, key string, fallback int64) int64 {
 
 func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, error) {
 	switch s.protocol {
+	case "elasticsearch", "opensearch":
+		return s.searchMetadata(ctx)
 	case "oracle":
 		return s.oracleMetadata(ctx)
+	case "clickhouse":
+		return s.clickHouseMetadata(ctx)
 	case "sqlserver":
 		return s.sqlServerMetadata(ctx)
 	case "mysql", "mariadb":
@@ -1513,8 +1534,12 @@ func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, e
 
 func (s *webDataSession) metadataChildren(ctx context.Context, req webDataMetadataRequest) ([]webDataMetadataNode, error) {
 	switch s.protocol {
+	case "elasticsearch", "opensearch":
+		return nil, nil
 	case "oracle":
 		return s.oracleMetadataChildren(ctx, req)
+	case "clickhouse":
+		return s.clickHouseMetadataChildren(ctx, req)
 	case "sqlserver":
 		return s.sqlServerMetadataChildren(ctx, req)
 	case "mysql", "mariadb":
@@ -1791,8 +1816,12 @@ func (s *webDataSession) mongoMetadata(ctx context.Context) ([]webDataMetadataNo
 
 func (s *webDataSession) objectDetails(ctx context.Context, req webDataObjectRequest) (*webDataObjectResponse, error) {
 	switch s.protocol {
+	case "elasticsearch", "opensearch":
+		return s.searchObjectDetails(ctx, req)
 	case "oracle":
 		return s.oracleObjectDetails(ctx, req)
+	case "clickhouse":
+		return s.clickHouseObjectDetails(ctx, req)
 	case "sqlserver":
 		return s.sqlServerObjectDetails(ctx, req)
 	case "mysql", "mariadb":
@@ -2393,6 +2422,8 @@ func zeroBytes(value []byte) {
 
 func webDataCapabilities(protocol string) []string {
 	switch protocol {
+	case "elasticsearch", "opensearch":
+		return []string{"execute", "metadata", "object_detail", "json_command", "index_preview"}
 	case "redis":
 		return []string{"execute", "metadata", "object_detail", "key_scan", "key_preview"}
 	case "mongodb":
@@ -2424,7 +2455,9 @@ func webDataShouldAuditExecute(protocol, statement string) bool {
 
 func webDataExecuteIsQuery(protocol, statement string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "sqlserver", "oracle":
+	case "elasticsearch", "opensearch":
+		return searchIsQuery(statement)
+	case "clickhouse", "sqlserver", "oracle":
 		return webDataSQLIsQuery(statement)
 	case "mysql", "mariadb", "postgresql":
 		return webDataSQLIsQuery(statement)

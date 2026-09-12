@@ -13,7 +13,7 @@ message ResolveSSHSessionReferenceResponse {
 message CreateAgentSessionRequest {
   string handle_id = 1; // Required for access, forbidden for management.
   string title = 2;
-  string kind = 3; // access (default) or management.
+  string kind = 3; // access (default), management, or shell (live WebSSH only).
 }
 
 // Only IDs from GET /api/v1/agent/status are accepted. Never accepts credentials or URLs.

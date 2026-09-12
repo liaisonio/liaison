@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/accesssession"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/agent/assistance"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 	"io"
@@ -34,11 +35,13 @@ func (web *web) handleAssistanceHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var input struct {
-		Handle   string `json:"handle_id"`
-		Editor   string `json:"editor_id"`
-		Revision uint64 `json:"revision"`
-		Text     string `json:"text"`
-		Cursor   int    `json:"cursor"`
+		AgentSessionID string `json:"agent_session_id"`
+		Handle         string `json:"handle_id"`
+		Editor         string `json:"editor_id"`
+		Revision       uint64 `json:"revision"`
+		Text           string `json:"text"`
+		Cursor         int    `json:"cursor"`
+		ContextMode    string `json:"context_mode"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64*1024))
 	decoder.DisallowUnknownFields()
@@ -50,7 +53,38 @@ func (web *web) handleAssistanceHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	result, err := service.Suggest(r.Context(), actor, input.Handle, input.Editor, assistance.Input{Revision: input.Revision, Text: input.Text, Cursor: input.Cursor}, r.Method == http.MethodDelete)
+	if input.ContextMode != "" && input.ContextMode != "none" && input.ContextMode != "commands" && input.ContextMode != "output" {
+		writeJSON(w, 400, map[string]any{"code": 400, "message": "invalid context mode"})
+		return
+	}
+	editing := assistance.Input{AgentSessionID: input.AgentSessionID, Revision: input.Revision, Text: input.Text, Cursor: input.Cursor}
+	if r.Method == http.MethodPost && (input.ContextMode == "commands" || input.ContextMode == "output") {
+		d, err := web.accessSessions.Describe(r.Context(), input.Handle, actor.ID)
+		if err != nil {
+			writeJSON(w, 404, map[string]any{"code": 404, "message": "connection not found"})
+			return
+		}
+		if d.Protocol != accesssession.ProtocolWebSSH {
+			writeJSON(w, 400, map[string]any{"code": 400, "message": "shell context requires WebSSH"})
+			return
+		}
+		h, err := web.accessSessions.Resolve(r.Context(), accesssession.ResolveRequest{ID: d.ID, UserID: d.UserID, AccessID: d.AccessID, ApplicationID: d.ApplicationID, Protocol: d.Protocol, Generation: d.Generation})
+		if err != nil {
+			writeJSON(w, 409, map[string]any{"code": 409, "message": "connection changed"})
+			return
+		}
+		if source, ok := h.Terminal.(interface {
+			ShellContext(context.Context, bool) (json.RawMessage, error)
+		}); ok {
+			value, err := source.ShellContext(r.Context(), input.ContextMode == "output")
+			if err != nil {
+				writeAgentError(w, err)
+				return
+			}
+			editing.ShellContext = string(value)
+		}
+	}
+	result, err := service.Suggest(r.Context(), actor, input.Handle, input.Editor, editing, r.Method == http.MethodDelete)
 	if err != nil {
 		switch {
 		case errors.Is(err, assistance.ErrSuggestion):

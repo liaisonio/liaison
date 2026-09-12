@@ -7,6 +7,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestShellSessionDisclosesOnlyTerminalAndDiscovery(t *testing.T) {
+	ctx := context.Background()
+	engine := NewEngine(nil, nil)
+	require.NoError(t, RegisterDiscoveryTools(ctx, engine))
+	for _, id := range []ToolID{{Namespace: "terminal", Name: "read", Version: "1.0.0"}, {Namespace: "terminal", Name: "execute", Version: "1.0.0"}, {Namespace: "data", Name: "query", Version: "1.0.0"}, {Namespace: "terminal", Name: "future", Version: "1.0.0"}} {
+		d := testDescriptor(id.Namespace, id.Name, id.Version, DisclosureAlways)
+		d.Protocols = []Protocol{ProtocolAny}
+		d.Capabilities = nil
+		require.NoError(t, engine.Register(ctx, testRegistration(d, "ok")))
+	}
+	snapshot, err := engine.BuildSnapshot(ctx, DisclosureRequest{SessionKind: SessionShell})
+	require.NoError(t, err)
+	require.Len(t, snapshot.Tools, 4)
+	results, err := engine.Search(ctx, DisclosureRequest{SessionKind: SessionShell}, "")
+	require.NoError(t, err)
+	for _, result := range results {
+		require.NotEqual(t, "data", result.ID.Namespace)
+		require.NotEqual(t, "future", result.ID.Name)
+	}
+	result, err := engine.Execute(ctx, snapshot, ToolInvocation{ID: "search", Call: ToolCall{ID: ToolSearchID, Input: []byte(`{"query":""}`)}, Binding: ToolBinding{ToolSnapshotID: snapshot.ID, SessionKind: SessionShell}})
+	require.NoError(t, err)
+	require.NotContains(t, string(result.Content), "data.query")
+}
+
 func TestSessionKindIsolatesSearchDescribeSnapshotAndExecution(t *testing.T) {
 	ctx := context.Background()
 	engine := NewEngine(nil, nil)

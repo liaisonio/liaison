@@ -157,7 +157,7 @@ export const buildMetadataChildParams = (
   node: API.WebDataMetadataNode,
 ): API.WebDataMetadataParams | undefined => {
   if (node.type !== 'table') return undefined;
-  if (protocol === 'mysql' || protocol === 'mariadb') {
+  if (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') {
     return {
       type: 'table',
       database: node.meta?.database,
@@ -209,7 +209,7 @@ export const renderNodeTitle = (node: API.WebDataMetadataNode) => {
 };
 
 export const isInspectableNode = (node: API.WebDataMetadataNode) =>
-  ['table', 'collection', 'key', 'column'].includes(node.type);
+  ['table', 'collection', 'key', 'column', 'index'].includes(node.type);
 
 export const buildObjectParams = (
   protocol: string,
@@ -234,6 +234,9 @@ export const buildObjectParams = (
       schema: node.meta?.schema,
       name: node.meta?.name || node.title,
     };
+  }
+  if ((protocol === 'elasticsearch' || protocol === 'opensearch') && node.type === 'index') {
+    return { type: 'index', name: node.meta?.name || node.title };
   }
   if (protocol === 'redis' && node.type === 'key') {
     return { type: 'key', key: node.meta?.key || node.title };

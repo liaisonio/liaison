@@ -1487,3 +1487,10 @@
     width: calc(100vw - 16px) !important;
   }
 }
+.webdata-search-results { flex: 1; min-height: 0; overflow: auto; }
+.webdata-connection-status { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 480px; padding: 24px; text-align: center; overflow-wrap: anywhere; }
+.webdata-search-results > .liaison-table-scroll { flex: none; }
+.webdata-search-response { margin-top: 12px; }
+.webdata-search-response summary { cursor: pointer; color: rgb(var(--muted)); }
+.webdata-search-json { margin:12px 0; padding:12px; max-height:420px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; background:rgb(var(--surface)); border-radius:8px; font:12px/1.6 monospace; }
+.webdata-search-response > summary { cursor:pointer; color:rgb(var(--muted)); font-size:12px; padding:10px 0; }

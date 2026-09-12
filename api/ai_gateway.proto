@@ -1,0 +1,95 @@
+syntax = "proto3";
+package liaison.ai.v1;
+option go_package = "github.com/liaisonio/liaison/api/ai/v1";
+// HTTP-only supplementary contract, matching agent_settings.proto conventions.
+// Management endpoints require current IAM permissions and resource visibility.
+// Configuration reads require update permission; workspace requires access use.
+// Errors expose error.code and error.request_id, never upstream response bodies.
+// Inference errors distinguish UPSTREAM_AUTHENTICATION_FAILED,
+// UPSTREAM_MODEL_OR_ENDPOINT_NOT_FOUND, UPSTREAM_RATE_LIMITED and UPSTREAM_TIMEOUT.
+// GET/PUT /api/v1/ai/applications/{id}; POST .../{id}/probe
+message ApplicationConfig {
+  string protocol = 1; // openai-compatible or anthropic
+  string base_path = 2;
+  bool tls = 3;
+  string api_key = 4; // Write-only; empty preserves. Bound to target fingerprint.
+  bool clear_key = 5;
+  bool has_api_key = 6; // Read-only.
+}
+// GET/PUT /api/v1/ai/accesses/{id}
+message AccessConfig {
+  bool enabled = 1;
+  map<string,string> models = 2; // Public alias -> upstream model.
+  string external_protocol = 3; // V1: openai-compatible.
+}
+// GET /api/v1/ai/accesses/{id}/workspace: consumer-safe view, no upstream targets.
+message AccessWorkspace {
+  string name = 1;
+  bool enabled = 2;
+  repeated string models = 3;
+  bool can_manage = 4;
+}
+// GET/POST /api/v1/ai/accesses/{id}/keys; DELETE .../keys/{key_id}
+message KeyRequest {
+  string name = 1;
+  repeated string models = 2;
+  int32 expires_in_days = 3; // 1..365. No unbounded lifetime.
+  optional int64 token_limit = 4; // Lifetime input + output, 0..1e12; absent/null = unlimited.
+}
+message KeyView {
+  uint64 id = 1;
+  string name = 2;
+  repeated string models = 3;
+  string expires_at = 4;
+  string secret = 5; // Only in create response; never list.
+  optional int64 token_limit = 6;
+  int64 used_tokens = 7; // Reported lifetime usage; never reset on quota changes.
+  optional int64 remaining_tokens = 8; // null for unlimited OR unknown usage.
+  int64 unknown_requests = 9;
+}
+// PUT /api/v1/ai/accesses/{id}/keys/{key_id}/quota
+// Requires access update permission AND key ownership. Field must be present;
+// explicit null removes the limit. Successful response has data:null.
+message UpdateKeyQuotaRequest { optional int64 token_limit = 1; }
+// Inference checks before forwarding: 429 TOKEN_QUOTA_EXHAUSTED or
+// TOKEN_USAGE_UNCONFIRMED. In-flight requests can exceed the remaining quota;
+// this is an admission threshold, NOT hard billing or an output-token cutoff.
+// GET /api/v1/ai/accesses/{id}/requests (latest 50 own requests only).
+message RequestRecord {
+  string request_id = 1;
+  string model = 2;
+  int32 status = 3;
+  int64 duration_ms = 4;
+  optional int64 input_tokens = 5;
+  optional int64 output_tokens = 6;
+  bool complete = 7;
+  uint64 key_id = 8; // Zero for a dashboard-authenticated debug request.
+}
+// GET /api/v1/ai/accesses/{id}/usage: own usage, rolling 30 days.
+// Independent of the 500-request log retention. No historical backfill.
+// Missing upstream usage remains null, not measured zero. No billing guarantee.
+message TokenUsageRecord {
+  string request_id = 1;
+  uint64 key_id = 2; // Zero means authenticated playground.
+  string model = 3;
+  optional int64 input_tokens = 4;
+  optional int64 output_tokens = 5;
+  bool complete = 6;
+  string created_at = 7;
+}
+message TokenUsageSummary {
+  int64 requests = 1;
+  int64 unknown_requests = 2;
+  optional int64 input_tokens = 3; // Sum of reported values only.
+  optional int64 output_tokens = 4;
+}
+message TokenUsageResponse {
+  TokenUsageSummary summary = 1;
+  repeated TokenUsageRecord records = 2; // Latest 100 within the window.
+  string since = 3;
+}
+// SDK endpoints, virtual bearer key only (NOT dashboard JWT/PAT):
+// GET /api/v1/ai/accesses/{id}/v1/models
+// POST /api/v1/ai/accesses/{id}/v1/chat/completions
+// Protocol-native JSON/SSE, no management response envelope. No cookies/CORS.
+// POST /api/v1/ai/accesses/{id}/test: authenticated owner's bounded debug request.
