@@ -91,7 +91,7 @@ func (handle *webDataAgentHandle) Schema(ctx context.Context, path []string) (js
 		query.Name = strings.TrimSpace(path[3])
 	}
 	// Object inspection reuses the console's bounded, read-only metadata path.
-	if query.NodeType == "table" || query.NodeType == "collection" || query.NodeType == "key" {
+	if query.NodeType == "table" || query.NodeType == "collection" || query.NodeType == "key" || query.NodeType == "index" {
 		detail, err := handle.session.objectDetails(ctx, webDataObjectRequest{
 			ObjectType: query.NodeType, Database: query.Database, Schema: query.Schema, Name: query.Name, Key: query.Name,
 		})
@@ -204,6 +204,7 @@ type webSSHAgentHandle struct {
 	mu        sync.Mutex
 	recent    []byte
 	truncated bool
+	shell     shellContext
 }
 
 func (handle *webSSHAgentHandle) observe(output string) {
@@ -212,6 +213,7 @@ func (handle *webSSHAgentHandle) observe(output string) {
 	}
 	handle.mu.Lock()
 	defer handle.mu.Unlock()
+	handle.shell.observe(output)
 	handle.recent = append(handle.recent, output...)
 	if len(handle.recent) > agentTerminalOutputLimit {
 		overflow := len(handle.recent) - agentTerminalOutputLimit
@@ -228,6 +230,7 @@ func (handle *webSSHAgentHandle) Read(ctx context.Context, maxLines int) (json.R
 	handle.mu.Lock()
 	output := append([]byte(nil), handle.recent...)
 	truncated := handle.truncated
+	shell := handle.shell.snapshot(true)
 	handle.mu.Unlock()
 	if maxLines <= 0 {
 		maxLines = 100
@@ -237,7 +240,11 @@ func (handle *webSSHAgentHandle) Read(ctx context.Context, maxLines int) (json.R
 		lines = lines[len(lines)-maxLines:]
 		truncated = true
 	}
-	return json.Marshal(map[string]interface{}{"output": string(bytes.Join(lines, []byte("\n"))), "truncated": truncated})
+	result := map[string]interface{}{"output": string(bytes.Join(lines, []byte("\n"))), "truncated": truncated}
+	if string(shell) != `{"quality":"unavailable"}` {
+		result["shell_context"] = shell
+	}
+	return json.Marshal(result)
 }
 
 func (handle *webSSHAgentHandle) Execute(ctx context.Context, command string) (json.RawMessage, error) {

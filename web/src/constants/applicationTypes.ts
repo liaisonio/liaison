@@ -1,4 +1,5 @@
 export const APPLICATION_TYPES = [
+  { value: 'llm', label: 'LLM API' },
   { value: 'http', label: 'HTTP' },
   { value: 'tcp', label: 'TCP' },
   { value: 'ssh', label: 'SSH' },
@@ -8,6 +9,9 @@ export const APPLICATION_TYPES = [
   { value: 'mariadb', label: 'MariaDB' },
   { value: 'sqlserver', label: 'SQL Server' },
   { value: 'oracle', label: 'Oracle' },
+  { value: 'clickhouse', label: 'ClickHouse' },
+  { value: 'elasticsearch', label: 'Elasticsearch' },
+  { value: 'opensearch', label: 'OpenSearch' },
   { value: 'postgresql', label: 'PostgreSQL' },
   { value: 'redis', label: 'Redis' },
   { value: 'mongodb', label: 'MongoDB' },

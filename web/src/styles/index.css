@@ -728,6 +728,26 @@ button {
   align-items: center;
 }
 
+/* Home keeps the brand above navigation, without a full-width toolbar. */
+.liaison-app-frame.is-home > .liaison-global-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 232px;
+  padding-right: 0;
+  border-bottom: 0;
+  border-right: 1px solid rgb(var(--line) / .7);
+  background: var(--sidebar);
+  backdrop-filter: none;
+}
+.liaison-app-frame.is-home .liaison-sidebar { padding-top: 60px; }
+.liaison-app-frame.is-home .liaison-sidebar-boundary-toggle { top: 76px; }
+.liaison-app-frame.is-home.is-sidebar-collapsed > .liaison-global-header { width: 64px; }
+.liaison-app-frame.is-home .management-agent-page { height: calc(100dvh - 56px); }
+@media (max-width: 860px) {
+  .liaison-app-frame.is-home > .liaison-global-header { width: 64px; }
+}
+
 .liaison-global-left {
   width: 218px;
   min-width: 218px;

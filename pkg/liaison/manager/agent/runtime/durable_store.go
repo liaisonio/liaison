@@ -667,7 +667,7 @@ func attachmentModel(value Attachment) (*model.AgentAttachment, error) {
 	if err != nil {
 		return nil, fmt.Errorf("encode agent attachment capabilities: %w", err)
 	}
-	return &model.AgentAttachment{ID: value.ID, AgentSessionID: value.AgentSessionID, AccessID: value.AccessID,
+	return &model.AgentAttachment{ID: value.ID, AccessHandleID: value.AccessHandleID, AgentSessionID: value.AgentSessionID, AccessID: value.AccessID,
 		ApplicationID: value.ApplicationID, Protocol: string(value.Protocol), Capabilities: string(capabilities),
 		Generation: value.Generation, State: uint8(value.State), CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}, nil
 }
@@ -677,7 +677,7 @@ func attachmentFromModel(value *model.AgentAttachment) (Attachment, error) {
 	if err := json.Unmarshal([]byte(value.Capabilities), &capabilities); err != nil {
 		return Attachment{}, fmt.Errorf("decode agent attachment %s capabilities: %w", value.ID, err)
 	}
-	attachment := Attachment{ID: value.ID, AgentSessionID: value.AgentSessionID, AccessID: value.AccessID,
+	attachment := Attachment{ID: value.ID, AccessHandleID: value.AccessHandleID, AgentSessionID: value.AgentSessionID, AccessID: value.AccessID,
 		ApplicationID: value.ApplicationID, Protocol: tool.Protocol(value.Protocol), Capabilities: capabilities,
 		Generation: value.Generation, State: AttachmentState(value.State), CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
 	if err := validateAttachment(attachment); err != nil {

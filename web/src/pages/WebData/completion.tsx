@@ -17,6 +17,8 @@ export const statementPlaceholder = (
   protocol: string | undefined,
   tr: (zh: string, en: string) => string,
 ) => {
+  if (protocol === 'elasticsearch' || protocol === 'opensearch')
+    return '{ "method": "POST", "path": "/index_name/_search", "body": { "size": 20, "query": { "match_all": {} } } }';
   if (protocol === 'redis') return 'PING';
   if (protocol === 'mongodb')
     return '{ "find": "collection_name", "limit": 100 }';
@@ -502,7 +504,7 @@ export const renderStatementHighlight = (
   const keywordSet =
     protocol === 'redis'
       ? redisHighlightKeywords
-      : protocol === 'mongodb'
+      : ['mongodb', 'elasticsearch', 'opensearch'].includes(protocol || '')
       ? mongoHighlightKeywords
       : sqlHighlightKeywords;
   const parts = text.split(
@@ -1072,6 +1074,7 @@ export const completionKeywordItems = (
     );
   }
   const intent = completionIntentForProtocol(protocol, context);
+  if (protocol === 'elasticsearch' || protocol === 'opensearch') return [];
   const sqlItems: CompletionItem[] = sqlCommandKeywords.filter((label) => (protocol !== 'oracle' || !/^(SHOW|DESCRIBE|DESC$|USE|START TRANSACTION|RELEASE SAVEPOINT|OPTIMIZE|LOCK|UNLOCK|SIGNAL|DO$)/i.test(label)) && (!['sqlserver', 'oracle'].includes(protocol) || !/LIMIT|ILIKE|RETURNING/i.test(label))).map((label, index) =>
     keyword(label, `${label} `, 90 - index),
   );
@@ -1278,7 +1281,7 @@ export const sqlObjectCompletionInsert = (
   if ((protocol === 'postgresql' || protocol === 'sqlserver' || protocol === 'oracle') && node.meta?.schema) {
     return `${node.meta.schema}.${name}`;
   }
-  if ((protocol === 'mysql' || protocol === 'mariadb') && node.meta?.database) {
+  if ((protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') && node.meta?.database) {
     return `${node.meta.database}.${name}`;
   }
   return name;

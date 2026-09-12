@@ -24,8 +24,8 @@ const (
 func isWebOnlyCapableApplicationType(appType model.ApplicationType) bool {
 	switch appType {
 	case model.ApplicationTypeSSH, model.ApplicationTypeRDP, model.ApplicationTypeVNC,
-		model.ApplicationTypeMySQL, model.ApplicationTypeMariaDB, model.ApplicationTypeSQLServer, model.ApplicationTypeOracle, model.ApplicationTypePostgreSQL, model.ApplicationTypeRedis,
-		model.ApplicationTypeMongoDB, model.ApplicationTypeDatabase:
+		model.ApplicationTypeMySQL, model.ApplicationTypeMariaDB, model.ApplicationTypeSQLServer, model.ApplicationTypeOracle, model.ApplicationTypeClickHouse, model.ApplicationTypePostgreSQL, model.ApplicationTypeRedis,
+		model.ApplicationTypeMongoDB, model.ApplicationTypeElasticsearch, model.ApplicationTypeOpenSearch, model.ApplicationTypeDatabase:
 		return true
 	default:
 		return false

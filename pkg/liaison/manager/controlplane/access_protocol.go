@@ -33,6 +33,10 @@ func validateAccessProtocol(protocol model.AccessProtocol, application *model.Ap
 		return notFound("APPLICATION_NOT_FOUND", "关联应用不存在", nil)
 	}
 	switch protocol {
+	case model.AccessProtocolAI:
+		if application.ApplicationType != model.ApplicationTypeLLM {
+			return badRequest("ACCESS_PROTOCOL_MISMATCH", "AI API requires an LLM application")
+		}
 	case model.AccessProtocolTCP:
 		// TCP is the protocol-agnostic escape hatch. Every application can be
 		// exposed as an opaque L4 stream without invoking an L7/Web handler.
@@ -84,7 +88,7 @@ func effectiveAccessProtocol(proxy *model.Proxy, application *model.Application)
 		case model.AccessProtocolTCP, model.AccessProtocolHTTP, model.AccessProtocolSSH,
 			model.AccessProtocolRDP, model.AccessProtocolVNC, model.AccessProtocolMySQL,
 			model.AccessProtocolPostgreSQL, model.AccessProtocolRedis, model.AccessProtocolMongoDB,
-			model.AccessProtocolWebSSH, model.AccessProtocolWeb:
+			model.AccessProtocolWebSSH, model.AccessProtocolWeb, model.AccessProtocolAI:
 			return proxy.AccessProtocol
 		}
 	}
@@ -101,5 +105,5 @@ func effectiveAccessProtocol(proxy *model.Proxy, application *model.Application)
 }
 
 func accessProtocolRequiresPublicPort(protocol model.AccessProtocol) bool {
-	return protocol != model.AccessProtocolWebSSH && protocol != model.AccessProtocolWeb
+	return protocol != model.AccessProtocolWebSSH && protocol != model.AccessProtocolWeb && protocol != model.AccessProtocolAI
 }

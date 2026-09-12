@@ -12,6 +12,7 @@ import { Sidebar } from './Sidebar';
 
 export function AppLayout() {
   const location = useLocation();
+  const isHome = location.pathname === '/' || location.pathname.startsWith('/agent/sessions/');
   const { tr } = useI18n();
   const initialState = useSession((state) => state.initialState);
   const token = useSession((state) => state.token);
@@ -86,7 +87,8 @@ export function AppLayout() {
       ),
     },
   };
-  const page = location.pathname.startsWith('/webdata/')
+  const isAIAccessPage = /^\/ai\/\d+\/?$/.test(location.pathname);
+  const page = isAIAccessPage ? { title: tr('LLM 协议', 'LLM protocol'), description: '' } : location.pathname.startsWith('/webdata/')
     ? {
         title: tr('数据访问', 'Data access'),
         description: tr('数据库连接与查询控制台', 'Database connection and query console'),
@@ -95,8 +97,9 @@ export function AppLayout() {
   const webDataRoute = location.pathname.match(
     /^\/webdata\/(\d+)(?:\/connections\/(\d+))?(?:\/sessions\/[^/]+(?:\/agent\/[^/]+)?)?$/,
   );
-  const isWebDataPage = Boolean(webDataRoute);
+  const isWebDataPage = Boolean(webDataRoute) || isAIAccessPage;
   const webDataReturn = (() => {
+    if (isAIAccessPage) return { href: '/proxy', label: tr('返回访问', 'Back to access') };
     if (!webDataRoute) return undefined;
     if (webDataRoute[2]) {
       return {
@@ -173,7 +176,7 @@ export function AppLayout() {
   }, [page?.title, location.pathname, tr]);
 
   return (
-    <div className="liaison-app-frame">
+    <div className={`liaison-app-frame${isHome ? ' is-home' : ''}${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}`}>
       <header className="liaison-global-header">
         <div className={`liaison-global-left${sidebarCollapsed ? ' is-collapsed' : ''}`}>
           <Link to="/" className="liaison-brand-link">
@@ -186,10 +189,10 @@ export function AppLayout() {
             </span>}
           </Link>
         </div>
-        <div className="liaison-global-actions">
+        {!isHome && <div className="liaison-global-actions">
           <HeaderQuickSettings />
           <HeaderUser />
-        </div>
+        </div>}
       </header>
       <div className="liaison-shell">
         <Sidebar />

@@ -62,6 +62,24 @@
 .agent-message.is-streaming .agent-markdown::after { display: inline-block; width: 5px; height: 13px; background: rgb(var(--accent)); content: ''; animation: liaison-pulse 1s infinite; }
 .agent-markdown { display: grid; min-width: 0; gap: 12px; }
 .agent-markdown strong { font-weight: 620; }
+.agent-markdown { color: rgb(var(--ink)); font-size: 13px; line-height: 1.75; overflow-wrap: anywhere; }
+.agent-markdown > * { min-width: 0; margin: 0; }
+.agent-markdown h1, .agent-markdown h2, .agent-markdown h3, .agent-markdown h4, .agent-markdown h5, .agent-markdown h6 { font-weight: 650; line-height: 1.4; margin-top: 8px; }
+.agent-markdown h1 { font-size: 21px; }
+.agent-markdown h2 { font-size: 18px; }
+.agent-markdown h3 { font-size: 16px; }
+.agent-markdown h4, .agent-markdown h5, .agent-markdown h6 { font-size: 14px; }
+.agent-markdown blockquote { border-left: 3px solid rgb(var(--accent) / .45); padding: 4px 12px; color: rgb(var(--muted)); }
+.agent-markdown ul { list-style: disc; }
+.agent-markdown ol { list-style: decimal; }
+.agent-markdown li > ul, .agent-markdown li > ol { margin-top: 5px; }
+.agent-markdown a { color: rgb(var(--accent)); text-decoration: underline; text-underline-offset: 3px; }
+.agent-markdown hr { border: 0; border-top: 1px solid rgb(var(--line)); }
+.agent-markdown-table { max-width: 100%; overflow-x: auto; border: 1px solid rgb(var(--line)); border-radius: 8px; }
+.agent-markdown-table table { width: 100%; border-collapse: collapse; }
+.agent-markdown-table th, .agent-markdown-table td { padding: 8px 12px; min-width: 100px; border-bottom: 1px solid rgb(var(--line) / .6); text-align: left; }
+.agent-markdown-table th { background: rgb(var(--panel)); font-weight: 600; }
+.agent-markdown-table tr:last-child td { border-bottom: 0; }
 .agent-markdown :not(pre) > code { padding: 1px 4px; border-radius: 4px; background: rgb(var(--panel)); font-size: .92em; overflow-wrap: anywhere; }
 .agent-markdown ul, .agent-markdown ol { margin: 0; padding-left: 20px; color: rgb(var(--ink)); font-size: 13px; line-height: 1.75; }
 .agent-markdown li + li { margin-top: 5px; }

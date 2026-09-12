@@ -123,7 +123,6 @@ export default function ManagementAgent() {
               <p>{tr('当前没有你可见的连接器、设备或应用。先添加连接器，接入设备和应用后，就可以在这里查询。', 'You have no visible connectors, devices or applications. Add a connector and connect your resources to explore them here.')}</p>
               <a href="/connector">{tr('前往连接器', 'Go to connectors')}<ArrowUp size={14} /></a>
             </div> : <div className="management-agent-presets">{presets.map(p => <button key={p.label} disabled={!enabled || creating} onClick={() => void start(p.prompt)}><span className="preset-title"><p.icon size={18} />{p.label}</span><span className="preset-description">{p.description}</span></button>)}</div>}
-            <small>{tr('当前支持资源查询，不会修改配置或执行终端命令。', 'Resource queries only. No configuration changes or terminal commands.')}</small>
           </div>}
       </main>
     </div>

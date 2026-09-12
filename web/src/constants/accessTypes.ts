@@ -1,6 +1,7 @@
 import type { ApplicationType } from './applicationTypes';
 
 export type WebAccessType =
+  | 'aiapi'
   | 'webssh'
   | 'webrdp'
   | 'webvnc'
@@ -8,6 +9,9 @@ export type WebAccessType =
   | 'webmariadb'
   | 'websqlserver'
   | 'weboracle'
+  | 'webclickhouse'
+  | 'webelasticsearch'
+  | 'webopensearch'
   | 'webpostgresql'
   | 'webredis'
   | 'webmongodb';
@@ -32,6 +36,9 @@ const UNSUPPORTED_NATIVE_DATA_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'mariadb', label: 'MariaDB' },
   { value: 'sqlserver', label: 'SQL Server' },
   { value: 'oracle', label: 'Oracle' },
+  { value: 'clickhouse', label: 'ClickHouse' },
+  { value: 'elasticsearch', label: 'Elasticsearch' },
+  { value: 'opensearch', label: 'OpenSearch' },
   { value: 'postgresql', label: 'PostgreSQL' },
   { value: 'redis', label: 'Redis' },
   { value: 'mongodb', label: 'MongoDB' },
@@ -45,9 +52,13 @@ const WEB_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'webmariadb', label: 'Web MariaDB' },
   { value: 'websqlserver', label: 'Web SQL Server' },
   { value: 'weboracle', label: 'Web Oracle' },
+  { value: 'webclickhouse', label: 'Web ClickHouse' },
+  { value: 'webelasticsearch', label: 'Web Elasticsearch' },
+  { value: 'webopensearch', label: 'Web OpenSearch' },
   { value: 'webpostgresql', label: 'Web PostgreSQL' },
   { value: 'webredis', label: 'Web Redis' },
   { value: 'webmongodb', label: 'Web MongoDB' },
+  { value: 'aiapi', label: 'LLM' },
 ];
 
 // Keep one product-wide order: L4 passthrough, native protocol, browser access.
@@ -62,7 +73,14 @@ const KNOWN_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   ...UNSUPPORTED_NATIVE_DATA_ACCESS_TYPES,
 ];
 
+// Creation prefers browser workspaces without changing navigation/filter order.
+export const ACCESS_CREATION_TYPES: ReadonlyArray<AccessTypeOption> = [
+  ...WEB_ACCESS_TYPES,
+  ...ACCESS_TYPES.filter(item => !WEB_ACCESS_TYPES.some(web => web.value === item.value)),
+];
+
 const WEB_TYPE_BY_APPLICATION: Partial<Record<ApplicationType, WebAccessType>> = {
+  llm: 'aiapi',
   ssh: 'webssh',
   rdp: 'webrdp',
   vnc: 'webvnc',
@@ -70,6 +88,9 @@ const WEB_TYPE_BY_APPLICATION: Partial<Record<ApplicationType, WebAccessType>> =
   mariadb: 'webmariadb',
   sqlserver: 'websqlserver',
   oracle: 'weboracle',
+  clickhouse: 'webclickhouse',
+  elasticsearch: 'webelasticsearch',
+  opensearch: 'webopensearch',
   postgresql: 'webpostgresql',
   redis: 'webredis',
   mongodb: 'webmongodb',
@@ -99,6 +120,7 @@ export const applicationTypeForAccess = (accessType: AccessType): ApplicationTyp
 };
 
 export const accessProtocolForType = (accessType: AccessType) => {
+  if (accessType === 'aiapi') return 'aiapi';
   if (accessType === 'webssh') return 'webssh';
   return isWebAccessType(accessType) ? 'web' : accessType;
 };
@@ -107,9 +129,9 @@ export const accessTypesForApplication = (applicationType: string): AccessTypeOp
   const native = NATIVE_ACCESS_TYPES.find((item) => item.value === applicationType);
   const webType = WEB_TYPE_BY_APPLICATION[applicationType as ApplicationType];
   return [
+    ...(webType ? WEB_ACCESS_TYPES.filter((item) => item.value === webType) : []),
     { value: 'tcp', label: 'TCP' },
     ...(applicationType !== 'tcp' && native ? [native] : []),
-    ...(webType ? WEB_ACCESS_TYPES.filter((item) => item.value === webType) : []),
   ];
 };
 

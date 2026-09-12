@@ -14,7 +14,7 @@ async(page)=>{
     const p=await context.newPage();let handle;let executions=0;let delayed=false;
     const pending=[];
     p.on('request',r=>{if(r.method()==='POST'&&(r.url().endsWith('/execute')||r.url().endsWith('/turns')))executions++;});
-    p.on('response',r=>{if(r.request().method()==='POST'&&r.url().includes('/webdata/proxies/')&&r.url().endsWith('/session'))pending.push(r.json().then(v=>handle=v.data.token));});
+    p.on('response',r=>{if(r.request().method()==='POST'&&r.url().includes('/webdata/proxies/')&&r.url().endsWith('/session'))pending.push(r.json().then(v=>handle=v.data?.token));});
     await p.route('**/api/v1/assistance/suggestions',async route=>{
       const data=route.request().postDataJSON();
       if(delayed)await p.waitForTimeout(700);

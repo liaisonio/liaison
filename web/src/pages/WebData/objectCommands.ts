@@ -52,6 +52,7 @@ export const buildSQLUpdateRowCommand = (
   values: any,
   originalRow?: Record<string, any>,
 ) => {
+  if (protocol === 'clickhouse') throw new Error('Use explicit ClickHouse mutation SQL');
   const tableName = sqlQualifiedName(protocol, detail);
   if (!tableName) throw new Error('missing table name');
   const whereColumn = String(values?.where_column || '').trim();
@@ -480,8 +481,9 @@ export const sqlIdentityColumn = (
   detail: API.WebDataObjectResult,
   row: Record<string, any>,
 ) => {
+  if (protocol === 'clickhouse') throw new Error('ClickHouse keys do not identify a unique row; use explicit SQL');
   const primaryColumn =
-    (protocol === 'mysql' || protocol === 'mariadb')
+    (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse')
       ? mysqlPrimaryColumn(detail)
       : (protocol === 'sqlserver' || protocol === 'oracle')
         ? String((detail.indexes || []).find((item) => Number(item.is_primary_key) === 1)?.column_name || '')
@@ -615,6 +617,7 @@ export const sqlLiteral = (value: any) => {
 };
 
 export const sqlDialectLiteral = (protocol: string, literal: string) => {
+  if (protocol === 'clickhouse') return literal.replace(/\\/g, '\\\\');
   if (protocol !== 'sqlserver') return literal;
   if (literal === 'true') return '1';
   if (literal === 'false') return '0';
@@ -942,6 +945,11 @@ export const buildSQLFilterCondition = (
   kind: ObjectFilterFieldKind = 'unknown',
 ) => {
   const quotedField = sqlQuoteIdent(protocol, field);
+  if (protocol === 'clickhouse' && ['contains', 'starts_with', 'ends_with'].includes(operator)) {
+    const literal = sqlDialectLiteral(protocol, `'${String(value || '').replace(/'/g, "''")}'`);
+    if (operator === 'contains') return `position(${quotedField}, ${literal}) > 0`;
+    return `${operator === 'starts_with' ? 'startsWith' : 'endsWith'}(${quotedField}, ${literal})`;
+  }
   const likeEscape = ` ESCAPE ${sqlLiteral(SQL_LIKE_ESCAPE_CHAR)}`;
   switch (operator) {
     case 'ne':
@@ -1171,6 +1179,10 @@ export const buildObjectTemplate = (
   detail: API.WebDataObjectResult,
   action: string,
 ) => {
+  if (protocol === 'elasticsearch' || protocol === 'opensearch') {
+    if (action === 'preview') return JSON.stringify({ method: 'POST', path: `/${detail.name}/_search`, body: { size: 20, query: { match_all: {} } } }, null, 2);
+    return '';
+  }
   if (protocol === 'redis') {
     const key = quoteRedisArg(detail.key || detail.name || '');
     if (!key) return '';
@@ -1232,6 +1244,7 @@ export const buildObjectTemplate = (
       .join(', ')})\nVALUES (${placeholders});`;
   }
   if (action === 'update') {
+    if (protocol === 'clickhouse') return `ALTER TABLE ${tableName} UPDATE ${sqlQuoteIdent(protocol, firstColumn)} = ? WHERE ${sqlQuoteIdent(protocol, firstColumn)} = ?;`;
     return `UPDATE ${tableName}\nSET ${sqlQuoteIdent(
       protocol,
       firstColumn,
@@ -1277,7 +1290,7 @@ export const sqlQualifiedName = (
   detail: API.WebDataObjectResult,
 ) => {
   if (!detail.name) return '';
-  if (protocol === 'mysql' || protocol === 'mariadb') {
+  if (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') {
     return detail.database
       ? `${sqlQuoteIdent(protocol, detail.database)}.${sqlQuoteIdent(
           protocol,
@@ -1297,8 +1310,9 @@ export const sqlQualifiedName = (
 };
 
 export const sqlQuoteIdent = (protocol: string, value: string) => {
+  if (protocol === 'clickhouse') return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '""')}"`;
   if (protocol === 'sqlserver') return `[${value.replace(/]/g, ']]')}]`;
-  if (protocol === 'mysql' || protocol === 'mariadb') return `\`${value.replace(/`/g, '``')}\``;
+  if (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') return `\`${value.replace(/`/g, '``')}\``;
   return `"${value.replace(/"/g, '""')}"`;
 };
 

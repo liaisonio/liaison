@@ -14,18 +14,21 @@ import (
 // getDefaultPortByApplicationType 根据应用类型返回默认端口
 func getDefaultPortByApplicationType(appType string) int {
 	defaultPorts := map[string]int{
-		"http":       80,
-		"ssh":        22,
-		"rdp":        3389,
-		"vnc":        5900,
-		"mysql":      3306,
-		"mariadb":    3306,
-		"sqlserver":  1433,
-		"oracle":     1521,
-		"postgresql": 5432,
-		"redis":      6379,
-		"mongodb":    27017,
-		"database":   3306,
+		"http":          80,
+		"ssh":           22,
+		"rdp":           3389,
+		"vnc":           5900,
+		"mysql":         3306,
+		"mariadb":       3306,
+		"sqlserver":     1433,
+		"oracle":        1521,
+		"clickhouse":    9000,
+		"elasticsearch": 9200,
+		"opensearch":    9200,
+		"postgresql":    5432,
+		"redis":         6379,
+		"mongodb":       27017,
+		"database":      3306,
 	}
 	if port, ok := defaultPorts[appType]; ok {
 		return port
@@ -45,6 +48,7 @@ func detectApplicationTypeByPort(port int) string {
 		5432:  "postgresql",
 		1433:  "sqlserver",
 		1521:  "oracle",
+		9000:  "clickhouse",
 		6379:  "redis",
 		27017: "mongodb",
 	}
@@ -415,7 +419,7 @@ func (cp *controlPlane) DeleteApplication(ctx context.Context, req *v1.DeleteApp
 
 func isAllowedApplicationType(appType string) bool {
 	switch appType {
-	case "http", "tcp", "ssh", "rdp", "vnc", "mysql", "mariadb", "sqlserver", "oracle", "postgresql", "redis", "mongodb", "database":
+	case "llm", "http", "tcp", "ssh", "rdp", "vnc", "mysql", "mariadb", "sqlserver", "oracle", "clickhouse", "elasticsearch", "opensearch", "postgresql", "redis", "mongodb", "database":
 		return true
 	default:
 		return false

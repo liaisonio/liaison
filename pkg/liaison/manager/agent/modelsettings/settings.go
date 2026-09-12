@@ -24,6 +24,7 @@ var ErrDisabled = errors.New("model disabled")
 var ErrProbe = errors.New("model connection failed; check endpoint, model and credentials")
 
 type Config struct {
+	OutputLanguage  string           `json:"output_language,omitempty"`
 	Enabled         bool             `json:"enabled"`
 	BaseURL         string           `json:"base_url"`
 	Model           string           `json:"model"`
@@ -37,6 +38,7 @@ type Update struct {
 	TestProvider string `json:"test_provider,omitempty"`
 }
 type View struct {
+	OutputLanguage  string         `json:"output_language"`
 	Enabled         bool           `json:"enabled"`
 	BaseURL         string         `json:"base_url"`
 	Model           string         `json:"model"`
@@ -95,6 +97,7 @@ func view(c Config) View {
 	c = normalize(c)
 	selected, _ := selectedConfig(c, "")
 	result := View{Enabled: c.Enabled, BaseURL: selected.BaseURL, Model: selected.Model, HasAPIKey: selected.APIKey != "", DefaultProvider: c.DefaultProvider, Providers: []ProviderView{}}
+	result.OutputLanguage = outputLanguage(c.OutputLanguage)
 	for _, p := range c.Providers {
 		result.Providers = append(result.Providers, ProviderView{ID: p.ID, Type: p.Type, BaseURL: p.BaseURL, Model: p.Model, Models: p.Models, HasAPIKey: p.APIKey != ""})
 	}
@@ -123,6 +126,12 @@ func (m *Manager) candidate(ctx context.Context, u Update) (Config, error) {
 		return Config{}, err
 	}
 	c := u.Config
+	if c.OutputLanguage == "" {
+		c.OutputLanguage = outputLanguage(old.OutputLanguage)
+	}
+	if c.OutputLanguage != "zh" && c.OutputLanguage != "en" {
+		return Config{}, ErrInvalid
+	}
 	if u.Providers != nil {
 		return mergeProviders(normalize(old), c)
 	}
@@ -230,6 +239,7 @@ func (m *Manager) Generate(ctx context.Context, r runtime.ModelRequest, emit run
 	if err != nil {
 		return runtime.ModelResponse{}, err
 	}
+	r = withOutputLanguage(r, c.OutputLanguage)
 	response, err := p.Generate(ctx, r, emit)
 	if err != nil {
 		if ctx.Err() != nil {

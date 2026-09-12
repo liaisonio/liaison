@@ -1,5 +1,5 @@
 import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, Notice, Pager, Select, StatusPill, Timestamp } from '@/components/ui';
-import { ACCESS_TYPES, ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, applicationTypeForAccess, getProxyAccessType, isAccessType, isProxyPublicPortExposed, isSupportedAccessType, isWebAccessType } from '@/constants/accessTypes';
+import { ACCESS_TYPES, ACCESS_CREATION_TYPES, ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, applicationTypeForAccess, getProxyAccessType, isAccessType, isProxyPublicPortExposed, isSupportedAccessType, isWebAccessType } from '@/constants/accessTypes';
 import { useI18n } from '@/i18n';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { history, useSearchParams } from '@/lib/runtime';
@@ -179,9 +179,10 @@ const ProxyPage: React.FC = () => {
     const search = routeSearch.toString();
     const returnTo = `/proxy${search ? `?${search}` : ''}`;
     const internalPath = (path: string) => `${path}?from=${encodeURIComponent(returnTo)}`;
-    if (type === 'webssh') history.push(internalPath(`/webssh/${row.id}`));
+    if (type === 'aiapi') history.push(`/ai/${row.id}`);
+    else if (type === 'webssh') history.push(internalPath(`/webssh/${row.id}`));
     else if (type === 'webrdp' || type === 'webvnc') history.push(internalPath(`/webdesktop/${row.id}`));
-    else if (['webmysql', 'webmariadb', 'websqlserver', 'weboracle', 'webpostgresql', 'webredis', 'webmongodb'].includes(type || '')) history.push(internalPath(`/webdata/${row.id}`));
+    else if (['webmysql', 'webmariadb', 'websqlserver', 'weboracle', 'webclickhouse', 'webelasticsearch', 'webopensearch', 'webpostgresql', 'webredis', 'webmongodb'].includes(type || '')) history.push(internalPath(`/webdata/${row.id}`));
     else if (row.access_url) window.open(row.access_url, '_blank', 'noopener,noreferrer');
   };
 
@@ -207,7 +208,7 @@ const ProxyPage: React.FC = () => {
     const exposesPublicPort = editing ? isProxyPublicPortExposed(editRow) : Boolean(selectedApplication && !isWebAccessType(selectedAccessType));
     return <form id={id} className={`liaison-access-form${editing ? ' is-editing' : ''}${routeType ? ' is-protocol-fixed' : ''}`} onSubmit={submit}>
       <Field label={tr('访问名称', 'Access name')}><Input value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder={editing ? undefined : suggestedAccessName} /></Field>
-      {!editing ? <Field label={tr('访问协议', 'Protocol')} required><Select value={selectedAccessType} disabled={Boolean(routeType)} onChange={(event) => setForm((value) => ({ ...value, access_type: event.target.value, application_id: '', port: '' }))}><option value="">{tr('选择协议', 'Select protocol')}</option>{ACCESS_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field> : null}
+      {!editing ? <Field label={tr('访问协议', 'Protocol')} required><Select value={selectedAccessType} disabled={Boolean(routeType)} onChange={(event) => setForm((value) => ({ ...value, access_type: event.target.value, application_id: '', port: '' }))}><option value="">{tr('选择协议', 'Select protocol')}</option>{ACCESS_CREATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field> : null}
       {!editing ? <div className="is-full"><Field label={tr('应用', 'Application')} required hint={!selectedAccessType ? tr('请先选择访问协议', 'Select a protocol first') : availableApplications.length === 0 ? tr('该协议暂无可用应用', 'No available applications for this protocol') : undefined}><Select value={form.application_id} disabled={!selectedAccessType || availableApplications.length === 0} onChange={(event) => setForm((value) => ({ ...value, application_id: event.target.value }))}><option value="">{!selectedAccessType ? tr('先选择协议', 'Select protocol first') : tr('选择应用', 'Select application')}</option>{availableApplications.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.ip}:{item.port}</option>)}</Select></Field></div> : null}
       <div className={editing || !exposesPublicPort ? 'is-full' : 'liaison-access-description'}><Field label={tr('描述', 'Description')}><Input value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} placeholder={tr('选填', 'Optional')} /></Field></div>
       {exposesPublicPort ? <div className="liaison-access-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty for automatic assignment')}><Input type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm((value) => ({ ...value, port: event.target.value }))} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}

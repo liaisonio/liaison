@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type RefObject, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useId, useRef, useState, type RefObject, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Cable, HardDrive, Layers, AtSign, X } from 'lucide-react';
 import { useI18n } from '@/i18n';
 import { getApplicationList, getDeviceList, getEdgeList } from '@/services/api';
@@ -25,9 +26,26 @@ export function useResourceMentions(input:RefObject<HTMLTextAreaElement>, value:
  const [loading,setLoading]=useState(false);
  const [failed,setFailed]=useState(false);
  const dismissed=useRef(false);
+ const [position,setPosition]=useState({left:0,top:0,width:0,maxHeight:280});
+ useLayoutEffect(()=>{
+  if(!trigger||!enabled)return;
+  const place=()=>{
+   const anchor=input.current?.closest('.management-agent-input,.agent-composer');
+   if(!anchor)return;
+   const rect=anchor.getBoundingClientRect();
+   const below=window.innerHeight-rect.bottom-16;
+   const above=rect.top-16;
+   const down=below>=280||below>=above;
+   const maxHeight=Math.min(320,Math.max(80,down?below:above));
+   const width=Math.min(420,rect.width,window.innerWidth-24);
+   setPosition({left:Math.max(12,Math.min(rect.left,window.innerWidth-width-12)),top:down?rect.bottom+8:Math.max(8,rect.top-maxHeight-8),width,maxHeight});
+  };
+  place();window.addEventListener('resize',place);window.addEventListener('scroll',place,true);
+  return()=>{window.removeEventListener('resize',place);window.removeEventListener('scroll',place,true);};
+ },[!!trigger,enabled,input]);
  useEffect(()=>{
   if(!trigger)return;
-  const outside=(event:PointerEvent)=>{if(event.target instanceof Element&&!event.target.closest('.agent-composer,.management-agent-input'))setTrigger(undefined);};
+  const outside=(event:PointerEvent)=>{if(event.target instanceof Element&&!event.target.closest('.agent-composer,.management-agent-input,.agent-mention-picker'))setTrigger(undefined);};
   document.addEventListener('pointerdown',outside);
   return()=>document.removeEventListener('pointerdown',outside);
  },[!!trigger]);
@@ -71,7 +89,14 @@ export function useResourceMentions(input:RefObject<HTMLTextAreaElement>, value:
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(options[index]&&!loading)choose(options[index]);return true;}
   return false;
  };
- useEffect(()=>{if(trigger)document.getElementById(`${id}-${index}`)?.scrollIntoView({block:'nearest'});},[index,id,!!trigger]);
+ useEffect(()=>{
+  if(!trigger)return;
+  const list=document.getElementById(id), option=document.getElementById(`${id}-${index}`);
+  if(!list||!option)return;
+  const row=option.getBoundingClientRect(),box=list.getBoundingClientRect();
+  if(row.bottom>box.bottom)list.scrollTop+=row.bottom-box.bottom;
+  else if(row.top<box.top)list.scrollTop-=box.top-row.top;
+ },[index,id,!!trigger,loading]);
  const labels={connector:tr('连接器','Connector'),device:tr('设备','Device'),application:tr('应用','Application')};
  return {
   references,setReferences,
@@ -82,12 +107,12 @@ export function useResourceMentions(input:RefObject<HTMLTextAreaElement>, value:
   inputProps:{'aria-controls':trigger?id:undefined,'aria-expanded':!!trigger,'aria-autocomplete':'list' as const,'aria-activedescendant':trigger&&options[index]?`${id}-${index}`:undefined},
   tags:<ReferenceTags references={references} onRemove={ref=>{setReferences(refs=>refs.filter(r=>key(r)!==key(ref)));input.current?.focus();}}/>,
   button:<button type="button" className="agent-mention-trigger" aria-label={tr('引用资源','Mention a resource')} title={tr('@ 引用连接器、设备或应用','@ Mention a connector, device or application')} disabled={!enabled||references.length>=8} onClick={()=>{const el=input.current;const cursor=el?.selectionStart??value.length;const prefix=cursor&& !/\s/.test(value[cursor-1])?' @':'@';const text=value.slice(0,cursor)+prefix+value.slice(cursor);setValue(text);detect(text,cursor+prefix.length);requestAnimationFrame(()=>{el?.focus();el?.setSelectionRange(cursor+prefix.length,cursor+prefix.length);});}}><AtSign size={17}/></button>,
-  picker:trigger&&enabled?<section className="agent-mention-picker" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget)&&e.relatedTarget!==input.current)setTrigger(undefined);}}>
+  picker:trigger&&enabled?createPortal(<section className="agent-mention-picker" style={position} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget)&&e.relatedTarget!==input.current)setTrigger(undefined);}}>
    <header>{tr('引用资源','Mention a resource')}<small>{tr('↑ ↓ 选择 · Enter 确认 · Esc 关闭','↑ ↓ Select · Enter Confirm · Esc Close')}</small><button type="button" aria-label={tr('关闭资源选择','Close resource picker')} onClick={()=>setTrigger(undefined)}><X size={14}/></button></header>
    <div id={id} role="listbox" aria-label={tr('资源','Resources')}>
     {references.length>=8?<p>{tr('最多引用 8 个资源','Up to 8 references')}</p>:loading?<p role="status">{tr('搜索中…','Searching…')}</p>:options.length?options.map((item,i)=>{const Icon=icons[item.type];return <button type="button" role="option" aria-selected={i===index} id={`${id}-${i}`} key={key(item)} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(item)}><Icon size={16}/><span>{item.name||`#${item.id}`}<small>{labels[item.type]} · #{item.id}</small></span></button>;}):<p role="status">{tr('没有匹配的可见资源','No matching visible resources')}</p>}
    </div>
    {failed&&<p role="status">{tr('部分资源暂时无法加载，请重试','Some resources could not be loaded. Try again.')}</p>}
-  </section>:null,
+  </section>,document.body):null,
  };
 }

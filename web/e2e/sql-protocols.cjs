@@ -12,18 +12,27 @@ require.extensions['.ts'] = (module, filename) => {
 };
 
 const access = require('../src/constants/accessTypes.ts');
+const creationTypes = access.ACCESS_CREATION_TYPES.map(item => item.value);
+const webTypes = creationTypes.filter(access.isWebAccessType);
+assert.deepEqual(creationTypes.slice(0, webTypes.length), webTypes);
+assert.equal(new Set(creationTypes).size, access.ACCESS_TYPES.length);
+for (const type of ['ssh', 'rdp', 'vnc']) {
+  assert.deepEqual(access.accessTypesForApplication(type).map(item => item.value), ['web'+type, 'tcp', type]);
+}
+assert.deepEqual(access.accessTypesForApplication('tcp').map(item => item.value), ['tcp']);
+assert.deepEqual(access.accessTypesForApplication('http').map(item => item.value), ['tcp', 'http']);
 const { isSQLProtocol, protocolLabels } = require('../src/pages/WebData/protocol.ts');
 const { tlsOptionsForProtocol } = require('../src/pages/WebData/connection.ts');
 const { sqlQualifiedName, sqlQuoteIdent } = require('../src/pages/WebData/objectCommands.ts');
 
-for (const protocol of ['mysql', 'mariadb', 'postgresql', 'sqlserver', 'oracle']) {
+for (const protocol of ['mysql', 'mariadb', 'postgresql', 'sqlserver', 'oracle', 'clickhouse']) {
   assert.equal(isSQLProtocol(protocol), true);
   assert.ok(protocolLabels[protocol]);
   const webType = 'web' + protocol;
   assert.equal(access.applicationTypeForAccess(webType), protocol);
   assert.equal(access.accessProtocolForType(webType), 'web');
   assert.equal(access.getProxyAccessType({ access_protocol: 'web', application: { application_type: protocol } }), webType);
-  assert.deepEqual(access.accessTypesForApplication(protocol).map(item => item.value), ['tcp', webType]);
+  assert.deepEqual(access.accessTypesForApplication(protocol).map(item => item.value), [webType, 'tcp']);
   assert.ok(tlsOptionsForProtocol(protocol, (_, en) => en).some(item => item.value === 'require'));
 }
 assert.equal(sqlQuoteIdent('mariadb', 'odd`name'), '`odd``name`');
@@ -44,4 +53,18 @@ assert.ok(!oracleFilter.includes('LIMIT'));
 assert.equal(commands.isGeneratedColumn({is_identity:'1'}), true);
 assert.equal(commands.isGeneratedColumn({is_computed:'1'}), true);
 assert.equal(commands.sqlIdentityColumn('oracle', {columns:[{column_name:'CUSTOMER'}, {column_name:'ID'}],indexes:[{is_primary_key:'1',column_name:'ID'}]}, {CUSTOMER:'demo',ID:'1'}).column, 'ID');
-console.log('SQL protocol frontend checks passed (MySQL, MariaDB, PostgreSQL, SQL Server, Oracle).');
+assert.equal(sqlQualifiedName('clickhouse', {database:'analytics',name:'events'}), '"analytics"."events"');
+assert.equal(sqlQuoteIdent('clickhouse', 'odd"name'), '"odd""name"');
+assert.match(commands.buildSQLFilterCommand('clickhouse', {database:'analytics',name:'events'}, {limit:20,conditions:[{field:'name',operator:'contains',value:'100%'}]}), /position\("name", '100%'\) > 0/);
+assert.throws(() => commands.sqlIdentityColumn('clickhouse', {}, {id:1}), /unique row/);
+assert.equal(commands.sqlDialectLiteral('clickhouse', "'a\\b'"), "'a\\\\b'");
+console.log('SQL protocol frontend checks passed (including ClickHouse).');
+for (const protocol of ['elasticsearch', 'opensearch']) {
+  assert.equal(isSQLProtocol(protocol), false);
+  assert.deepEqual(access.accessTypesForApplication(protocol).map(x => x.value), ['web' + protocol, 'tcp']);
+  assert.equal(access.getProxyAccessType({access_protocol:'web',application:{application_type:protocol}}), 'web' + protocol);
+  const request = JSON.parse(commands.buildObjectTemplate(protocol, {name:'logs',object_type:'index'}, 'preview'));
+  assert.equal(request.path, '/logs/_search');
+  assert.equal(request.body.size, 20);
+}
+console.log('Search protocol frontend checks passed.');

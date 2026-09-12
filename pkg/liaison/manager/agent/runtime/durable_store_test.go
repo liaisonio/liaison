@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"sync"
@@ -13,6 +14,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDurableStore_ShellAndChatShareTransportNotAttachment(t *testing.T) {
+	store, err := NewDurableStore(newAgentTestDAO(t))
+	require.NoError(t, err)
+	ctx := context.Background()
+	for _, kind := range []tool.SessionKind{tool.SessionShell, tool.SessionAccess} {
+		id := string(kind)
+		attachment := Attachment{ID: "live", AgentSessionID: id, AccessID: 10, ApplicationID: 20, Protocol: tool.ProtocolWebSSH, Capabilities: []tool.Capability{"terminal.read", "terminal.execute"}, State: AttachmentConnected}
+		if kind == tool.SessionShell {
+			attachment.ID, attachment.AccessHandleID = id, "live"
+		}
+		session, _, err := store.CreateSessionWithAttachment(ctx, Session{ID: id, Kind: kind, OrganizationID: 1, CreatedBy: 2}, attachment)
+		require.NoError(t, err)
+		loop := &Loop{store: store}
+		loaded, _, err := loop.loadAttachments(ctx, session)
+		require.NoError(t, err)
+		require.Len(t, loaded, 1)
+		require.Equal(t, "live", loaded[0].AccessHandleID)
+		if kind == tool.SessionShell {
+			encoded, err := json.Marshal(attachment)
+			require.NoError(t, err)
+			require.NotContains(t, string(encoded), "live")
+		}
+	}
+}
 
 func TestDurableStore_PersistsManagementKindWithoutAttachment(t *testing.T) {
 	repository := newAgentTestDAO(t)

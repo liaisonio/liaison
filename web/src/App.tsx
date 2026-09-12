@@ -20,6 +20,7 @@ const Settings = lazy(() => import('@/pages/Settings'));
 const WebSSH = lazy(() => import('@/pages/WebSSH'));
 const WebDesktop = lazy(() => import('@/pages/WebDesktop'));
 const WebData = lazy(() => import('@/pages/WebData'));
+const AIGateway = lazy(() => import('@/pages/AIGateway'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const token = useSession((state) => state.token);
@@ -74,6 +75,8 @@ export default function App() {
             <Route path="/agent/sessions/:agentSessionId" element={<FeatureGate code="ai.home.use"><Home /></FeatureGate>} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/proxy" element={<Proxy />} />
+            <Route path="/ai/:proxyId" element={<AIGateway />} />
+            <Route path="/ai/applications/:applicationId" element={<AIGateway />} />
             <Route path="/resource/device" element={<Device />} />
             <Route path="/resource/app" element={<Application />} />
             <Route path="/connector" element={<Connector />} />

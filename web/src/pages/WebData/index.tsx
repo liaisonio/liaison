@@ -215,6 +215,7 @@ const WebDataPage: React.FC = () => {
   const statementTextAreaRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string>();
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionSaving, setConnectionSaving] = useState(false);
   const [connectingCredentialId, setConnectingCredentialId] = useState<
@@ -536,6 +537,7 @@ const WebDataPage: React.FC = () => {
   ) => {
     if (!target || !credential.id) return false;
     setConnecting(true);
+    setConnectionError(undefined);
     setConnectingCredentialId(credential.id);
     try {
       const res = await createWebDataSession(proxyId, {
@@ -552,12 +554,14 @@ const WebDataPage: React.FC = () => {
         connection_params: credential.connection_params,
       });
       if (res.code !== 200 || !res.data) {
+        setConnectionError(res.message || tr('连接失败', 'Connection failed'));
         message.error(res.message || tr('连接失败', 'Connection failed'));
         return false;
       }
       await activateSession(res.data, credential.id);
       return true;
     } catch (err: any) {
+      setConnectionError(err?.message || tr('连接失败', 'Connection failed'));
       message.error(err?.message || tr('连接失败', 'Connection failed'));
       return false;
     } finally {
@@ -939,7 +943,8 @@ const WebDataPage: React.FC = () => {
           message.error(res.data.error);
           return false;
         } else {
-          message.success(res.data.message || tr('执行完成', 'Executed'));
+          const isSearch = target?.protocol === 'elasticsearch' || target?.protocol === 'opensearch';
+          message.success(isSearch ? tr('执行完成', 'Executed') : res.data.message || tr('执行完成', 'Executed'));
           if (refreshMetadata) {
             loadMetadata().catch(() => {});
             if (selectedNode) {
@@ -1464,7 +1469,7 @@ const WebDataPage: React.FC = () => {
     const isMongoCollection =
       protocol === 'mongodb' && objectDetail.object_type === 'collection';
     return {
-      sqlRowActions: isSQLTable,
+      sqlRowActions: isSQLTable && protocol !== 'clickhouse',
       redisRowActions: isRedisKey && hasRedisRowActions(objectDetail),
       mongoRowActions: isMongoCollection,
     };
@@ -1626,6 +1631,10 @@ const WebDataPage: React.FC = () => {
         />
       );
     }
+    const isSearchResult = target?.protocol === 'elasticsearch' || target?.protocol === 'opensearch';
+    if (isSearchResult && !data?.rows?.length && data?.message) {
+      return <pre className="webdata-search-json">{data.message}</pre>;
+    }
     if (!data?.rows?.length) {
       return <div className="webdata-empty">{data?.message || emptyText}</div>;
     }
@@ -1717,7 +1726,7 @@ const WebDataPage: React.FC = () => {
       ...row,
       _webdata_key: index,
     }));
-    return (
+    const table = (
       <Table
         className="webdata-table"
         size="small"
@@ -1728,6 +1737,11 @@ const WebDataPage: React.FC = () => {
         scroll={{ x: true, y: 420 }}
       />
     );
+    if (!isSearchResult) return table;
+    return <div className="webdata-search-results">
+      {table}
+      {data.message && <details className="webdata-search-response"><summary>{tr('完整 JSON 响应（含聚合）', 'Full JSON response (including aggregations)')}</summary><pre className="webdata-search-json">{data.message}</pre></details>}
+    </div>;
   };
 
   const renderMapTable = (rows?: Record<string, any>[], emptyText?: string) => {
@@ -2032,6 +2046,7 @@ const WebDataPage: React.FC = () => {
     const isSQL = isSQLProtocol(protocol);
     const isRedis = protocol === 'redis';
     const isMongo = protocol === 'mongodb';
+    const isSearch = protocol === 'elasticsearch' || protocol === 'opensearch';
     return (
       <Modal
         title={
@@ -2101,7 +2116,7 @@ const WebDataPage: React.FC = () => {
               className="is-full"
               rules={protocol === 'oracle' ? [{ required: true, message: tr('请输入 Service Name', 'Enter a Service Name') }] : undefined}
               label={
-                isMongo
+                isSearch ? tr('默认索引（可选）', 'Default index (optional)') : isMongo
                   ? tr('默认数据库', 'Default DB')
                   : protocol === 'oracle' ? 'Service Name' : tr('数据库', 'Database')
               }
@@ -2174,7 +2189,7 @@ const WebDataPage: React.FC = () => {
                         </Form.Item>
                       </>
                     )}
-                    {((isSQL && protocol !== 'oracle') || isMongo) && (
+                    {((isSQL && !['oracle', 'clickhouse'].includes(protocol)) || isMongo) && (
                       <Form.Item
                         name="connection_params"
                         label={tr('连接参数', 'Connection Parameters')}
@@ -2668,7 +2683,7 @@ const WebDataPage: React.FC = () => {
         : undefined,
     ].filter(Boolean) as any[];
     const tabItems = [
-      isSQLTable && Boolean(objectDetail.columns?.length)
+      (isSQLTable || objectDetail.object_type === 'index') && Boolean(objectDetail.columns?.length)
         ? {
             key: 'columns',
             label: tr('字段', 'Columns'),
@@ -2698,10 +2713,10 @@ const WebDataPage: React.FC = () => {
             ),
           }
         : undefined,
-      isSQLTable && Boolean(objectDetail.ddl)
+      (isSQLTable || objectDetail.object_type === 'index') && Boolean(objectDetail.ddl)
         ? {
             key: 'ddl',
-            label: 'DDL',
+            label: objectDetail.object_type === 'index' ? 'Mapping' : 'DDL',
             children: (
               <TextArea
                 readOnly
@@ -2958,7 +2973,9 @@ const WebDataPage: React.FC = () => {
                   onChange={(event: ChangeEvent<HTMLInputElement>) => setTreeSearch(event.target.value)}
                 />
                 <div className="webdata-object-stats">
-                  {target?.protocol === 'redis' ? (
+                  {target?.protocol === 'elasticsearch' || target?.protocol === 'opensearch' ? (
+                    <span><strong>{metadata.filter(node => node.type === 'index').length}</strong>{tr('索引', 'Indices')}</span>
+                  ) : target?.protocol === 'redis' ? (
                     <>
                       <span><strong>DB {activeRedisDB}</strong></span>
                       <span>
@@ -3263,7 +3280,21 @@ const WebDataPage: React.FC = () => {
             </main>
           </div>
         ) : (
-          <div className="webdata-console-loading"><Spin /></div>
+          <div className="webdata-console-loading" data-testid="webdata-connection-state">
+            {connecting ? <Spin /> : <div className="webdata-connection-status">
+              <Text strong>{connectionError ? tr('连接失败', 'Connection failed') : tr('未连接', 'Not connected')}</Text>
+              <Text type="secondary">{connectionError || tr('当前会话未连接，请重新连接。', 'This session is not connected. Connect again to continue.')}</Text>
+              <Space>
+                <Button type="primary" onClick={() => {
+                  const credential = target?.credentials?.find(item => item.id === credentialId);
+                  if (!credential?.id) { history.replace(connectionListPath); return; }
+                  if (sessionPath.connectionId) history.replace(connectionDetailPath(credential.id));
+                  void connectCredentialSession(credential);
+                }}>{tr('重新连接', 'Reconnect')}</Button>
+                <Button onClick={() => history.push(connectionListPath)}>{tr('返回连接', 'Back to connections')}</Button>
+              </Space>
+            </div>}
+          </div>
         )}
         {canAudit && renderAuditDrawer()}
         {renderConnectionDrawer()}

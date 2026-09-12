@@ -310,8 +310,8 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
       <aside className="agent-workspace" aria-label={tr('Agent 工作区', 'Agent workspace')}>
         <header>
           <div className="agent-workspace-heading">
-            <span className="agent-workspace-icon"><Sparkles size={16} /></span>
-            <div><strong>Agent<SessionInfo agentId={detail?.session.id || managementSessionId || accessSessionId} connectionId={connectionId} handle={handleId}/></strong><span>{protocol} · {title || detail?.session.title}</span>
+            {!managementSessionId && <span className="agent-workspace-icon"><Sparkles size={16} /></span>}
+            <div><strong>{managementSessionId ? (detail?.session.title || title || tr('新会话', 'New conversation')) : 'Agent'}<SessionInfo agentId={detail?.session.id || managementSessionId || accessSessionId} connectionId={connectionId} handle={handleId}/></strong>{!managementSessionId && <span>{protocol} · {title || detail?.session.title}</span>}
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label={tr('关闭', 'Close')}><X size={18} /></button>

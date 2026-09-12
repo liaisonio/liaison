@@ -3,13 +3,16 @@ export const protocolLabels: Record<string, string> = {
   mariadb: 'MariaDB',
   sqlserver: 'SQL Server',
   oracle: 'Oracle',
+  clickhouse: 'ClickHouse',
+  elasticsearch: 'Elasticsearch',
+  opensearch: 'OpenSearch',
   postgresql: 'PostgreSQL',
   redis: 'Redis',
   mongodb: 'MongoDB',
 };
 
 export const isSQLProtocol = (protocol?: string) =>
-  ['mysql', 'mariadb', 'sqlserver', 'oracle', 'postgresql'].includes(String(protocol || '').toLowerCase());
+  ['mysql', 'mariadb', 'sqlserver', 'oracle', 'clickhouse', 'postgresql'].includes(String(protocol || '').toLowerCase());
 
 type Translate = (zh: string, en: string) => string;
 
@@ -18,6 +21,14 @@ export const protocolWorkspaceCopy = (
   tr: Translate,
 ) => {
   switch (String(protocol || '').toLowerCase()) {
+    case 'elasticsearch':
+    case 'opensearch':
+      return {
+        navigatorTitle: tr('索引', 'Indices'),
+        searchPlaceholder: tr('搜索索引', 'Search indices'),
+        editorTitle: tr('JSON 请求', 'JSON Request'),
+        resultTitle: tr('搜索结果', 'Search Results'),
+      };
     case 'redis':
       return {
         navigatorTitle: tr('键空间', 'Keyspace'),

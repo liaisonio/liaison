@@ -46,6 +46,8 @@ type web struct {
 	agentService    AgentService
 	agentEvents     *agentruntime.EventBroker
 	credentialKey   []byte
+	aiGateway       *controlplane.AIService
+	aiSlots         chan struct{}
 	guacdAddr       string
 	guacdBridgeAddr string
 	guacdBridgeHost string
@@ -91,6 +93,16 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 		guacdBridgeHost: managerGuacdBridgeHost(conf),
 	}
 	// 创建认证中间件
+	if factory, ok := controlPlane.(interface {
+		NewAIService(*iam.IAMService, []byte) (*controlplane.AIService, error)
+	}); ok && len(credentialKey) == 32 {
+		gateway, err := factory.NewAIService(iamService, credentialKey)
+		if err != nil {
+			return nil, err
+		}
+		web.aiGateway = gateway
+		web.aiSlots = make(chan struct{}, 8)
+	}
 	authMiddleware := iam.AuthMiddleware(web.iamService)
 
 	opts := []kratoshttp.ServerOption{
@@ -110,6 +122,9 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 
 	// PAT 管理
 	srv.HandleFunc("/api/v1/iam/tokens", web.handleTokensHTTP)
+	// Reserve the namespace so unsupported SDK operations never fall through to
+	// the SPA and misleadingly return HTML with status 200.
+	srv.HandlePrefix("/api/v1/ai/", http.HandlerFunc(web.handleAIGatewayHTTP))
 	srv.HandleFunc("/api/v1/iam/tokens/{id}", web.handleTokenByIDHTTP)
 	srv.HandleFunc("/api/v1/iam/account", web.handleAccountHTTP)
 	srv.HandleFunc("/api/v1/iam/permissions", web.handlePermissionsHTTP)

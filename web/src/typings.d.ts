@@ -351,7 +351,7 @@ declare namespace API {
     id?: number;
     saved: boolean;
     name?: string;
-    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'postgresql' | 'redis' | 'mongodb';
+    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'clickhouse' | 'elasticsearch' | 'opensearch' | 'postgresql' | 'redis' | 'mongodb';
     username?: string;
     database?: string;
     auth_database?: string;
@@ -369,7 +369,7 @@ declare namespace API {
     proxy_name: string;
     application_id: number;
     application_name: string;
-    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'postgresql' | 'redis' | 'mongodb';
+    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'clickhouse' | 'elasticsearch' | 'opensearch' | 'postgresql' | 'redis' | 'mongodb';
     application_type: string;
     target_host: string;
     target_port: number;
@@ -418,7 +418,7 @@ declare namespace API {
 
   // ========== Agent Runtime ==========
   interface AgentSession {
-    kind?: 'access' | 'management';
+    kind?: 'access' | 'management' | 'shell';
     id: string;
     organization_id: number;
     created_by: number;

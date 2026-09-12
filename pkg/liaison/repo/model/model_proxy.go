@@ -13,6 +13,7 @@ const (
 
 const (
 	AccessProtocolTCP        AccessProtocol = "tcp"
+	AccessProtocolAI        AccessProtocol = "aiapi"
 	AccessProtocolHTTP       AccessProtocol = "http"
 	AccessProtocolSSH        AccessProtocol = "ssh"
 	AccessProtocolRDP        AccessProtocol = "rdp"

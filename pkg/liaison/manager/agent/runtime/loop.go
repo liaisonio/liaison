@@ -416,6 +416,10 @@ func (loop *Loop) run(ctx context.Context, request RunRequest, approvalID string
 		if currentSession.Kind == tool.SessionManagement {
 			systemContext = managementContext()
 		}
+		if currentSession.Kind == tool.SessionShell {
+			systemContext = shellContext(attachments, primary)
+			systemContext.Content += "\nAnalysis mode: give concise, actionable analysis. First use terminal.read to inspect current shell_context and recent output before diagnosing. Only use disclosed tools; never claim success without a successful tool result. Explain diagnostic commands and await approval before execution."
+		}
 		contextMessages := append([]ModelMessage{systemContext}, messages...)
 		for i := range contextMessages {
 			if len(contextMessages[i].References) > 0 {
@@ -606,7 +610,7 @@ func (loop *Loop) loadAttachments(ctx context.Context, session Session) ([]tool.
 			Protocol:       attachment.Protocol,
 			Capabilities:   append([]tool.Capability(nil), attachment.Capabilities...),
 			Generation:     attachment.Generation,
-			AccessHandleID: attachment.ID,
+			AccessHandleID: attachment.HandleID(),
 		}
 		attachments = append(attachments, snapshot)
 		if attachment.ID == session.ActiveAttachmentID {

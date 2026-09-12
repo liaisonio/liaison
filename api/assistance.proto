@@ -10,6 +10,14 @@ message SuggestRequest {
   uint64 revision = 3;
   string text = 4;
   uint32 cursor = 5; // UTF-8 byte offset.
+  // WebSSH only: "none" (default, draft + completed Shell Agent conclusions),
+  // "commands" (also cwd/recent commands),
+  // "output" (also bounded recent command output). Explicit sharing consent.
+  // Context contents are resolved server-side, never supplied by the client.
+  string context_mode = 6;
+  // WebSSH: the same Shell Agent session used by terminal analysis.
+  // Ownership and the live connection binding are checked server-side.
+  string agent_session_id = 7;
 }
 message SuggestResponse {
   uint64 revision = 1;

@@ -7,8 +7,11 @@ import (
 	"time"
 )
 
-// Suggest 为每个用户、活动连接、编辑器保留独立的轻量辅助会话。
+// Suggest retains cancellation/revision state per user, connection and editor.
+// SSH model context belongs to the shared Shell Agent, not this editor lane.
 func (s *Service) Suggest(ctx context.Context, actor *model.User, handle, editor string, input assistance.Input, closeSession bool) (assistance.Suggestion, error) {
+	// Context can only be assembled by the authenticated Shell session reader.
+	input.AgentContext = nil
 	if actor == nil || actor.ID == 0 || len(editor) < 8 || len(editor) > 128 || handle == "" || len(handle) > 256 {
 		return assistance.Suggestion{}, ErrInvalid
 	}
