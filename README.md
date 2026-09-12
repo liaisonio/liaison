@@ -33,9 +33,9 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.11.0/liaison-1.11.0-linux-amd64.tar.gz
-tar -xzf liaison-1.11.0-linux-amd64.tar.gz
-cd liaison-1.11.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.12.0/liaison-1.12.0-linux-amd64.tar.gz
+tar -xzf liaison-1.12.0-linux-amd64.tar.gz
+cd liaison-1.12.0-linux-amd64
 ./install.sh
 ```
 
@@ -45,18 +45,51 @@ Open `https://<server-address>` after installation. The installer prints the ini
 
 Native protocols and browser workspaces supported by Liaison.
 
+### Remote access
+
 <p align="center">
-  <img src="docs/assets/integrations/ssh.svg" height="52" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/windows.svg" height="52" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/vnc.png" height="52" alt="VNC" title="VNC" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mysql.svg" height="52" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/postgresql.svg" height="52" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mariadb.svg" width="64" height="52" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/sqlserver.svg" width="52" height="52" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/oracle.svg" width="64" height="52" alt="Oracle" title="Oracle" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/redis.svg" height="52" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mongodb.svg" height="52" alt="MongoDB" title="MongoDB" />
+  <img src="docs/assets/integrations/ssh.svg" width="48" height="48" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/windows.svg" width="48" height="48" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/vnc.png" width="48" height="48" alt="VNC" title="VNC" />
 </p>
+
+### Databases and search
+
+<p align="center">
+  <img src="docs/assets/integrations/mysql.svg" width="48" height="48" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/postgresql.svg" width="48" height="48" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/mariadb.svg" width="48" height="48" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/sqlserver.svg" width="48" height="48" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/oracle.svg" width="48" height="48" alt="Oracle" title="Oracle" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/integrations/redis.svg" width="48" height="48" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/mongodb.svg" width="48" height="48" alt="MongoDB" title="MongoDB" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/clickhouse.svg" width="48" height="48" alt="ClickHouse" title="ClickHouse" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/elasticsearch.svg" width="48" height="48" alt="Elasticsearch" title="Elasticsearch" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/opensearch.svg" width="48" height="48" alt="OpenSearch" title="OpenSearch" />
+</p>
+
+### AI model providers
+
+<p align="center">
+  <img src="docs/assets/integrations/openai.svg" width="48" height="48" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/anthropic.svg" width="48" height="48" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/gemini.svg" width="48" height="48" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/deepseek.svg" width="48" height="48" alt="DeepSeek" title="DeepSeek" />
+</p>
+
+<p align="center">
+  <img src="docs/assets/integrations/zhipu.svg" width="48" height="48" alt="Z.ai / GLM" title="Z.ai / GLM" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/kimi.svg" width="48" height="48" alt="Moonshot / Kimi" title="Moonshot / Kimi" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/minimax.svg" width="48" height="48" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/integrations/mimo.svg" width="48" height="48" alt="Xiaomi MiMo" title="Xiaomi MiMo" />
+</p>
+
+OpenAI · Anthropic / Claude · Google Gemini · DeepSeek · Z.ai / GLM · Kimi · MiniMax · Xiaomi MiMo.
+
+These providers have Agent configuration presets. Custom OpenAI-compatible services can also be configured. LLM access supports OpenAI-compatible and Anthropic Messages protocols; upstream compatibility depends on the endpoint and model.
 
 ## Product tour
 
