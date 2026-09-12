@@ -11,7 +11,7 @@
 
 [English](./README.md) | 简体中文 | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[官网](https://liaison.cloud) · [产品文档](https://liaison.cloud/zh/docs/get-started/introduction) · [产品能力](#产品能力) · [安装](#安装) · [集成](#集成) · [产品展示](#产品展示) · [社区](#社区)
+[官网](https://liaison.cloud) · [产品文档](https://liaison.cloud/zh/docs/get-started/introduction) · [产品能力](#产品能力) · [安装](#安装) · [访问协议](#支持的访问协议) · [Agent 模型](#agent-模型提供方) · [产品展示](#产品展示) · [社区](#社区)
 
 ![Liaison 多应用流量总览](docs/assets/readme/overview-dark-v3.png)
 
@@ -41,55 +41,67 @@ cd liaison-1.12.0-linux-amd64
 
 安装完成后访问 `https://<服务器地址>`，初始登录信息会由安装脚本输出。
 
-## 集成
+## 支持的访问协议
 
-Liaison 支持以下原生协议与浏览器工作台。
+通过 Liaison 连接器访问已有的私有服务。以下标识代表可访问的服务与协议，不代表 Liaison 内置或部署这些产品。
 
-### 远程访问
+### 终端与远程桌面
 
-<p align="center">
-  <img src="docs/assets/integrations/ssh.svg" width="48" height="48" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/windows.svg" width="48" height="48" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/vnc.png" width="48" height="48" alt="VNC" title="VNC" />
+<p>
+  <img src="docs/assets/integrations/ssh.svg" width="24" height="24" align="absmiddle" alt="SSH" /> SSH&emsp;
+  <img src="docs/assets/integrations/windows.svg" width="24" height="24" align="absmiddle" alt="RDP" /> RDP&emsp;
+  <img src="docs/assets/integrations/vnc.png" width="24" height="24" align="absmiddle" alt="VNC" /> VNC
 </p>
 
-### 数据库与搜索
+通过 WebSSH、WebDesktop 在浏览器中打开 SSH 终端或 RDP / VNC 桌面。
 
-<p align="center">
-  <img src="docs/assets/integrations/mysql.svg" width="48" height="48" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/postgresql.svg" width="48" height="48" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mariadb.svg" width="48" height="48" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/sqlserver.svg" width="48" height="48" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/oracle.svg" width="48" height="48" alt="Oracle" title="Oracle" />
+### 数据库与搜索服务
+
+<p>
+  <img src="docs/assets/integrations/mysql.svg" width="24" height="24" align="absmiddle" alt="MySQL" /> MySQL&emsp;
+  <img src="docs/assets/integrations/mariadb.svg" width="24" height="24" align="absmiddle" alt="MariaDB" /> MariaDB&emsp;
+  <img src="docs/assets/integrations/postgresql.svg" width="24" height="24" align="absmiddle" alt="PostgreSQL" /> PostgreSQL&emsp;
+  <img src="docs/assets/integrations/sqlserver.svg" width="24" height="24" align="absmiddle" alt="SQL Server" /> SQL Server&emsp;
+  <img src="docs/assets/integrations/oracle.svg" width="24" height="24" align="absmiddle" alt="Oracle" /> Oracle
 </p>
 
-<p align="center">
-  <img src="docs/assets/integrations/redis.svg" width="48" height="48" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mongodb.svg" width="48" height="48" alt="MongoDB" title="MongoDB" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/clickhouse.svg" width="48" height="48" alt="ClickHouse" title="ClickHouse" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/elasticsearch.svg" width="48" height="48" alt="Elasticsearch" title="Elasticsearch" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/opensearch.svg" width="48" height="48" alt="OpenSearch" title="OpenSearch" />
+<p>
+  <img src="docs/assets/integrations/mongodb.svg" width="24" height="24" align="absmiddle" alt="MongoDB" /> MongoDB&emsp;
+  <img src="docs/assets/integrations/redis.svg" width="24" height="24" align="absmiddle" alt="Redis" /> Redis&emsp;
+  <img src="docs/assets/integrations/clickhouse.svg" width="24" height="24" align="absmiddle" alt="ClickHouse" /> ClickHouse&emsp;
+  <img src="docs/assets/integrations/elasticsearch.svg" width="24" height="24" align="absmiddle" alt="Elasticsearch" /> Elasticsearch&emsp;
+  <img src="docs/assets/integrations/opensearch.svg" width="24" height="24" align="absmiddle" alt="OpenSearch" /> OpenSearch
 </p>
 
-### AI 模型厂商
+通过 WebData 在浏览器中连接已有数据库或搜索服务，浏览结构、执行查询并查看结果。
 
-<p align="center">
-  <img src="docs/assets/integrations/openai.svg" width="48" height="48" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/anthropic.svg" width="48" height="48" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/gemini.svg" width="48" height="48" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/deepseek.svg" width="48" height="48" alt="DeepSeek" title="DeepSeek" />
+### Web 应用与 TCP 服务
+
+支持 HTTP、HTTPS、WebSocket 与 TCP 转发。可使用浏览器或对应的原生客户端访问，无需把后端原始地址直接暴露到公网。
+
+### LLM 服务
+
+通过连接器访问私有模型服务，对外提供受 API 密钥控制的调用入口。支持 OpenAI 兼容与 Anthropic Messages 协议，并提供用量记录和密钥 Token 配额；具体模型能力取决于上游服务。
+
+## Agent 模型提供方
+
+以下厂商可配置为 Liaison 内置 Agent 的模型来源，与上面的访问协议是两项独立能力。
+
+<p>
+  <img src="docs/assets/integrations/openai.svg" width="24" height="24" align="absmiddle" alt="OpenAI" /> OpenAI&emsp;
+  <img src="docs/assets/integrations/anthropic.svg" width="24" height="24" align="absmiddle" alt="Claude" /> Claude&emsp;
+  <img src="docs/assets/integrations/gemini.svg" width="24" height="24" align="absmiddle" alt="Gemini" /> Gemini&emsp;
+  <img src="docs/assets/integrations/deepseek.svg" width="24" height="24" align="absmiddle" alt="DeepSeek" /> DeepSeek
 </p>
 
-<p align="center">
-  <img src="docs/assets/integrations/zhipu.svg" width="48" height="48" alt="Z.ai / GLM" title="Z.ai / GLM" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/kimi.svg" width="48" height="48" alt="Moonshot / Kimi" title="Moonshot / Kimi" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/minimax.svg" width="48" height="48" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mimo.svg" width="48" height="48" alt="Xiaomi MiMo" title="Xiaomi MiMo" />
+<p>
+  <img src="docs/assets/integrations/zhipu.svg" width="24" height="24" align="absmiddle" alt="GLM" /> GLM&emsp;
+  <img src="docs/assets/integrations/kimi.svg" width="24" height="24" align="absmiddle" alt="Kimi" /> Kimi&emsp;
+  <img src="docs/assets/integrations/minimax.svg" width="24" height="24" align="absmiddle" alt="MiniMax" /> MiniMax&emsp;
+  <img src="docs/assets/integrations/mimo.svg" width="24" height="24" align="absmiddle" alt="MiMo" /> MiMo
 </p>
 
-OpenAI · Anthropic / Claude · Google Gemini · DeepSeek · 智谱 GLM · Kimi · MiniMax · 小米 MiMo。
-
-以上为 Agent 模型配置中的预置厂商；也可配置自定义 OpenAI 兼容服务。LLM 访问支持 OpenAI 兼容与 Anthropic Messages 协议，上游兼容性取决于具体接口与模型。
+预置 OpenAI、Anthropic（Claude）、Google（Gemini）、DeepSeek、智谱（GLM）、Moonshot（Kimi）、MiniMax、小米（MiMo），也可配置自定义 OpenAI 兼容服务。
 
 ## 产品展示
 

@@ -11,7 +11,7 @@ Connect to private servers, databases, desktops, and web apps. Work with an AI A
 
 English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Integrations](#integrations) · [Product tour](#product-tour)
+[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Access protocols](#supported-access-protocols) · [Agent models](#agent-model-providers) · [Product tour](#product-tour)
 
 ![Liaison overview with multi-application traffic](docs/assets/readme/overview-dark-v3.png)
 
@@ -41,55 +41,67 @@ cd liaison-1.12.0-linux-amd64
 
 Open `https://<server-address>` after installation. The installer prints the initial sign-in credentials.
 
-## Integrations
+## Supported access protocols
 
-Native protocols and browser workspaces supported by Liaison.
+Reach existing private services through a Liaison connector. The logos below identify services and protocols you can access, not products bundled with or deployed by Liaison.
 
-### Remote access
+### Terminals and remote desktops
 
-<p align="center">
-  <img src="docs/assets/integrations/ssh.svg" width="48" height="48" alt="SSH" title="SSH" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/windows.svg" width="48" height="48" alt="RDP" title="RDP" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/vnc.png" width="48" height="48" alt="VNC" title="VNC" />
+<p>
+  <img src="docs/assets/integrations/ssh.svg" width="24" height="24" align="absmiddle" alt="SSH" /> SSH&emsp;
+  <img src="docs/assets/integrations/windows.svg" width="24" height="24" align="absmiddle" alt="RDP" /> RDP&emsp;
+  <img src="docs/assets/integrations/vnc.png" width="24" height="24" align="absmiddle" alt="VNC" /> VNC
 </p>
 
-### Databases and search
+Open SSH terminals and RDP / VNC desktops in your browser with WebSSH and WebDesktop.
 
-<p align="center">
-  <img src="docs/assets/integrations/mysql.svg" width="48" height="48" alt="MySQL" title="MySQL" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/postgresql.svg" width="48" height="48" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mariadb.svg" width="48" height="48" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/sqlserver.svg" width="48" height="48" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/oracle.svg" width="48" height="48" alt="Oracle" title="Oracle" />
+### Databases and search services
+
+<p>
+  <img src="docs/assets/integrations/mysql.svg" width="24" height="24" align="absmiddle" alt="MySQL" /> MySQL&emsp;
+  <img src="docs/assets/integrations/mariadb.svg" width="24" height="24" align="absmiddle" alt="MariaDB" /> MariaDB&emsp;
+  <img src="docs/assets/integrations/postgresql.svg" width="24" height="24" align="absmiddle" alt="PostgreSQL" /> PostgreSQL&emsp;
+  <img src="docs/assets/integrations/sqlserver.svg" width="24" height="24" align="absmiddle" alt="SQL Server" /> SQL Server&emsp;
+  <img src="docs/assets/integrations/oracle.svg" width="24" height="24" align="absmiddle" alt="Oracle" /> Oracle
 </p>
 
-<p align="center">
-  <img src="docs/assets/integrations/redis.svg" width="48" height="48" alt="Redis" title="Redis" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mongodb.svg" width="48" height="48" alt="MongoDB" title="MongoDB" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/clickhouse.svg" width="48" height="48" alt="ClickHouse" title="ClickHouse" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/elasticsearch.svg" width="48" height="48" alt="Elasticsearch" title="Elasticsearch" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/opensearch.svg" width="48" height="48" alt="OpenSearch" title="OpenSearch" />
+<p>
+  <img src="docs/assets/integrations/mongodb.svg" width="24" height="24" align="absmiddle" alt="MongoDB" /> MongoDB&emsp;
+  <img src="docs/assets/integrations/redis.svg" width="24" height="24" align="absmiddle" alt="Redis" /> Redis&emsp;
+  <img src="docs/assets/integrations/clickhouse.svg" width="24" height="24" align="absmiddle" alt="ClickHouse" /> ClickHouse&emsp;
+  <img src="docs/assets/integrations/elasticsearch.svg" width="24" height="24" align="absmiddle" alt="Elasticsearch" /> Elasticsearch&emsp;
+  <img src="docs/assets/integrations/opensearch.svg" width="24" height="24" align="absmiddle" alt="OpenSearch" /> OpenSearch
 </p>
 
-### AI model providers
+Connect to existing databases and search services with WebData to browse schemas, run queries and inspect results in your browser.
 
-<p align="center">
-  <img src="docs/assets/integrations/openai.svg" width="48" height="48" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/anthropic.svg" width="48" height="48" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/gemini.svg" width="48" height="48" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/deepseek.svg" width="48" height="48" alt="DeepSeek" title="DeepSeek" />
+### Web applications and TCP services
+
+HTTP, HTTPS, WebSocket and TCP forwarding let you connect with a browser or native client without directly publishing the original backend address.
+
+### LLM services
+
+Reach private model services through a connector and expose an API-key-controlled endpoint. OpenAI-compatible and Anthropic Messages protocols are supported, with usage records and per-key Token quotas. Model capabilities depend on the upstream service.
+
+## Agent model providers
+
+These providers can power Liaison’s built-in Agent. This is separate from the service access protocols above.
+
+<p>
+  <img src="docs/assets/integrations/openai.svg" width="24" height="24" align="absmiddle" alt="OpenAI" /> OpenAI&emsp;
+  <img src="docs/assets/integrations/anthropic.svg" width="24" height="24" align="absmiddle" alt="Claude" /> Claude&emsp;
+  <img src="docs/assets/integrations/gemini.svg" width="24" height="24" align="absmiddle" alt="Gemini" /> Gemini&emsp;
+  <img src="docs/assets/integrations/deepseek.svg" width="24" height="24" align="absmiddle" alt="DeepSeek" /> DeepSeek
 </p>
 
-<p align="center">
-  <img src="docs/assets/integrations/zhipu.svg" width="48" height="48" alt="Z.ai / GLM" title="Z.ai / GLM" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/kimi.svg" width="48" height="48" alt="Moonshot / Kimi" title="Moonshot / Kimi" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/minimax.svg" width="48" height="48" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp;&nbsp;
-  <img src="docs/assets/integrations/mimo.svg" width="48" height="48" alt="Xiaomi MiMo" title="Xiaomi MiMo" />
+<p>
+  <img src="docs/assets/integrations/zhipu.svg" width="24" height="24" align="absmiddle" alt="GLM" /> GLM&emsp;
+  <img src="docs/assets/integrations/kimi.svg" width="24" height="24" align="absmiddle" alt="Kimi" /> Kimi&emsp;
+  <img src="docs/assets/integrations/minimax.svg" width="24" height="24" align="absmiddle" alt="MiniMax" /> MiniMax&emsp;
+  <img src="docs/assets/integrations/mimo.svg" width="24" height="24" align="absmiddle" alt="MiMo" /> MiMo
 </p>
 
-OpenAI · Anthropic / Claude · Google Gemini · DeepSeek · Z.ai / GLM · Kimi · MiniMax · Xiaomi MiMo.
-
-These providers have Agent configuration presets. Custom OpenAI-compatible services can also be configured. LLM access supports OpenAI-compatible and Anthropic Messages protocols; upstream compatibility depends on the endpoint and model.
+Presets are available for OpenAI, Anthropic (Claude), Google (Gemini), DeepSeek, Z.ai (GLM), Moonshot (Kimi), MiniMax and Xiaomi (MiMo). Custom OpenAI-compatible services can also be configured.
 
 ## Product tour
 
