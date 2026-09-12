@@ -43,65 +43,45 @@ cd liaison-1.12.0-linux-amd64
 
 ## 支持的访问协议
 
-通过 Liaison 连接器访问已有的私有服务。以下标识代表可访问的服务与协议，不代表 Liaison 内置或部署这些产品。
+通过 Liaison 访问已有的私有服务。
 
-### 终端与远程桌面
+<table>
+  <tr>
+    <th align="left">终端与桌面</th>
+    <td><img src="docs/assets/integrations/ssh.svg" width="40" height="40" alt="SSH" title="SSH" />&nbsp;&nbsp; <img src="docs/assets/integrations/windows.svg" width="40" height="40" alt="RDP" title="RDP" />&nbsp;&nbsp; <img src="docs/assets/integrations/vnc.png" width="40" height="40" alt="VNC" title="VNC" /></td>
+  </tr>
+  <tr>
+    <th align="left">关系型数据库</th>
+    <td><img src="docs/assets/integrations/mysql.svg" width="40" height="40" alt="MySQL" title="MySQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/mariadb.svg" width="40" height="40" alt="MariaDB" title="MariaDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/postgresql.svg" width="40" height="40" alt="PostgreSQL" title="PostgreSQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/sqlserver.svg" width="40" height="40" alt="SQL Server" title="SQL Server" />&nbsp;&nbsp; <img src="docs/assets/integrations/oracle.svg" width="40" height="40" alt="Oracle" title="Oracle" /></td>
+  </tr>
+  <tr>
+    <th align="left">数据与搜索</th>
+    <td><img src="docs/assets/integrations/mongodb.svg" width="40" height="40" alt="MongoDB" title="MongoDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/redis.svg" width="40" height="40" alt="Redis" title="Redis" />&nbsp;&nbsp; <img src="docs/assets/integrations/clickhouse.svg" width="40" height="40" alt="ClickHouse" title="ClickHouse" />&nbsp;&nbsp; <img src="docs/assets/integrations/elasticsearch.svg" width="40" height="40" alt="Elasticsearch" title="Elasticsearch" />&nbsp;&nbsp; <img src="docs/assets/integrations/opensearch.svg" width="40" height="40" alt="OpenSearch" title="OpenSearch" /></td>
+  </tr>
+  <tr>
+    <th align="left">LLM 上游协议</th>
+    <td><img src="docs/assets/integrations/openai.svg" width="40" height="40" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" /></td>
+  </tr>
+  <tr>
+    <th align="left">Web 与 TCP</th>
+    <td>HTTP · HTTPS · WebSocket · TCP</td>
+  </tr>
+</table>
 
-<p>
-  <img src="docs/assets/integrations/ssh.svg" width="24" height="24" align="absmiddle" alt="SSH" /> SSH&emsp;
-  <img src="docs/assets/integrations/windows.svg" width="24" height="24" align="absmiddle" alt="RDP" /> RDP&emsp;
-  <img src="docs/assets/integrations/vnc.png" width="24" height="24" align="absmiddle" alt="VNC" /> VNC
-</p>
-
-通过 WebSSH、WebDesktop 在浏览器中打开 SSH 终端或 RDP / VNC 桌面。
-
-### 数据库与搜索服务
-
-<p>
-  <img src="docs/assets/integrations/mysql.svg" width="24" height="24" align="absmiddle" alt="MySQL" /> MySQL&emsp;
-  <img src="docs/assets/integrations/mariadb.svg" width="24" height="24" align="absmiddle" alt="MariaDB" /> MariaDB&emsp;
-  <img src="docs/assets/integrations/postgresql.svg" width="24" height="24" align="absmiddle" alt="PostgreSQL" /> PostgreSQL&emsp;
-  <img src="docs/assets/integrations/sqlserver.svg" width="24" height="24" align="absmiddle" alt="SQL Server" /> SQL Server&emsp;
-  <img src="docs/assets/integrations/oracle.svg" width="24" height="24" align="absmiddle" alt="Oracle" /> Oracle
-</p>
-
-<p>
-  <img src="docs/assets/integrations/mongodb.svg" width="24" height="24" align="absmiddle" alt="MongoDB" /> MongoDB&emsp;
-  <img src="docs/assets/integrations/redis.svg" width="24" height="24" align="absmiddle" alt="Redis" /> Redis&emsp;
-  <img src="docs/assets/integrations/clickhouse.svg" width="24" height="24" align="absmiddle" alt="ClickHouse" /> ClickHouse&emsp;
-  <img src="docs/assets/integrations/elasticsearch.svg" width="24" height="24" align="absmiddle" alt="Elasticsearch" /> Elasticsearch&emsp;
-  <img src="docs/assets/integrations/opensearch.svg" width="24" height="24" align="absmiddle" alt="OpenSearch" /> OpenSearch
-</p>
-
-通过 WebData 在浏览器中连接已有数据库或搜索服务，浏览结构、执行查询并查看结果。
-
-### Web 应用与 TCP 服务
-
-支持 HTTP、HTTPS、WebSocket 与 TCP 转发。可使用浏览器或对应的原生客户端访问，无需把后端原始地址直接暴露到公网。
-
-### LLM 服务
-
-通过连接器访问私有模型服务，对外提供受 API 密钥控制的调用入口。支持 OpenAI 兼容与 Anthropic Messages 协议，并提供用量记录和密钥 Token 配额；具体模型能力取决于上游服务。
+LLM 上游支持 **OpenAI 兼容**与 **Anthropic Messages**，对外统一提供 OpenAI 兼容接口。
 
 ## Agent 模型提供方
 
-以下厂商可配置为 Liaison 内置 Agent 的模型来源，与上面的访问协议是两项独立能力。
+为 Liaison 内置 Agent 配置模型，独立于上述服务访问能力。
 
-<p>
-  <img src="docs/assets/integrations/openai.svg" width="24" height="24" align="absmiddle" alt="OpenAI" /> OpenAI&emsp;
-  <img src="docs/assets/integrations/anthropic.svg" width="24" height="24" align="absmiddle" alt="Claude" /> Claude&emsp;
-  <img src="docs/assets/integrations/gemini.svg" width="24" height="24" align="absmiddle" alt="Gemini" /> Gemini&emsp;
-  <img src="docs/assets/integrations/deepseek.svg" width="24" height="24" align="absmiddle" alt="DeepSeek" /> DeepSeek
-</p>
+<table>
+  <tr>
+    <th align="left">模型</th>
+    <td><img src="docs/assets/integrations/openai.svg" width="40" height="40" alt="OpenAI" title="OpenAI" />&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp; <img src="docs/assets/integrations/gemini.svg" width="40" height="40" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp; <img src="docs/assets/integrations/deepseek.svg" width="40" height="40" alt="DeepSeek" title="DeepSeek" />&nbsp;&nbsp; <img src="docs/assets/integrations/zhipu.svg" width="40" height="40" alt="Z.ai / GLM" title="Z.ai / GLM" />&nbsp;&nbsp; <img src="docs/assets/integrations/kimi.svg" width="40" height="40" alt="Moonshot / Kimi" title="Moonshot / Kimi" />&nbsp;&nbsp; <img src="docs/assets/integrations/minimax.svg" width="40" height="40" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp; <img src="docs/assets/integrations/mimo.svg" width="40" height="40" alt="Xiaomi MiMo" title="Xiaomi MiMo" /></td>
+  </tr>
+</table>
 
-<p>
-  <img src="docs/assets/integrations/zhipu.svg" width="24" height="24" align="absmiddle" alt="GLM" /> GLM&emsp;
-  <img src="docs/assets/integrations/kimi.svg" width="24" height="24" align="absmiddle" alt="Kimi" /> Kimi&emsp;
-  <img src="docs/assets/integrations/minimax.svg" width="24" height="24" align="absmiddle" alt="MiniMax" /> MiniMax&emsp;
-  <img src="docs/assets/integrations/mimo.svg" width="24" height="24" align="absmiddle" alt="MiMo" /> MiMo
-</p>
-
-预置 OpenAI、Anthropic（Claude）、Google（Gemini）、DeepSeek、智谱（GLM）、Moonshot（Kimi）、MiniMax、小米（MiMo），也可配置自定义 OpenAI 兼容服务。
+支持以上 8 家预置厂商，以及自定义 OpenAI 兼容服务。
 
 ## 产品展示
 
