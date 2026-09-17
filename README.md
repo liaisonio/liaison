@@ -19,19 +19,38 @@ Self-hosted, with secure API sharing, browser workspaces, and context-aware AI A
 
 English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Access protocols](#supported-access-protocols) · [Agent models](#agent-model-providers) · [Product tour](#product-tour)
+[Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Local LLM access](#share-your-local-llms-beyond-your-network) · [Features](#features) · [Install](#install) · [Access protocols](#supported-access-protocols) · [Agent models](#agent-model-providers) · [Product tour](#product-tour)
 
 ![Liaison: secure access to local compute and applications. Illustrative demo with sample data.](docs/assets/readme/liaison-product-demo-full-v2.gif)
 
+## Share your local LLMs beyond your network
+
+Your models run locally. Your team and applications access them through Liaison.
+
+Connect an existing model server to Liaison through an outbound connector, then share an authenticated API endpoint instead of exposing the model server directly. Liaison manages access; it does not host or run the model for you.
+
+- **Share access, not upstream credentials.** Issue client API keys scoped to selected models, with expiry, revocation and per-key Token quotas.
+- **Use stable model names.** Map names such as `team-assistant` or `code-assistant` to your upstream models so clients use an access-facing name rather than an internal deployment identifier.
+- **Use your own client or the browser.** Call the endpoint with a supported API client, or start a conversation in the built-in Playground.
+- **See how access is used.** Review reported Token usage and request status, timing and model information. Missing upstream usage is not treated as zero.
+
+Start with a model server reachable by your connector, such as an OpenAI-compatible endpoint or Ollama:
+
+1. Register the model application and configure its upstream connection.
+2. Create an access entry and choose the models to share.
+3. Create a scoped API key and give your client the access endpoint and model name.
+
+The same connector can also make private applications available through browser workspaces, with context-aware Agents for SQL and SSH workflows.
+
 ## Features
 
+- 🤖 **Local LLM sharing** — Give users and applications controlled API access to existing model servers, with scoped keys, model aliases, Token quotas and usage visibility.
 - ✨ **AI in your workflow** — Inspect terminal output, draft commands, and query databases with an Agent tied to your connection. Tool access follows user permissions; operations requiring approval wait for your confirmation.
 - 💬 **Ask about your resources** — Find and inspect your connectors, devices, and applications from the home Agent. Resource visibility stays scoped to the signed-in user.
 - 🔌 **Outbound-only connectors** — connect private networks without opening inbound ports on them.
 - 🔐 **Application access** — publish TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
 - 🖥️ **Browser workspaces** — WebSSH, WebSFTP, WebRDP, WebVNC, MySQL, MariaDB, PostgreSQL, SQL Server, Oracle, ClickHouse, MongoDB, Elasticsearch, OpenSearch, Redis, and Memcached.
 - 📁 **Files and objects** — Manage remote files with WebSFTP. Browse buckets, prefixes, and object metadata from S3-compatible services with WebS3 (currently read-only).
-- 🤖 **Private model access** — OpenAI-compatible, Anthropic Messages, and Ollama upstreams with scoped API keys, model mappings, usage records, and per-key Token quotas.
 - 🔎 **Application discovery** — scan connector devices and register discovered services from the console.
 - 👥 **Identity and access management** — organize users and resources, with Casbin-backed authorization.
 - 🛡️ **Firewall policies** — restrict TCP and HTTP access by source IP and CIDR.
