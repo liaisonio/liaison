@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="320" viewBox="0 0 1000 320" role="img" aria-labelledby="title">
+  <title id="title">Liaison wordmark preview: light and dark backgrounds</title>
+  <path fill="#ffffff" d="M0 0h500v320H0z"/>
+  <path fill="#0b0b11" d="M500 0h500v320H500z"/>
+  <g font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif" font-size="112" font-weight="650" letter-spacing="-4" text-anchor="middle">
+    <text x="250" y="192" fill="#18181b">li<tspan fill="#005fff">ai</tspan>son</text>
+    <text x="750" y="192" fill="#f4f4f5">li<tspan fill="#4085ff">ai</tspan>son</text>
+  </g>
+</svg>

@@ -1,0 +1,28 @@
+.liaison-wordmark {
+  --wordmark-ai: #862cd3;
+  --wordmark-ai-opacity: .65;
+  --wordmark-rays-opacity: .65;
+  display: block;
+  flex: 0 0 auto;
+}
+:root.dark .liaison-wordmark {
+  --wordmark-ai: #b57aef;
+  --wordmark-ai-opacity: 1;
+  --wordmark-rays-opacity: .85;
+}
+
+.liaison-brand-lockup {
+  display: inline-block;
+  width: 180px;
+  max-width: 100%;
+  flex-shrink: 0;
+  line-height: 0;
+  vertical-align: middle;
+
+  img { display: block; width: 100%; height: auto; }
+  .liaison-brand-dark { display: none; }
+}
+:root.dark .liaison-brand-lockup {
+  .liaison-brand-light { display: none; }
+  .liaison-brand-dark { display: block; }
+}

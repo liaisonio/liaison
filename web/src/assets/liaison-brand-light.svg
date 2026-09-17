@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="117" viewBox="0 -15 400 130" role="img" aria-label="Liaison AI rays a">
+<defs>
+  <linearGradient id="logo-gradient" x1="581.63696" y1="327.41147" x2="743.36" y2="483.58" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#0c00e3" stop-opacity=".50700335"/>
+    <stop offset=".54615385" stop-color="#862cd3" stop-opacity=".5016462"/>
+    <stop offset="1" stop-color="#e400c3" stop-opacity=".49628906"/>
+  </linearGradient>
+</defs>
+<svg x="8" y="17" width="100" height="62" viewBox="486 326 256 159">
+  <circle cx="565.5" cy="405.5" r="79.5001270332008" fill="#005fff" fill-opacity=".6677176"/>
+  <circle cx="662.5" cy="405.5" r="79.5001270332008" fill="url(#logo-gradient)"/>
+</svg>
+<text x="124" y="78" font-family="Arial, Helvetica, sans-serif" font-size="84" font-weight="600" letter-spacing="-3" fill="#18181b">li<tspan fill="#862cd3" fill-opacity=".65">ai</tspan>son</text>
+<g fill="none" stroke="#862cd3" stroke-opacity=".65" stroke-width="3.6" stroke-linecap="round">
+  <path d="M181 6l-4-7 M199 3v-9 M217 6l4-7 M181 94l-4 7 M199 97v9 M217 94l4 7"/>
+</g>
+</svg>

@@ -1,5 +1,5 @@
 import { createAPIToken, getCurrentUser } from '@/services/api';
-import { APP_NAME } from '@/constants';
+import { LiaisonBrand } from '@/components/LiaisonBrand';
 import { Button, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { history, useModel } from '@/lib/runtime';
@@ -104,8 +104,7 @@ const CliAuthPage: React.FC = () => {
       <div className="cli-auth-container">
         <div className="cli-auth-panel">
           <div className="cli-auth-header">
-            <img src="/liaison.png" alt="Liaison" className="cli-auth-logo" />
-            <span className="cli-auth-title">{APP_NAME}</span>
+            <LiaisonBrand />
           </div>
           <div className="cli-auth-state cli-auth-state--error">
             <h2>{tr('请求无效', 'Invalid request')}</h2>
@@ -170,8 +169,7 @@ const CliAuthPage: React.FC = () => {
       <div className="cli-auth-container">
         <div className="cli-auth-panel">
           <div className="cli-auth-header">
-            <img src="/liaison.png" alt="Liaison" className="cli-auth-logo" />
-            <span className="cli-auth-title">{APP_NAME}</span>
+            <LiaisonBrand />
           </div>
           <div className="cli-auth-state cli-auth-state--success">
             <h2>{tr('已授权', 'Authorized')}</h2>
@@ -206,8 +204,7 @@ const CliAuthPage: React.FC = () => {
       <div className="cli-auth-container">
         <div className="cli-auth-panel">
           <div className="cli-auth-header">
-            <img src="/liaison.png" alt="Liaison" className="cli-auth-logo" />
-            <span className="cli-auth-title">{APP_NAME}</span>
+            <LiaisonBrand />
           </div>
           <div className="cli-auth-state cli-auth-state--denied">
             <h2>{tr('已拒绝', 'Denied')}</h2>
@@ -224,8 +221,7 @@ const CliAuthPage: React.FC = () => {
     <div className="cli-auth-container">
       <div className="cli-auth-panel">
         <div className="cli-auth-header">
-          <img src="/liaison.png" alt="Liaison" className="cli-auth-logo" />
-          <span className="cli-auth-title">{APP_NAME}</span>
+          <LiaisonBrand />
         </div>
 
         <h2 className="cli-auth-heading">{tr('登录命令行', 'Sign in to the CLI')}</h2>

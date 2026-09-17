@@ -1,9 +1,13 @@
 # Integration artwork
 
-README-only assets are in `readme/`. Protocol symbols use Tabler Icons (MIT):
+README-only assets are in `readme/`. SSH, SFTP, Web and TCP use
+[Phosphor Icons](https://github.com/phosphor-icons/core) Duotone (MIT),
+pinned to commit `2b75f3ad12b420c9504ef05df8d2564a28f8500e`:
+`terminal-window`, `folder-lock`, `browser`, and `arrows-left-right`.
+Their paths and layer opacity are unchanged; category colors and 40px sizing
+are applied without background tiles. See `LICENSE-phosphor.txt`.
+Storage retains Tabler Icons' `bucket` (MIT):
 https://github.com/tabler/tabler-icons/tree/main/icons/outline
-`terminal-2`, `folder-up`, `bucket`, `world`, and `plug-connected`.
-Their paths are unchanged; category colors are applied without background tiles.
 Brand variants reuse the sources below with black/light foregrounds selected by
 README `<picture>` elements. Existing console assets are unchanged.
 

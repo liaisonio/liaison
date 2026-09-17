@@ -1,6 +1,8 @@
 import { LiaisonLogo } from '@/components/LiaisonLogo';
+import { LiaisonBrand } from '@/components/LiaisonBrand';
 import { HeaderQuickSettings } from '@/components/layout/HeaderQuickSettings';
 import { GITHUB_URL } from '@/constants';
+import { BRAND_TITLE, BRAND_SUBTITLE } from '@/constants/brand';
 import { useI18n } from '@/i18n';
 import { history } from '@/lib/runtime';
 import { login } from '@/services/api';
@@ -66,17 +68,17 @@ const Login: React.FC = () => {
           <span className="login-brand-wordmark">Liaison</span>
         </div>
         <div className="login-brand-message">
-          <span className="login-kicker">ZERO TRUST APPLICATION ACCESS</span>
+          <span className="login-kicker">ZERO TRUST AI ACCESS</span>
           <h1>
             {tr(
-              '面向私有应用的零信任访问',
-              'Zero-trust access for private applications',
+              BRAND_TITLE.zh,
+              BRAND_TITLE.en,
             )}
           </h1>
           <p>
             {tr(
-              '通过连接器统一接入分布在家庭、办公室与数据中心的设备和应用，无需暴露内网端口。',
-              'Connect devices and applications across home, office, and data center environments without exposing private network ports.',
+              BRAND_SUBTITLE.zh,
+              BRAND_SUBTITLE.en,
             )}
           </p>
         </div>
@@ -100,8 +102,7 @@ const Login: React.FC = () => {
         <div className="login-form-card">
           <div className="login-form-heading">
             <div className="login-form-title">
-              <LiaisonLogo size={36} />
-              <h2>Liaison</h2>
+              <LiaisonBrand />
             </div>
           </div>
           <form className="login-native-form" onSubmit={handleSubmit} autoComplete="on">

@@ -1,4 +1,5 @@
 import { LiaisonLogo } from '@/components/LiaisonLogo';
+import { LiaisonWordmark } from '@/components/LiaisonBrand';
 import {accessSource,useAccessBack} from '@/hooks/useAccessBack';
 import { useI18n } from '@/i18n';
 import { getCurrentUser } from '@/services/api';
@@ -168,13 +169,13 @@ export function AppLayout() {
     <div className={`liaison-app-frame${isHome ? ' is-home' : ''}${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}`}>
       <header className="liaison-global-header">
         <div className={`liaison-global-left${sidebarCollapsed ? ' is-collapsed' : ''}`}>
-          <Link to="/" className="liaison-brand-link">
+          <Link to="/" className="liaison-brand-link" aria-label="Liaison">
             <span className="liaison-brand-mark">
-              <LiaisonLogo size={30} />
+              <LiaisonLogo size={30} decorative />
             </span>
             {!sidebarCollapsed && <span className="liaison-brand-copy">
-              <strong>Liaison</strong>
-              <small>ZERO TRUST APPLICATION ACCESS</small>
+              <LiaisonWordmark />
+              <small>ZERO TRUST AI ACCESS</small>
             </span>}
           </Link>
         </div>
