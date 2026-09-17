@@ -86,7 +86,7 @@ Eight provider presets, plus custom OpenAI-compatible services.
 
 ### Local LLM access
 
-![Liaison console showing model access, client and upstream protocols, model aliases and API key authentication. Illustrative configuration.](docs/assets/readme/local-llm-access-full-dark.png)
+![Liaison console showing model access, client and upstream protocols, model aliases and API key authentication. Illustrative configuration.](docs/assets/readme/local-llm-access-models-dark-v2.png)
 
 ### Web SSH
 
