@@ -21,9 +21,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 
 [Website](https://liaison.cloud) · [Docs](https://liaison.cloud/docs/get-started/introduction) · [Features](#features) · [Install](#install) · [Access protocols](#supported-access-protocols) · [Agent models](#agent-model-providers) · [Product tour](#product-tour)
 
-[![Liaison: secure access to local compute and applications. Watch the product demo.](docs/assets/readme/liaison-product-demo-preview.gif)](docs/assets/readme/liaison-product-demo-en.mp4)
-
-[Watch in HD with sound (24 seconds, English captions)](docs/assets/readme/liaison-product-demo-en.mp4) · Illustrative demo with sample data.
+![Liaison: secure access to local compute and applications. Illustrative demo with sample data.](docs/assets/readme/liaison-product-demo-full-v2.gif)
 
 ## Features
 
