@@ -23,7 +23,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 
 [![Liaison: secure access to local compute and applications. Watch the product demo.](docs/assets/readme/liaison-product-demo-preview.gif)](docs/assets/readme/liaison-product-demo-en.mp4)
 
-[Watch the full demo (24 seconds, English captions)](docs/assets/readme/liaison-product-demo-en.mp4) · Illustrative demo with sample data.
+[Watch in HD with sound (24 seconds, English captions)](docs/assets/readme/liaison-product-demo-en.mp4) · Illustrative demo with sample data.
 
 ## Features
 
