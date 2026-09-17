@@ -39,8 +39,6 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 - 📋 **Logs and audit** — record management actions and supported application sessions in one place.
 - 📦 **Self-hosted deployment** — run the complete control plane on your own Linux server.
 
-![Local LLM access with client protocols, model aliases and API key authentication. Illustrative configuration.](docs/assets/readme/local-llm-access-dark.png)
-
 ## Install
 
 Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
@@ -85,6 +83,10 @@ Configure the model behind Liaison’s built-in Agent, independently of service 
 Eight provider presets, plus custom OpenAI-compatible services.
 
 ## Product tour
+
+### Local LLM access
+
+![Liaison console showing model access, client and upstream protocols, model aliases and API key authentication. Illustrative configuration.](docs/assets/readme/local-llm-access-full-dark.png)
 
 ### Web SSH
 
