@@ -1,7 +1,8 @@
 # Existing-feature closeout verification — 2026-09-18
 
 Branch: `docs/ai-wordmark`, rebased onto main `dd423ac` (includes PR #91).
-This is a local regression record, not complete remote acceptance.
+This records local regression and scoped remote acceptance, not certification
+of every supported upstream service.
 
 ## Verified
 
@@ -18,9 +19,8 @@ This is a local regression record, not complete remote acceptance.
   was started and no compatibility result is claimed.
 - Browser fixtures cover Chinese/English, light/dark and desktop/mobile where
   applicable. Screenshots inspected for zero usage and native request examples.
-- Final shared run: 40 of 41 suites passed. `data-editor-handoff` hit the portal
-  remount timing issue described below; its four language/theme cases passed
-  after the test-only wait fix. The other 40 suites were not rerun after that fix.
+- Final shared run on `5dcee2f`: all 41 browser suites passed together after
+  the asynchronous test waits described below were corrected.
 
 ## Fixes and test maintenance
 
@@ -40,8 +40,8 @@ This is a local regression record, not complete remote acceptance.
 
 ## Still unverified in this run
 
-- Authenticated remote flows need an existing test account or private token file.
-  No password was reset or recovered from unrelated historical transcripts.
+- The supplied account has no available SSH/SQL examples; authenticated remote
+  acceptance below does not establish those connector-to-workspace flows.
 - Real SQL integrations were invoked, but MariaDB/PostgreSQL/SQL Server and
   Doris/StarRocks/TiDB cases explicitly skipped because disposable DSNs were absent.
 - Real DM8 and SMB service acceptance, vendor cloud SDK compatibility and live
@@ -57,8 +57,41 @@ This is a local regression record, not complete remote acceptance.
 - Protected-page login redirects and static assets passed in Chinese/English,
   light/dark, desktop/mobile. No page errors or mobile document overflow;
   representative desktop-dark and mobile-light screenshots inspected.
-- Authenticated remote acceptance remains pending. These checks do not verify
-  saved connections, real model inference or logged-in Agent actions.
+- These initial anonymous checks were followed by authenticated acceptance below.
+
+## Authenticated remote acceptance
+
+- Verified all seven available LLM examples: workspace metadata, request records,
+  five usage ranges, and short Playground inference completed successfully.
+- Temporary scoped API keys exercised each exposed client protocol, including
+  streaming completion, model-scope rejection, and rejection after revocation.
+  All seven temporary keys were revoked; no plaintext key was recorded.
+- Overview, statistics, request records, Playground and home-toolbar layout
+  passed Chinese/English, light/dark, desktop/mobile checks. Representative
+  screenshots were inspected; no page errors or document overflow were found.
+- A read-only home Agent session discovered accessible LLMs and queried usage;
+  it finished without pending approval and was archived afterwards.
+- Existing examples may use a protocol simulator backed by local inference.
+  These results do not certify native vendor cloud services or their SDKs.
+
+## JWT logout security follow-up
+
+- Fixed the discovered stateless logout gap in `8278204`: persist SHA-256 token
+  fingerprints until expiry and check revocation on authenticated requests.
+  New logins receive distinct random JWT IDs; unrelated sessions remain valid.
+- Full Go build, vet, race tests and explicit process E2E passed again. Tests
+  cover legacy JWTs, database reopen persistence and storage failure rejection.
+- CI run `35302634677` passed both backend and frontend jobs on `8278204`.
+- Deployed the backend after backing up its binary and database. This follow-up
+  adds the revocation table and restarts Manager; the earlier frontend-only
+  deployment description above applies only to that earlier step.
+- Live two-session verification passed: after logout, the first JWT receives
+  HTTP 401 from profile, access-list and WebData routes while the second login
+  still receives HTTP 200. Both temporary sessions were revoked afterwards;
+  no token files were written.
+- A subsequent SSH health check timed out, so no new container-health claim is
+  made from that check; the authenticated HTTPS acceptance above completed.
+- See `session-revocation.md` for legacy-token and established-session limits.
 
 Temporary logs and screenshots remain outside version control. Do not treat
 this record as authorization to merge before remaining acceptance is agreed.
