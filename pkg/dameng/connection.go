@@ -42,6 +42,12 @@ func (r *registry) add(options Options, dial DialContext) (string, func(), error
 	if dial == nil || options.Host == "" || options.Port < 1 || options.Port > 65535 || options.Username == "" {
 		return "", nil, errors.New("Dameng host, port, username and connector are required")
 	}
+	// The native driver splits userinfo at its first colon and does not decode
+	// URL escapes. Reject an unrepresentable username instead of authenticating
+	// as a different database user.
+	if strings.Contains(options.Username, ":") {
+		return "", nil, errors.New("Dameng driver does not support a colon in usernames")
+	}
 	var token [24]byte
 	if _, err := rand.Read(token[:]); err != nil {
 		return "", nil, err
@@ -91,8 +97,11 @@ func dsn(options Options, address string) string {
 		"logLevel": {"off"}, "statEnable": {"false"}, "maxRows": {"1001"},
 		"addressRemap": {""}, "userRemap": {""},
 	}
-	u := url.URL{Scheme: "dm", Host: address, User: url.UserPassword(options.Username, options.Password), RawQuery: q.Encode()}
-	return u.String()
+	// dm v1.8.23 uses the LAST '?' and '@', then the FIRST ':' to parse a DSN.
+	// It does not URL-decode credentials. Always append our fixed query and
+	// route separators so punctuation in passwords cannot become DSN options.
+	// Never log this value; errors from the native driver are sanitized in Open.
+	return "dm://" + options.Username + ":" + options.Password + "@" + address + "?" + q.Encode()
 }
 
 // Open returns an idempotent route revocation function. Call it on failed open
