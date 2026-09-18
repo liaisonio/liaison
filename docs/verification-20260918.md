@@ -44,7 +44,8 @@ of every supported upstream service.
   The container exposed only a loopback port, used a 256 MB memory limit and
   mounted only an isolated fixture. Container and runtime credentials were
   removed afterwards. Host system sharing and deployed access were unchanged.
-  This does not establish Windows/NAS interoperability or connector/browser E2E.
+  This initial integration run does not establish Windows/NAS interoperability
+  or connector/browser E2E. Subsequent connector checks are described below.
 
 ## Fixes and test maintenance
 
@@ -62,14 +63,29 @@ of every supported upstream service.
   in `token-trend-feedback`, avoiding immediate reads during asynchronous updates.
   All four language/theme cases passed after this test-only change.
 
-## Still unverified in this run
+## Subsequent connector verification and remaining limits
 
-- The supplied account has no available SSH/SQL examples; authenticated remote
-  acceptance below does not establish those connector-to-workspace flows.
-- Real SQL integrations were invoked, but SQL Server and
-  Doris/StarRocks/TiDB cases explicitly skipped because disposable DSNs were absent.
-- Real DM8 service acceptance, vendor cloud SDK compatibility and live
-  model inference are not established by fixtures or skipped integration tests.
+Disposable services subsequently covered deployed connector paths for Samba
+listing/preview/download, SFTP upload/download and interruption after access
+disablement, HTTP path isolation and HTTPS port forwarding. These checks do not
+establish every SSH terminal or database browser workflow.
+
+TiDB v8.5.0 using its single-node unistore test backend passed SQL mutations,
+queries, metadata, DDL and invalid-query handling through the connector.
+Real DM8 passed login, CRUD, Chinese/NULL/date/decimal values and schema/table/
+column inspection. This uncovered a native-driver credential parsing bug fixed
+in `0aeac0d`; see `dameng-workspace.md` for remaining type and driver boundaries.
+The deployed WebData resource-denial status fix is included in `24b3f5c`.
+Temporary applications, access entries, sessions and database containers were
+removed after these checks.
+
+Doris/StarRocks real-engine acceptance and public DNS/certificate end-to-end
+acceptance are explicitly deferred for this scope, not reported as passed.
+Domain certificate validation, streaming/WebSocket routing and HTTP route
+boundaries passed local race tests; unconfigured domain mode was rejected in
+the deployed environment. Users must validate their own engine versions and
+domain configuration. Native vendor cloud services and SDK compatibility are
+not certified by the local inference and protocol-simulator checks below.
 
 ## Deployment follow-up
 
@@ -113,9 +129,11 @@ of every supported upstream service.
   HTTP 401 from profile, access-list and WebData routes while the second login
   still receives HTTP 200. Both temporary sessions were revoked afterwards;
   no token files were written.
-- A subsequent SSH health check timed out, so no new container-health claim is
-  made from that check; the authenticated HTTPS acceptance above completed.
+- An initial subsequent SSH health check timed out. Later deployment and DM8
+  acceptance checks succeeded; Manager was running with zero restarts reported
+  after the final backend update. This is a point-in-time health check.
 - See `session-revocation.md` for legacy-token and established-session limits.
 
-Temporary logs and screenshots remain outside version control. Do not treat
-this record as authorization to merge before remaining acceptance is agreed.
+Temporary logs and screenshots remain outside version control. Deferred checks
+remain compatibility limits; they are not blockers for the agreed closeout scope
+and must not be presented as completed acceptance.

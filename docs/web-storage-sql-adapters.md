@@ -30,7 +30,9 @@ Browser workspaces reuse database navigation, SQL execution, result display and 
 
 Implemented and checked: related Go race tests, credential isolation, SMB path boundaries and cancellation, frontend type checking, SQL type/quoting checks, mocked WebSMB UI checks for Chinese/English, light/dark, desktop/mobile, retry and unsaved-password flow. SMB dependency scan found no reachable known vulnerability.
 
-Not yet accepted: real SMB server interoperability, real Doris/StarRocks/TiDB metadata and complete deployed connector E2E. The local Samba image download failed with registry EOF; available disk space was insufficient for a safe parallel OLAP test stack. These adapters must not be described as production-verified or deployed until these checks pass.
+Real Samba and TiDB v8.5.0 have subsequently been exercised through the deployed connector. Samba checks cover listing, preview, download and access/session rejection. TiDB checks cover SQL mutations, queries, metadata, DDL and invalid-query errors using its single-node unistore test backend; this does not certify distributed TiKV operation. Windows/NAS interoperability remains outside this coverage.
+
+Doris and StarRocks have implementation and automated-test coverage, but real-engine acceptance is deferred and is not a release gate for this scope. MySQL wire compatibility does not certify their complete SQL or metadata behavior. Users should validate their engine version and required operations in a disposable environment before production use; these adapters are not claimed to be production-verified.
 
 Reproducible checks:
 
