@@ -446,6 +446,11 @@ func TestIAMLogout(t *testing.T) {
 
 	// 先登录获取token
 	ts.loginAndGetToken(t)
+	firstToken := ts.token
+	ts.loginAndGetToken(t)
+	otherToken := ts.token
+	require.NotEqual(t, firstToken, otherToken)
+	ts.token = firstToken
 
 	t.Run("Logout with valid token", func(t *testing.T) {
 		resp, err := ts.makeRequest("POST", "/api/v1/iam/logout", nil, ts.token)
@@ -463,6 +468,20 @@ func TestIAMLogout(t *testing.T) {
 
 		assert.Equal(t, 200, logoutResp.Code)
 	})
+	for _, path := range []string{"/api/v1/iam/profile", "/api/v1/webdata/capabilities"} {
+		resp, err := ts.makeRequest("GET", path, nil, firstToken)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		require.NoError(t, resp.Body.Close())
+	}
+	resp, err := ts.makeRequest("GET", "/api/v1/iam/profile", nil, otherToken)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
+	resp, err = ts.makeRequest("POST", "/api/v1/iam/logout", nil, otherToken)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }
 
 // Helper methods

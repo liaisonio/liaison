@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -45,11 +47,16 @@ func GenerateToken(userID uint, email string) (string, error) {
 		return "", errors.New("JWT secret key is not configured")
 	}
 	expirationTime := time.Now().Add(DefaultJWTConfig.ExpirationTime)
+	var sessionID [32]byte
+	if _, err := rand.Read(sessionID[:]); err != nil {
+		return "", err
+	}
 
 	claims := &Claims{
 		UserID: userID,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        hex.EncodeToString(sessionID[:]),
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),

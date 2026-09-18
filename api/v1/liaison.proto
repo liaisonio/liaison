@@ -486,6 +486,8 @@ service LiaisonService {
             body: "*"
         };
     };
+    // Revoke the current JWT session persistently; other sessions remain valid.
+    // PATs must use their dedicated revocation endpoint.
     rpc Logout(LogoutRequest) returns (LogoutResponse) {
         option (google.api.http) = {
             post: "/api/v1/iam/logout"
