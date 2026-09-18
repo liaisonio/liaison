@@ -37,7 +37,19 @@ This is a local regression record, not complete remote acceptance.
   Doris/StarRocks/TiDB cases explicitly skipped because disposable DSNs were absent.
 - Real DM8 and SMB service acceptance, vendor cloud SDK compatibility and live
   model inference are not established by fixtures or skipped integration tests.
-- The prior remote deployment predates this closeout's custom-path fix.
+
+## Deployment follow-up
+
+- Deployed the frontend built from `bbbfbb4`; the existing backend checksum
+  matches the previously verified deployment. No database changes or restart.
+- Preserved the previous frontend archive for rollback and old hashed assets
+  for already-open tabs. Served index checksum matches the local build.
+- Five protected endpoints reject unauthenticated requests with HTTP 401.
+- Protected-page login redirects and static assets passed in Chinese/English,
+  light/dark, desktop/mobile. No page errors or mobile document overflow;
+  representative desktop-dark and mobile-light screenshots inspected.
+- Authenticated remote acceptance remains pending. These checks do not verify
+  saved connections, real model inference or logged-in Agent actions.
 
 Temporary logs and screenshots remain outside version control. Do not treat
 this record as authorization to merge before remaining acceptance is agreed.
