@@ -35,6 +35,16 @@ of every supported upstream service.
   The loopback-only container was limited to 512 MB with tmpfs database storage;
   its test table, container and data were removed after the test. This is not a
   connector/browser end-to-end result.
+- SMB follow-up: `TestSMB_RealShare` passed with `-race` against an isolated
+  ARM64 Samba container, with password authentication, mandatory signing and a
+  read-only share. Verified listing, UTF-8 preview, identical download content,
+  size-limit rejection, traversal/UNC/drive/alternate-stream path rejection and
+  wrong-password rejection. The test now retains these additional assertions.
+  Image ID: `sha256:650b2875f18c44ecac3b4fbbd1ab9cc3c43629e00b3b50783da906d41fb0facf`.
+  The container exposed only a loopback port, used a 256 MB memory limit and
+  mounted only an isolated fixture. Container and runtime credentials were
+  removed afterwards. Host system sharing and deployed access were unchanged.
+  This does not establish Windows/NAS interoperability or connector/browser E2E.
 
 ## Fixes and test maintenance
 
@@ -58,7 +68,7 @@ of every supported upstream service.
   acceptance below does not establish those connector-to-workspace flows.
 - Real SQL integrations were invoked, but SQL Server and
   Doris/StarRocks/TiDB cases explicitly skipped because disposable DSNs were absent.
-- Real DM8 and SMB service acceptance, vendor cloud SDK compatibility and live
+- Real DM8 service acceptance, vendor cloud SDK compatibility and live
   model inference are not established by fixtures or skipped integration tests.
 
 ## Deployment follow-up
