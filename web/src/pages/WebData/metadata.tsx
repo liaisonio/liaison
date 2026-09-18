@@ -157,14 +157,14 @@ export const buildMetadataChildParams = (
   node: API.WebDataMetadataNode,
 ): API.WebDataMetadataParams | undefined => {
   if (node.type !== 'table') return undefined;
-  if (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') {
+  if (['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '') || protocol === 'clickhouse') {
     return {
       type: 'table',
       database: node.meta?.database,
       name: node.meta?.name || node.title,
     };
   }
-  if (protocol === 'postgresql' || protocol === 'sqlserver' || protocol === 'oracle') {
+  if (protocol === 'postgresql' || protocol === 'sqlserver' || (protocol === 'oracle' || protocol === 'dameng')) {
     return {
       type: 'table',
       schema: node.meta?.schema,

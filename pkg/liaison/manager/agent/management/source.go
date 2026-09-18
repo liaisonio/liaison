@@ -23,6 +23,27 @@ type ControlPlane interface {
 	ListDevices(context.Context, *v1.ListDevicesRequest) (*v1.ListDevicesResponse, error)
 	GetDevice(context.Context, *v1.GetDeviceRequest) (*v1.GetDeviceResponse, error)
 	ListApplications(context.Context, *v1.ListApplicationsRequest) (*v1.ListApplicationsResponse, error)
+	ListProxies(context.Context, *v1.ListProxiesRequest) (*v1.ListProxiesResponse, error)
+}
+
+type LLMOverview struct {
+	Name            string                     `json:"name"`
+	Enabled         bool                       `json:"enabled"`
+	Models          []string                   `json:"models"`
+	ClientProtocols []string                   `json:"client_protocols"`
+	Usage           model.LLMTokenUsageSummary `json:"own_usage"`
+	Since           time.Time                  `json:"since"`
+	Path            string                     `json:"path"`
+}
+type llmReader interface {
+	ManagementLLMOverview(context.Context, uint, int) (*LLMOverview, error)
+}
+
+func permissionResource(domain string) string {
+	if domain == "access" || domain == "llm" {
+		return "accesses"
+	}
+	return domain + "s"
 }
 
 type IAM interface {
@@ -62,6 +83,11 @@ func (s *Source) AllowTool(_ context.Context, principal tool.Principal, _ *tool.
 		return false, nil
 	}
 	p := descriptor.Permission
+	if descriptor.ID.Namespace == "llm" {
+		if err := s.iam.RequireOrganizationResourcePermission(actor, principal.OrganizationID, "applications", "read"); err != nil {
+			return false, nil
+		}
+	}
 	return s.iam.RequireOrganizationResourcePermission(actor, principal.OrganizationID, p.Resource, p.Action) == nil, nil
 }
 
@@ -75,18 +101,26 @@ func (*Source) Watch(context.Context) (<-chan tool.ToolSourceEvent, error) {
 
 func (s *Source) Snapshot(context.Context) ([]tool.ToolRegistration, error) {
 	var registrations []tool.ToolRegistration
-	for _, domain := range []string{"connector", "device", "application"} {
+	for _, domain := range []string{"connector", "device", "application", "access", "llm"} {
+		if domain == "llm" {
+			if _, ok := s.cp.(llmReader); !ok {
+				continue
+			}
+		}
 		for _, operation := range []string{"list", "get"} {
 			// The application business API currently has no scoped Get method.
 			// Do not emulate it with an unbounded inventory scan or a direct DAO read.
-			if domain == "application" && operation == "get" {
+			if (domain == "application" || domain == "access") && operation == "get" || domain == "llm" && operation == "list" {
 				continue
 			}
 			schema := `{"type":"object","properties":{"page":{"type":"integer","minimum":1,"maximum":10000},"page_size":{"type":"integer","minimum":1,"maximum":50},"name":{"type":"string","maxLength":128}},"additionalProperties":false}`
 			if operation == "get" {
 				schema = `{"type":"object","properties":{"id":{"type":"string","pattern":"^[1-9][0-9]*$"}},"required":["id"],"additionalProperties":false}`
 			}
-			resource := domain + "s"
+			if domain == "llm" {
+				schema = `{"type":"object","properties":{"id":{"type":"string","pattern":"^[1-9][0-9]*$"},"hours":{"type":"integer","enum":[1,6,24,168,720]}},"required":["id"],"additionalProperties":false}`
+			}
+			resource := permissionResource(domain)
 			d := tool.ToolDescriptor{
 				ID:          tool.ToolID{Namespace: domain, Name: operation, Version: "1.0.0"},
 				DisplayName: operation + " " + domain,
@@ -96,6 +130,13 @@ func (s *Source) Snapshot(context.Context) ([]tool.ToolRegistration, error) {
 				Permission: &tool.ResourcePermission{Resource: resource, Action: "read"},
 				Risk:       tool.RiskReadOnly, Approval: tool.ApprovalNever, Disclosure: tool.DisclosureDeferred,
 				DefaultTimeout: 10 * time.Second, Source: tool.ToolSourceRef{ID: s.ID(), Kind: "builtin", Trust: tool.TrustBuiltin},
+			}
+			if domain == "access" {
+				d.Description = "List current user's access entries across Web, Database, Cache, Storage, Desktop, LLM, TCP and SSH/SFTP. Includes access protocol, enabled state and a safe internal list path; not a live connection or proof of backend health. Paginate before claiming complete inventory. Nested application details and credentials are excluded."
+			}
+			if domain == "llm" {
+				d.Permission.Action = "use"
+				d.Description = "Inspect one visible LLM access by ID from access.list. Returns callable model aliases, client protocols, enabled state and current user's confirmed token usage for hours=1/6/24/168/720 (default 24). Unknown usage is not zero. No inference, key secrets, upstream credentials, internal model mappings or other users' usage."
 			}
 			registrations = append(registrations, tool.ToolRegistration{Descriptor: d, Factory: factory{source: s, domain: domain, operation: operation}})
 		}
@@ -124,6 +165,7 @@ type parameters struct {
 	PageSize int32  `json:"page_size"`
 	Name     string `json:"name"`
 	ID       string `json:"id"`
+	Hours    int    `json:"hours"`
 }
 
 // resource is a field whitelist, not an API model. In particular, nested device,
@@ -137,12 +179,25 @@ type resource struct {
 	Host   string `json:"host,omitempty"`
 	Port   int32  `json:"port,omitempty"`
 	Type   string `json:"type,omitempty"`
+	State  string `json:"state,omitempty"`
+	Path   string `json:"path,omitempty"`
 }
 type result struct {
 	Items    []resource `json:"items"`
 	Total    int32      `json:"total"`
 	Page     int32      `json:"page"`
 	PageSize int32      `json:"page_size"`
+}
+
+// Only disclose the protocol classification, never the nested application data.
+func accessType(item *v1.Proxy) string {
+	if item.AccessProtocol == "web" && item.Application != nil {
+		switch item.Application.ApplicationType {
+		case "mysql", "mariadb", "postgresql", "sqlserver", "oracle", "dameng", "clickhouse", "mongodb", "redis", "memcached", "elasticsearch", "opensearch", "tidb", "doris", "starrocks", "s3", "smb", "rdp", "vnc", "ssh":
+			return "web" + item.Application.ApplicationType
+		}
+	}
+	return item.AccessProtocol
 }
 
 func (e *executor) Execute(ctx context.Context, input json.RawMessage) (tool.ToolResult, error) {
@@ -181,6 +236,9 @@ func (e *executor) Execute(ctx context.Context, input json.RawMessage) (tool.Too
 	} else if p.ID != "" {
 		return tool.ToolResult{}, errors.New("ID is not a list filter")
 	}
+	if e.domain != "llm" && p.Hours != 0 {
+		return tool.ToolResult{}, errors.New("hours only applies to LLM usage")
+	}
 	// Reload on every execution, including long-lived bindings. Never trust the
 	// ambient context, a model argument, or a cached administrator identity.
 	actor, err := e.source.iam.GetUserByID(e.principal.UserID)
@@ -193,14 +251,50 @@ func (e *executor) Execute(ctx context.Context, input json.RawMessage) (tool.Too
 	if err := e.source.iam.RequireOrganizationResourcePermission(actor, e.principal.OrganizationID, "management_agent_sessions", "use"); err != nil {
 		return tool.ToolResult{}, err
 	}
-	if err := e.source.iam.RequireOrganizationResourcePermission(actor, e.principal.OrganizationID, e.domain+"s", "read"); err != nil {
+	action := "read"
+	if e.domain == "llm" {
+		action = "use"
+	}
+	if err := e.source.iam.RequireOrganizationResourcePermission(actor, e.principal.OrganizationID, permissionResource(e.domain), action); err != nil {
 		return tool.ToolResult{}, err
 	}
 	ctx = context.WithValue(ctx, "user_id", actor.ID)
 	ctx = context.WithValue(ctx, "user", actor)
 	ctx = context.WithValue(ctx, "user_email", actor.Email)
+	if e.domain == "llm" {
+		if err := e.source.iam.RequireOrganizationResourcePermission(actor, e.principal.OrganizationID, "applications", "read"); err != nil {
+			return tool.ToolResult{}, err
+		}
+		reader, ok := e.source.cp.(llmReader)
+		if !ok {
+			return tool.ToolResult{}, errors.New("LLM overview unavailable")
+		}
+		if p.Hours == 0 {
+			p.Hours = 24
+		}
+		view, err := reader.ManagementLLMOverview(ctx, uint(id), p.Hours)
+		if err != nil {
+			return tool.ToolResult{}, err
+		}
+		content, err := json.Marshal(view)
+		return tool.ToolResult{Kind: tool.OutputFacts, Content: content}, err
+	}
 	out := result{Items: []resource{}, Page: p.Page, PageSize: p.PageSize}
 	switch e.domain + "." + e.operation {
+	case "access.list":
+		r, err := e.source.cp.ListProxies(ctx, &v1.ListProxiesRequest{Page: p.Page, PageSize: p.PageSize, Name: p.Name})
+		if err != nil {
+			return tool.ToolResult{}, err
+		}
+		if r == nil || r.Data == nil {
+			return tool.ToolResult{}, errors.New("missing access response")
+		}
+		out.Total = r.Data.Total
+		for _, item := range r.Data.Proxies {
+			if item != nil {
+				out.Items = append(out.Items, resource{ID: strconv.FormatUint(item.Id, 10), Name: item.Name, Type: accessType(item), State: item.Status, Path: "/proxy"})
+			}
+		}
 	case "connector.list":
 		r, err := e.source.cp.ListEdges(ctx, &v1.ListEdgesRequest{Page: p.Page, PageSize: p.PageSize, Name: p.Name})
 		if err != nil {

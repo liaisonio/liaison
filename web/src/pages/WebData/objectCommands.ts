@@ -483,9 +483,9 @@ export const sqlIdentityColumn = (
 ) => {
   if (protocol === 'clickhouse') throw new Error('ClickHouse keys do not identify a unique row; use explicit SQL');
   const primaryColumn =
-    (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse')
+    (['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '') || protocol === 'clickhouse')
       ? mysqlPrimaryColumn(detail)
-      : (protocol === 'sqlserver' || protocol === 'oracle')
+      : (protocol === 'sqlserver' || ['oracle','dameng'].includes(protocol))
         ? String((detail.indexes || []).find((item) => Number(item.is_primary_key) === 1)?.column_name || '')
         : postgresPrimaryColumn(detail);
   const fallbackColumn =
@@ -579,8 +579,8 @@ export const sqlNormalizeColumnValue = (
 ) => {
   const text = String(value ?? '').trim();
   if (!text || /^null$/i.test(text)) return text;
-  if (['sqlserver', 'oracle'].includes(protocol) && /^(true|false)$/i.test(text)) return /^true$/i.test(text) ? '1' : '0';
-  if ((protocol !== 'mysql' && protocol !== 'mariadb') || !isSQLTemporalColumn(column)) return text;
+  if (['sqlserver', 'oracle', 'dameng'].includes(protocol) && /^(true|false)$/i.test(text)) return /^true$/i.test(text) ? '1' : '0';
+  if ((!['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '')) || !isSQLTemporalColumn(column)) return text;
   return normalizeMySQLTemporalLiteral(column?.type || '', text);
 };
 
@@ -930,7 +930,7 @@ export const buildSQLFilterCommand = (
       );
     })
     .join('\n  AND ');
-  if (protocol === 'oracle') return `SELECT *\nFROM ${tableName}\nWHERE ${where}\nFETCH FIRST ${normalizeFilterLimit(filter.limit)} ROWS ONLY;`;
+  if (['oracle','dameng'].includes(protocol)) return `SELECT *\nFROM ${tableName}\nWHERE ${where}\nFETCH FIRST ${normalizeFilterLimit(filter.limit)} ROWS ONLY;`;
   if (protocol === 'sqlserver') return `SELECT TOP (${normalizeFilterLimit(filter.limit)}) *\nFROM ${tableName}\nWHERE ${where};`;
   return `SELECT *\nFROM ${tableName}\nWHERE ${where}\nLIMIT ${normalizeFilterLimit(
     filter.limit,
@@ -1231,7 +1231,7 @@ export const buildObjectTemplate = (
   if (!tableName) return '';
   const columns = objectColumnNames(detail);
   const firstColumn = columns[0] || 'id';
-  if (action === 'preview' && protocol === 'oracle') return `SELECT *\nFROM ${tableName}\nFETCH FIRST 100 ROWS ONLY;`;
+  if (action === 'preview' && ['oracle','dameng'].includes(protocol)) return `SELECT *\nFROM ${tableName}\nFETCH FIRST 100 ROWS ONLY;`;
   if (action === 'preview') return protocol === 'sqlserver'
     ? `SELECT TOP (100) *\nFROM ${tableName};`
     : `SELECT *\nFROM ${tableName}\nLIMIT 100;`;
@@ -1290,7 +1290,7 @@ export const sqlQualifiedName = (
   detail: API.WebDataObjectResult,
 ) => {
   if (!detail.name) return '';
-  if (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') {
+  if (['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '') || protocol === 'clickhouse') {
     return detail.database
       ? `${sqlQuoteIdent(protocol, detail.database)}.${sqlQuoteIdent(
           protocol,
@@ -1298,7 +1298,7 @@ export const sqlQualifiedName = (
         )}`
       : sqlQuoteIdent(protocol, detail.name);
   }
-  if (protocol === 'oracle') return detail.schema ? `${sqlQuoteIdent(protocol, detail.schema)}.${sqlQuoteIdent(protocol, detail.name)}` : sqlQuoteIdent(protocol, detail.name);
+  if (['oracle','dameng'].includes(protocol)) return detail.schema ? `${sqlQuoteIdent(protocol, detail.schema)}.${sqlQuoteIdent(protocol, detail.name)}` : sqlQuoteIdent(protocol, detail.name);
   if (protocol === 'postgresql' || protocol === 'sqlserver') {
     const schema = detail.schema || (protocol === 'sqlserver' ? 'dbo' : 'public');
     return `${sqlQuoteIdent(protocol, schema)}.${sqlQuoteIdent(
@@ -1312,7 +1312,7 @@ export const sqlQualifiedName = (
 export const sqlQuoteIdent = (protocol: string, value: string) => {
   if (protocol === 'clickhouse') return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '""')}"`;
   if (protocol === 'sqlserver') return `[${value.replace(/]/g, ']]')}]`;
-  if (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') return `\`${value.replace(/`/g, '``')}\``;
+  if (['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '') || protocol === 'clickhouse') return `\`${value.replace(/`/g, '``')}\``;
   return `"${value.replace(/"/g, '""')}"`;
 };
 

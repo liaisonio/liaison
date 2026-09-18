@@ -9,7 +9,7 @@ import (
 )
 
 func TestSQLProtocols_TargetAndCredentialIsolation(t *testing.T) {
-	for _, protocol := range []string{"mariadb", "sqlserver", "oracle", "clickhouse", "postgresql"} {
+	for _, protocol := range []string{"mariadb", "doris", "starrocks", "tidb", "smb", "sqlserver", "oracle", "clickhouse", "postgresql"} {
 		t.Run(protocol, func(t *testing.T) {
 			cp, r := newTestControlPlane(t)
 			t.Cleanup(func() { r.Close() })

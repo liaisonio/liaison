@@ -9,7 +9,7 @@ const assert=require('node:assert/strict');
   await ctx.route('**/api/v1/**',async route=>{
    const r=route.request(),path=new URL(r.url()).pathname;let data={};
    if(r.method()!=='GET')writes.push(path);
-   if(path==='/api/v1/applications')data=r.method()==='POST'?(creates++,{id:71,name:'New LLM',application_type:'llm'}):{applications:[]};
+   if(path==='/api/v1/applications')data=r.method()==='POST'?(creates++,{id:71,name:'New LLM',application_type:'openai'}):{applications:[]};
    else if(path==='/api/v1/edges')data={edges:[{id:1,name:'Fixture connector'}]};
    else if(path==='/api/v1/proxies')data={proxies:[]};
    else if(path==='/api/v1/ai/applications/71')data=r.method()==='PUT'?r.postDataJSON():{protocol:'openai-compatible',base_path:'/v1',tls:false};
@@ -19,7 +19,7 @@ const assert=require('node:assert/strict');
   const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));
   const btn=(cn,en)=>page.getByRole('button',{name:zh?cn:en,exact:true});
   await page.goto(`${process.env.E2E_UI_URL}/e2e/llm-application.html`);await btn('新建应用','Create application').click();
-  await page.locator('#create-application select').nth(0).selectOption('llm');
+  await page.locator('#create-application select').nth(0).selectOption('openai');
   await page.locator('#create-application select').nth(1).selectOption('1');
   await page.locator('#create-application input[list]').fill('127.0.0.1');
   await page.locator('#create-application input[type=number]').fill('8000');

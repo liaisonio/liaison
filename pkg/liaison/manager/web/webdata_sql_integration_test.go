@@ -17,6 +17,7 @@ import (
 // workspace, not the connector tunnel or browser; those require deployed E2E.
 func TestSQLWorkspace_RealDatabases(t *testing.T) {
 	for _, tc := range []struct{ protocol, driver, env string }{
+		{"mysql", "mysql", "TEST_MYSQL_DSN"},
 		{"mariadb", "mysql", "TEST_MARIADB_DSN"},
 		{"postgresql", "pgx", "TEST_POSTGRESQL_DSN"},
 		{"sqlserver", "sqlserver", "TEST_SQLSERVER_DSN"},

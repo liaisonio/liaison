@@ -1,12 +1,14 @@
-import { Button, Column, DataTable, Drawer, Field, Input, Modal, Notice, Pager, StatusPill } from '@/components/ui';
+import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, Notice, Pager, StatusPill } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { getDeviceDetail, getDeviceList, updateDevice } from '@/services/api';
+import { deleteDevice, getDeviceDetail, getDeviceList, updateDevice } from '@/services/api';
 import { formatMBSize } from '@/utils/format';
 import { Monitor } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 const pageSize = 10;
+// Device status follows the API: 1 = online, 2 = offline.
+const DEVICE_OFFLINE = 2;
 
 const DevicePage: React.FC = () => {
   const { tr } = useI18n();
@@ -22,6 +24,9 @@ const DevicePage: React.FC = () => {
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleteRow, setDeleteRow] = useState<API.Device>();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
 
   const load = useCallback(async () => {
@@ -36,6 +41,11 @@ const DevicePage: React.FC = () => {
   }, [tr]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (notice?.tone !== 'success') return;
+    const timer = window.setTimeout(() => setNotice(undefined), 5000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const filteredRows = useMemo(() => {
     const name = debouncedName.trim().toLowerCase();
@@ -50,6 +60,25 @@ const DevicePage: React.FC = () => {
   }, [debouncedIP, debouncedName, filters.online, filters.os, rows]);
   const visibleRows = useMemo(() => filteredRows.slice((page - 1) * pageSize, page * pageSize), [filteredRows, page]);
   const osOptions = useMemo(() => [...new Set(rows.map((row) => row.os).filter(Boolean))].sort(), [rows]);
+  useEffect(() => { setPage(current => Math.min(current, Math.max(1, Math.ceil(filteredRows.length / pageSize)))); }, [filteredRows.length]);
+
+  const remove = async () => {
+    if (!deleteRow || deleting) return;
+    setDeleting(true); setDeleteError('');
+    try {
+      const latest = await getDeviceDetail(deleteRow.id);
+      if (latest.code !== 200 || !latest.data) throw new Error('device unavailable');
+      if (latest.data.online !== DEVICE_OFFLINE) {
+        setDeleteError(tr('设备已上线，请刷新列表后重试。', 'The device is now online. Refresh the list and try again.'));
+        await load(); return;
+      }
+      const response = await deleteDevice(deleteRow.id);
+      if (response.code !== 200) throw new Error('delete failed');
+      setDeleteRow(undefined); setNotice({tone:'success',text:tr('设备已删除', 'Device deleted')}); await load();
+    } catch {
+      setDeleteError(tr('删除失败，请检查权限或刷新后重试。', 'Could not delete the device. Check permissions or refresh and retry.'));
+    } finally { setDeleting(false); }
+  };
 
   const openDetail = async (row: API.Device) => {
     setCurrent(row); setDetailOpen(true);
@@ -78,7 +107,7 @@ const DevicePage: React.FC = () => {
     { key: 'interfaces', title: tr('网卡', 'Interfaces'), width: 220, render: (row) => row.interfaces?.map((item) => `${item.name}: ${(item.ip || []).filter((ip) => !ip.includes(':')).join(', ') || '-'}`).join(' · ') || '-' },
     { key: 'updated', title: tr('更新时间', 'Updated'), width: 150, render: (row) => row.updated_at || '-' },
     { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
-    { key: 'actions', title: tr('操作', 'Actions'), width: 100, render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" onClick={() => void openDetail(row)}>{tr('详情', 'Detail')}</button><button className="liaison-table-link" onClick={() => openEdit(row)}>{tr('编辑', 'Edit')}</button></span> },
+    { key: 'actions', title: tr('操作', 'Actions'), width: 155, fixed: 'right', render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" onClick={() => void openDetail(row)}>{tr('详情', 'Detail')}</button><button className="liaison-table-link" onClick={() => openEdit(row)}>{tr('编辑', 'Edit')}</button><button className="liaison-table-link is-danger" disabled={row.online !== DEVICE_OFFLINE} title={row.online !== DEVICE_OFFLINE ? tr('仅离线设备可删除', 'Only offline devices can be deleted') : undefined} onClick={() => {setDeleteRow(row);setDeleteError('');}}>{tr('删除', 'Delete')}</button></span> },
   ];
 
   const detailItems = current ? [
@@ -86,11 +115,15 @@ const DevicePage: React.FC = () => {
   ] : [];
 
   return <div className="liaison-page-stack">
+    <Modal open={!!deleteRow} title={tr('删除设备', 'Delete device')} width={480} onClose={() => {if (!deleting) setDeleteRow(undefined);}} footer={<><Button disabled={deleting} onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" disabled={deleting} loading={deleting} onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}>
+      <DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('关联的连接器、应用、访问和密钥关系会一并移除。不会删除远程设备上的文件。此操作无法撤销。', 'Associated connectors, applications, access entries and key relations will also be removed. Files on the remote device are not deleted. This cannot be undone.')} />
+      {deleteError && <Notice tone="danger">{deleteError}</Notice>}
+    </Modal>
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
     <div className="liaison-filter-bar">
       <label className="liaison-compound"><span>{tr('设备名称', 'Device')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label>
       <label className="liaison-compound"><span>{tr('网卡 IP', 'NIC IP')}</span><input value={filters.ip} onChange={(event) => { setFilters((value) => ({ ...value, ip: event.target.value })); setPage(1); }} placeholder={tr('输入 IP', 'IP address')} /></label>
-      <label className="liaison-compound"><span>{tr('在线状态', 'Online')}</span><select value={filters.online} onChange={(event) => { setFilters((value) => ({ ...value, online: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="1">{tr('在线', 'Online')}</option><option value="0">{tr('离线', 'Offline')}</option></select></label>
+      <label className="liaison-compound"><span>{tr('在线状态', 'Online')}</span><select value={filters.online} onChange={(event) => { setFilters((value) => ({ ...value, online: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="1">{tr('在线', 'Online')}</option><option value={DEVICE_OFFLINE}>{tr('离线', 'Offline')}</option></select></label>
       <label className="liaison-compound"><span>{tr('操作系统', 'OS')}</span><select value={filters.os} onChange={(event) => { setFilters((value) => ({ ...value, os: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{osOptions.map((os) => <option key={os} value={os}>{os}</option>)}</select></label>
       <div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', ip: '', online: '', os: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div>
     </div>

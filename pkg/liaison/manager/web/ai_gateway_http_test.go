@@ -1,16 +1,56 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/liaisonio/liaison/pkg/liaison/manager/aigateway"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
+	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFinalizeAIRequestPreservesUsageAndClassifiesInterruption(t *testing.T) {
+	for _, tc := range []struct {
+		name                      string
+		interruption              error
+		initialStatus, wantStatus int
+		complete, wantComplete    bool
+	}{
+		{"success", nil, 200, 200, true, true},
+		{"upstream failure", nil, 502, 502, false, false},
+		{"timeout", context.DeadlineExceeded, 504, 504, false, false},
+		{"stream timeout", context.DeadlineExceeded, 502, 504, false, false},
+		{"canceled", context.Canceled, 502, 499, false, false},
+		{"canceled at completion", context.Canceled, 200, 499, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tc.interruption == context.DeadlineExceeded {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, time.Now().Add(-time.Second))
+				defer cancel()
+			} else if tc.interruption == context.Canceled {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+			input := int64(12)
+			record := &model.AIRequest{Status: tc.initialStatus}
+			finalizeAIRequest(ctx, record, aigateway.Usage{Input: &input, Complete: tc.complete}, 25*time.Millisecond)
+			require.Equal(t, tc.wantStatus, record.Status)
+			require.Equal(t, tc.wantComplete, record.Complete)
+			require.EqualValues(t, 12, *record.InputTokens)
+			require.Nil(t, record.OutputTokens, "unknown usage must not become zero")
+			require.EqualValues(t, 25, record.DurationMS)
+		})
+	}
+}
 
 func TestAIDecodeBoundsAndStrictConfig(t *testing.T) {
 	for _, body := range []string{`{"enabled":true} {}`, `{"enabled":true,"unknown":true}`, `{"enabled":"true"}`, strings.Repeat(" ", 1<<20) + `{}`} {
@@ -48,6 +88,74 @@ func TestAIGatewayUnconfiguredFailsClosed(t *testing.T) {
 	(&web{}).handleAIGatewayHTTP(w, httptest.NewRequest("GET", "/api/v1/ai/accesses/1/v1/models", nil))
 	require.Equal(t, 503, w.Code)
 	require.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+}
+
+func TestNativeOllamaRoutesRequireKeyAndRejectLifecycleOperations(t *testing.T) {
+	server := &web{aiGateway: &controlplane.AIService{}}
+	for _, tc := range []struct {
+		method, path string
+		status       int
+	}{
+		{"GET", "api/tags", 401},
+		{"POST", "api/chat", 401},
+		{"POST", "api/pull", 405},
+		{"POST", "api/create", 405},
+		{"DELETE", "api/delete", 405},
+		{"GET", "api/ps", 405},
+		{"GET", "api/tags?key=fixture", 400},
+	} {
+		t.Run(tc.method+"/"+tc.path, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(tc.method, "/api/v1/ai/accesses/1/"+tc.path, nil)
+			r.Header.Set("Cookie", "session=not-an-api-key")
+			server.handleAIGatewayHTTP(w, r)
+			require.Equal(t, tc.status, w.Code)
+		})
+	}
+}
+
+func TestGeminiRoutesRejectQueryCredentialsAndRequireAuthentication(t *testing.T) {
+	server := &web{aiGateway: &controlplane.AIService{}}
+	for _, tc := range []struct {
+		path   string
+		status int
+	}{
+		{"v1beta/models/chat:generateContent", 401},
+		{"v1beta/models/chat:streamGenerateContent?alt=sse", 401},
+		{"v1beta/models/chat:generateContent?key=fixture", 400},
+		{"v1beta/models/chat:generateContent?alt=sse", 400},
+		{"v1beta/models/chat:streamGenerateContent?alt=sse&key=fixture", 400},
+		{"v1beta/models/chat:streamGenerateContent?alt=sse&alt=sse", 400},
+		{"v1beta/models/chat:delete", 405},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			server.handleAIGatewayHTTP(w, httptest.NewRequest("POST", "/api/v1/ai/accesses/1/"+tc.path, nil))
+			require.Equal(t, tc.status, w.Code)
+		})
+	}
+}
+
+func TestGeminiAuthenticationRejectsAmbiguousKeys(t *testing.T) {
+	r := httptest.NewRequest("POST", "/", nil)
+	r.Header.Set("x-goog-api-key", "fixture")
+	key, ok := geminiInferenceKey(r)
+	require.True(t, ok)
+	require.Equal(t, "fixture", key)
+	r.Header.Set("Authorization", "Bearer other")
+	_, ok = geminiInferenceKey(r)
+	require.False(t, ok)
+	r.Header.Del("Authorization")
+	r.Header.Add("x-goog-api-key", "other")
+	_, ok = geminiInferenceKey(r)
+	require.False(t, ok)
+	r.Header.Del("x-goog-api-key")
+	r.Header.Set("Authorization", "Bearer fixture")
+	_, ok = geminiInferenceKey(r)
+	require.True(t, ok)
+	r.Header.Set("x-api-key", "other")
+	_, ok = geminiInferenceKey(r)
+	require.False(t, ok)
 }
 
 func TestAIErrorCarriesSafeReasonAndRequestID(t *testing.T) {

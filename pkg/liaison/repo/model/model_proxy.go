@@ -35,6 +35,7 @@ type Proxy struct {
 	Status         ProxyStatus    `gorm:"column:status;type:int;not null"`
 	Description    string         `gorm:"column:description;type:varchar(255);not null"`
 	AccessProtocol AccessProtocol `gorm:"column:access_protocol;type:varchar(32);not null;default:'';index"`
+	HTTPEntryMode  string         `gorm:"column:http_entry_mode;type:varchar(16);not null;default:''"`
 	// 以下用于中间使用
 	Application *Application `gorm:"-"`
 	Device      *Device      `gorm:"-"`

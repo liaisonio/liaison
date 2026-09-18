@@ -180,6 +180,8 @@ func TestProbeAnthropicRequiresProtocolEvidence(t *testing.T) {
 		{`{"object":"list","data":[{"id":"model-a"}]}`, "unknown"},
 		{`{"has_more":false,"data":[{"id":"model-a"}]}`, "unknown"},
 		{`{"has_more":false,"data":[{"id":"model-a","type":"model"}]}`, "compatible"},
+		{`{"has_more":true,"last_id":"model-a","data":[{"id":"model-a","type":"model"}]}`, "unknown"},
+		{`{"has_more":true,"data":[]}`, "unknown"},
 	} {
 		u := testUpstream(t, func(w http.ResponseWriter, r *http.Request) {
 			require.Equal(t, "2023-06-01", r.Header.Get("anthropic-version"))
@@ -188,6 +190,27 @@ func TestProbeAnthropicRequiresProtocolEvidence(t *testing.T) {
 			_, _ = io.WriteString(w, tc.body)
 		})
 		require.Equal(t, tc.state, u.Probe(context.Background(), "fixture-key", "anthropic").State)
+	}
+}
+
+func TestProbeRejectsErrorEnvelopesWithModelLists(t *testing.T) {
+	for _, tc := range []struct{ protocol, body string }{
+		{"openai", `{"object":"list","data":[{"id":"a"}],"error":{"message":"private diagnostic"}}`},
+		{"anthropic", `{"has_more":false,"data":[{"id":"a","type":"model"}],"error":{"message":"private diagnostic"}}`},
+		{"ollama", `{"models":[{"name":"a"}],"error":"private diagnostic"}`},
+		{"gemini", `{"models":[{"name":"models/a","supportedGenerationMethods":["generateContent"]}],"error":{"message":"private diagnostic"}}`},
+	} {
+		t.Run(tc.protocol, func(t *testing.T) {
+			u := testUpstream(t, func(w http.ResponseWriter, r *http.Request) {
+				if _, err := io.WriteString(w, tc.body); err != nil {
+					t.Error(err)
+				}
+			})
+			result := u.Probe(context.Background(), "fixture", tc.protocol)
+			require.Equal(t, "unknown", result.State)
+			require.Empty(t, result.Models)
+			require.Empty(t, result.Protocol)
+		})
 	}
 }
 

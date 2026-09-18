@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  TriangleAlert,
   X,
 } from 'lucide-react';
 import {
@@ -325,7 +324,6 @@ export function DangerConfirm({
 }) {
   return (
     <div className="native-confirm-copy">
-      <span className="native-confirm-icon"><TriangleAlert size={17} /></span>
       <div>
         <strong>{title}</strong>
         {description ? <p>{description}</p> : null}

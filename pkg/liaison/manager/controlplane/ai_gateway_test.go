@@ -102,6 +102,28 @@ func TestAIGateway_RealDAOIsolationRevocationAndTargetBinding(t *testing.T) {
 	require.EqualValues(t, 1, usage.Summary.Requests)
 	require.Equal(t, input, *usage.Summary.InputTokens)
 	require.Equal(t, key.ID, usage.Records[0].KeyID) // Revoked keys retain history.
+	homeView, homeErr := cp.ManagementLLMOverview(one, p.ID, 24)
+	require.NoError(t, homeErr)
+	require.EqualValues(t, 1, homeView.Usage.Requests)
+	require.Equal(t, []string{"other"}, homeView.Models)
+	homeJSON, homeErr := json.Marshal(homeView)
+	require.NoError(t, homeErr)
+	require.NotContains(t, string(homeJSON), "internal")
+	require.NotContains(t, string(homeJSON), key.Secret)
+	_, homeErr = cp.ManagementLLMOverview(two, p.ID, 24)
+	require.Error(t, homeErr)
+	_, homeErr = cp.ManagementLLMOverview(context.Background(), p.ID, 24)
+	require.ErrorIs(t, homeErr, iam.ErrForbidden)
+	for _, hours := range []int{1, 6, 24, 168, 720} {
+		window, windowErr := s.TokenUsage(one, p.ID, hours)
+		require.NoError(t, windowErr)
+		require.EqualValues(t, 1, window.Summary.Requests)
+		require.WithinDuration(t, time.Now().UTC().Add(-time.Duration(hours)*time.Hour), window.Since, 2*time.Second)
+	}
+	for _, hours := range []int{-1, 0, 2, 721} {
+		_, windowErr := s.TokenUsage(one, p.ID, hours)
+		require.ErrorIs(t, windowErr, ErrAIInvalid)
+	}
 	_, err = s.TokenUsage(two, p.ID)
 	require.Error(t, err)
 	_, err = s.TokenUsage(context.Background(), p.ID)
@@ -137,4 +159,73 @@ func TestAIGateway_RealDAOIsolationRevocationAndTargetBinding(t *testing.T) {
 	encoded, err := json.Marshal(stored)
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), stored.EncryptedKey)
+}
+
+func TestNativeApplicationProtocolBinding(t *testing.T) {
+	for _, protocol := range []string{"openai", "anthropic", "ark", "qwen", "gemini", "ollama", "openai-compatible"} {
+		t.Run(protocol, func(t *testing.T) {
+			cp, r := newTestControlPlane(t)
+			t.Cleanup(func() { require.NoError(t, r.Close()) })
+			_, owner, other := seedResourceScopeUsers(t, r)
+			auth, err := iam.NewIAMService(r)
+			require.NoError(t, err)
+			service, err := cp.NewAIService(auth, make([]byte, 32))
+			require.NoError(t, err)
+			edge, app := createTestEdgeApplication(t, r)
+			app.ApplicationType = model.ApplicationType(protocol)
+			require.NoError(t, r.UpdateApplication(app))
+			require.NoError(t, claimResource(owner, r, resourceConnector, uint64(edge.ID)))
+			require.NoError(t, claimResource(owner, r, resourceApplication, uint64(app.ID)))
+			config, err := service.GetApplication(owner, app.ID)
+			require.NoError(t, err)
+			expected := protocol
+			if protocol == "openai" {
+				expected = "openai-compatible"
+			}
+			require.Equal(t, expected, config.Protocol)
+			require.Equal(t, protocol, config.ApplicationType)
+			_, err = service.SaveApplication(other, app.ID, config)
+			require.Error(t, err)
+			_, err = service.SaveApplication(owner, app.ID, AIApplicationConfig{Protocol: "invalid"})
+			require.Error(t, err)
+			config.APIKey = "test-fixture-not-a-real-key"
+			_, err = service.SaveApplication(owner, app.ID, config)
+			require.NoError(t, err)
+			proxy := &model.Proxy{ApplicationID: app.ID, Name: "Native fixture", Status: model.ProxyStatusRunning, AccessProtocol: model.AccessProtocolAI}
+			require.NoError(t, r.CreateProxy(proxy))
+			require.NoError(t, claimResource(owner, r, resourceAccess, uint64(proxy.ID)))
+			access, err := service.SaveAccess(owner, proxy.ID, AIAccessConfig{Enabled: true, Models: map[string]string{"public": "private"}, ExternalProtocol: aigateway.NativeClientProtocols(expected)[0]})
+			require.NoError(t, err)
+			require.Equal(t, aigateway.NativeClientProtocols(expected)[0], access.ExternalProtocol)
+			key, err := service.CreateKey(owner, proxy.ID, AIKeyRequest{Name: "fixture", Models: []string{"public"}, ExpiresInDays: 1})
+			require.NoError(t, err)
+			grant, err := service.Grant(context.Background(), proxy.ID, key.Secret)
+			require.NoError(t, err)
+			require.Equal(t, expected, grant.Protocol)
+			grant.Upstream.Close()
+			if aiOpenAIProfile(protocol) {
+				for _, profile := range []string{"openai", "openai-compatible"} {
+					config.Protocol = profile
+					config.APIKey = ""
+					saved, e := service.SaveApplication(owner, app.ID, config)
+					require.NoError(t, e)
+					require.True(t, saved.HasAPIKey)
+					require.Empty(t, saved.APIKey)
+					next, e := service.Grant(context.Background(), proxy.ID, key.Secret)
+					require.NoError(t, e)
+					require.Equal(t, profile, next.Protocol)
+					require.Equal(t, "test-fixture-not-a-real-key", next.UpstreamKey)
+					next.Upstream.Close()
+				}
+				app.Port++
+				require.NoError(t, r.UpdateApplication(app))
+				config.Protocol = "openai"
+				_, e := service.SaveApplication(owner, app.ID, config)
+				require.ErrorIs(t, e, ErrAIInvalid)
+			}
+			require.NoError(t, service.RevokeKey(owner, proxy.ID, key.ID))
+			_, err = service.Grant(context.Background(), proxy.ID, key.Secret)
+			require.Error(t, err)
+		})
+	}
 }

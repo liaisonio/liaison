@@ -1,6 +1,9 @@
 package iam
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -209,7 +212,35 @@ func (s *IAMService) getPasswordFilePath() string {
 
 // ValidateToken 验证JWT token
 func (s *IAMService) ValidateToken(tokenString string) (*utils.Claims, error) {
-	return utils.ValidateToken(tokenString)
+	claims, err := utils.ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	if claims.ExpiresAt == nil {
+		return nil, errors.New("session expiration required")
+	}
+	revoked, err := s.repo.IsSessionRevoked(context.Background(), sessionFingerprint(tokenString))
+	if err != nil {
+		return nil, errors.New("session verification unavailable")
+	}
+	if revoked {
+		return nil, errors.New("session revoked")
+	}
+	return claims, nil
+}
+
+func sessionFingerprint(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
+}
+
+// RevokeSessionToken supports legacy JWTs too: the fingerprint covers the full token.
+func (s *IAMService) RevokeSessionToken(ctx context.Context, token string) error {
+	claims, err := utils.ValidateToken(token)
+	if err != nil || claims.ExpiresAt == nil {
+		return errors.New("invalid session token")
+	}
+	return s.repo.RevokeSession(ctx, sessionFingerprint(token), claims.ExpiresAt.Time)
 }
 
 // GetUserByToken 根据token获取用户信息

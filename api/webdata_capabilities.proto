@@ -1,0 +1,9 @@
+syntax = "proto3";
+package liaison.webdata_capabilities;
+option go_package = "github.com/liaisonio/liaison/api/webdata_capabilities;webdata_capabilities";
+
+// Supplementary HTTP contract. GET /api/v1/webdata/capabilities requires an
+// active authenticated console user. No upstream configuration is returned.
+// Envelope: {code:200,message:"success",data:{dameng:true}} in standard builds.
+// A build capability does not grant permission to create or use resources.
+message Capabilities { bool dameng = 1; }

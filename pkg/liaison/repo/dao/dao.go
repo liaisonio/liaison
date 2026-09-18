@@ -14,6 +14,8 @@ import (
 
 // Dao 接口定义
 type Dao interface {
+	RevokeSession(context.Context, string, time.Time) error
+	IsSessionRevoked(context.Context, string) (bool, error)
 	GetAIApplication(context.Context, uint) (*model.AIApplication, error)
 	SaveAIApplication(context.Context, *model.AIApplication) error
 	GetAIAccess(context.Context, uint) (*model.AIAccess, error)
@@ -310,6 +312,7 @@ func (d *dao) initDB() error {
 		&model.IAMResourceRelation{},
 		&model.TrafficMetric{},
 		&model.UserAPIToken{},
+		&model.RevokedSession{},
 		&model.ProxyFirewallRule{},
 		&model.WebSSHHostKey{},
 		&model.WebSSHCredential{},

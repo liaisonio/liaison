@@ -1,0 +1,11 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter} from 'react-router-dom';
+import {HeaderQuickSettings} from '../src/components/layout/HeaderQuickSettings';
+import DevicePage from '../src/pages/Device';
+import {RuntimeBridge} from '../src/lib/runtime';
+import {applyThemeOnBoot} from '../src/store/theme';
+import '../src/styles/index.css';
+if(!import.meta.env.DEV)throw Error('Development fixture only');
+applyThemeOnBoot();
+createRoot(document.getElementById('root')!).render(<MemoryRouter><RuntimeBridge/><div style={{padding:20}}><div style={{display:'flex',justifyContent:'flex-end',marginBottom:20}}><HeaderQuickSettings/></div><DevicePage/></div></MemoryRouter>);

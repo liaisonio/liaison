@@ -54,12 +54,13 @@ func (cp *controlPlane) NewAIService(auth *iam.IAMService, key []byte) (*AIServi
 }
 
 type AIApplicationConfig struct {
-	Protocol  string `json:"protocol"`
-	BasePath  string `json:"base_path"`
-	TLS       bool   `json:"tls"`
-	APIKey    string `json:"api_key,omitempty"`
-	ClearKey  bool   `json:"clear_key,omitempty"`
-	HasAPIKey bool   `json:"has_api_key"`
+	ApplicationType string `json:"application_type,omitempty"`
+	Protocol        string `json:"protocol"`
+	BasePath        string `json:"base_path"`
+	TLS             bool   `json:"tls"`
+	APIKey          string `json:"api_key,omitempty"`
+	ClearKey        bool   `json:"clear_key,omitempty"`
+	HasAPIKey       bool   `json:"has_api_key"`
 }
 type AIAccessConfig struct {
 	Enabled          bool              `json:"enabled"`
@@ -105,11 +106,8 @@ func (s *AIService) Workspace(ctx context.Context, id uint) (AIWorkspace, error)
 		return AIWorkspace{}, err
 	}
 	view.Models = aigateway.ModelAliases(mappings)
-	view.ExternalProtocol = "openai-compatible"
-	view.ExternalProtocols = []string{"openai-compatible"}
-	if view.UpstreamProtocol == "anthropic" {
-		view.ExternalProtocols = append(view.ExternalProtocols, "anthropic")
-	}
+	view.ExternalProtocols = aigateway.NativeClientProtocols(view.UpstreamProtocol)
+	view.ExternalProtocol = view.ExternalProtocols[0]
 	view.Enabled = c.Enabled && p.Status == model.ProxyStatusRunning
 	return view, nil
 }
@@ -168,7 +166,7 @@ func (s *AIService) application(ctx context.Context, id uint, action string) (*m
 	if err != nil {
 		return nil, err
 	}
-	if app.ApplicationType != model.ApplicationTypeLLM || len(app.EdgeIDs) != 1 {
+	if !model.IsLLMApplicationType(app.ApplicationType) || len(app.EdgeIDs) != 1 {
 		return nil, ErrAIInvalid
 	}
 	if err := requireVisibleResource(ctx, s.cp.repo, resourceConnector, uint64(app.EdgeIDs[0])); err != nil {
@@ -199,25 +197,40 @@ func aiFingerprint(app *model.Application, c *AIApplicationConfig) string {
 func aiAppView(v *model.AIApplication) AIApplicationConfig {
 	return AIApplicationConfig{Protocol: v.Protocol, BasePath: v.BasePath, TLS: v.TLS, HasAPIKey: v.EncryptedKey != ""}
 }
+func aiOpenAIProfile(protocol string) bool {
+	return protocol == "openai" || protocol == "openai-compatible"
+}
+func aiApplicationProtocolMatches(appType model.ApplicationType, protocol string) bool {
+	return appType == "llm" || string(appType) == protocol || aiOpenAIProfile(string(appType)) && aiOpenAIProfile(protocol)
+}
 func (s *AIService) GetApplication(ctx context.Context, id uint) (AIApplicationConfig, error) {
-	if _, err := s.application(ctx, id, "update"); err != nil {
+	app, err := s.application(ctx, id, "update")
+	if err != nil {
 		return AIApplicationConfig{}, err
 	}
 	v, err := s.cp.repo.GetAIApplication(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return AIApplicationConfig{Protocol: "openai-compatible", BasePath: "/v1"}, nil
+		protocol := string(app.ApplicationType)
+		if protocol == "llm" || protocol == "openai" {
+			protocol = "openai-compatible"
+		}
+		p, _ := aigateway.LookupProtocol(protocol)
+		return AIApplicationConfig{Protocol: protocol, BasePath: p.BasePath, ApplicationType: string(app.ApplicationType)}, nil
 	}
 	if err != nil {
 		return AIApplicationConfig{}, err
 	}
-	return aiAppView(v), nil
+	view := aiAppView(v)
+	view.ApplicationType = string(app.ApplicationType)
+	return view, nil
 }
 func (s *AIService) SaveApplication(ctx context.Context, id uint, c AIApplicationConfig) (AIApplicationConfig, error) {
 	app, err := s.application(ctx, id, "update")
 	if err != nil {
 		return AIApplicationConfig{}, err
 	}
-	if c.Protocol != "openai-compatible" && c.Protocol != "anthropic" && c.Protocol != "ollama" || len(c.APIKey) > 8192 || strings.ContainsAny(c.APIKey, "\r\n") {
+	_, known := aigateway.LookupProtocol(c.Protocol)
+	if !known || !aiApplicationProtocolMatches(app.ApplicationType, c.Protocol) || len(c.APIKey) > 8192 || strings.ContainsAny(c.APIKey, "\r\n") {
 		return AIApplicationConfig{}, ErrAIInvalid
 	}
 	u, err := aigateway.NewUpstream(aigateway.Target{Host: app.IP, Port: app.Port, TLS: c.TLS, BasePath: c.BasePath}, func(context.Context) (net.Conn, error) { return nil, ErrAIUnavailable })
@@ -233,7 +246,21 @@ func (s *AIService) SaveApplication(ctx context.Context, id uint, c AIApplicatio
 	encrypted := ""
 	if old != nil && old.EncryptedKey != "" && !c.ClearKey && c.APIKey == "" {
 		if old.TargetFingerprint != fingerprint {
-			return AIApplicationConfig{}, ErrAIInvalid
+			// Switching only the OpenAI API profile on the same authorized target
+			// can preserve its key. Never carry a key to a changed host/path/TLS.
+			oldView := aiAppView(old)
+			if !aiOpenAIProfile(old.Protocol) || !aiOpenAIProfile(c.Protocol) || old.BasePath != c.BasePath || old.TLS != c.TLS || old.TargetFingerprint != aiFingerprint(app, &oldView) {
+				return AIApplicationConfig{}, ErrAIInvalid
+			}
+			raw, e := base64.StdEncoding.DecodeString(old.EncryptedKey)
+			if e != nil || len(raw) < s.cipher.NonceSize() {
+				return AIApplicationConfig{}, ErrAIInvalid
+			}
+			plain, e := s.cipher.Open(nil, raw[:s.cipher.NonceSize()], raw[s.cipher.NonceSize():], []byte(old.TargetFingerprint))
+			if e != nil {
+				return AIApplicationConfig{}, ErrAIInvalid
+			}
+			c.APIKey = string(plain)
 		}
 		encrypted = old.EncryptedKey
 	}
@@ -248,7 +275,9 @@ func (s *AIService) SaveApplication(ctx context.Context, id uint, c AIApplicatio
 	if err = s.cp.repo.SaveAIApplication(ctx, v); err != nil {
 		return AIApplicationConfig{}, err
 	}
-	return aiAppView(v), nil
+	view := aiAppView(v)
+	view.ApplicationType = string(app.ApplicationType)
+	return view, nil
 }
 func (s *AIService) GetAccess(ctx context.Context, id uint) (AIAccessConfig, error) {
 	if _, _, err := s.access(ctx, id, "update"); err != nil {
@@ -256,6 +285,11 @@ func (s *AIService) GetAccess(ctx context.Context, id uint) (AIAccessConfig, err
 	}
 	v, err := s.cp.repo.GetAIAccess(ctx, id)
 	c := AIAccessConfig{ExternalProtocol: "openai-compatible", Models: map[string]string{}}
+	if _, app, e := s.access(ctx, id, "update"); e == nil {
+		if cfg, e := s.cp.repo.GetAIApplication(ctx, app.ID); e == nil {
+			c.ExternalProtocol = aigateway.NativeClientProtocols(cfg.Protocol)[0]
+		}
+	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return c, nil
 	}
@@ -270,7 +304,27 @@ func (s *AIService) SaveAccess(ctx context.Context, id uint, c AIAccessConfig) (
 	if _, _, err := s.access(ctx, id, "update"); err != nil {
 		return c, err
 	}
-	if c.ExternalProtocol != "" && c.ExternalProtocol != "openai-compatible" || len(c.Models) > 100 || c.Enabled && len(c.Models) == 0 {
+	_, app, err := s.access(ctx, id, "update")
+	if err != nil {
+		return c, err
+	}
+	cfg, err := s.cp.repo.GetAIApplication(ctx, app.ID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return c, err
+	}
+	if cfg == nil {
+		protocol := string(app.ApplicationType)
+		if protocol == "llm" {
+			protocol = "openai-compatible"
+		}
+		cfg = &model.AIApplication{Protocol: protocol}
+	}
+	protocols := aigateway.NativeClientProtocols(cfg.Protocol)
+	valid := c.ExternalProtocol == ""
+	for _, p := range protocols {
+		valid = valid || c.ExternalProtocol == p
+	}
+	if !valid || len(c.Models) > 100 || c.Enabled && len(c.Models) == 0 {
 		return c, ErrAIInvalid
 	}
 	aliases := aigateway.ModelAliases(c.Models)
@@ -281,7 +335,7 @@ func (s *AIService) SaveAccess(ctx context.Context, id uint, c AIAccessConfig) (
 	if err != nil {
 		return c, err
 	}
-	c.ExternalProtocol = "openai-compatible"
+	c.ExternalProtocol = protocols[0]
 	err = s.cp.repo.SaveAIAccess(ctx, &model.AIAccess{ProxyID: id, Enabled: c.Enabled, Models: string(data)})
 	return c, err
 }
@@ -466,7 +520,7 @@ func (s *AIService) upstream(ctx context.Context, app *model.Application, proxyI
 	}
 	view := aiAppView(cfg)
 	fingerprint := aiFingerprint(app, &view)
-	if fingerprint != cfg.TargetFingerprint {
+	if fingerprint != cfg.TargetFingerprint || !model.IsLLMApplicationType(app.ApplicationType) || !aiApplicationProtocolMatches(app.ApplicationType, cfg.Protocol) {
 		return nil, "", "", ErrAIUnavailable
 	}
 	key := ""
@@ -547,12 +601,19 @@ func (s *AIService) Requests(ctx context.Context, id uint) ([]model.AIRequest, e
 	return s.cp.repo.ListAIRequests(ctx, id, user, 50)
 }
 
-func (s *AIService) TokenUsage(ctx context.Context, id uint) (*model.LLMTokenUsageReport, error) {
+func (s *AIService) TokenUsage(ctx context.Context, id uint, windowHours ...int) (*model.LLMTokenUsageReport, error) {
 	if _, _, err := s.access(ctx, id, "use"); err != nil {
 		return nil, err
 	}
 	user, _ := actorUserID(ctx)
-	return s.cp.repo.GetLLMTokenUsage(ctx, id, user, time.Now().UTC().Add(-30*24*time.Hour))
+	hours := 720
+	if len(windowHours) > 0 {
+		hours = windowHours[0]
+	}
+	if len(windowHours) > 1 || (hours != 1 && hours != 6 && hours != 24 && hours != 168 && hours != 720) {
+		return nil, ErrAIInvalid
+	}
+	return s.cp.repo.GetLLMTokenUsage(ctx, id, user, time.Now().UTC().Add(-time.Duration(hours)*time.Hour))
 }
 
 func (s *AIService) DebugGrant(ctx context.Context, id uint) (*AIGrant, error) {

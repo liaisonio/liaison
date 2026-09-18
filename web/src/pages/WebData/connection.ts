@@ -178,7 +178,8 @@ export const tlsOptionsForProtocol = (
   protocol: string,
   tr: (zh: string, en: string) => string,
 ) => {
-  if (protocol === 'mysql' || protocol === 'mariadb') {
+  if (protocol === 'dameng') return [{label:tr('关闭','Off'),value:'disable'}];
+  if (['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '')) {
     return [
       { label: tr('关闭', 'Disabled'), value: 'disable' },
       { label: tr('启用/要求', 'Enabled/Required'), value: 'require' },

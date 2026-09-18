@@ -11,7 +11,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  FileClock,
   Gauge,
   House,
   Globe2,
@@ -182,9 +181,9 @@ export function Sidebar() {
                 <span>{tr('日志与审计', 'Logs & Audit')}</span>
                 <ChevronDown className={`liaison-nav-chevron${logsOpen ? ' is-open' : ''}`} size={15} />
               </button>
-              {logsOpen ? <div className="liaison-nav-children">
-                <Link to="/logs/management" className={`liaison-nav-child${location.pathname === '/logs/management' ? ' is-active' : ''}`}><FileClock size={13} /><span>{tr('管理日志', 'Management logs')}</span></Link>
-                <Link to="/logs/audit" className={`liaison-nav-child${location.pathname === '/logs/audit' ? ' is-active' : ''}`}><AuditLogIcon size={13} /><span>{tr('审计日志', 'Audit logs')}</span></Link>
+              {logsOpen ? <div className="liaison-nav-children liaison-nav-log-children">
+                <Link to="/logs/management" className={`liaison-nav-child${location.pathname === '/logs/management' ? ' is-active' : ''}`}><span>{tr('管理日志', 'Management logs')}</span></Link>
+                <Link to="/logs/audit" className={`liaison-nav-child${location.pathname === '/logs/audit' ? ' is-active' : ''}`}><span>{tr('审计日志', 'Audit logs')}</span></Link>
               </div> : null}
             </div>
           ))}

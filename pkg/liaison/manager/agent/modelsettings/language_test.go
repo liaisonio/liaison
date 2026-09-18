@@ -61,7 +61,7 @@ func TestOutputLanguageDirectivePreservesRequest(t *testing.T) {
 			if got.Messages[2].Content != messages[1].Content || original.Messages[1].Role != runtime.RoleUser || got.SessionID != original.SessionID {
 				t.Fatal("request mutated")
 			}
-			for _, phrase := range []string{"JSON schemas", "command/SQL completion", "regardless"} {
+			for _, phrase := range []string{"JSON schemas", "command/SQL completion", "regardless", "first streamed sentence", "pre-tool commentary"} {
 				if !strings.Contains(got.Messages[1].Content, phrase) {
 					t.Fatalf("missing %s", phrase)
 				}

@@ -10,6 +10,38 @@
   }
   width: 100%;
   min-width: 0;
+  .ai-token-trend { margin: 16px 0 24px; padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--surface-radius); background: rgb(var(--panel) / .3); }
+  .ai-token-trend-legend { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: rgb(var(--muted)); }
+  .ai-token-trend-legend strong { margin-left: 12px; color: rgb(var(--ink)); font-variant-numeric: tabular-nums; }
+  .ai-token-trend-scroll { overflow-x: auto; }
+  .ai-token-trend svg { display: block; width: 100%; height: 210px; margin-top: 12px; }
+  .ai-token-trend text { fill: rgb(var(--muted)); font-size: 11px; font-family: inherit; }
+  .ai-token-grid { stroke: rgb(var(--line)); stroke-dasharray: 3 5; }
+  .ai-token-line { fill: none; stroke: rgb(var(--accent)); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .ai-token-area { fill: rgb(var(--accent) / .08); }
+  .ai-token-point { fill: rgb(var(--surface)); stroke: rgb(var(--accent)); stroke-width: 2; cursor: crosshair; }
+  .ai-token-point:focus { outline: 2px solid rgb(var(--accent)); outline-offset: 4px; }
+  .ai-token-trend svg:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; border-radius: var(--control-radius); }
+  .ai-token-trend > p { color: rgb(var(--muted)); font-size: 12px; }
+  .ai-mode-switch, .ai-compare-actions { display: flex; gap: 8px; margin: 12px 0; }
+  .ai-insights-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .ai-usage-ranges { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+  .ai-insights-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 16px 0; }
+  .ai-insights-metrics > div { padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); }
+  .ai-insights-metrics span { display: block; color: rgb(var(--muted)); font-size: 12px; }
+  .ai-insights-metrics strong { display: block; margin-top: 8px; font-size: 18px; font-weight: 680; }
+  .ai-insights-models { display: grid; gap: 12px; }
+  .ai-insights-models > div { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .ai-insights-models code, .ai-compare code { overflow-wrap: anywhere; }
+  .ai-compare-models { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
+  .ai-compare-models label { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .ai-compare-models input { accent-color: rgb(var(--accent)); }
+  .ai-compare textarea { width: 100%; }
+  .ai-compare-results { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 16px; }
+  .ai-compare-results article { min-width: 0; padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--surface-radius); }
+  .ai-compare-results article > p, .ai-compare-results dl, .ai-compare-results details { font-size: 12px; color: rgb(var(--muted)); }
+  .ai-compare-results dd { margin: 4px 0 12px; color: rgb(var(--ink)); }
+  @media(max-width:650px) { .ai-insights-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } }
   .ai-api-key-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
   .ai-api-key-toolbar p { color: rgb(var(--muted)); font-size: 11px; margin: 4px 0 0; }
   .ai-api-key-actions { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -78,6 +110,7 @@
       margin: 10px 2px 4px;
     }
   }
+  > header:has(.liaison-access-context) { display:flex; align-items:center; min-height:34px; padding:0 2px 8px; margin-bottom:0; }
   > header p, .ai-api-card > p, .ai-api-probe p, .ai-api-secret p {
     color: var(--text-secondary);
     font-size: 11px;
@@ -205,15 +238,17 @@
     small { color: var(--text-secondary); }
   }
   .ai-playground {
-    .ai-playground-messages { display: flex; flex-direction: column; gap: 20px; height: clamp(240px, 42vh, 480px); overflow-y: auto; padding: 16px 4px; overscroll-behavior: contain; }
+    .ai-playground-messages { display: flex; flex-direction: column; gap: 16px; height: clamp(200px, 30vh, 340px); overflow-y: auto; padding: 16px 4px; overscroll-behavior: contain; }
     .ai-playground-empty { margin: auto; color: rgb(var(--muted)); font-size: 13px; }
     .ai-api-answer { padding: 0; min-width: 0; flex-shrink: 0; }
-    .ai-api-answer > small { display: block; margin-bottom: 6px; font-size: 12px; }
+    .ai-api-answer > small { color: rgb(var(--muted)); display: block; margin-bottom: 6px; font-size: 12px; }
+    .ai-api-answer.is-user > small { display: none; }
+    .ai-playground-notice { margin-top: 12px; }
     .ai-api-answer.is-user { align-self: flex-end; max-width: 90%; padding: 10px 13px; border-radius: 12px; background: rgb(var(--accent) / .10); }
     .ai-api-answer p { margin: 6px 0; }
     .ai-playground-composer { margin-top: 16px; padding: 12px; border: 1px solid rgb(var(--line)); border-radius: 12px; background: rgb(var(--panel) / .76); }
     .ai-playground-composer:focus-within { border-color: rgb(var(--accent) / .55); box-shadow: 0 0 0 2px rgb(var(--accent) / .08); }
-    .ai-playground-composer textarea { width: 100%; min-height: 80px; max-height: 180px; border: 0; box-shadow: none; background: transparent; padding: 4px; }
+    .ai-playground-composer textarea { width: 100%; min-height: 48px; max-height: 140px; border: 0; box-shadow: none; background: transparent; padding: 4px; }
     .ai-playground-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
     .ai-playground-controls select { width: 220px; max-width: 100%; min-width: 0; margin-right: auto; }
     .ai-playground-shortcut { color: rgb(var(--muted)); font-size: 11px; }
@@ -236,7 +271,7 @@
     td {
       text-align: left;
       padding: 12px 10px;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid rgb(var(--line) / 0.55);
     }
     th {
       color: var(--text-secondary);

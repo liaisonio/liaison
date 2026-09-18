@@ -13,18 +13,19 @@ option go_package = "github.com/liaisonio/liaison/api/ai/v1";
 // Uses the same key ownership, model allowlist, quota and revocation checks.
 // GET/PUT /api/v1/ai/applications/{id}; POST .../{id}/probe
 message ApplicationConfig {
-  string protocol = 1; // openai-compatible, anthropic or ollama (native /api/chat)
+  string protocol = 1; // API profile: openai includes Responses; openai-compatible is Chat Completions only (default for new OpenAI apps). Other profiles: anthropic, ark, qwen, gemini, ollama.
   string base_path = 2;
   bool tls = 3;
   string api_key = 4; // Write-only; empty preserves. Bound to target fingerprint.
   bool clear_key = 5;
   bool has_api_key = 6; // Read-only.
+  string application_type = 7; // Read-only protocol family. OpenAI permits both API profiles; legacy llm remains configurable.
 }
 // GET/PUT /api/v1/ai/accesses/{id}
 message AccessConfig {
   bool enabled = 1;
   map<string,string> models = 2; // Public alias -> upstream model.
-  string external_protocol = 3; // V1: openai-compatible.
+  string external_protocol = 3; // Derived from upstream capability, never an arbitrary conversion switch.
 }
 // GET /api/v1/ai/accesses/{id}/workspace: consumer-safe view, no upstream targets.
 message AccessWorkspace {
@@ -32,7 +33,7 @@ message AccessWorkspace {
   bool enabled = 2;
   repeated string models = 3;
   bool can_manage = 4;
-  repeated string external_protocols = 5; // Consumer-safe capabilities; includes anthropic only for native Anthropic upstreams.
+  repeated string external_protocols = 5; // Consumer-safe native and implemented conversion protocols; Gemini/Qwen native only.
 }
 // GET/POST /api/v1/ai/accesses/{id}/keys; DELETE .../keys/{key_id}
 message KeyRequest {
@@ -70,7 +71,8 @@ message RequestRecord {
   bool complete = 7;
   uint64 key_id = 8; // Zero for a dashboard-authenticated debug request.
 }
-// GET /api/v1/ai/accesses/{id}/usage: own usage, rolling 30 days.
+// GET /api/v1/ai/accesses/{id}/usage: own usage.
+// Optional hours query: 1, 6, 24, 168, 720. Default 720 (rolling 30 days).
 // Independent of the 500-request log retention. No historical backfill.
 // Missing upstream usage remains null, not measured zero. No billing guarantee.
 message TokenUsageRecord {
@@ -98,3 +100,17 @@ message TokenUsageResponse {
 // POST /api/v1/ai/accesses/{id}/v1/chat/completions
 // Protocol-native JSON/SSE, no management response envelope. No cookies/CORS.
 // POST /api/v1/ai/accesses/{id}/test: authenticated owner's bounded debug request.
+// Additional native operations below the access root:
+// OpenAI: POST v1/responses (stateless only).
+// Ark: POST api/v3/chat/completions and api/v3/responses.
+// Qwen: POST api/v1/services/aigc/text-generation/generation;
+//       X-DashScope-SSE: enable selects SSE; no arbitrary headers forwarded.
+// Gemini: POST v1beta/models/{alias}:generateContent or :streamGenerateContent?alt=sse;
+//         Liaison key in x-goog-api-key or Authorization, never query parameters.
+// Ollama: POST api/chat; GET api/tags. No pull/delete/create or arbitrary paths.
+// Ollama chat defaults to streaming NDJSON; stream:false returns native JSON.
+// Keep-alive/unload, empty-message loading and resource options are not consumer
+// capabilities. tags returns authorized aliases only, not upstream model metadata.
+// Requests/streams share ownership, model alias, quota, revocation and audit checks.
+// Responses previous_response_id/conversation/background and cached/file resource
+// references are not exposed without a separate user-scoped ownership registry.

@@ -1,9 +1,10 @@
+import {LLM_PROTOCOL_OPTIONS,protocolFamily,uniqueProtocolFamilies,llmBase,llmLabel,clientProtocols} from '@/constants/llmProtocols';
 import {forwardRef, useEffect, useImperativeHandle, useRef, useState} from 'react';
 import {request} from '@/api/client';
 import {Button, Field, Input, Notice, Select} from '@/components/ui';
 import {useI18n} from '@/i18n';
 
-type Upstream = {protocol:string;base_path:string;tls:boolean;api_key?:string;has_api_key?:boolean};
+type Upstream = {application_type?:string;protocol:string;base_path:string;tls:boolean;api_key?:string;has_api_key?:boolean};
 type Access = {enabled:boolean;models:Record<string,string>;external_protocol:string};
 export type LLMConnectionHandle = {saveUpstream:()=>Promise<void>;saveAccess:(id:number)=>Promise<void>};
 async function api<T>(path:string, data?:unknown):Promise<T> {
@@ -48,6 +49,7 @@ export default forwardRef<LLMConnectionHandle,{applicationId:string;accessId?:nu
       if(controller.signal.aborted)return;
       if(result.code!==200||!result.data)throw Error('probe');
       if(result.data.state==='auth_required')setProbeError(tr('上游认证失败，请检查上游 API 密钥。','Upstream authentication failed. Check the upstream API key.'));
+      else if(result.data.state==='unsupported')setProbeError(tr('此协议暂不支持自动列举，请手动填写上游模型 ID。','Automatic listing is unavailable for this protocol. Enter upstream model IDs manually.'));
       else if(result.data.state==='unreachable')setProbeError(tr('无法连接上游，请检查连接器和目标地址。','Cannot reach upstream. Check the connector and target address.'));
       else if(result.data.state!=='compatible')setProbeError(tr('未获得模型列表，请检查协议、接口路径，或手动填写模型。','No model list returned. Check the protocol and base path, or enter models manually.'));
       else setModels([...new Set(result.data.models||[])]);
@@ -64,7 +66,7 @@ export default forwardRef<LLMConnectionHandle,{applicationId:string;accessId?:nu
         setUpstream(saved);setDirty(false);
       }
     },
-    async saveAccess(id){validate();await api(`/api/v1/ai/accesses/${id}`,{enabled,external_protocol:'openai-compatible',models:Object.fromEntries(pairs.map(([a,b])=>[a.trim(),b.trim()]))});},
+    async saveAccess(id){validate();await api(`/api/v1/ai/accesses/${id}`,{enabled,external_protocol:clientProtocols(upstream!.protocol)[0],models:Object.fromEntries(pairs.map(([a,b])=>[a.trim(),b.trim()]))});},
   }));
   if(failed)return <Notice tone="danger">{tr('无法读取模型配置，请检查应用配置权限。','Cannot load model configuration. Check application configuration permissions.')} <Button onClick={()=>setRetry(n=>n+1)}>{tr('重试','Retry')}</Button></Notice>;
   if(!loaded||!upstream)return <p role="status">{tr('正在加载模型配置…','Loading model configuration…')}</p>;
@@ -73,7 +75,8 @@ export default forwardRef<LLMConnectionHandle,{applicationId:string;accessId?:nu
     <legend>{tr('模型连接','Model connection')}</legend>
     <p>{applicationOnly?tr('获取列表会保存上游配置，不会创建访问或自动开放模型。','Fetching saves upstream settings. It does not create access or expose models.'):tr('上游配置属于应用，修改会影响该应用的其他访问；模型映射仅属于本访问。','Upstream settings are shared by this application’s accesses. Model mappings apply only to this access.')}</p>
     <div className="liaison-initial-connection-fields">
-      <Field label={tr('上游协议','Upstream protocol')}><Select value={upstream.protocol} onChange={e=>change({...upstream,protocol:e.target.value,base_path:['/v1','/api',''].includes(upstream.base_path)?e.target.value==='ollama'?'/api':'/v1':upstream.base_path})}><option value="openai-compatible">OpenAI-compatible</option><option value="anthropic">Anthropic Messages</option><option value="ollama">Ollama</option></Select></Field>
+      <Field label={tr('上游协议','Upstream protocol')}><Select disabled={!!upstream.application_type&&upstream.application_type!=='llm'} value={protocolFamily(upstream.protocol)} onChange={e=>change({...upstream,protocol:e.target.value==='openai'?'openai-compatible':e.target.value,base_path:llmBase(e.target.value)})}>{LLM_PROTOCOL_OPTIONS.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}</Select></Field>
+      {protocolFamily(upstream.protocol)==='openai'&&<Field label={tr('API 能力','API capabilities')} hint={tr('仅在上游支持时开启 Responses，不会自动探测或切换。','Enable Responses only if supported by the upstream. No automatic detection or fallback.')}><Select value={upstream.protocol} onChange={e=>change({...upstream,protocol:e.target.value})}><option value="openai-compatible">Chat Completions</option><option value="openai">Chat Completions + Responses</option></Select></Field>}
       <Field label={tr('接口路径','Base path')}><Input required value={upstream.base_path} onChange={e=>change({...upstream,base_path:e.target.value})}/></Field>
       <Field label="TLS"><Select value={String(upstream.tls)} onChange={e=>change({...upstream,tls:e.target.value==='true'})}><option value="true">HTTPS</option><option value="false">HTTP</option></Select></Field>
       <Field label={tr('上游 API 密钥','Upstream API key')} hint={upstream.has_api_key?tr('留空保留已保存密钥。','Leave blank to keep the saved key.'):tr('上游无需认证时留空，不是客户端调用密钥。','Leave blank if upstream needs no authentication. Not a client API key.')}><Input type="password" autoComplete="new-password" placeholder={upstream.has_api_key?'••••••••':undefined} value={upstream.api_key||''} onChange={e=>change({...upstream,api_key:e.target.value})}/></Field>
@@ -86,7 +89,7 @@ export default forwardRef<LLMConnectionHandle,{applicationId:string;accessId?:nu
         </>}
       </div>}
       {!applicationOnly&&<>
-      <div className="is-full liaison-llm-access-options"><span>{tr('调用协议','Client protocol')} · {upstream.protocol==='anthropic'?'OpenAI-compatible / Anthropic Messages':'OpenAI-compatible'}</span><label className="liaison-checkbox"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>{tr('允许 API 调用','Enable API calls')}</label></div>
+      <div className="is-full liaison-llm-access-options"><span>{tr('调用协议','Client protocol')} · {uniqueProtocolFamilies(clientProtocols(upstream.protocol)).map(llmLabel).join(' / ')}</span><label className="liaison-checkbox"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>{tr('允许 API 调用','Enable API calls')}</label></div>
       <details className="is-full liaison-llm-mappings" open={!models?.length}>
       <summary>{tr('对外名称与手动映射','Public names & manual mappings')}</summary>
       {pairs.map(([alias,model],i)=><div className="is-full liaison-llm-mapping" key={i}>

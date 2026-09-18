@@ -1,0 +1,18 @@
+// This Liaison-owned adapter is overlaid onto pkg/dameng/driver.go only in an
+// explicit local build. The user-supplied driver is never copied into this repo.
+package dameng
+
+import (
+	"context"
+	"database/sql"
+	"net"
+	dm "dm"
+)
+
+func Available() bool { return true }
+func init() {
+	dm.RegisterDialContext("liaison", func(ctx context.Context, address string) (net.Conn, error) {
+		return tunnels.dial(ctx, address)
+	})
+}
+func openDriver(dsn string) (*sql.DB, error) { return sql.Open("dm", dsn) }

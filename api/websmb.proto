@@ -1,0 +1,20 @@
+syntax = "proto3";
+package liaison.websmb;
+option go_package = "github.com/liaisonio/liaison/api/websmb;websmb";
+
+// Sessions and encrypted credentials use the existing WebData API, protocol=smb.
+// database is one share name; schema is the optional NTLM domain.
+// GET /api/v1/webdata/sessions/{token}/smb/list?path=/directory
+// GET /api/v1/webdata/sessions/{token}/smb/preview?path=/file
+// GET /api/v1/webdata/sessions/{token}/smb/download?path=/file
+// Requires session ownership, active access and the existing files-read feature.
+// Read-only first release: no uploads, deletes, renames, SMB1 or DFS referrals.
+message Entry {
+  string name = 1;
+  int64 size = 2;
+  string mode = 3;
+  bool directory = 4;
+  bool symlink = 5;
+  string modified_at = 6;
+}
+message Preview { string text = 1; }

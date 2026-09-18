@@ -477,7 +477,17 @@ func (web *web) GetProfile(ctx context.Context, req *v1.GetProfileRequest) (*v1.
 // @Router /api/v1/iam/logout [post]
 // Logout 用户登出
 func (web *web) Logout(ctx context.Context, req *v1.LogoutRequest) (*v1.LogoutResponse, error) {
-	// JWT是无状态的，登出只需要客户端删除token
+	r, ok := kratoshttp.RequestFromServerContext(ctx)
+	if !ok {
+		return nil, kratoserrors.Unauthorized("UNAUTHORIZED", "Session token required")
+	}
+	parts := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" || strings.HasPrefix(parts[1], "liaison_pat_") {
+		return nil, kratoserrors.Unauthorized("UNAUTHORIZED", "Session token required")
+	}
+	if err := web.iamService.RevokeSessionToken(ctx, parts[1]); err != nil {
+		return nil, kratoserrors.InternalServer("LOGOUT_FAILED", "Could not revoke session")
+	}
 	return &v1.LogoutResponse{
 		Code:    200,
 		Message: "登出成功",

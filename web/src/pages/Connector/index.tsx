@@ -1,6 +1,8 @@
+import {useOptionalProtocols, optionalProtocolEnabled} from '@/store/optionalProtocols';
+import {isLLMAccessType} from '@/constants/accessTypes';
 import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, Notice, Pager, Select, StatusPill } from '@/components/ui';
 import { accessProtocolForType, accessTypesForApplication, isWebAccessType, type AccessType } from '@/constants/accessTypes';
-import { APPLICATION_TYPES } from '@/constants/applicationTypes';
+import { availableApplicationTypes, APPLICATION_TYPES } from '@/constants/applicationTypes';
 import {Switch} from '@/components/ui/complex';
 import { useI18n } from '@/i18n';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -8,6 +10,7 @@ import { history } from '@/lib/runtime';
 import { createApplication, createEdge, createEdgeScanTask, createProxy, deleteEdge, getEdgeList, getEdgeScanTask, updateEdge } from '@/services/api';
 import { Check, Copy, Plus, Radar, Server } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import WebEntryModeField, {useWebEntryMode} from '@/components/WebEntryModeField';
 
 const pageSize = 10;
 const scanPollInterval = 500;
@@ -27,6 +30,7 @@ const defaultAccessName = () => {
 };
 
 const ConnectorPage: React.FC = () => {
+  useOptionalProtocols();
   const { tr } = useI18n();
   const [rows, setRows] = useState<API.Edge[]>([]);
   const [page, setPage] = useState(1);
@@ -59,6 +63,7 @@ const ConnectorPage: React.FC = () => {
   const [suggestedScanAccessName, setSuggestedScanAccessName] = useState(defaultAccessName);
   const [scanAccessType, setScanAccessType] = useState<AccessType>('tcp');
   const [scanPublicPort, setScanPublicPort] = useState('');
+  const webEntry = useWebEntryMode();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -179,6 +184,7 @@ const ConnectorPage: React.FC = () => {
         ? tr('扫描失败', 'Failed')
         : tr('尚未扫描', 'Not scanned');
   const addDiscovered = async (createAccess: boolean) => {
+    webEntry.setMode('path');
     if (!scanRow || !parsedDiscovery) return; setSaving(true);
     try { const response = await createApplication({ name: discoveredForm.name.trim(), application_type: discoveredForm.application_type, ip: parsedDiscovery.ip, port: parsedDiscovery.port, edge_id: scanRow.id }); if (response.code !== 200 || !response.data) throw new Error(response.message); setScanTask((task) => task ? { ...task, applications: task.applications.filter((item) => item !== discovered) } : task); setDiscovered(undefined); if (createAccess) { const options = accessTypesForApplication(discoveredForm.application_type); setScanAccessApplication(response.data); setScanAccessName(''); setSuggestedScanAccessName(defaultAccessName()); setScanAccessType(options[0].value); setScanPublicPort(''); } else setNotice({ tone: 'success', text: tr('应用已添加', 'Application added') }); }
     catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('添加应用失败', 'Failed to add application') }); } finally { setSaving(false); }
@@ -187,14 +193,14 @@ const ConnectorPage: React.FC = () => {
   const createScannedAccess = async (event: FormEvent) => {
     event.preventDefault();
     if (!scanAccessApplication) return;
-    if(scanAccessType==='aiapi'){
+    if(isLLMAccessType(scanAccessType)){
       history.push(`/proxy?category=llm&new_application=${encodeURIComponent(scanAccessApplication.id)}&new_name=${encodeURIComponent(scanAccessName.trim()||suggestedScanAccessName)}`);
       setScanAccessApplication(undefined);return;
     }
-    const expose = !isWebAccessType(scanAccessType);
+    const expose = !isWebAccessType(scanAccessType) && (scanAccessType !== 'http' || webEntry.mode === 'port');
     setSaving(true);
     try {
-      const response = await createProxy({ name: scanAccessName.trim() || suggestedScanAccessName, application_id: scanAccessApplication.id, access_protocol: accessProtocolForType(scanAccessType), expose_public_port: expose, port: expose && scanPublicPort ? Number(scanPublicPort) : undefined });
+      const response = await createProxy({ name: scanAccessName.trim() || suggestedScanAccessName, application_id: scanAccessApplication.id, access_protocol: accessProtocolForType(scanAccessType), http_entry_mode: scanAccessType === 'http' ? webEntry.mode : undefined, expose_public_port: expose, port: expose && scanPublicPort ? Number(scanPublicPort) : undefined });
       if (response.code !== 200) throw new Error(response.message);
       setScanAccessApplication(undefined);
       history.push(`/proxy?access_type=${scanAccessType}`);
@@ -250,8 +256,8 @@ const ConnectorPage: React.FC = () => {
     <Modal open={!!editRow} title={tr('编辑连接器', 'Edit connector')} onClose={() => setEditRow(undefined)} width={500} footer={<><Button onClick={() => setEditRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-edge" disabled={saving}>{tr('确定', 'Save')}</Button></>}><form id="edit-edge" className="native-modal-form" onSubmit={update}><Field label={tr('连接器名称', 'Connector name')} required><Input value={createName} onChange={(event) => setCreateName(event.target.value)} /></Field><Field label={tr('描述', 'Description')}><Input value={createDescription} onChange={(event) => setCreateDescription(event.target.value)} /></Field></form></Modal>
     <Modal open={!!deleteRow} title={tr('删除连接器', 'Delete connector')} onClose={() => setDeleteRow(undefined)} width={450} footer={<><Button onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('承载的应用、访问和密钥关系将一并移除，历史记录仍会保留。', 'Applications, access entries and key relations will be removed. History is retained.')} /></Modal>
     <Drawer open={!!scanRow} title={tr('扫描应用', 'Scan applications')} onClose={closeScan}><div className="liaison-scan-overview"><div className="liaison-scan-overview-icon"><Radar size={17} /></div><div><strong>{scanRow?.name || '-'}</strong><p>{tr('发现连接器所在网络中可接入的服务。', 'Discover services available through this connector.')}</p></div><StatusPill tone={scanTask?.task_status === 'completed' ? 'success' : scanTask?.task_status === 'failed' ? 'danger' : 'info'}>{scanStatusLabel}</StatusPill></div><div className="liaison-scan-toolbar"><span>{tr('发现的应用', 'Discovered applications')} <b>{scanTask?.applications?.length || 0}</b></span><Button onClick={() => scanRow && void refreshScan(scanRow, true)} disabled={scanning}><Radar size={14} />{scanning ? tr('扫描中', 'Scanning') : scanTask ? tr('重新扫描', 'Rescan') : tr('扫描', 'Scan')}</Button></div>{scanTask?.error ? <Notice tone="danger">{scanTask.error}</Notice> : null}<div className="liaison-scan-list"><div className="liaison-scan-list-head"><span>{tr('目标服务', 'Target')}</span><span>{tr('协议', 'Protocol')}</span><span /></div>{scanTask?.applications?.map((app) => { const [ip, port, type] = app.split(':'); const protocol = APPLICATION_TYPES.find((item) => item.value === (type || portTypes[Number(port)] || 'tcp'))?.label || 'TCP'; return <div className="liaison-scan-row" key={app}><span className="liaison-scan-target"><i><Server size={14} /></i><span><strong>{ip}</strong><small>{tr('端口', 'Port')} {port}</small></span></span><StatusPill>{protocol}</StatusPill><button type="button" className="liaison-table-link" onClick={() => openDiscovered(app)}><Plus size={13} />{tr('添加', 'Add')}</button></div>; })}{scanTask?.task_status === 'completed' && !scanTask.applications?.length ? <div className="liaison-scan-empty"><Radar size={20} /><strong>{tr('未发现可用应用', 'No applications discovered')}</strong><span>{tr('确认连接器在线后重新扫描。', 'Make sure the connector is online, then scan again.')}</span></div> : null}</div></Drawer>
-    <Modal open={!!discovered} title={tr('添加扫描到的应用', 'Add discovered application')} onClose={() => setDiscovered(undefined)} width={500} footer={<><Button onClick={() => void addDiscovered(false)} disabled={saving}>{tr('添加应用', 'Add application')}</Button><Button variant="primary" onClick={() => void addDiscovered(true)} disabled={saving}>{tr('添加并创建访问', 'Add and create access')}</Button></>}><form className="liaison-scan-application-form" onSubmit={(event) => event.preventDefault()}><div className="liaison-scan-target-summary"><span>{tr('扫描目标', 'Discovered target')}</span><strong>{parsedDiscovery?.ip}:{parsedDiscovery?.port}</strong></div><Field label={tr('应用名称', 'Application name')}><Input value={discoveredForm.name} onChange={(event) => setDiscoveredForm((value) => ({ ...value, name: event.target.value }))} /></Field><Field label={tr('应用类型', 'Application type')} required><Select value={discoveredForm.application_type} onChange={(event) => setDiscoveredForm((value) => ({ ...value, application_type: event.target.value }))}>{APPLICATION_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field></form></Modal>
-    <Modal open={!!scanAccessApplication} title={tr('为扫描应用创建访问', 'Create access for discovered application')} onClose={closeScannedAccess} width={500} footer={<><Button onClick={closeScannedAccess}>{tr('暂不创建', 'Not now')}</Button><Button variant="primary" type="submit" form="scan-create-access" disabled={saving}>{tr('创建访问', 'Create access')}</Button></>}><form id="scan-create-access" className="liaison-scan-access-form" onSubmit={createScannedAccess}><div className="liaison-scan-target-summary"><span>{tr('应用', 'Application')}</span><strong>{scanAccessApplication?.name}</strong></div><Field label={tr('访问名称', 'Access name')}><Input value={scanAccessName} onChange={(event) => setScanAccessName(event.target.value)} placeholder={suggestedScanAccessName} /></Field><Field label={tr('访问类型', 'Access type')} required><Select value={scanAccessType} onChange={(event) => { setScanAccessType(event.target.value as AccessType); setScanPublicPort(''); }}>{scanAccessApplication ? accessTypesForApplication(scanAccessApplication.application_type).map((item) => <option key={item.value} value={item.value}>{item.label}</option>) : null}</Select></Field>{!isWebAccessType(scanAccessType) ? <div className="liaison-scan-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty for automatic assignment')}><Input type="number" min={1} max={65535} value={scanPublicPort} onChange={(event) => setScanPublicPort(event.target.value)} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}</form></Modal>
+    <Modal open={!!discovered} title={tr('添加扫描到的应用', 'Add discovered application')} onClose={() => setDiscovered(undefined)} width={500} footer={<><Button onClick={() => void addDiscovered(false)} disabled={saving}>{tr('添加应用', 'Add application')}</Button><Button variant="primary" onClick={() => void addDiscovered(true)} disabled={saving}>{tr('添加并创建访问', 'Add and create access')}</Button></>}><form className="liaison-scan-application-form" onSubmit={(event) => event.preventDefault()}><div className="liaison-scan-target-summary"><span>{tr('扫描目标', 'Discovered target')}</span><strong>{parsedDiscovery?.ip}:{parsedDiscovery?.port}</strong></div><Field label={tr('应用名称', 'Application name')}><Input value={discoveredForm.name} onChange={(event) => setDiscoveredForm((value) => ({ ...value, name: event.target.value }))} /></Field><Field label={tr('应用类型', 'Application type')} required><Select value={discoveredForm.application_type} onChange={(event) => setDiscoveredForm((value) => ({ ...value, application_type: event.target.value }))}>{availableApplicationTypes().map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field></form></Modal>
+    <Modal open={!!scanAccessApplication} title={tr('为扫描应用创建访问', 'Create access for discovered application')} onClose={closeScannedAccess} width={500} footer={<><Button onClick={closeScannedAccess}>{tr('暂不创建', 'Not now')}</Button><Button variant="primary" type="submit" form="scan-create-access" disabled={saving}>{tr('创建访问', 'Create access')}</Button></>}><form id="scan-create-access" className="liaison-scan-access-form" onSubmit={createScannedAccess}><div className="liaison-scan-target-summary"><span>{tr('应用', 'Application')}</span><strong>{scanAccessApplication?.name}</strong></div><Field label={tr('访问名称', 'Access name')}><Input value={scanAccessName} onChange={(event) => setScanAccessName(event.target.value)} placeholder={suggestedScanAccessName} /></Field><Field label={tr('访问类型', 'Access type')} required><Select value={scanAccessType} onChange={(event) => { setScanAccessType(event.target.value as AccessType); setScanPublicPort(''); }}>{scanAccessApplication ? accessTypesForApplication(scanAccessApplication.application_type).map((item) => <option key={item.value} value={item.value}>{item.label}</option>) : null}</Select></Field>{scanAccessType === 'http' && <div className="liaison-scan-entry-mode"><WebEntryModeField {...webEntry}/></div>}{!isWebAccessType(scanAccessType) && (scanAccessType !== 'http' || webEntry.mode === 'port') ? <div className="liaison-scan-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty for automatic assignment')}><Input type="number" min={1} max={65535} value={scanPublicPort} onChange={(event) => setScanPublicPort(event.target.value)} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}</form></Modal>
   </div>;
 };
 

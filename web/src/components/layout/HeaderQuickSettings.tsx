@@ -1,6 +1,6 @@
 import { useI18n } from '@/i18n';
 import { useThemeMode } from '@/store/theme';
-import { Check, ChevronDown, Globe, Moon, Sun } from 'lucide-react';
+import { Check, Globe, Moon, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 export function HeaderQuickSettings({ languageOnly = false }: { languageOnly?: boolean }) {
@@ -44,8 +44,6 @@ export function HeaderQuickSettings({ languageOnly = false }: { languageOnly?: b
           onClick={() => setLanguageOpen(true)}
         >
           <Globe size={16} />
-          <span>{locale === 'zh-CN' ? '简体中文' : 'English'}</span>
-          <ChevronDown size={14} className={languageOpen ? 'is-open' : ''} />
         </button>
         {languageOpen ? (
           <div className="liaison-language-menu">

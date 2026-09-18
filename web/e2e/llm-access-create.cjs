@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
  try{for(const locale of ['zh-CN','en-US'])for(const theme of ['dark','light']){
   const ctx=await browser.newContext({viewport:{width:1440,height:1000}}),zh=locale==='zh-CN';
   await ctx.addInitScript(({locale,theme})=>{localStorage.setItem('liaison-locale',locale);localStorage.setItem('liaison-theme-preference',theme)},{locale,theme});
-  const app={id:41,name:'Model service',application_type:'llm',ip:'model.example',port:8000};
+  const app={id:41,name:'Model service',application_type:'openai',ip:'model.example',port:8000};
   const rows=[{id:64,name:'Incomplete access',application:app,access_protocol:'aiapi',status:'running',expose_public_port:false}];
   const writes=[],configs={},errors=[];let fail=true,deny=false,probeCount=0;
   await ctx.route('**/api/v1/**',async route=>{

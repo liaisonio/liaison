@@ -212,6 +212,7 @@ declare namespace API {
 
   // ========== 访问 (Proxy) ==========
   interface Proxy {
+    http_entry_mode?: 'path' | 'port' | 'domain';
     id: number;
     name: string;
     description?: string;
@@ -242,6 +243,7 @@ declare namespace API {
   }
 
   interface ProxyCreateParams {
+    http_entry_mode?: 'path' | 'port' | 'domain';
     name: string;
     description?: string;
     port?: number;
@@ -251,6 +253,7 @@ declare namespace API {
   }
 
   interface ProxyUpdateParams {
+    http_entry_mode?: 'path' | 'port' | 'domain';
     name?: string;
     description?: string;
     port?: number;
@@ -353,7 +356,7 @@ declare namespace API {
     id?: number;
     saved: boolean;
     name?: string;
-    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'clickhouse' | 'elasticsearch' | 'opensearch' | 'postgresql' | 'redis' | 'memcached' | 'mongodb' | 's3';
+    protocol: 'mysql' | 'mariadb' | 'doris' | 'starrocks' | 'tidb' | 'sqlserver' | 'oracle' | 'dameng' | 'clickhouse' | 'elasticsearch' | 'opensearch' | 'postgresql' | 'redis' | 'memcached' | 'mongodb' | 's3' | 'smb';
     username?: string;
     database?: string;
     auth_database?: string;
@@ -371,7 +374,7 @@ declare namespace API {
     proxy_name: string;
     application_id: number;
     application_name: string;
-    protocol: 'mysql' | 'mariadb' | 'sqlserver' | 'oracle' | 'clickhouse' | 'elasticsearch' | 'opensearch' | 'postgresql' | 'redis' | 'memcached' | 'mongodb' | 's3';
+    protocol: 'mysql' | 'mariadb' | 'doris' | 'starrocks' | 'tidb' | 'sqlserver' | 'oracle' | 'dameng' | 'clickhouse' | 'elasticsearch' | 'opensearch' | 'postgresql' | 'redis' | 'memcached' | 'mongodb' | 's3' | 'smb';
     application_type: string;
     target_host: string;
     target_port: number;

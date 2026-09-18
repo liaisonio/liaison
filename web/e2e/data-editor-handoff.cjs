@@ -22,7 +22,9 @@ const assert=require('node:assert/strict');
   const zh=locale==='zh-CN',button=(cn,en)=>page.getByRole('button',{name:zh?cn:en,exact:true});
   await page.goto(`${process.env.E2E_UI_URL}/e2e/data-context.html`);
   const editor=page.locator('.webdata-code-editor textarea');await editor.fill('SELECT 1;');await button('Agent','Agent').click();
-  await button('预览填入','Preview in editor').waitFor();assert.equal(await button('预览填入','Preview in editor').count(),1,'Only assistant code offers handoff');
+  // Session binding may remount the Agent portal after the first visible frame.
+  // Wait for the exact handoff count instead of reading during that transition.
+  await page.waitForFunction(label=>Array.from(document.querySelectorAll('button')).filter(el=>el.textContent.trim()===label).length===1,zh?'预览填入':'Preview in editor');
   await page.screenshot({path:`/tmp/editor-handoff-code-${locale}-${theme}.png`});
   await button('预览填入','Preview in editor').click();const dialog=page.getByRole('dialog');await dialog.waitFor();
   const proposed=dialog.locator('textarea').last();assert.equal(await proposed.inputValue(),'SELECT 42 AS total;');

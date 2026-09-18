@@ -49,6 +49,7 @@ type web struct {
 	credentialKey   []byte
 	aiGateway       *controlplane.AIService
 	aiSlots         chan struct{}
+	httpEntries     *httpEntries
 	guacdAddr       string
 	guacdBridgeAddr string
 	guacdBridgeHost string
@@ -90,6 +91,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 		agentService:    agentService,
 		agentEvents:     agentEvents,
 		credentialKey:   credentialKey,
+		httpEntries:     &httpEntries{grants: make(map[string]httpEntryGrant), conf: conf},
 		guacdAddr:       managerGuacdAddr(conf),
 		guacdBridgeAddr: managerGuacdBridgeAddr(conf),
 		guacdBridgeHost: managerGuacdBridgeHost(conf),
@@ -111,7 +113,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 		// Agent turns and SSE outlive Kratos' default one-second deadline.
 		// The filter keeps that deadline for existing non-Agent routes.
 		kratoshttp.Timeout(0),
-		kratoshttp.Filter(requestTimeoutFilter),
+		kratoshttp.Filter(web.httpEntryFilter, requestTimeoutFilter),
 		kratoshttp.Middleware(
 			recovery.Recovery(),
 			authMiddleware,
@@ -121,6 +123,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	}
 	srv := kratoshttp.NewServer(opts...)
 	v1.RegisterLiaisonServiceHTTPServer(srv, web)
+	srv.HandlePrefix("/api/v1/web-entries/", http.HandlerFunc(web.handleHTTPEntryAPI))
 
 	// PAT 管理
 	srv.HandleFunc("/api/v1/iam/tokens", web.handleTokensHTTP)
@@ -164,6 +167,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	srv.HandleFunc("/api/v1/webdesktop/sessions/{token}/connect", web.handleWebDesktopConnectHTTP)
 
 	// WebData (MySQL/PostgreSQL/Redis/MongoDB)
+	srv.HandleFunc("/api/v1/webdata/capabilities", web.handleWebDataCapabilitiesHTTP)
 	srv.HandleFunc("/api/v1/webdata/proxies/{id}", web.handleWebDataTargetHTTP)
 	srv.HandleFunc("/api/v1/webdata/proxies/{id}/session", web.handleCreateWebDataSessionHTTP)
 	srv.HandleFunc("/api/v1/webdata/proxies/{id}/test", web.handleTestWebDataConnectionHTTP)
@@ -171,6 +175,7 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	srv.HandleFunc("/api/v1/webdata/proxies/{id}/audits", web.handleWebDataAuditsHTTP)
 	srv.HandleFunc("/api/v1/webdata/sessions/{token}/execute", web.handleWebDataSessionHTTP)
 	srv.HandleFunc("/api/v1/webdata/sessions/{token}/metadata", web.handleWebDataMetadataHTTP)
+	srv.HandleFunc("/api/v1/webdata/sessions/{token}/smb/{action}", web.handleWebSMBFilesHTTP)
 	srv.HandleFunc("/api/v1/webdata/sessions/{token}/object", web.handleWebDataObjectHTTP)
 	srv.HandleFunc("/api/v1/webdata/sessions/{token}/storage/download", web.handleWebStorageDownloadHTTP)
 	srv.HandleFunc("/api/v1/webdata/sessions/{token}/storage/upload", web.handleWebStorageHTTP)

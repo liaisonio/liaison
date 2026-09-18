@@ -11,11 +11,13 @@ manager:
       certs:
       - cert: /opt/liaison/certs/server.crt
         key: /opt/liaison/certs/server.key
+${WEB_TLS_CERTS}
   db: /opt/liaison/data/liaison.db
   packages_dir: /opt/liaison/edge
   web_dir: /opt/liaison/web
   frontier_edge_port: ${FRONTIER_PORT}
   server_url: ${SERVER_URL}
+  web_domain: "${LIAISON_WEB_DOMAIN}"
   jwt_secret: ${JWT_SECRET}
   ssh_host_key_file: /opt/liaison/data/ssh_host_ed25519_key
   ssh_idle_timeout: 30m

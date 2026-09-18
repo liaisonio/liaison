@@ -93,12 +93,19 @@ func (u *Upstream) Request(ctx context.Context, method, operation, upstreamKey s
 }
 
 func (u *Upstream) RequestProtocol(ctx context.Context, method, operation, upstreamKey, protocol string, body io.Reader) (*http.Response, error) {
+	return u.RequestProtocolStream(ctx, method, operation, upstreamKey, protocol, body, false)
+}
+
+// RequestProtocolStream accepts only a validated stream flag, never downstream
+// headers. DashScope selects SSE through a header rather than a JSON stream field.
+func (u *Upstream) RequestProtocolStream(ctx context.Context, method, operation, upstreamKey, protocol string, body io.Reader, stream bool) (*http.Response, error) {
+	return u.requestProtocol(ctx, method, operation, upstreamKey, protocol, body, stream, "")
+}
+func (u *Upstream) requestProtocol(ctx context.Context, method, operation, upstreamKey, protocol string, body io.Reader, stream bool, page string) (*http.Response, error) {
 	if protocol == "ollama" && method == http.MethodGet && operation == "models" {
 		operation = "tags"
 	}
-	if !(method == http.MethodGet && operation == "models" ||
-		protocol == "ollama" && (method == http.MethodGet && operation == "tags" || method == http.MethodPost && operation == "chat") ||
-		method == http.MethodPost && (protocol == "openai-compatible" && operation == "chat/completions" || protocol == "anthropic" && operation == "messages")) {
+	if !allowedOperation(protocol, method, operation) || stream && method != http.MethodPost {
 		return nil, errors.New("unsupported AI API operation")
 	}
 	if strings.ContainsAny(upstreamKey, "\r\n") {
@@ -108,14 +115,34 @@ func (u *Upstream) RequestProtocol(ctx context.Context, method, operation, upstr
 	if err != nil {
 		return nil, err
 	}
+	if page != "" {
+		if (protocol != "gemini" && protocol != "anthropic") || method != "GET" || operation != "models" || len(page) > 4096 {
+			return nil, ErrUnsupported
+		}
+		q := req.URL.Query()
+		if protocol == "anthropic" {
+			q.Set("after_id", page)
+		} else {
+			q.Set("pageToken", page)
+		}
+		req.URL.RawQuery = q.Encode()
+	}
 	req.Header.Set("Content-Type", "application/json")
+	if protocol == "gemini" && strings.HasSuffix(operation, ":streamGenerateContent") {
+		req.URL.RawQuery = "alt=sse"
+	}
+	if protocol == "qwen" && stream {
+		req.Header.Set("X-DashScope-SSE", "enable")
+	}
 	if protocol == "anthropic" {
 		req.Header.Set("anthropic-version", "2023-06-01")
 		if upstreamKey != "" {
 			req.Header.Set("x-api-key", upstreamKey)
 		}
-	} else if protocol != "openai-compatible" && protocol != "ollama" {
-		return nil, errors.New("unsupported upstream protocol")
+	} else if protocol == "gemini" {
+		if upstreamKey != "" {
+			req.Header.Set("x-goog-api-key", upstreamKey)
+		}
 	} else if upstreamKey != "" {
 		req.Header.Set("Authorization", "Bearer "+upstreamKey)
 	}
@@ -135,8 +162,18 @@ func (u *Upstream) ProbeOpenAI(ctx context.Context, key string) ProbeResult {
 }
 
 func (u *Upstream) Probe(ctx context.Context, key, protocol string) ProbeResult {
+	p, known := LookupProtocol(protocol)
+	if !known || !p.Models {
+		return ProbeResult{State: "unsupported"}
+	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
+	if protocol == "gemini" {
+		return u.probeGemini(ctx, key)
+	}
+	if protocol == "anthropic" {
+		return u.probeAnthropic(ctx, key)
+	}
 	resp, err := u.RequestProtocol(ctx, http.MethodGet, "models", key, protocol, nil)
 	if err != nil {
 		return ProbeResult{State: "unreachable"}
@@ -153,10 +190,12 @@ func (u *Upstream) Probe(ctx context.Context, key, protocol string) ProbeResult 
 	if err != nil || len(data) > maxBody {
 		return ProbeResult{State: "unknown"}
 	}
+	if _, err := responseObject(data); err != nil {
+		return ProbeResult{State: "unknown"}
+	}
 	var result struct {
-		Object  string `json:"object"`
-		HasMore *bool  `json:"has_more"`
-		Data    *[]struct {
+		Object string `json:"object"`
+		Data   *[]struct {
 			ID   string `json:"id"`
 			Type string `json:"type"`
 		} `json:"data"`
@@ -183,18 +222,12 @@ func (u *Upstream) Probe(ctx context.Context, key, protocol string) ProbeResult 
 		}
 		return ProbeResult{State: "compatible", Protocol: protocol, Models: models}
 	}
-	if json.Unmarshal(data, &result) != nil || (protocol == "openai-compatible" && result.Object != "list") || result.Data == nil {
-		return ProbeResult{State: "unknown"}
-	}
-	if protocol == "anthropic" && result.HasMore == nil {
+	if json.Unmarshal(data, &result) != nil || ((protocol == "openai-compatible" || protocol == "openai") && result.Object != "list") || result.Data == nil {
 		return ProbeResult{State: "unknown"}
 	}
 	models := make([]string, 0, len(*result.Data))
 	seen := map[string]bool{}
 	for _, model := range *result.Data {
-		if protocol == "anthropic" && model.Type != "model" {
-			return ProbeResult{State: "unknown"}
-		}
 		if !validModel(model.ID) {
 			return ProbeResult{State: "unknown"}
 		}

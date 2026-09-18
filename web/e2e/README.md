@@ -9,10 +9,14 @@ E2E_UI_URL=http://127.0.0.1:8000 node web/e2e/run-fixtures.cjs
 ```
 
 Set `PLAYWRIGHT_MODULE` when Playwright is installed outside this repository.
-The runner executes 26 deterministic browser/protocol suites and prints the
+The runner executes 41 deterministic browser/protocol suites and prints the
 temporary directory containing per-suite logs and a JSON report. Keep frontend
 sources unchanged during the run: Vite hot reload can invalidate an active test.
 This is not a runner for all live-service integrations.
+
+The additional coverage includes native LLM application/access types, usage
+ranges and zero/unknown/error states, temporary copy feedback, Agent handoff,
+Web entry modes, SMB, Dameng, offline devices and dashboard traffic.
 
 ### Branch reconciliation verification (2026-09-18)
 
@@ -52,7 +56,8 @@ Pure SQL protocol routing, quoting and TLS-option checks:
 
 Native SQL workspace integration tests:
 `go test -tags=integration -race ./pkg/liaison/manager/web -run TestSQLWorkspace -v`.
-Set `TEST_MARIADB_DSN` (Go MySQL DSN) and `TEST_POSTGRESQL_DSN` (pgx DSN)
+Set `TEST_MYSQL_DSN` / `TEST_MARIADB_DSN` (Go MySQL DSNs),
+`TEST_POSTGRESQL_DSN` (pgx DSN) or `TEST_SQLSERVER_DSN` (SQL Server DSN)
 to disposable databases. These tests create and clean a uniquely named table;
 they cover query results, mutations, metadata, indexes and error handling.
 Missing DSNs are reported as skipped, not evidence of database compatibility.

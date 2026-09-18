@@ -134,6 +134,23 @@ mkdir -p data certs logs
 # (Docker Desktop on macOS/Windows auto-maps UIDs anyway).
 chown 1000:1000 data certs logs 2>/dev/null || true
 
+# Optional wildcard Web entry domain. Do not generate a certificate for it or
+# enable it implicitly: the operator supplies both DNS and a trusted certificate.
+if [ -n "${LIAISON_WEB_DOMAIN:-}" ]; then
+    if ! printf '%s' "$LIAISON_WEB_DOMAIN" | grep -Eq '^[A-Za-z0-9.-]+$'; then
+        err "Invalid LIAISON_WEB_DOMAIN"; exit 1
+    fi
+    if [ ! -s certs/web.crt ] || [ ! -s certs/web.key ]; then
+        err "Domain entries require certs/web.crt and certs/web.key before installation."; exit 1
+    fi
+    if ! openssl x509 -in certs/web.crt -noout -checkend 0 >/dev/null 2>&1; then
+        err "Web domain certificate is invalid or expired."; exit 1
+    fi
+    chmod 600 certs/web.key
+    chown 1000:1000 certs/web.crt certs/web.key 2>/dev/null || true
+    log "==> Web domain configured; the manager will verify wildcard coverage and key pairing"
+fi
+
 FRESH_INSTALL=0
 if [ ! -f data/.initialized ]; then
     FRESH_INSTALL=1

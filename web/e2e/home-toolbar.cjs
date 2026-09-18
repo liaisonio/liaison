@@ -11,13 +11,14 @@ const assert=require('node:assert/strict');
    else if(path.endsWith('/events'))return route.fulfill({contentType:'text/event-stream',body:': keepalive\n\n'});
    else if(path.endsWith('/sessions'))data={items:[]};
    else if(path.includes('/agent/sessions/'))data={session:{id:'session_abcdef',kind:'management',title:'Fixture'},messages:[],turns:[],steps:[],approvals:[]};
-   else if(path.includes('/edges'))data={edges:[]};else if(path.includes('/devices'))data={devices:[]};else if(path.includes('/applications'))data={applications:[]};
+   else if(path.includes('/edges'))data={edges:[]};else if(path.includes('/devices'))data={devices:[]};else if(path.includes('/applications'))data={applications:[{id:1,name:'Example database',application_type:'mysql'}]};
    return route.fulfill({json:{code:200,data}});
   });
   const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(`${process.env.E2E_UI_URL}/e2e/home-toolbar.html${selected?'?selected=1':''}`);
   const history=page.getByRole('button',{name:locale==='zh-CN'?'历史会话':'History',exact:true}),user=page.getByRole('button',{name:locale==='zh-CN'?'打开用户菜单':'Open user menu',exact:true});
   await history.waitFor();assert.equal(await user.count(),1);
+  if(!selected){await page.locator('.management-agent-presets').waitFor();assert.equal(await page.locator('.management-agent-presets button').count(),4);await page.getByRole('button',{name:locale==='zh-CN'?/我能调用哪些模型/:/Which models can I call/}).waitFor();}
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:width===390?844:1000});
    const h=await history.boundingBox(),u=await user.boundingBox();assert(h&&u);
