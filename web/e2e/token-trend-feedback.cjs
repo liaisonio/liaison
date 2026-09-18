@@ -13,11 +13,12 @@ for(const locale of ['zh-CN','en-US'])for(const theme of ['light','dark']){
  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(process.env.E2E_UI_URL+'/e2e/ollama.html?workspace');
  await page.getByRole('button',{name:zh?'统计':'Statistics',exact:true}).click();
- await page.getByRole('button',{name:zh?'1 小时':'1h',exact:true}).click();
+ const loaded=page.waitForResponse(response=>new URL(response.url()).pathname.endsWith('/usage')&&new URL(response.url()).searchParams.get('hours')==='1');
+ await page.getByRole('button',{name:zh?'1 小时':'1h',exact:true}).click();await loaded;
  const svg=page.locator('.ai-token-trend svg');await svg.waitFor();
  assert.equal(await svg.locator('.ai-token-point').count(),5);assert.equal(await svg.locator('.ai-token-line').count(),2);
  assert((await svg.locator('.ai-token-line').first().getAttribute('d')).includes('C'));
- await svg.focus();await page.keyboard.press('Home');assert((await page.locator('.ai-token-trend-legend').innerText()).includes('12:00'));await page.keyboard.press('ArrowRight');assert((await page.locator('.ai-token-trend-legend').innerText()).includes('12:01'));
+ await svg.focus();await page.keyboard.press('Home');await page.waitForFunction(()=>document.querySelector('.ai-token-trend-legend')?.textContent.includes('12:00'));await page.keyboard.press('ArrowRight');await page.waitForFunction(()=>document.querySelector('.ai-token-trend-legend')?.textContent.includes('12:01'));
  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(200);await svg.evaluate(e=>e.blur());await page.screenshot({path:`/tmp/token-trend-${locale}-${theme}-${width}.png`,fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
  await page.getByRole('button',{name:zh?'API 密钥':'API keys',exact:true}).click();await page.getByRole('button',{name:zh?'创建密钥':'Create key',exact:true}).click();
  const dialog=page.getByRole('dialog');await dialog.getByLabel(zh?'名称':'Name',{exact:true}).fill('Test');await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:zh?'创建':'Create',exact:true}).click();

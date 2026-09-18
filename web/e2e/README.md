@@ -56,7 +56,8 @@ Pure SQL protocol routing, quoting and TLS-option checks:
 
 Native SQL workspace integration tests:
 `go test -tags=integration -race ./pkg/liaison/manager/web -run TestSQLWorkspace -v`.
-Set `TEST_MARIADB_DSN` (Go MySQL DSN) and `TEST_POSTGRESQL_DSN` (pgx DSN)
+Set `TEST_MYSQL_DSN` / `TEST_MARIADB_DSN` (Go MySQL DSNs),
+`TEST_POSTGRESQL_DSN` (pgx DSN) or `TEST_SQLSERVER_DSN` (SQL Server DSN)
 to disposable databases. These tests create and clean a uniquely named table;
 they cover query results, mutations, metadata, indexes and error handling.
 Missing DSNs are reported as skipped, not evidence of database compatibility.

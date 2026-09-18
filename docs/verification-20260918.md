@@ -10,6 +10,12 @@ This is a local regression record, not complete remote acceptance.
 - Frontend TypeScript and production build: `npm run build` in `web`.
 - Deployment configuration portability and release-version shell tests.
 - Three local LLM protocol-simulator unit tests; no live model inference in this run.
+- Follow-up: real MySQL 8 workspace integration passed with `-race` against
+  a disposable local container, covering mutations, result preview, table/column/
+  index metadata and invalid-query errors. Test tables and the container were
+  removed afterwards. This is not a connector or browser end-to-end test.
+- PostgreSQL image download failed at the registry (EOF); no PostgreSQL service
+  was started and no compatibility result is claimed.
 - Browser fixtures cover Chinese/English, light/dark and desktop/mobile where
   applicable. Screenshots inspected for zero usage and native request examples.
 - Final shared run: 40 of 41 suites passed. `data-editor-handoff` hit the portal
@@ -28,6 +34,9 @@ This is a local regression record, not complete remote acceptance.
   Reverified all four language/theme combinations, including stale draft rejection,
   explicit confirmation, byte/control limits and no automatic execution.
 - Include the 15 newer fixtures in the shared runner (41 suites total).
+- Follow-up: wait for the requested usage range and rendered keyboard selection
+  in `token-trend-feedback`, avoiding immediate reads during asynchronous updates.
+  All four language/theme cases passed after this test-only change.
 
 ## Still unverified in this run
 
