@@ -15,8 +15,15 @@ of every supported upstream service.
   a disposable local container, covering mutations, result preview, table/column/
   index metadata and invalid-query errors. Test tables and the container were
   removed afterwards. This is not a connector or browser end-to-end test.
-- PostgreSQL image download failed at the registry (EOF); no PostgreSQL service
-  was started and no compatibility result is claimed.
+- PostgreSQL follow-up: Docker Hub, ECR and DaoCloud pulls hit EOF through
+  Docker's network path. Host-side `crane` download from ECR followed by Docker
+  import succeeded; PostgreSQL 16 Alpine ARM64 integration passed with `-race`.
+  It covered table creation, insert/update/select, table/column/index metadata
+  and invalid-query errors. The loopback-only temporary container used a 384 MB
+  memory limit and tmpfs data; its test table, container and data were removed.
+  Image ID: `sha256:ef738a34a8651d11b2bace81c55c7e2187f786b484add6c83070884340074368`.
+  This tests the SQL workspace against a real database, not deployed connector
+  or browser end-to-end behavior.
 - Browser fixtures cover Chinese/English, light/dark and desktop/mobile where
   applicable. Screenshots inspected for zero usage and native request examples.
 - Final shared run on `5dcee2f`: all 41 browser suites passed together after
@@ -42,7 +49,7 @@ of every supported upstream service.
 
 - The supplied account has no available SSH/SQL examples; authenticated remote
   acceptance below does not establish those connector-to-workspace flows.
-- Real SQL integrations were invoked, but MariaDB/PostgreSQL/SQL Server and
+- Real SQL integrations were invoked, but MariaDB/SQL Server and
   Doris/StarRocks/TiDB cases explicitly skipped because disposable DSNs were absent.
 - Real DM8 and SMB service acceptance, vendor cloud SDK compatibility and live
   model inference are not established by fixtures or skipped integration tests.
