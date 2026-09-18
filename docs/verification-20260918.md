@@ -28,6 +28,13 @@ of every supported upstream service.
   applicable. Screenshots inspected for zero usage and native request examples.
 - Final shared run on `5dcee2f`: all 41 browser suites passed together after
   the asynchronous test waits described below were corrected.
+- MariaDB follow-up: real MariaDB 11.4 ARM64 SQL workspace integration passed
+  with `-race`, covering table creation, insert/update/select, table/column/index
+  metadata and invalid-query errors. Host-side download from DaoCloud followed
+  by Docker import avoided the Docker network EOF and slow ECR transfer.
+  The loopback-only container was limited to 512 MB with tmpfs database storage;
+  its test table, container and data were removed after the test. This is not a
+  connector/browser end-to-end result.
 
 ## Fixes and test maintenance
 
@@ -49,7 +56,7 @@ of every supported upstream service.
 
 - The supplied account has no available SSH/SQL examples; authenticated remote
   acceptance below does not establish those connector-to-workspace flows.
-- Real SQL integrations were invoked, but MariaDB/SQL Server and
+- Real SQL integrations were invoked, but SQL Server and
   Doris/StarRocks/TiDB cases explicitly skipped because disposable DSNs were absent.
 - Real DM8 and SMB service acceptance, vendor cloud SDK compatibility and live
   model inference are not established by fixtures or skipped integration tests.
