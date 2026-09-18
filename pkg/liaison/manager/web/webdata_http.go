@@ -3191,7 +3191,11 @@ func parseWebDataSessionToken(r *http.Request, suffix string) (string, error) {
 }
 
 func webDataHTTPStatus(err error) int {
-	if errors.Is(err, iam.ErrForbidden) {
+	var httpErr *controlplane.HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Status()
+	}
+	if errors.Is(err, iam.ErrForbidden) || errors.Is(err, controlplane.ErrForbidden()) {
 		return http.StatusForbidden
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
