@@ -122,3 +122,17 @@
 .agent-composer-toolbar > span { color: rgb(var(--muted)); font-size: 10px; }
 .agent-workspace > footer .liaison-button { width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 8px; }
 @media (max-width: 640px) { .agent-workspace { inset: 6px; width: auto; height: auto; } }
+.agent-access-results { display: grid; gap: 8px; margin-bottom: 8px; }
+.agent-access-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); padding: 12px; }
+.agent-access-result > div { min-width: 0; display: grid; gap: 4px; }
+.agent-access-result strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.agent-access-result small, .agent-handoff-preview small { font-size: 12px; color: rgb(var(--muted)); }
+.agent-access-result > button { flex-shrink: 0; }
+.agent-handoff-form { display: grid; gap: 16px; font-size: 13px; }
+.agent-handoff-form p { margin: 0; overflow-wrap: anywhere; }
+.agent-handoff-form > label:not(.liaison-field) { display: flex; align-items: center; gap: 8px; }
+.agent-handoff-form input[type=checkbox] { accent-color: rgb(var(--accent)); }
+.agent-handoff-form textarea { width: 100%; height: auto; min-height: 100px; resize: vertical; line-height: 1.6; }
+.agent-handoff-preview { display: grid; gap: 12px; padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); font-size: 13px; }
+.agent-handoff-preview p { margin: 0; max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.agent-handoff-preview > div { display: flex; justify-content: flex-end; gap: 8px; }

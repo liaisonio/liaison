@@ -32,6 +32,21 @@ mkdir -p "$DATA_DIR" "$CERTS_DIR" "$LOG_DIR"
 : "${AGENT_REQUEST_TIMEOUT:=2m}"
 : "${AGENT_MAX_MODEL_STEPS:=12}"
 : "${AGENT_APPROVAL_EXPIRY:=15m}"
+: "${LIAISON_WEB_DOMAIN:=}"
+WEB_TLS_CERTS=""
+if [ -n "$LIAISON_WEB_DOMAIN" ]; then
+    if ! printf '%s' "$LIAISON_WEB_DOMAIN" | grep -Eq '^[A-Za-z0-9.-]+$'; then
+        echo "[entrypoint] invalid LIAISON_WEB_DOMAIN" >&2
+        exit 1
+    fi
+    if [ ! -r "$CERTS_DIR/web.crt" ] || [ ! -r "$CERTS_DIR/web.key" ]; then
+        echo "[entrypoint] domain entries require certs/web.crt and certs/web.key" >&2
+        exit 1
+    fi
+    WEB_TLS_CERTS='      - cert: /opt/liaison/certs/web.crt
+        key: /opt/liaison/certs/web.key'
+fi
+export WEB_TLS_CERTS LIAISON_WEB_DOMAIN
 
 # server_url: omit :PORT for the well-known TLS / HTTP defaults so the URL
 # baked into the web console / install commands is canonical.
@@ -50,7 +65,7 @@ if [ ! -f "$CONF_DIR/liaison.yaml" ]; then
     export FRONTIER_PORT FRONTIER_CONTROLPLANE_PORT MANAGER_PORT SERVER_URL JWT_SECRET GUACD_ADDR GUACD_BRIDGE_ADDR GUACD_BRIDGE_HOST
     export AGENT_ENABLED AGENT_BASE_URL AGENT_MODEL AGENT_REQUEST_TIMEOUT AGENT_MAX_MODEL_STEPS AGENT_APPROVAL_EXPIRY
     # shellcheck disable=SC2016
-    envsubst '${FRONTIER_PORT} ${FRONTIER_CONTROLPLANE_PORT} ${MANAGER_PORT} ${SERVER_URL} ${JWT_SECRET} ${GUACD_ADDR} ${GUACD_BRIDGE_ADDR} ${GUACD_BRIDGE_HOST} ${AGENT_ENABLED} ${AGENT_BASE_URL} ${AGENT_MODEL} ${AGENT_REQUEST_TIMEOUT} ${AGENT_MAX_MODEL_STEPS} ${AGENT_APPROVAL_EXPIRY}' \
+    envsubst '${FRONTIER_PORT} ${FRONTIER_CONTROLPLANE_PORT} ${MANAGER_PORT} ${SERVER_URL} ${JWT_SECRET} ${GUACD_ADDR} ${GUACD_BRIDGE_ADDR} ${GUACD_BRIDGE_HOST} ${AGENT_ENABLED} ${AGENT_BASE_URL} ${AGENT_MODEL} ${AGENT_REQUEST_TIMEOUT} ${AGENT_MAX_MODEL_STEPS} ${AGENT_APPROVAL_EXPIRY} ${WEB_TLS_CERTS} ${LIAISON_WEB_DOMAIN}' \
         < "$CONF_DIR/liaison.yaml.template" > "$CONF_DIR/liaison.yaml"
     echo "[entrypoint] rendered $CONF_DIR/liaison.yaml (public_host=$LIAISON_PUBLIC_HOST manager_port=$MANAGER_PORT frontier_port=$FRONTIER_PORT controlplane_port=$FRONTIER_CONTROLPLANE_PORT)"
 fi

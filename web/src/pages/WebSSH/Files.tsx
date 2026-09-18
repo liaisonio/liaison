@@ -46,6 +46,8 @@ export default function Files({
   onClose,
   standalone = false,
   initialSession,
+  apiBase,
+  closeSessionURL,
 }: {
   proxyId: number;
   username: string;
@@ -53,6 +55,8 @@ export default function Files({
   onClose: () => void;
   standalone?: boolean;
   initialSession?: FileSession;
+  apiBase?: string;
+  closeSessionURL?: string;
 }) {
   const { tr } = useI18n();
   const [username, setUsername] = useState(initialUsername);
@@ -171,8 +175,8 @@ export default function Files({
       ),
     }[value] ||
     tr(
-      'SFTP 操作失败。请检查目标服务器、凭据与 SFTP 子系统。',
-      'SFTP failed. Check the server, credentials and SFTP subsystem.',
+      '文件操作失败。请检查目标服务、路径、文件大小与权限，或重新连接。',
+      'File operation failed. Check the service, path, file size and permissions, or reconnect.',
     ));
   const showError = (error: unknown) => {
     if (!alive.current) return;
@@ -184,7 +188,7 @@ export default function Files({
     setNotice(reason(e.message));
   };
   const base = (s: Session) =>
-    `/api/v1/webssh/files/sessions/${encodeURIComponent(s.id)}`;
+    apiBase || `/api/v1/webssh/files/sessions/${encodeURIComponent(s.id)}`;
   const load = async (
     s: Session,
     p: string,
@@ -285,7 +289,7 @@ export default function Files({
       transfer.current?.abort();
       const s = sessionRef.current;
       if (s)
-        void request(base(s), {
+        void request(closeSessionURL || base(s), {
           method: 'DELETE',
           skipErrorHandler: true,
         }).catch(() => undefined);

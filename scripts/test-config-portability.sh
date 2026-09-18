@@ -3,14 +3,17 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-bash -n deploy-liaison.sh
-env -u MANAGER_HOST -u EDGE_HOST bash deploy-liaison.sh --help >/dev/null
+deploy_script="$PWD/scripts/deploy-liaison.sh"
+bash -n "$deploy_script"
+env -u MANAGER_HOST -u EDGE_HOST bash "$deploy_script" --help >/dev/null
+# The relocated script must also work when invoked from another directory.
+(cd /tmp && env -u MANAGER_HOST -u EDGE_HOST bash "$deploy_script" --help >/dev/null)
 
 expect_missing_host() {
     local expected="$1"
     shift
     local output
-    if output=$(env -u MANAGER_HOST -u EDGE_HOST bash deploy-liaison.sh "$@" 2>&1); then
+    if output=$(cd /tmp && env -u MANAGER_HOST -u EDGE_HOST bash "$deploy_script" "$@" 2>&1); then
         echo "Expected deployment without a target to fail" >&2
         exit 1
     fi

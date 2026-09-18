@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 	"net"
 	"net/http"
 	"net/url"
@@ -25,7 +24,9 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/jumboframes/armorigo/log"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/objectaccess"
+	"github.com/liaisonio/liaison/pkg/liaison/manager/smbfiles"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -201,6 +202,7 @@ type webDataSession struct {
 	startedAt        time.Time
 	target           *controlplane.WebDataTarget
 	sqlDB            *sql.DB
+	sqlRevoke        func()
 	redisClient      *redis.Client
 	mongoClient      *mongo.Client
 	searchClient     *http.Client
@@ -208,6 +210,7 @@ type webDataSession struct {
 	searchPassword   string
 	cacheDial        func(context.Context) (net.Conn, error)
 	objectClient     *objectaccess.Client
+	smbClient        *smbfiles.Files
 	storageContext   storageWorkspaceContext // guarded by mu
 	dataContext      dataWorkspaceContext    // guarded by mu; untrusted navigation only
 	mu               sync.Mutex
@@ -351,6 +354,14 @@ func (s *webDataSessionStore) cleanupLocked(now time.Time) {
 }
 
 func (s *webDataSession) close() {
+	if s.sqlRevoke != nil {
+		s.sqlRevoke()
+		s.sqlRevoke = nil
+	}
+	if s.smbClient != nil {
+		s.smbClient.Close()
+		s.smbClient = nil
+	}
 	s.objectClient = nil
 	if s.searchClient != nil {
 		s.searchClient.CloseIdleConnections()
@@ -437,6 +448,11 @@ func (web *web) handleCreateWebDataSessionHTTP(w http.ResponseWriter, r *http.Re
 	}
 
 	password := []byte(req.Password)
+	if target.Protocol == "smb" && web.iamService.RequireFeature(user, iam.FeatureFilesRead) != nil {
+		zeroBytes(password)
+		writeJSON(w, http.StatusForbidden, map[string]any{"code": 403, "message": "file access denied"})
+		return
+	}
 	savedCredential := false
 	if req.CredentialID > 0 {
 		credential, err := web.controlPlane.GetWebDataCredentialSecretByID(ctx, proxyID, req.CredentialID)
@@ -556,8 +572,10 @@ func (web *web) handleCreateWebDataSessionHTTP(w http.ResponseWriter, r *http.Re
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"code": http.StatusInternalServerError, "message": "failed to create session"})
 		return
 	}
-	if err := web.registerWebDataAgentSession(created); err != nil {
-		log.Warnf("webdata agent session registration failed: proxy_id=%d user_id=%d protocol=%s err=%v", proxyID, user.ID, req.Protocol, err)
+	if created.protocol != "smb" {
+		if err := web.registerWebDataAgentSession(created); err != nil {
+			log.Warnf("webdata agent session registration failed: proxy_id=%d user_id=%d protocol=%s err=%v", proxyID, user.ID, req.Protocol, err)
+		}
 	}
 	web.recordWebDataAudit(r, target, user.ID, "open_session", req.Protocol, webDataAuditDatabase(&req), "", true, 0, elapsed, "")
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -607,6 +625,11 @@ func (web *web) handleTestWebDataConnectionHTTP(w http.ResponseWriter, r *http.R
 	}
 
 	password := []byte(req.Password)
+	if target.Protocol == "smb" && web.iamService.RequireFeature(user, iam.FeatureFilesRead) != nil {
+		zeroBytes(password)
+		writeJSON(w, http.StatusForbidden, map[string]any{"code": 403, "message": "file access denied"})
+		return
+	}
 	if req.CredentialID > 0 && len(password) == 0 {
 		credential, err := web.controlPlane.GetWebDataCredentialSecretByID(ctx, proxyID, req.CredentialID)
 		if err != nil {
@@ -1034,6 +1057,10 @@ func (web *web) handleWebDataObjectHTTP(w http.ResponseWriter, r *http.Request) 
 
 func (web *web) openWebDataClient(ctx context.Context, session *webDataSession, password string) error {
 	switch session.protocol {
+	case "dameng":
+		return web.openWebDataDameng(ctx, session, password)
+	case "smb":
+		return web.openWebDataSMB(ctx, session, password)
 	case "s3":
 		return web.openWebDataS3(ctx, session, password)
 	case "memcached":
@@ -1046,7 +1073,7 @@ func (web *web) openWebDataClient(ctx context.Context, session *webDataSession, 
 		return web.openWebDataClickHouse(ctx, session, password)
 	case "sqlserver":
 		return web.openWebDataSQLServer(ctx, session, password)
-	case "mysql", "mariadb":
+	case "mysql", "mariadb", "doris", "starrocks", "tidb":
 		return web.openWebDataMySQL(ctx, session, password)
 	case "postgresql":
 		return web.openWebDataPostgreSQL(ctx, session, password)
@@ -1067,6 +1094,11 @@ func (web *web) openWebDataMySQL(ctx context.Context, session *webDataSession, p
 	cfg.Addr = net.JoinHostPort(session.target.TargetHost, strconv.Itoa(session.target.TargetPort))
 	cfg.DBName = session.database
 	cfg.ParseTime = true
+	// OLAP servers only support a subset of server-side prepared statements.
+	// Let the driver safely bind metadata values over the text protocol.
+	if session.protocol == "doris" || session.protocol == "starrocks" {
+		cfg.InterpolateParams = true
+	}
 	cfg.AllowNativePasswords = true
 	cfg.Timeout = webDataConnectTimeout
 	cfg.ReadTimeout = webDataExecuteTimeout
@@ -1284,6 +1316,9 @@ func (web *web) ensureWebDataSessionActive(ctx context.Context, session *webData
 
 func (s *webDataSession) execute(ctx context.Context, statement string) (*webDataExecuteResponse, error) {
 	switch s.protocol {
+	case "dameng":
+		result, err := s.executeSQL(ctx, damengStatement(statement))
+		return result, safeDamengError(ctx, err)
 	case "s3":
 		return s.executeS3(ctx, statement)
 	case "memcached":
@@ -1294,7 +1329,7 @@ func (s *webDataSession) execute(ctx context.Context, statement string) (*webDat
 		return s.executeOracle(ctx, oracleStatement(statement))
 	case "sqlserver":
 		return s.executeSQL(ctx, statement)
-	case "clickhouse", "mysql", "mariadb", "postgresql":
+	case "clickhouse", "mysql", "mariadb", "doris", "starrocks", "tidb", "postgresql":
 		return s.executeSQL(ctx, statement)
 	case "redis":
 		return s.executeRedis(ctx, statement)
@@ -1538,11 +1573,14 @@ func (s *webDataSession) metadata(ctx context.Context) ([]webDataMetadataNode, e
 		return s.searchMetadata(ctx)
 	case "oracle":
 		return s.oracleMetadata(ctx)
+	case "dameng":
+		result, err := s.damengMetadata(ctx)
+		return result, safeDamengError(ctx, err)
 	case "clickhouse":
 		return s.clickHouseMetadata(ctx)
 	case "sqlserver":
 		return s.sqlServerMetadata(ctx)
-	case "mysql", "mariadb":
+	case "mysql", "mariadb", "doris", "starrocks", "tidb":
 		return s.mysqlMetadata(ctx)
 	case "postgresql":
 		return s.postgresMetadata(ctx)
@@ -1563,11 +1601,14 @@ func (s *webDataSession) metadataChildren(ctx context.Context, req webDataMetada
 		return nil, nil
 	case "oracle":
 		return s.oracleMetadataChildren(ctx, req)
+	case "dameng":
+		result, err := s.damengMetadataChildren(ctx, req)
+		return result, safeDamengError(ctx, err)
 	case "clickhouse":
 		return s.clickHouseMetadataChildren(ctx, req)
 	case "sqlserver":
 		return s.sqlServerMetadataChildren(ctx, req)
-	case "mysql", "mariadb":
+	case "mysql", "mariadb", "doris", "starrocks", "tidb":
 		return s.mysqlMetadataChildren(ctx, req)
 	case "postgresql":
 		return s.postgresMetadataChildren(ctx, req)
@@ -1845,11 +1886,14 @@ func (s *webDataSession) objectDetails(ctx context.Context, req webDataObjectReq
 		return s.searchObjectDetails(ctx, req)
 	case "oracle":
 		return s.oracleObjectDetails(ctx, req)
+	case "dameng":
+		result, err := s.damengObjectDetails(ctx, req)
+		return result, safeDamengError(ctx, err)
 	case "clickhouse":
 		return s.clickHouseObjectDetails(ctx, req)
 	case "sqlserver":
 		return s.sqlServerObjectDetails(ctx, req)
-	case "mysql", "mariadb":
+	case "mysql", "mariadb", "doris", "starrocks", "tidb":
 		return s.mysqlObjectDetails(ctx, req)
 	case "postgresql":
 		return s.postgresObjectDetails(ctx, req)
@@ -2447,6 +2491,8 @@ func zeroBytes(value []byte) {
 
 func webDataCapabilities(protocol string) []string {
 	switch protocol {
+	case "smb":
+		return []string{"files.list", "files.preview", "files.download"}
 	case "s3":
 		return []string{"execute", "list_buckets", "list_objects"}
 	case "memcached":
@@ -2491,9 +2537,9 @@ func webDataExecuteIsQuery(protocol, statement string) bool {
 		return memcachedIsQuery(statement)
 	case "elasticsearch", "opensearch":
 		return searchIsQuery(statement)
-	case "clickhouse", "sqlserver", "oracle":
+	case "clickhouse", "sqlserver", "oracle", "dameng":
 		return webDataSQLIsQuery(statement)
-	case "mysql", "mariadb", "postgresql":
+	case "mysql", "mariadb", "doris", "starrocks", "tidb", "postgresql":
 		return webDataSQLIsQuery(statement)
 	case "redis":
 		return webDataRedisIsQuery(statement)

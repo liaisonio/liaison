@@ -1,8 +1,9 @@
+import {LLM_PROTOCOL_OPTIONS,protocolFamily,uniqueProtocolFamilies,llmBase} from '@/constants/llmProtocols';
 import { request } from '@/api/client';
 import AccessContext from '@/components/AccessContext';
 import LLMProtocol from '@/components/icons/LLMProtocol';
 import { MessageContent } from '@/components/AgentWorkspace/MessageContent';
-import { Button, DangerConfirm, Field, Input, Modal, Notice, Select } from '@/components/ui';
+import { Button, DangerConfirm, Field, Input, Modal, Notice, Select, Pager } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { getToken } from '@/store/session';
 import { ArrowLeft, Copy, Plus, Trash2 } from 'lucide-react';
@@ -10,8 +11,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import './index.less';
 import RequestExample from './RequestExample';
+import {Insights,RequestDetails} from './Insights';
+import Compare from './Compare';
 
 type AppConfig = {
+  application_type?:string;
   protocol: string;
   base_path: string;
   tls: boolean;
@@ -25,7 +29,7 @@ type AccessConfig = {
   external_protocol: string;
 };
 type Workspace = { name: string; enabled: boolean; models: string[]; can_manage: boolean; external_protocol: string; external_protocols?:string[] };
-type WorkspaceTab = 'overview' | 'playground' | 'keys' | 'requests' | 'configuration';
+type WorkspaceTab = 'overview' | 'statistics' | 'playground' | 'keys' | 'requests' | 'configuration';
 class GatewayError extends Error {}
 type Key = {
   id: number;
@@ -58,12 +62,17 @@ export default function AIGateway() {
   const [access, setAccess] = useState<AccessConfig>();
   const [workspace, setWorkspace] = useState<Workspace>();
   const [entrySearch] = useSearchParams();
-  const entryTab:WorkspaceTab=entrySearch.get('tab')==='playground'?'playground':entrySearch.get('tab')==='configuration'?'configuration':'overview';
+  const entryTab:WorkspaceTab=entrySearch.get('tab')==='statistics'?'statistics':entrySearch.get('tab')==='playground'?'playground':entrySearch.get('tab')==='configuration'?'configuration':'overview';
   const [tab, setTab] = useState<WorkspaceTab>(entryTab);
   useEffect(() => { setTab(entryTab); }, [entryTab]);
   const [mapping, setMapping] = useState<[string, string][]>([]);
   const [keys, setKeys] = useState<Key[]>([]);
   const [records, setRecords] = useState<RecordItem[]>([]);
+  const [requestPage,setRequestPage]=useState(1);
+  const requestPageSize=10;
+  useEffect(()=>setRequestPage(p=>Math.min(p,Math.max(1,Math.ceil(records.length/requestPageSize)))) ,[records.length]);
+  const [recordDetail,setRecordDetail]=useState<RecordItem>();
+  const [compareMode,setCompareMode]=useState(false);
   const [secret, setSecret] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<Key>();
@@ -85,6 +94,11 @@ export default function AIGateway() {
     tone: 'danger' | 'success';
     text: string;
   }>();
+  useEffect(() => {
+    if (notice?.tone !== 'success') return;
+    const timer = window.setTimeout(() => setNotice(current => current === notice ? undefined : current), 2500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   const [probe, setProbe] = useState<{ state: string; models?: string[] }>();
   const [model, setModel] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -93,6 +107,7 @@ export default function AIGateway() {
   const [pendingPrompt,setPendingPrompt]=useState('');
   const [requestId, setRequestId] = useState('');
   const messagesRef = useRef<HTMLDivElement>(null);
+  const promptRef = useRef<HTMLTextAreaElement>(null);
   const followMessages = useRef(true);
   useEffect(() => {
     if (followMessages.current && messagesRef.current) messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -134,6 +149,9 @@ export default function AIGateway() {
   useEffect(() => {
     let alive = true;
     setConfig(undefined);
+    setRecordDetail(undefined);
+    setRequestPage(1);
+    setCompareMode(false);
     setAccess(undefined);
     setWorkspace(undefined);
     setTab(entryTab);
@@ -208,6 +226,7 @@ export default function AIGateway() {
     return c;
   };
   const runTest = async () => {
+    promptRef.current?.focus({ preventScroll: true });
     followMessages.current = true;
     const current = generation.current;
     setAnswer('');
@@ -286,6 +305,7 @@ export default function AIGateway() {
   };
   const probeState = (state: string) =>
     ({
+      unsupported: tr('此协议暂不支持自动列举，请手动填写上游模型 ID。','Automatic listing is unavailable for this protocol. Enter upstream model IDs manually.'),
       compatible: tr(
         '协议兼容 · 元数据探测成功',
         'Compatible protocol · metadata probe succeeded',
@@ -310,7 +330,7 @@ export default function AIGateway() {
           <ArrowLeft size={18} />
           {tr('返回', 'Back')}
         </Link>}
-        {proxyId ? <AccessContext name={name} protocol={<span className="liaison-inline-name"><LLMProtocol protocol={workspace?.external_protocol}/>{workspace?.external_protocols?.includes('anthropic')&&<LLMProtocol protocol="anthropic"/>}</span>}/> : <><h1>{name}</h1>
+        {proxyId ? <AccessContext name={name} protocol={<span className="liaison-inline-name">{uniqueProtocolFamilies(workspace?.external_protocols||[workspace?.external_protocol||'']).map(p=><LLMProtocol key={p} protocol={p}/>)}</span>}/> : <><h1>{name}</h1>
         <p>
           {tr(
             '通过连接器安全调用内网模型。',
@@ -318,7 +338,7 @@ export default function AIGateway() {
           )}
         </p></>}
       </header>
-      {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
+      {notice && !(tab === 'playground' && workspace) && <Notice tone={notice.tone}>{notice.text}</Notice>}
       {!config && !workspace && !notice && <p role="status">{tr('正在加载…', 'Loading…')}</p>}
       {config && (
         <section className="ai-api-card">
@@ -332,23 +352,22 @@ export default function AIGateway() {
           <div className="ai-api-grid">
             <Field label={tr('上游协议', 'Upstream protocol')}>
               <Select
-                value={config.protocol}
+                disabled={!!config.application_type&&config.application_type!=='llm'} value={protocolFamily(config.protocol)}
                 onChange={(e) =>
-                  setConfig({ ...config, protocol: e.target.value, base_path: ['', '/v1', '/api'].includes(config.base_path) ? (e.target.value === 'ollama' ? '/api' : '/v1') : config.base_path })
+                  setConfig({ ...config, protocol: e.target.value==='openai'?'openai-compatible':e.target.value, base_path: !config.base_path || config.base_path === llmBase(config.protocol) ? llmBase(e.target.value) : config.base_path })
                 }
               >
-                <option value="openai-compatible">OpenAI-compatible</option>
-                <option value="anthropic">Anthropic Messages</option>
-                <option value="ollama">Ollama</option>
+                {LLM_PROTOCOL_OPTIONS.map(p=><option key={p.value} value={p.value}>{p.label}</option>)}
               </Select>
             </Field>
+            {protocolFamily(config.protocol)==='openai'&&<Field label={tr('API 能力','API capabilities')} hint={tr('仅在上游支持时开启 Responses。','Enable Responses only if supported by the upstream.')}><Select value={config.protocol} onChange={e=>setConfig({...config,protocol:e.target.value})}><option value="openai-compatible">Chat Completions</option><option value="openai">Chat Completions + Responses</option></Select></Field>}
             <Field label={tr('API 路径', 'API base path')}>
               <Input
                 value={config.base_path}
                 onChange={(e) =>
                   setConfig({ ...config, base_path: e.target.value })
                 }
-                placeholder={config.protocol === 'ollama' ? '/api' : '/v1'}
+                placeholder={llmBase(config.protocol)}
               />
             </Field>
             <Field label={tr('传输加密', 'Transport encryption')}>
@@ -445,18 +464,20 @@ export default function AIGateway() {
           <nav className="ai-api-tabs" aria-label={tr('模型访问工作区', 'Model access workspace')}>
             {([
               ['overview', tr('概览', 'Overview')],
+              ['statistics', tr('统计', 'Statistics')],
               ['playground', tr('在线体验', 'Playground')],
               ['keys', tr('API 密钥', 'API keys')],
               ['requests', tr('请求记录', 'Request records')],
               ...(workspace.can_manage ? [['configuration', tr('访问配置', 'Access configuration')]] : []),
             ] as [WorkspaceTab, string][]).map(([id, label]) => (
-              <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>{label}</button>
+              <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} onClick={() => {setTab(id);if((id==='statistics'||id==='requests')&&!busy)void act('refresh-records',refresh);}}>{label}</button>
             ))}
           </nav>
+          <RequestDetails record={recordDetail} onClose={()=>setRecordDetail(undefined)}/>
           {tab === 'overview' && <section className="ai-api-card">
             <h2>{tr('调用信息', 'Connection details')}</h2>
             <p>{workspace.enabled ? tr('服务已启用。创建自己的 API 密钥，或在在线体验中发起请求。', 'Service enabled. Create your API key or try a request in the playground.') : tr('服务暂未启用，请联系管理员检查访问配置和连接状态。', 'Service unavailable. Ask an administrator to check access configuration and connectivity.')}</p>
-            <Field label="Base URL"><div className="ai-api-endpoint"><code>{window.location.origin}{base}/v1</code><Button aria-label={tr('复制地址', 'Copy URL')} onClick={() => void act('copy', async () => { await navigator.clipboard.writeText(`${window.location.origin}${base}/v1`); })}><Copy size={15} /></Button></div></Field>
+            <Field label="Base URL"><div className="ai-api-endpoint"><code>{window.location.origin}{base}{llmBase(workspace.external_protocol)}</code><Button aria-label={tr('复制地址', 'Copy URL')} onClick={() => void act('copy', async () => { await navigator.clipboard.writeText(`${window.location.origin}${base}${llmBase(workspace.external_protocol)}`); })}><Copy size={15} /></Button></div></Field>
             <div className="ai-api-tags">{workspace.models.map(alias => <code key={alias}>{alias}</code>)}</div>
             <h2>{tr('调用示例', 'Request example')}</h2>
             <p>{tr('LIAISON_API_KEY 使用本页「API 密钥」中创建的 Liaison 调用密钥，不是上游模型密钥。外部调用始终需要认证，请勿将密钥放入前端代码。', 'Set LIAISON_API_KEY to a Liaison key created under API keys, not an upstream model key. External requests always require authentication. Never embed keys in frontend code.')}</p>
@@ -464,6 +485,7 @@ export default function AIGateway() {
             <RequestExample base={base} model={workspace.models[0] || 'MODEL_ALIAS'} protocols={workspace.external_protocols}/>
             <footer><Button onClick={() => setTab('keys')}>{tr('管理密钥', 'Manage keys')}</Button><Button variant="primary" onClick={() => setTab('playground')}>{tr('在线体验', 'Open playground')}</Button></footer>
           </section>}
+          {tab === 'statistics' && <Insights key={base} base={base} records={records} models={workspace.models}/>}
           {tab === 'configuration' && access && workspace.can_manage && <section className="ai-api-card">
             <h2>{tr('模型映射', 'Model mappings')}</h2>
             <p>
@@ -608,7 +630,9 @@ export default function AIGateway() {
             <DangerConfirm title={tr('确认撤销密钥', 'Revoke key') + '「' + (revokeTarget?.name || '') + '」？'} description={tr('使用此密钥的客户端将立即失效，此操作无法撤销。', 'Clients using this key will lose access immediately. This cannot be undone.')} />
             {notice?.tone === 'danger' && <Notice tone="danger">{notice.text}</Notice>}
           </Modal>
-          {tab === 'playground' && <section className="ai-api-card ai-playground">
+          {tab === 'playground' && <div className="ai-mode-switch"><Button disabled={!!busy} variant={!compareMode?'primary':'secondary'} onClick={()=>setCompareMode(false)}>{tr('对话','Chat')}</Button><Button disabled={!!busy} variant={compareMode?'primary':'secondary'} onClick={()=>setCompareMode(true)}>{tr('模型对比','Compare models')}</Button></div>}
+          {tab === 'playground' && compareMode && <Compare key={base+workspace.models.join(',')} base={base} models={workspace.models} enabled={workspace.enabled}/>}
+          {tab === 'playground' && !compareMode && <section className="ai-api-card ai-playground">
             <h2>{tr('在线体验', 'Playground')}</h2>
             <p>
               {tr(
@@ -622,14 +646,16 @@ export default function AIGateway() {
             {pendingPrompt&&<div className="ai-api-answer is-user"><small>{tr('你','You')}</small><MessageContent text={pendingPrompt}/></div>}
             {(answer||busy==='test')&&<div className="ai-api-answer"><small>{model}</small>{answer?<MessageContent text={answer}/>:<span role="status">{tr('正在回复…','Responding…')}</span>}</div>}
             </div>
+            {notice && <div className="ai-playground-notice" role="status"><Notice tone={notice.tone}>{notice.text}</Notice></div>}
             <div className="ai-playground-composer">
               <textarea
+                ref={promptRef}
                 className="liaison-input"
                 aria-label={tr('消息','Message')}
                 placeholder={tr('输入消息…','Write a message…')}
-                rows={3}
+                rows={2}
                 value={prompt}
-                disabled={!!busy}
+                readOnly={!!busy}
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();if(!busy&&workspace.enabled&&model&&prompt.trim())void act('test',runTest);}}}
               />
@@ -641,7 +667,7 @@ export default function AIGateway() {
                 ))}
               </Select>
               <span className="ai-playground-shortcut">Shift + Enter {tr('换行','for newline')}</span>
-              {(history.length>0||pendingPrompt)&&<Button disabled={!!busy} onClick={() => { setHistory([]); setPendingPrompt('');setAnswer(''); setRequestId(''); }}>{tr('新对话', 'New conversation')}</Button>}
+              {(history.length>0||pendingPrompt)&&<Button disabled={!!busy} onClick={() => { setHistory([]); setPendingPrompt('');setAnswer(''); setRequestId('');setNotice(undefined); }}>{tr('新对话', 'New conversation')}</Button>}
               {busy!=='test'&&<>
               <Button
                 variant="primary"
@@ -661,11 +687,11 @@ export default function AIGateway() {
             {requestId && <details className="ai-playground-diagnostics"><summary>{tr('请求详情','Request details')}</summary><span>{tr('请求 ID', 'Request ID')}: <code>{requestId}</code></span></details>}
           </section>}
           {tab === 'requests' && <section className="ai-api-card">
-            <h2>{tr('请求记录', 'Request records')}</h2>
+            <div className="ai-insights-heading"><h2>{tr('请求记录', 'Request records')}</h2><Button disabled={!!busy} onClick={()=>void act('refresh-records',refresh)}>{tr('刷新','Refresh')}</Button></div>
             <p>
               {tr(
-                '仅保存状态、耗时与上游提供的 Token 用量，不记录对话内容。',
-                'Status, timing and reported token usage only. Prompts and answers are not logged.',
+                '最近 50 条个人请求，每页 10 条。仅记录状态、耗时和 Token，不记录对话内容。',
+                'Latest 50 of your requests, 10 per page. Only status, timing and tokens are logged, not conversation content.',
               )}
             </p>
             <div className="ai-api-table">
@@ -681,12 +707,10 @@ export default function AIGateway() {
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((r) => (
+                  {records.slice((requestPage-1)*requestPageSize,requestPage*requestPageSize).map((r) => (
                     <tr key={r.request_id}>
                       <td>
-                        <code title={r.request_id}>
-                          {r.request_id.slice(0, 12)}
-                        </code>
+                        <button className="liaison-table-link" title={r.request_id} onClick={()=>setRecordDetail(r)}><code>{r.request_id.slice(0,12)}</code></button>
                       </td>
                       <td>{r.key_id || tr('控制台', 'Console')}</td>
                       <td>{r.model}</td>
@@ -702,6 +726,7 @@ export default function AIGateway() {
                   ))}
                 </tbody>
               </table>
+              <Pager page={requestPage} pageSize={requestPageSize} total={records.length} onPageChange={setRequestPage}/>
               {!records.length && (
                 <p>{tr('暂无调用记录', 'No requests yet')}</p>
               )}

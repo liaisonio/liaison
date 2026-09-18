@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/i18n';
+import {accessDraft} from '@/components/AgentWorkspace/handoff';
 
 export async function connectionReference(handle: string) {
  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(handle));
@@ -8,6 +9,10 @@ export async function connectionReference(handle: string) {
 }
 export function useSessionPath(handle:string|undefined,localOpen:boolean,setOpen:(open:boolean)=>void){
  const location=useLocation(),navigate=useNavigate();
+ useEffect(()=>{
+  const target=Number(location.pathname.match(/^\/(?:webssh|webdata|webdesktop|webs3)\/(\d+)(?:\/|$)/)?.[1]||location.state?.sessionRoute?.proxyId);
+  if(handle&&target>0&&accessDraft(location.state?.agentHandoff,target))setOpen(true);
+ },[handle,location.pathname,location.state?.agentHandoff,location.state?.sessionRoute?.proxyId,setOpen]);
  const current=useRef(location);current.current=location;
  const navigation=useRef(navigate);navigation.current=navigate;
  const match=location.pathname.match(/\/sessions\/(conn_[a-f0-9]{24})(?:\/agent\/(session_[a-f0-9]+))?$/);

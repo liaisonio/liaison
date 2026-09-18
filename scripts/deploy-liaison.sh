@@ -9,14 +9,18 @@
 #   5. 重启远程服务
 #
 # 用法：
-#   ./deploy-liaison.sh                    # 部署所有（前端、liaison、edge）
-#   ./deploy-liaison.sh --web              # 仅部署前端
-#   ./deploy-liaison.sh --liaison          # 仅部署 liaison
-#   ./deploy-liaison.sh --edge             # 仅部署 edge
-#   ./deploy-liaison.sh --web --liaison    # 部署前端和 liaison
-#   ./deploy-liaison.sh --liaison-only     # 仅部署 liaison（兼容旧参数）
+#   ./scripts/deploy-liaison.sh                    # 部署所有（前端、liaison、edge）
+#   ./scripts/deploy-liaison.sh --web              # 仅部署前端
+#   ./scripts/deploy-liaison.sh --liaison          # 仅部署 liaison
+#   ./scripts/deploy-liaison.sh --edge             # 仅部署 edge
+#   ./scripts/deploy-liaison.sh --web --liaison    # 部署前端和 liaison
+#   ./scripts/deploy-liaison.sh --liaison-only     # 仅部署 liaison（兼容旧参数）
 
 set -e
+
+# Resolve build and asset paths independently of the caller's working directory.
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
 
 # 配置 - Manager
 MANAGER_HOST="${MANAGER_HOST:-}"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 将 SVG 文件转换为 favicon.ico
-使用方法: python3 convert_svg_to_ico.py <input.svg> [output.ico]
+使用方法: python3 scripts/convert_svg_to_ico.py <input.svg> [output.ico]
 """
 
 import sys
@@ -90,7 +90,7 @@ def svg_to_ico(svg_path, ico_path=None):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("使用方法: python3 convert_svg_to_ico.py <input.svg> [output.ico]")
+        print("使用方法: python3 scripts/convert_svg_to_ico.py <input.svg> [output.ico]")
         sys.exit(1)
     
     svg_file = sys.argv[1]

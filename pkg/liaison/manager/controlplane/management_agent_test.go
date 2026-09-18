@@ -31,6 +31,9 @@ func TestManagementToolsThreeUserResourceIsolation(t *testing.T) {
 		app := &model.Application{Name: name, DeviceID: device.ID, EdgeIDs: model.UintSlice{}, IP: "127.0.0.1", Port: 8080, ApplicationType: model.ApplicationType("http")}
 		require.NoError(t, r.CreateApplication(app))
 		require.NoError(t, claimResource(ctx, r, resourceApplication, uint64(app.ID)))
+		access := &model.Proxy{Name: name, ApplicationID: app.ID, AccessProtocol: model.AccessProtocolHTTP, Status: model.ProxyStatusRunning}
+		require.NoError(t, r.CreateProxy(access))
+		require.NoError(t, claimResource(ctx, r, resourceAccess, uint64(access.ID)))
 	}
 	iamService, err := iam.NewIAMService(r)
 	require.NoError(t, err)

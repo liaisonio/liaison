@@ -1,15 +1,23 @@
+import {LLM_PROTOCOLS,LLM_PROTOCOL_OPTIONS,protocolFamily,isLLMApplicationType} from './llmProtocols';
+export const isLLMAccessType=(value?:string|null)=>value==='aiapi'||(value!=='llm'&&isLLMApplicationType(value||undefined));
 import type { ApplicationType } from './applicationTypes';
+import {optionalProtocolEnabled} from '../store/optionalProtocols';
 
 export type WebAccessType =
   | 'aiapi'
+  | (typeof LLM_PROTOCOLS)[number]['value']
   | 'webssh'
   | 'websftp'
   | 'webrdp'
   | 'webvnc'
   | 'webmysql'
   | 'webmariadb'
+  | 'webdoris'
+  | 'webstarrocks'
+  | 'webtidb'
   | 'websqlserver'
   | 'weboracle'
+  | 'webdameng'
   | 'webclickhouse'
   | 'webelasticsearch'
   | 'webopensearch'
@@ -17,6 +25,7 @@ export type WebAccessType =
   | 'webredis'
   | 'webmemcached'
   | 'webs3'
+  | 'websmb'
   | 'webmongodb';
 
 export type AccessType = ApplicationType | WebAccessType;
@@ -37,6 +46,9 @@ const UNSUPPORTED_NATIVE_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'vnc', label: 'VNC' },
   { value: 'mysql', label: 'MySQL' },
   { value: 'mariadb', label: 'MariaDB' },
+  { value: 'doris', label: 'Doris' },
+  { value: 'starrocks', label: 'StarRocks' },
+  { value: 'tidb', label: 'TiDB' },
   { value: 'sqlserver', label: 'SQL Server' },
   { value: 'oracle', label: 'Oracle' },
   { value: 'clickhouse', label: 'ClickHouse' },
@@ -54,8 +66,12 @@ const WEB_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'webvnc', label: 'Web VNC' },
   { value: 'webmysql', label: 'Web MySQL' },
   { value: 'webmariadb', label: 'Web MariaDB' },
+  { value: 'webdoris', label: 'WebDoris' },
+  { value: 'webstarrocks', label: 'WebStarRocks' },
+  { value: 'webtidb', label: 'WebTiDB' },
   { value: 'websqlserver', label: 'Web SQL Server' },
   { value: 'weboracle', label: 'Web Oracle' },
+  { value: 'webdameng', label: 'WebDameng' },
   { value: 'webclickhouse', label: 'Web ClickHouse' },
   { value: 'webelasticsearch', label: 'Web Elasticsearch' },
   { value: 'webopensearch', label: 'Web OpenSearch' },
@@ -63,8 +79,9 @@ const WEB_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   { value: 'webredis', label: 'Web Redis' },
   { value: 'webmemcached', label: 'Web Memcached' },
   { value: 'webs3', label: 'Web S3' },
+  { value: 'websmb', label: 'WebSMB' },
   { value: 'webmongodb', label: 'Web MongoDB' },
-  { value: 'aiapi', label: 'OpenAI' },
+  ...LLM_PROTOCOL_OPTIONS,
 ];
 
 // Keep one product-wide order: L4 passthrough, native protocol, browser access.
@@ -76,6 +93,8 @@ export const ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
 
 const KNOWN_ACCESS_TYPES: ReadonlyArray<AccessTypeOption> = [
   ...ACCESS_TYPES,
+  {value:'aiapi',label:'—'},
+  {value:'openai-compatible',label:'OpenAI'},
   ...UNSUPPORTED_NATIVE_ACCESS_TYPES,
 ];
 
@@ -87,13 +106,18 @@ export const ACCESS_CREATION_TYPES: ReadonlyArray<AccessTypeOption> = [
 
 const WEB_TYPE_BY_APPLICATION: Partial<Record<ApplicationType, WebAccessType>> = {
   llm: 'aiapi',
+  openai:'openai', anthropic:'anthropic', ark:'ark', qwen:'qwen', gemini:'gemini', ollama:'ollama', 'openai-compatible':'openai-compatible',
   ssh: 'webssh',
   rdp: 'webrdp',
   vnc: 'webvnc',
   mysql: 'webmysql',
   mariadb: 'webmariadb',
+  doris: 'webdoris',
+  starrocks: 'webstarrocks',
+  tidb: 'webtidb',
   sqlserver: 'websqlserver',
   oracle: 'weboracle',
+  dameng: 'webdameng',
   clickhouse: 'webclickhouse',
   elasticsearch: 'webelasticsearch',
   opensearch: 'webopensearch',
@@ -101,6 +125,7 @@ const WEB_TYPE_BY_APPLICATION: Partial<Record<ApplicationType, WebAccessType>> =
   redis: 'webredis',
   memcached: 'webmemcached',
   s3: 'webs3',
+  smb: 'websmb',
   mongodb: 'webmongodb',
 };
 
@@ -113,14 +138,14 @@ export const isAccessType = (
 
 export const isSupportedAccessType = (
   value: string | null | undefined,
-) => ACCESS_TYPES.some((accessType) => accessType.value === value);
+) => optionalProtocolEnabled(value||'') && (value==='openai-compatible'||value==='aiapi'||ACCESS_TYPES.some((accessType) => accessType.value === value));
 
 export const accessTypeLabel = (value: string | null | undefined) =>
   KNOWN_ACCESS_TYPES.find((item) => item.value === value)?.label || value || '-';
 
 export const isWebAccessType = (
   value: string | null | undefined,
-): value is WebAccessType => WEB_ACCESS_TYPES.some((item) => item.value === value);
+): value is WebAccessType => value==='openai-compatible'||value==='aiapi'||WEB_ACCESS_TYPES.some((item) => item.value === value);
 
 export const applicationTypeForAccess = (accessType: AccessType): ApplicationType => {
   if (accessType === 'websftp') return 'ssh';
@@ -129,17 +154,19 @@ export const applicationTypeForAccess = (accessType: AccessType): ApplicationTyp
 };
 
 export const accessProtocolForType = (accessType: AccessType) => {
-  if (accessType === 'aiapi') return 'aiapi';
+  if (isLLMAccessType(accessType)) return 'aiapi';
   if (accessType === 'webssh') return 'webssh';
   if (accessType === 'websftp') return 'websftp';
   return isWebAccessType(accessType) ? 'web' : accessType;
 };
 
 export const accessTypesForApplication = (applicationType: string): AccessTypeOption[] => {
+  if (applicationType === 'http') return [{value: 'http', label: 'HTTP'}, {value: 'tcp', label: 'TCP'}];
+  if(applicationType==='llm')return [{value:'aiapi',label:'LLM protocol'}, {value:'tcp',label:'TCP'}];
   const native = NATIVE_ACCESS_TYPES.find((item) => item.value === applicationType);
-  const webType = WEB_TYPE_BY_APPLICATION[applicationType as ApplicationType];
+  const webType = WEB_TYPE_BY_APPLICATION[protocolFamily(applicationType) as ApplicationType];
   return [
-    ...(webType ? WEB_ACCESS_TYPES.filter((item) => item.value === webType) : []),
+    ...(webType ? WEB_ACCESS_TYPES.filter((item) => item.value === webType && optionalProtocolEnabled(item.value)) : []),
     ...(applicationType === 'ssh' ? WEB_ACCESS_TYPES.filter((item) => item.value === 'websftp') : []),
     { value: 'tcp', label: 'TCP' },
     ...(applicationType !== 'tcp' && native ? [native] : []),
@@ -157,6 +184,7 @@ export const getProxyAccessType = (
     proxy?.application?.application_type || '',
   ).toLowerCase();
   if (!applicationType) return undefined;
+  if(accessProtocol==='aiapi')return isLLMAccessType(applicationType)?protocolFamily(applicationType) as AccessType:'aiapi';
   if (accessProtocol === 'web') {
     return WEB_TYPE_BY_APPLICATION[applicationType as ApplicationType];
   }

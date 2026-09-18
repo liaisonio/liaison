@@ -11,6 +11,10 @@ const suites=[
  'llm-access-create','llm-application','llm-playground-ui','markdown','ollama',
  'protocol-navigation','shell-agent-ui','sql-protocols','ssh-handoff',
  'terminal-completion','webcache','webs3','websftp-ui','webssh-files-ui',
+ 'native-llm','llm-access-types','llm-insights','llm-table-lines',
+ 'token-trend-zero','token-trend-feedback','agent-handoff','application-protocol-labels',
+ 'web-entry','web-entry-sources','websmb-ui','dameng','device-language',
+ 'dashboard-traffic','confirm-ui',
 ];
 const results=[];
 for(const suite of suites){

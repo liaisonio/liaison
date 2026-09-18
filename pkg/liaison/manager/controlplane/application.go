@@ -7,6 +7,7 @@ import (
 	"time"
 
 	v1 "github.com/liaisonio/liaison/api/v1"
+	"github.com/liaisonio/liaison/pkg/dameng"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/dao"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
 )
@@ -20,8 +21,13 @@ func getDefaultPortByApplicationType(appType string) int {
 		"vnc":           5900,
 		"mysql":         3306,
 		"mariadb":       3306,
+		"doris":         9030,
+		"starrocks":     9030,
+		"tidb":          4000,
+		"smb":           445,
 		"sqlserver":     1433,
 		"oracle":        1521,
+		"dameng":        5236,
 		"clickhouse":    9000,
 		"elasticsearch": 9200,
 		"opensearch":    9200,
@@ -420,7 +426,9 @@ func (cp *controlPlane) DeleteApplication(ctx context.Context, req *v1.DeleteApp
 
 func isAllowedApplicationType(appType string) bool {
 	switch appType {
-	case "llm", "http", "tcp", "ssh", "rdp", "vnc", "mysql", "mariadb", "sqlserver", "oracle", "clickhouse", "elasticsearch", "opensearch", "postgresql", "redis", "memcached", "mongodb", "database", "s3":
+	case "dameng":
+		return dameng.Available()
+	case "llm", "openai", "openai-compatible", "anthropic", "ark", "qwen", "gemini", "ollama", "http", "tcp", "ssh", "rdp", "vnc", "mysql", "mariadb", "doris", "starrocks", "tidb", "sqlserver", "oracle", "clickhouse", "elasticsearch", "opensearch", "postgresql", "redis", "memcached", "mongodb", "database", "s3", "smb":
 		return true
 	default:
 		return false

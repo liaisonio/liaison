@@ -177,21 +177,10 @@ button {
 .liaison-notice.is-warning { border-color: rgb(245 158 11 / 0.35); color: rgb(180 83 9); }
 
 .native-confirm-copy {
-  display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
+  display: block;
   margin: 0;
-  padding: 2px 0 10px;
-}
-.native-confirm-icon {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border-radius: 10px;
-  background: rgb(var(--danger) / 0.09);
-  color: rgb(var(--danger));
+  padding: 0;
+  overflow-wrap: anywhere;
 }
 .native-confirm-copy strong {
   display: block;
@@ -204,9 +193,14 @@ button {
 .native-confirm-copy p {
   margin: 4px 0 0;
   color: rgb(var(--muted));
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
+.liaison-modal:has(.native-confirm-copy) > header { padding: 16px 24px 8px; }
+.liaison-modal:has(.native-confirm-copy) > header::after,
+.liaison-modal:has(.native-confirm-copy) > header h2::before { display: none; }
+.liaison-modal:has(.native-confirm-copy) .liaison-modal-body { padding: 8px 24px 20px; }
+.liaison-modal:has(.native-confirm-copy) > footer { padding: 0 24px 20px; }
 
 .liaison-scan-application-form,
 .liaison-scan-access-form {
@@ -246,6 +240,7 @@ button {
 }
 
 .liaison-scan-port { grid-column: 2; }
+.liaison-scan-entry-mode { grid-column: 1 / -1; }
 
 @media (max-width: 560px) {
   .liaison-scan-application-form,
@@ -453,6 +448,9 @@ button {
 .liaison-list-header h2 { margin: 0; font-size: 12px; font-weight: 650; }
 .liaison-list-actions { display: flex; gap: 8px; }
 .liaison-table-scroll { overflow-x: auto; }
+@media (max-width: 640px) {
+  .liaison-application-list .liaison-table :is(th, td).is-fixed-right { position: static; box-shadow: none; }
+}
 .liaison-table { width: 100%; min-width: 820px; border-collapse: collapse; table-layout: fixed; color: rgb(var(--ink)); font-size: 11px; }
 .liaison-table th { height: 38px; padding: 0 12px; background: rgb(var(--panel)); color: rgb(var(--muted)); font-weight: 600; text-align: left; }
 .liaison-table td { height: 46px; overflow: hidden; border-top: 1px solid rgb(var(--line) / 0.55); padding: 7px 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -471,6 +469,7 @@ button {
 .liaison-related-access small { margin-left: 6px; color: rgb(var(--muted)); font-size: 9px; font-weight: 600; }
 .liaison-table-link { border: 0; padding: 0; background: transparent; color: rgb(var(--info)); font-size: 11px; cursor: pointer; text-decoration: none; }
 .liaison-table-link.is-danger { color: rgb(var(--danger)); }
+.liaison-table-link:disabled { color: rgb(var(--muted)); opacity: 0.55; cursor: not-allowed; text-decoration: none; }
 .liaison-connect-command { display: inline-flex; min-height: 26px; align-items: center; gap: 5px; border: 1px solid rgb(var(--line)); border-radius: 7px; padding: 0 8px; background: rgb(var(--surface)); color: rgb(var(--ink)); font-size: 10px; font-weight: 620; cursor: pointer; }
 .liaison-connect-command:hover { border-color: rgb(var(--ink) / 0.42); background: rgb(var(--panel)); }
 .liaison-connect-command { color: rgb(var(--info)); }
@@ -778,6 +777,7 @@ button {
 
 .liaison-header-language-button {
   display: inline-flex;
+  width: 36px;
   height: 36px;
   align-items: center;
   justify-content: center;
@@ -796,8 +796,6 @@ button {
 .liaison-login-language { position: absolute; top: 16px; right: 20px; z-index: 10; }
 .liaison-language-menu button { justify-content: space-between; gap: 8px; }
 .liaison-language-menu button[aria-pressed="true"] { color: rgb(var(--accent)); }
-.liaison-header-language-button .is-open { transform: rotate(180deg); }
-.liaison-header-language-button > svg:last-child { transition: transform 150ms ease; }
 
 .liaison-language-menu {
   position: absolute;
@@ -1116,6 +1114,15 @@ button {
 .liaison-nav-child:hover {
   background: var(--sidebar-hover);
   color: rgb(var(--ink));
+}
+
+.liaison-nav-log-children {
+  gap: 4px;
+}
+
+.liaison-nav-log-children > .liaison-nav-child {
+  min-height: 34px;
+  font-size: 12px;
 }
 
 .liaison-nav-child.is-active {

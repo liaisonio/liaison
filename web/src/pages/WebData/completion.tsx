@@ -1033,7 +1033,7 @@ export const completionKeywordItems = (
     labels: string[],
     priorityBase = 90,
   ): CompletionItem[] =>
-    labels.map((label) => protocol === 'oracle' && label === 'LIMIT 100' ? 'FETCH FIRST 100 ROWS ONLY' : label).filter((label) => !['sqlserver', 'oracle'].includes(protocol) || !/LIMIT|ILIKE|RETURNING|TRUE|FALSE/i.test(label)).map((label, index) =>
+    labels.map((label) => ['oracle','dameng'].includes(protocol) && label === 'LIMIT 100' ? 'FETCH FIRST 100 ROWS ONLY' : label).filter((label) => !['sqlserver', 'oracle', 'dameng'].includes(protocol) || !/LIMIT|ILIKE|RETURNING|TRUE|FALSE/i.test(label)).map((label, index) =>
       keyword(label, sqlKeywordInsertText(label), priorityBase - index),
     );
   const snippet = (
@@ -1075,7 +1075,7 @@ export const completionKeywordItems = (
   }
   const intent = completionIntentForProtocol(protocol, context);
   if (protocol === 'elasticsearch' || protocol === 'opensearch') return [];
-  const sqlItems: CompletionItem[] = sqlCommandKeywords.filter((label) => (protocol !== 'oracle' || !/^(SHOW|DESCRIBE|DESC$|USE|START TRANSACTION|RELEASE SAVEPOINT|OPTIMIZE|LOCK|UNLOCK|SIGNAL|DO$)/i.test(label)) && (!['sqlserver', 'oracle'].includes(protocol) || !/LIMIT|ILIKE|RETURNING/i.test(label))).map((label, index) =>
+  const sqlItems: CompletionItem[] = sqlCommandKeywords.filter((label) => (!['oracle','dameng'].includes(protocol) || !/^(SHOW|DESCRIBE|DESC$|USE|START TRANSACTION|RELEASE SAVEPOINT|OPTIMIZE|LOCK|UNLOCK|SIGNAL|DO$)/i.test(label)) && (!['sqlserver', 'oracle', 'dameng'].includes(protocol) || !/LIMIT|ILIKE|RETURNING/i.test(label))).map((label, index) =>
     keyword(label, `${label} `, 90 - index),
   );
   if (intent === 'from-keyword') {
@@ -1085,7 +1085,7 @@ export const completionKeywordItems = (
     return keywordItems(sqlClauseKeywords);
   }
   if (intent === 'select-list') {
-    if (protocol === 'oracle') return [keyword('*', '* ', 100), keyword('COUNT(*)', 'COUNT(*) ', 90)];
+    if (['oracle','dameng'].includes(protocol)) return [keyword('*', '* ', 100), keyword('COUNT(*)', 'COUNT(*) ', 90)];
     if (protocol === 'sqlserver') return [keyword('TOP (100) *', 'TOP (100) * ', 100), keyword('*', '* ', 90), keyword('COUNT(*)', 'COUNT(*) ', 80)];
     return [
       ...sqlSelectSnippets.map((item, index) =>
@@ -1278,10 +1278,10 @@ export const sqlObjectCompletionInsert = (
   node: API.WebDataMetadataNode,
 ) => {
   const name = node.meta?.name || node.title;
-  if ((protocol === 'postgresql' || protocol === 'sqlserver' || protocol === 'oracle') && node.meta?.schema) {
+  if ((protocol === 'postgresql' || protocol === 'sqlserver' || ['oracle','dameng'].includes(protocol)) && node.meta?.schema) {
     return `${node.meta.schema}.${name}`;
   }
-  if ((protocol === 'mysql' || protocol === 'mariadb' || protocol === 'clickhouse') && node.meta?.database) {
+  if ((['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '') || protocol === 'clickhouse') && node.meta?.database) {
     return `${node.meta.database}.${name}`;
   }
   return name;

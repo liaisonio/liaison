@@ -1,3 +1,4 @@
+import {useOptionalProtocols, optionalProtocolEnabled} from '@/store/optionalProtocols';
 import { Button, Column, DataTable, DateRangeField, Notice, Pager, StatusPill, Timestamp } from '@/components/ui';
 import { accessTypeLabel } from '@/constants/accessTypes';
 import { accessTabLabel } from '@/constants/accessGroups';
@@ -11,17 +12,22 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import './index.less';
 
 const pageSize = 10;
-const auditProtocols = ['ssh', 'webssh', 'websftp', 'rdp', 'vnc', 'mysql', 'mariadb', 'sqlserver', 'oracle', 'clickhouse', 'elasticsearch', 'opensearch', 'postgresql', 'redis', 'memcached', 'mongodb'] as const;
+const auditProtocols = ['ssh', 'webssh', 'websftp', 'smb', 'rdp', 'vnc', 'mysql', 'mariadb', 'doris', 'starrocks', 'tidb', 'sqlserver', 'oracle', 'dameng', 'clickhouse', 'elasticsearch', 'opensearch', 'postgresql', 'redis', 'memcached', 'mongodb'] as const;
 type AuditProtocol = typeof auditProtocols[number] | '';
 const routeProtocolAliases: Record<string, AuditProtocol> = {
   webssh: 'webssh',
   websftp: 'websftp',
+  websmb: 'smb',
   webrdp: 'rdp',
   webvnc: 'vnc',
   webmysql: 'mysql',
   webmariadb: 'mariadb',
+  webdoris: 'doris',
+  webstarrocks: 'starrocks',
+  webtidb: 'tidb',
   websqlserver: 'sqlserver',
   weboracle: 'oracle',
+  webdameng: 'dameng',
   webclickhouse: 'clickhouse',
   webelasticsearch: 'elasticsearch',
   webopensearch: 'opensearch',
@@ -33,6 +39,7 @@ const routeProtocolAliases: Record<string, AuditProtocol> = {
 const emptyFilters = { start: '', end: '', keyword: '', proxy_id: '', protocol: '' as AuditProtocol, action: '', success: '' };
 
 const AuditPage: React.FC = () => {
+  useOptionalProtocols();
   const { tr } = useI18n();
   const [routeSearch, setRouteSearch] = useSearchParams();
   const rawRouteProtocol = (routeSearch.get('protocol') || '').toLowerCase().replace(/[\s_-]/g, '');
@@ -70,10 +77,12 @@ const AuditPage: React.FC = () => {
   const isSSHProtocol = applied.protocol === 'ssh' || applied.protocol === 'webssh' || applied.protocol === 'websftp';
   const isDesktopProtocol = applied.protocol === 'rdp' || applied.protocol === 'vnc';
   const protocolLabel = (protocol: string) => {
+    if (protocol === 'dameng') return 'WebDameng';
     if (!protocol) return tr('全部', 'All');
+    if (protocol === 'smb') return 'WebSMB';
     if (protocol === 'memcached') return 'WebMemcached';
     if (protocol === 'elasticsearch' || protocol === 'opensearch') return `Web ${accessTypeLabel(protocol)}`;
-    if (protocol === 'rdp' || protocol === 'vnc' || (protocol === 'mysql' || protocol === 'mariadb' || protocol === 'sqlserver' || protocol === 'oracle' || protocol === 'clickhouse') || protocol === 'postgresql' || protocol === 'redis' || protocol === 'mongodb') return `Web ${accessTypeLabel(protocol)}`;
+    if (protocol === 'rdp' || protocol === 'vnc' || (['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || '') || protocol === 'sqlserver' || protocol === 'oracle' || protocol === 'clickhouse') || protocol === 'postgresql' || protocol === 'redis' || protocol === 'mongodb') return `Web ${accessTypeLabel(protocol)}`;
     return accessTypeLabel(protocol);
   };
   const sshAuthLabel = (row: API.WebDataAuditItem) => {
@@ -83,6 +92,9 @@ const AuditPage: React.FC = () => {
     return applied.protocol === 'webssh' ? 'Web' : '';
   };
   const actionLabel = (action: string) => {
+    if (action === 'smb_list') return tr('浏览目录', 'Browse directory');
+    if (action === 'smb_preview') return tr('预览文件', 'Preview file');
+    if (action === 'smb_download') return tr('下载文件', 'Download file');
     if (action === 'execute') {
       if (isSSHProtocol) return tr('命令执行', 'Command');
       if (applied.protocol === 'redis') return tr('Redis 命令', 'Redis command');
@@ -155,7 +167,7 @@ const AuditPage: React.FC = () => {
 
   return <div className="liaison-page-stack audit-native-page">
     {notice ? <Notice tone="danger">{notice}</Notice> : null}
-    <OverflowTabs label={tr('审计协议','Audit protocols')} value={applied.protocol} onChange={value=>selectProtocol(value as AuditProtocol)} items={[{value:'',label:tr('全部','All')},...auditProtocols.map(protocol=>({value:protocol,label:accessTabLabel(protocolLabel(protocol))}))]}/>
+    <OverflowTabs label={tr('审计协议','Audit protocols')} value={applied.protocol} onChange={value=>selectProtocol(value as AuditProtocol)} items={[{value:'',label:tr('全部','All')},...auditProtocols.filter(optionalProtocolEnabled).map(protocol=>({value:protocol,label:accessTabLabel(protocolLabel(protocol))}))]}/>
     <div className="liaison-filter-bar audit-native-filter">
       <DateRangeField className="audit-native-time" label={tr('操作时间', 'Time')} start={filters.start} end={filters.end} startPlaceholder={tr('开始日期', 'Start date')} endPlaceholder={tr('结束日期', 'End date')} onStartChange={(start) => { setFilters((value) => ({ ...value, start })); setPage(1); }} onEndChange={(end) => { setFilters((value) => ({ ...value, end })); setPage(1); }} />
       <label className="liaison-compound"><span>{tr('关键词', 'Keyword')}</span><input value={filters.keyword} onChange={(event) => { setFilters((value) => ({ ...value, keyword: event.target.value })); setPage(1); }} placeholder={isSSHProtocol ? tr('命令或哈希', 'Command or hash') : tr('语句或哈希', 'Statement or hash')} /></label>

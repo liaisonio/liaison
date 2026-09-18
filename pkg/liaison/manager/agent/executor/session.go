@@ -30,9 +30,9 @@ func (*SessionExecutor) Protocols() []tool.Protocol {
 	return []tool.Protocol{
 		tool.ProtocolWebSSH,
 		tool.ProtocolMySQL,
-		tool.ProtocolMariaDB,
+		tool.ProtocolMariaDB, tool.ProtocolDoris, tool.ProtocolStarRocks, tool.ProtocolTiDB,
 		tool.ProtocolSQLServer,
-		tool.ProtocolOracle,
+		tool.ProtocolOracle, tool.ProtocolDameng,
 		tool.ProtocolClickHouse,
 		tool.ProtocolElasticsearch,
 		tool.ProtocolOpenSearch,

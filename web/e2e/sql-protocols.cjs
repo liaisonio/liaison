@@ -12,6 +12,16 @@ require.extensions['.ts'] = (module, filename) => {
 };
 
 const access = require('../src/constants/accessTypes.ts');
+const {LLM_PROTOCOLS,protocolFamily}=require('../src/constants/llmProtocols.ts');
+for(const {value,label} of LLM_PROTOCOLS){
+ assert.equal(access.accessTypeLabel(value),label);
+ assert.equal(access.accessProtocolForType(value),'aiapi');
+ assert.equal(access.isWebAccessType(value),true);
+ assert.equal(access.applicationTypeForAccess(value),value);
+ assert.equal(access.getProxyAccessType({access_protocol:'aiapi',application:{application_type:value}}),protocolFamily(value));
+ assert.deepEqual(access.accessTypesForApplication(value).map(p=>p.value),[protocolFamily(value),'tcp']);
+}
+assert(!access.ACCESS_CREATION_TYPES.some(p=>p.value==='aiapi'));
 const creationTypes = access.ACCESS_CREATION_TYPES.map(item => item.value);
 const webTypes = creationTypes.filter(access.isWebAccessType);
 assert.deepEqual(creationTypes.slice(0, webTypes.length), webTypes);
@@ -21,12 +31,12 @@ for (const type of ['rdp', 'vnc']) {
   assert.deepEqual(access.accessTypesForApplication(type).map(item => item.value), ['web'+type, 'tcp']);
 }
 assert.deepEqual(access.accessTypesForApplication('tcp').map(item => item.value), ['tcp']);
-assert.deepEqual(access.accessTypesForApplication('http').map(item => item.value), ['tcp', 'http']);
+assert.deepEqual(access.accessTypesForApplication('http').map(item => item.value), ['http', 'tcp']);
 const { isSQLProtocol, protocolLabels } = require('../src/pages/WebData/protocol.ts');
 const { tlsOptionsForProtocol } = require('../src/pages/WebData/connection.ts');
 const { sqlQualifiedName, sqlQuoteIdent } = require('../src/pages/WebData/objectCommands.ts');
 
-for (const protocol of ['mysql', 'mariadb', 'postgresql', 'sqlserver', 'oracle', 'clickhouse']) {
+for (const protocol of ['mysql', 'mariadb', 'doris', 'starrocks', 'tidb', 'postgresql', 'sqlserver', 'oracle', 'clickhouse']) {
   assert.equal(isSQLProtocol(protocol), true);
   assert.ok(protocolLabels[protocol]);
   const webType = 'web' + protocol;
@@ -37,6 +47,11 @@ for (const protocol of ['mysql', 'mariadb', 'postgresql', 'sqlserver', 'oracle',
   assert.ok(tlsOptionsForProtocol(protocol, (_, en) => en).some(item => item.value === 'require'));
 }
 assert.equal(sqlQuoteIdent('mariadb', 'odd`name'), '`odd``name`');
+for (const protocol of ['doris','starrocks','tidb']) {
+  assert.equal(sqlQuoteIdent(protocol, 'odd`name'), '`odd``name`');
+  assert.equal(sqlQualifiedName(protocol, {database:'app',name:'orders'}), '`app`.`orders`');
+}
+assert.deepEqual(access.accessTypesForApplication('smb').map(x=>x.value), ['websmb','tcp']);
 assert.equal(sqlQualifiedName('mariadb', { database: 'app', name: 'orders' }), '`app`.`orders`');
 assert.equal(sqlQualifiedName('postgresql', { schema: 'sales', name: 'orders' }), '"sales"."orders"');
 assert.equal(isSQLProtocol('mongodb'), false);

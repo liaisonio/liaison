@@ -30,15 +30,6 @@ const numberValue = (value: number | string | undefined) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const formatLocalTime = (date: Date) => {
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate(),
-  )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
-    date.getSeconds(),
-  )}`;
-};
-
 const formatChartTime = (date: Date) =>
   `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
@@ -109,10 +100,16 @@ function SummaryCard({
 function TrafficChart({
   data,
   emptyText,
+  hours, setHours, now,
 }: {
   data: TrafficPoint[];
   emptyText: string;
+  hours: number;
+  setHours: (hours: number) => void;
+  now: number;
 }) {
+  const {tr}=useI18n();
+  const [hidden,setHidden]=useState<string[]>([]);
   const chartRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1000);
   const height = 285;
@@ -126,27 +123,30 @@ function TrafficChart({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  const now = Date.now();
-  const minTime = now - 24 * 60 * 60 * 1000;
+  const minTime = now - hours * 60 * 60 * 1000;
   const maxTime = now;
-  const maxValue = Math.max(1, ...data.map((item) => item.value));
+  const visible=data.filter(item=>!hidden.includes(item.application)&&item.time.getTime()>=minTime&&item.time.getTime()<=now);
+  const maxValue = Math.max(1, ...visible.map((item) => item.value));
   const applications = [...new Set(data.map((item) => item.application))];
   const x = (time: number) => padding.left + ((time - minTime) / Math.max(1, maxTime - minTime)) * (width - padding.left - padding.right);
   const y = (value: number) => height - padding.bottom - (value / maxValue) * (height - padding.top - padding.bottom);
   const yTicks = [0, 0.25, 0.5, 0.75, 1];
-  const xTicks = [0, 0.2, 0.4, 0.6, 0.8, 1];
+  const xTicks = width < 500 ? [0, 0.5, 1] : [0, 0.2, 0.4, 0.6, 0.8, 1];
   const seriesColor = (index: number) =>
     chartColors[index % chartColors.length];
 
   return (
     <div className="overview-chart" ref={chartRef}>
+      <div className="overview-chart-toolbar">
       <div className="overview-chart-legend">
         {applications.map((application, index) => (
-          <span key={application}>
+          <button key={application} aria-pressed={!hidden.includes(application)} onClick={()=>setHidden(v=>v.includes(application)?v.filter(a=>a!==application):[...v,application])}>
             <i style={{ background: seriesColor(index) }} />
-            {application}
-          </span>
+            <span title={application}>{application}</span>
+          </button>
         ))}
+      </div>
+      <div className="overview-chart-controls" aria-label={tr('时间范围','Time range')}>{[1,6,24].map(h=><button key={h} aria-pressed={hours===h} onClick={()=>setHours(h)}>{h}{tr(' 小时','h')}</button>)}</div>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Application traffic chart">
         <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} className="overview-chart-axis" />
@@ -160,12 +160,14 @@ function TrafficChart({
           return <g key={`x-${tick}`}><line x1={tickX} x2={tickX} y1={height - padding.bottom} y2={height - padding.bottom + 5} className="overview-chart-axis" /><text x={tickX} y={height - 15} textAnchor={tick === 0 ? 'start' : tick === 1 ? 'end' : 'middle'}>{formatChartTime(new Date(tickTime))}</text></g>;
         })}
         {applications.map((application, index) => {
-          const applicationData = data.filter((item) => item.application === application);
-          const points = applicationData.map((item) => `${x(item.time.getTime())},${y(item.value)}`).join(' ');
+          const applicationData = visible.filter((item) => item.application === application);
+          const segments:TrafficPoint[][]=[];
+          for(const point of applicationData){const last=segments.at(-1);if(!last||point.time.getTime()-last[last.length-1].time.getTime()>90*1000)segments.push([point]);else last.push(point);}
+          const curve=(points:TrafficPoint[])=>points.map((p,i)=>{const px=x(p.time.getTime()),py=y(p.value);if(!i)return `M ${px},${py}`;const prev=points[i-1],ax=x(prev.time.getTime()),ay=y(prev.value),mid=(ax+px)/2;return `C ${mid},${ay} ${mid},${py} ${px},${py}`;}).join(' ');
           return (
             <g key={application}>
-              <polyline
-                points={points}
+              {segments.map((segment,i)=><g key={i}><path
+                d={curve(segment)}
                 fill="none"
                 stroke={seriesColor(index)}
                 strokeWidth="1.8"
@@ -173,20 +175,20 @@ function TrafficChart({
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
-              {applicationData.length === 1 ? (
+              {segment.length === 1 ? (
                 <circle
-                  cx={x(applicationData[0].time.getTime())}
-                  cy={y(applicationData[0].value)}
+                  cx={x(segment[0].time.getTime())}
+                  cy={y(segment[0].value)}
                   r="4"
                   fill={seriesColor(index)}
                   stroke="rgb(var(--surface))"
                   strokeWidth="2"
                 />
-              ) : null}
+              ) : null}</g>)}
             </g>
           );
         })}
-        {!data.length ? <text className="overview-chart-empty-label" x={(padding.left + width - padding.right) / 2} y={(padding.top + height - padding.bottom) / 2} textAnchor="middle">{emptyText}</text> : null}
+        {!visible.length ? <text className="overview-chart-empty-label" x={(padding.left + width - padding.right) / 2} y={(padding.top + height - padding.bottom) / 2} textAnchor="middle">{data.length?tr('所选范围暂无可见采样','No visible samples in this range'):emptyText}</text> : null}
       </svg>
     </div>
   );
@@ -203,8 +205,12 @@ const DashboardPage: React.FC = () => {
   const [edgeData, setEdgeData] = useState<DistributionItem[]>([]);
   const [trafficData, setTrafficData] = useState<TrafficPoint[]>([]);
   const [trafficBytes, setTrafficBytes] = useState(0);
+  const [trafficError, setTrafficError] = useState(false);
+  const [hours,setHours]=useState(1);
+  const [sampleEnd,setSampleEnd]=useState(Date.now());
+  const trafficCache=useRef(new Map<number,{points:TrafficPoint[];bytes:number;end:number}>());
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (signal:AbortSignal) => {
     setLoading(true);
     try {
       const [devicesResponse, applicationsResponse, edgesResponse] =
@@ -213,6 +219,8 @@ const DashboardPage: React.FC = () => {
           getApplicationList({ page_size: 1000 }),
           getEdgeList({ page_size: 1000 }),
         ]);
+      if(signal.aborted)return;
+      if([devicesResponse,applicationsResponse,edgesResponse].some(r=>r.code!==200))throw Error('Resource query failed');
       const devices = devicesResponse.data?.devices || [];
       const applications = applicationsResponse.data?.applications || [];
       const edges = edgesResponse.data?.edges || [];
@@ -254,13 +262,26 @@ const DashboardPage: React.FC = () => {
       );
 
       const endTime = new Date();
-      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
-      const trafficResponse = await getTrafficMetricsList({
-        start_time: formatLocalTime(startTime),
-        end_time: formatLocalTime(endTime),
-        limit: 10000,
-      });
-      const metrics = trafficResponse.data?.metrics || [];
+      const startTime = new Date(endTime.getTime() - hours * 60 * 60 * 1000);
+      // Split dense minute samples into non-overlapping windows so idle samples
+      // do not consume the whole day's query limit and hide recent activity.
+      const windows = [];
+      for (let batch = 0; batch < hours; batch += 4) {
+      if(signal.aborted)return;
+      windows.push(...await Promise.all(Array.from({length: Math.min(4,hours-batch)}, (_, index) => {
+        const hour = batch + index;
+        const from = new Date(startTime.getTime() + hour * 3600000);
+        const to = new Date(Math.min(endTime.getTime(), from.getTime() + 3600000));
+        return getTrafficMetricsList({start_time: from.toISOString(), end_time: to.toISOString(), limit:10000},signal);
+      })));
+      }
+      if(signal.aborted)return;
+      if(windows.some(response=>response.code!==200))throw Error('Traffic query failed');
+      if (windows.some(response => (response.data?.metrics?.length || 0) >= 10000)) {
+        throw new Error('Traffic sample window reached its query limit');
+      }
+      const metrics = [...new Map(windows.flatMap(response => response.data?.metrics || []).map(metric =>
+        [`${metric.application_id}:${metric.proxy_id}:${metric.timestamp}`, metric] as const)).values()];
       const applicationNames = new Map(
         applications.map((application) => [application.id, application.name]),
       );
@@ -272,8 +293,8 @@ const DashboardPage: React.FC = () => {
 
       metrics.forEach((metric) => {
         const date = new Date(metric.timestamp);
-        if (Number.isNaN(date.getTime())) return;
-        date.setMinutes(Math.floor(date.getMinutes() / 10) * 10, 0, 0);
+        if (Number.isNaN(date.getTime()) || date.getTime()<startTime.getTime() || date.getTime()>endTime.getTime()) return;
+        date.setSeconds(0, 0);
         const bytes =
           numberValue(metric.bytes_in) + numberValue(metric.bytes_out);
         totalBytes += bytes;
@@ -293,26 +314,34 @@ const DashboardPage: React.FC = () => {
       });
 
       setTrafficBytes(totalBytes);
-      setTrafficData(
-        [...buckets.values()]
+      setTrafficError(false);
+      const points = [...buckets.values()]
           .map((bucket) => ({
             time: bucket.time,
             application: bucket.application,
-            value: ((bucket.bytes / Math.max(1, bucket.samples)) * 8) / 60,
+            value: (bucket.bytes * 8) / 60,
           }))
-          .sort((left, right) => left.time.getTime() - right.time.getTime()),
-      );
+          .sort((left, right) => left.time.getTime() - right.time.getTime());
+      setTrafficData(points);
+      setSampleEnd(endTime.getTime());
+      trafficCache.current.set(hours,{points,bytes:totalBytes,end:endTime.getTime()});
     } catch {
+      if(signal.aborted)return;
       // Preserve the latest successful dashboard snapshot on transient failures.
+      setTrafficError(true);
     } finally {
-      setLoading(false);
+      if(!signal.aborted)setLoading(false);
     }
-  }, [tr]);
+  }, [tr,hours]);
 
   useEffect(() => {
-    void loadDashboard();
-    const timer = window.setInterval(() => void loadDashboard(), 30_000);
-    return () => window.clearInterval(timer);
+    const controller=new AbortController();let running=false;
+    const cached=trafficCache.current.get(hours);
+    setTrafficData(cached?.points||[]);setTrafficBytes(cached?.bytes||0);setSampleEnd(cached?.end||Date.now());setTrafficError(false);
+    const refresh=async()=>{if(running)return;running=true;try{await loadDashboard(controller.signal);}finally{running=false;}};
+    if(!cached||Date.now()-cached.end>=30000)void refresh();else setLoading(false);
+    const timer = window.setInterval(() => void refresh(), 30_000);
+    return () => {controller.abort();window.clearInterval(timer);};
   }, [loadDashboard]);
 
   const deviceTotal = useMemo(
@@ -408,7 +437,7 @@ const DashboardPage: React.FC = () => {
       })),
       latestRate: latestPoint?.value || 0,
       peakRate: Math.max(0, ...totalTrafficData.map((point) => point.value)),
-      activeApplications: rankedApplications.length,
+      activeApplications: rankedApplications.filter(item => item.value > 0).length,
     };
   }, [otherTrafficLabel, totalTrafficData, trafficData]);
 
@@ -416,7 +445,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="overview-page">
-      <div className={`overview-content${loading ? ' is-loading' : ''}`}>
+      <div className="overview-content" aria-busy={loading}>
         <div className="overview-summaries">
           <SummaryCard
             icon={HardDrive}
@@ -440,12 +469,12 @@ const DashboardPage: React.FC = () => {
           />
           <SummaryCard
             icon={Activity}
-            label={tr('24 小时流量', '24h traffic')}
-            value={formatBytes(trafficBytes)}
+            label={tr(`${hours} 小时流量`, `${hours}h traffic`)}
+            value={loading&&!trafficCache.current.has(hours)?'—':formatBytes(trafficBytes)}
             details={[
               {
                 label: tr('平均速率', 'Average rate'),
-                value: formatTraffic((trafficBytes * 8) / (24 * 60 * 60)),
+                value: formatTraffic((trafficBytes * 8) / (hours * 60 * 60)),
               },
               {
                 label: tr('活跃应用', 'Active applications'),
@@ -459,9 +488,11 @@ const DashboardPage: React.FC = () => {
           <header>
             <div>
               <h2>{tr('流量趋势', 'Traffic trend')}</h2>
-              <p>{tr('活跃应用流量，最近 24 小时', 'Active application traffic over the last 24 hours')}</p>
+              <p>{tr(`活跃应用流量，最近 ${hours} 小时`, `Active application traffic over the last ${hours} hours`)}</p>
+              {loading&&<p role="status">{tr('正在更新…','Updating…')}</p>}
+              {trafficError && <p role="status">{trafficCache.current.has(hours)?tr('流量数据未完整加载，当前保留上次结果。','Traffic data could not be fully loaded. Previous results are retained.'):tr('流量数据加载失败，请稍后重试。','Could not load traffic data. Please try again later.')}</p>}
             </div>
-            <span>{tr('10 分钟粒度', '10-minute intervals')}</span>
+            <span>{tr('1 分钟粒度', '1-minute intervals')}</span>
           </header>
           <div className="overview-traffic-kpis">
             <div>
@@ -480,7 +511,8 @@ const DashboardPage: React.FC = () => {
           <div className="overview-traffic-layout">
             <TrafficChart
               data={trafficOverview.chartData}
-              emptyText={tr('最近 24 小时暂无流量', 'No traffic in the last 24 hours')}
+              hours={hours} setHours={setHours} now={sampleEnd}
+              emptyText={loading?tr('加载中…','Loading…'):tr('所选范围暂无流量', 'No traffic in this range')}
             />
             <aside className="overview-traffic-composition">
               <header>

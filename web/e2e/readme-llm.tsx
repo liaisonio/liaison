@@ -1,0 +1,16 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter,Routes,Route} from 'react-router-dom';
+import {AppLayout} from '../src/components/layout/AppLayout';
+import ProxyPage from '../src/pages/Proxy';
+import {RuntimeBridge} from '../src/lib/runtime';
+import {useSession} from '../src/store/session';
+import {usePermissions} from '../src/store/permissions';
+import {applyThemeOnBoot} from '../src/store/theme';
+import '../src/styles/index.css';
+if(!import.meta.env.DEV)throw Error('Development fixture only');
+applyThemeOnBoot();
+useSession.getState().setToken('readme-fixture');
+void useSession.getState().setInitialState({currentUser:{id:1,name:'Workspace Admin'} as API.CurrentUser});
+usePermissions.setState({owner:'readme-fixture',loaded:true,grants:{'ai.access.use':true,'ai.home.use':true}});
+createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/proxy?category=llm']}><RuntimeBridge/><Routes><Route element={<AppLayout/>}><Route path="/proxy" element={<ProxyPage/>}/></Route></Routes></MemoryRouter>);

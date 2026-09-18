@@ -24,8 +24,8 @@ const (
 func isWebOnlyCapableApplicationType(appType model.ApplicationType) bool {
 	switch appType {
 	case model.ApplicationTypeSSH, model.ApplicationTypeRDP, model.ApplicationTypeVNC,
-		model.ApplicationTypeMySQL, model.ApplicationTypeMariaDB, model.ApplicationTypeSQLServer, model.ApplicationTypeOracle, model.ApplicationTypeClickHouse, model.ApplicationTypePostgreSQL, model.ApplicationTypeRedis,
-		model.ApplicationTypeMongoDB, model.ApplicationTypeElasticsearch, model.ApplicationTypeOpenSearch, model.ApplicationTypeMemcached, model.ApplicationTypeS3, model.ApplicationTypeDatabase:
+		model.ApplicationTypeMySQL, model.ApplicationTypeMariaDB, model.ApplicationTypeDoris, model.ApplicationTypeStarRocks, model.ApplicationTypeTiDB, model.ApplicationTypeSQLServer, model.ApplicationTypeOracle, model.ApplicationTypeDameng, model.ApplicationTypeClickHouse, model.ApplicationTypePostgreSQL, model.ApplicationTypeRedis,
+		model.ApplicationTypeMongoDB, model.ApplicationTypeElasticsearch, model.ApplicationTypeOpenSearch, model.ApplicationTypeMemcached, model.ApplicationTypeS3, model.ApplicationTypeSMB, model.ApplicationTypeDatabase:
 		return true
 	default:
 		return false
@@ -35,7 +35,7 @@ func isWebOnlyCapableApplicationType(appType model.ApplicationType) bool {
 func isWebOnlyProxy(proxy *model.Proxy, application *model.Application) bool {
 	return proxy != nil &&
 		application != nil &&
-		!accessProtocolRequiresPublicPort(effectiveAccessProtocol(proxy, application))
+		(!accessProtocolRequiresPublicPort(effectiveAccessProtocol(proxy, application)) || sharedHTTPEntry(proxy, application))
 }
 
 // stopProxyRuntime stops the data-plane listener for proxy and revokes any

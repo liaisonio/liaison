@@ -51,6 +51,7 @@ export function ToolMessage({ name, content, command }: { name: string; content:
     'terminal.read': tr('读取终端', 'Read terminal'), 'terminal.execute': tr('执行命令', 'Run command'),
     'core.tool_search': tr('查找工具', 'Find tools'), 'core.tool_describe': tr('加载工具', 'Load tools'),
     'data.schema': tr('查看数据结构', 'Inspect schema'), 'data.query': tr('执行查询', 'Run query'),
+    'access.list': tr('查找访问入口', 'Find access entries'), 'llm.get': tr('查看模型与用量', 'Inspect models and usage'),
   };
   return <details className={`agent-tool-result${failed ? ' is-error' : ''}`}>
     <summary><ChevronRight size={13} />{failed ? <CircleAlert size={14} /> : <Terminal size={14} />}<span>{labels[name] || name}</span><small>{timedOut ? tr('超时', 'Timed out') : failed ? tr('未完成', 'Failed') : tr('完成', 'Done')}</small></summary>

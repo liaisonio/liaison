@@ -1,0 +1,20 @@
+syntax = "proto3";
+package liaison.webentry.v1;
+option go_package = "github.com/liaisonio/liaison/api/webentry/v1";
+
+// HTTP-only supplementary contract, like agent_settings.proto.
+// GET /api/v1/web-entries/capabilities requires an active console user.
+message Capabilities { bool domain = 1; }
+// POST /api/v1/web-entries/{id}/launch requires Bearer console authentication,
+// accesses.use, resource visibility and source-IP policy. No request body fields.
+// Response envelope: {code:200,data:{url:...}}.
+// URL contains a one-use 30-second ticket, never a console JWT/PAT. Must not be
+// logged/shared. On successful consumption the gateway sets an HttpOnly cookie
+// scoped to this access and redirects to a clean URL. Sessions last one hour.
+// Path-mode URLs use /access/{id}/web/. Legacy /_liaison/a/{id}/ routes remain
+// available with the same authorization and prefix-scoped cookies.
+message LaunchResult { string url = 1; }
+// Proxy/CreateProxyRequest/UpdateProxyRequest add http_entry_mode in v1/liaison.proto:
+// path, port, domain. Existing empty persisted values are port. Omitted updates
+// preserve the mode; new HTTP entries default to path unless a public port is
+// explicitly requested. Domain requires configured wildcard DNS and TLS.

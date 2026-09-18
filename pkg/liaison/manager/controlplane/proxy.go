@@ -50,7 +50,21 @@ func (cp *controlPlane) CreateProxy(ctx context.Context, req *v1.CreateProxyRequ
 	if err != nil {
 		return nil, err
 	}
-	requestedPort, err := cp.resolveCreateProxyPort(accessProtocol, int(req.Port))
+	entryMode := req.HttpEntryMode
+	if accessProtocol == model.AccessProtocolHTTP && entryMode == "" {
+		entryMode = "path"
+		if req.Port > 0 || req.ExposePublicPort {
+			entryMode = "port"
+		}
+	}
+	if err := cp.validateHTTPEntryMode(accessProtocol, entryMode); err != nil {
+		return nil, err
+	}
+	portProtocol := accessProtocol
+	if entryMode == "path" || entryMode == "domain" {
+		portProtocol = model.AccessProtocolWeb
+	}
+	requestedPort, err := cp.resolveCreateProxyPort(portProtocol, int(req.Port))
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +81,7 @@ func (cp *controlPlane) CreateProxy(ctx context.Context, req *v1.CreateProxyRequ
 		Port:           requestedPort,
 		ApplicationID:  uint(req.ApplicationId),
 		AccessProtocol: accessProtocol,
+		HTTPEntryMode:  entryMode,
 	}
 	err = cp.repo.CreateProxy(proxy)
 	if err != nil {
@@ -226,7 +241,29 @@ func (cp *controlPlane) UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequ
 	if req.Description != "" {
 		proxy.Description = req.Description
 	}
-	if req.ExposePublicPort != nil {
+	if req.HttpEntryMode != "" {
+		proxy.HTTPEntryMode = req.HttpEntryMode
+	}
+	if effectiveAccessProtocol(proxy, application) != model.AccessProtocolHTTP && req.HttpEntryMode == "" {
+		proxy.HTTPEntryMode = ""
+	}
+	if req.HttpEntryMode != "" || req.AccessProtocol != "" || req.Status == "running" {
+		if err := cp.validateHTTPEntryMode(effectiveAccessProtocol(proxy, application), proxy.HTTPEntryMode); err != nil {
+			return nil, err
+		}
+	}
+	if sharedHTTPEntry(proxy, application) {
+		proxy.Port = 0
+	} else if req.HttpEntryMode == "port" && proxy.Port == 0 {
+		port, err := cp.resolveCreateProxyPort(effectiveAccessProtocol(proxy, application), int(req.Port))
+		if err != nil {
+			return nil, err
+		}
+		if err := cp.ensureProxyPortAvailable(port, proxy.ID); err != nil {
+			return nil, err
+		}
+		proxy.Port = port
+	} else if req.ExposePublicPort != nil {
 		port, err := cp.resolveUpdateProxyPort(effectiveAccessProtocol(proxy, application), proxy, int(req.Port), req.GetExposePublicPort())
 		if err != nil {
 			return nil, err
@@ -265,7 +302,7 @@ func (cp *controlPlane) UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequ
 	statusChanged := oldProxy.Status != proxy.Status
 	portChanged := oldProxy.Port != proxy.Port
 	protocolChanged := oldProxy.AccessProtocol != proxy.AccessProtocol
-	runtimeChanged := statusChanged || portChanged || protocolChanged
+	runtimeChanged := statusChanged || portChanged || protocolChanged || oldProxy.HTTPEntryMode != proxy.HTTPEntryMode
 
 	oldRuntimeEligible := false
 	if oldProxy.Status == model.ProxyStatusRunning {
@@ -389,6 +426,13 @@ func (cp *controlPlane) transformProxy(proxy *model.Proxy) *v1.Proxy {
 		}
 	}
 
+	entryMode := ""
+	if effectiveAccessProtocol(proxy, proxy.Application) == model.AccessProtocolHTTP {
+		entryMode = httpEntryMode(proxy)
+	}
+	if sharedHTTPEntry(proxy, proxy.Application) {
+		accessURL = cp.httpEntryURL(proxy)
+	}
 	return &v1.Proxy{
 		Id:                     uint64(proxy.ID),
 		Name:                   proxy.Name,
@@ -403,6 +447,7 @@ func (cp *controlPlane) transformProxy(proxy *model.Proxy) *v1.Proxy {
 		EffectiveStatusMessage: effectiveStatusMessage,
 		ExposePublicPort:       proxy.Port > 0,
 		AccessProtocol:         string(effectiveAccessProtocol(proxy, proxy.Application)),
+		HttpEntryMode:          entryMode,
 	}
 }
 

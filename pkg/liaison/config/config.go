@@ -49,6 +49,7 @@ type Agent struct {
 }
 
 type Manager struct {
+	WebDomain        string        `yaml:"web_domain,omitempty" json:"web_domain"`
 	Listen           config.Listen `yaml:"listen,omitempty" json:"listen"`
 	DB               string        `yaml:"db,omitempty" json:"db"`
 	ServerURL        string        `yaml:"server_url,omitempty" json:"server_url"`                 // 服务器地址，用于生成安装命令

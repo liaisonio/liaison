@@ -9,10 +9,14 @@ E2E_UI_URL=http://127.0.0.1:8000 node web/e2e/run-fixtures.cjs
 ```
 
 Set `PLAYWRIGHT_MODULE` when Playwright is installed outside this repository.
-The runner executes 26 deterministic browser/protocol suites and prints the
+The runner executes 41 deterministic browser/protocol suites and prints the
 temporary directory containing per-suite logs and a JSON report. Keep frontend
 sources unchanged during the run: Vite hot reload can invalidate an active test.
 This is not a runner for all live-service integrations.
+
+The additional coverage includes native LLM application/access types, usage
+ranges and zero/unknown/error states, temporary copy feedback, Agent handoff,
+Web entry modes, SMB, Dameng, offline devices and dashboard traffic.
 
 ### Branch reconciliation verification (2026-09-18)
 

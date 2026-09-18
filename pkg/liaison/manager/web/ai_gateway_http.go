@@ -80,7 +80,7 @@ func (web *web) handleAIGatewayHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/ai/"), "/")
-	if len(parts) < 2 || r.URL.RawQuery != "" || r.URL.RawPath != "" {
+	if len(parts) < 2 || r.URL.RawPath != "" {
 		aiError(w, 400)
 		return
 	}
@@ -91,7 +91,13 @@ func (web *web) handleAIGatewayHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	id := uint(parsed)
 	suffix := strings.Join(parts[2:], "/")
-	if parts[0] == "accesses" && strings.HasPrefix(suffix, "v1/") {
+	_, geminiStream, geminiRoute := aigateway.GeminiOperation(suffix)
+	usageQuery := parts[0] == "accesses" && suffix == "usage" && r.Method == "GET" && validUsageQuery(r.URL.RawQuery)
+	if r.URL.RawQuery != "" && !usageQuery && !(parts[0] == "accesses" && geminiRoute && geminiStream && r.Method == "POST" && r.URL.RawQuery == "alt=sse") {
+		aiError(w, 400)
+		return
+	}
+	if parts[0] == "accesses" && (strings.HasPrefix(suffix, "v1/") || strings.HasPrefix(suffix, "api/") || strings.HasPrefix(suffix, "v1beta/")) {
 		web.handleAIInference(w, r, id, suffix, false)
 		return
 	}
@@ -162,7 +168,21 @@ func (web *web) handleAIGatewayHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	case parts[0] == "accesses" && suffix == "usage" && r.Method == "GET":
-		data, err = web.aiGateway.TokenUsage(ctx, id)
+		hours := 720
+		if raw, exists := r.URL.Query()["hours"]; exists {
+			if len(raw) != 1 {
+				err = controlplane.ErrAIInvalid
+			} else {
+				var parseErr error
+				hours, parseErr = strconv.Atoi(raw[0])
+				if parseErr != nil {
+					err = controlplane.ErrAIInvalid
+				}
+			}
+		}
+		if err == nil {
+			data, err = web.aiGateway.TokenUsage(ctx, id, hours)
+		}
 	default:
 		aiError(w, 405)
 		return
@@ -174,15 +194,34 @@ func (web *web) handleAIGatewayHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"code": 200, "message": "success", "data": data})
 }
 
+func validUsageQuery(raw string) bool {
+	return raw == "hours=1" || raw == "hours=6" || raw == "hours=24" || raw == "hours=168" || raw == "hours=720"
+}
+
 // handleAIInference exposes protocol-native JSON/SSE, never dashboard cookies.
 // @Summary Call an authorized internal model through its Liaison connector
 // @Router /api/v1/ai/accesses/{id}/v1/models [get]
 // @Router /api/v1/ai/accesses/{id}/v1/chat/completions [post]
 // @Router /api/v1/ai/accesses/{id}/v1/messages [post]
+// @Router /api/v1/ai/accesses/{id}/v1/responses [post]
+// @Router /api/v1/ai/accesses/{id}/api/v3/responses [post]
+// @Router /api/v1/ai/accesses/{id}/api/v3/chat/completions [post]
+// @Router /api/v1/ai/accesses/{id}/api/v1/services/aigc/text-generation/generation [post]
+// @Router /api/v1/ai/accesses/{id}/api/chat [post]
+// @Router /api/v1/ai/accesses/{id}/api/tags [get]
+// @Router /api/v1/ai/accesses/{id}/v1beta/models/{alias}:generateContent [post]
+// @Router /api/v1/ai/accesses/{id}/v1beta/models/{alias}:streamGenerateContent [post]
 // @Success 200 {object} map[string]interface{}
 func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uint, operation string, debug bool) {
 	nativeMessages := operation == "v1/messages"
-	if !(operation == "v1/models" && r.Method == "GET" || (operation == "v1/chat/completions" || nativeMessages) && r.Method == "POST") {
+	nativeOllama := operation == "api/chat"
+	nativeTags := operation == "api/tags"
+	nativeGeminiModels := operation == "v1beta/models"
+	nativeQwen := operation == "api/v1/services/aigc/text-generation/generation"
+	nativeResponses := operation == "v1/responses" || operation == "api/v3/responses"
+	arkChat := operation == "api/v3/chat/completions"
+	geminiAlias, geminiStream, nativeGemini := aigateway.GeminiOperation(operation)
+	if !((operation == "v1/models" || nativeTags || nativeGeminiModels) && r.Method == "GET" || (operation == "v1/chat/completions" || nativeMessages || nativeOllama || nativeGemini || nativeQwen || nativeResponses || arkChat) && r.Method == "POST") {
 		aiError(w, 405)
 		return
 	}
@@ -194,6 +233,9 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 		grant, err = web.aiGateway.DebugGrant(ctx, id)
 	} else {
 		secret, ok := aiInferenceKey(r, nativeMessages)
+		if nativeGemini || nativeGeminiModels {
+			secret, ok = geminiInferenceKey(r)
+		}
 		if !ok {
 			aiError(w, 401)
 			return
@@ -209,6 +251,40 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 		return
 	}
 	defer grant.Upstream.Close()
+	if nativeQwen && grant.Protocol != "qwen" || strings.HasPrefix(operation, "api/v3/") && grant.Protocol != "ark" || operation == "v1/responses" && grant.Protocol != "openai" && grant.Protocol != "ark" {
+		aiError(w, 400, "UNSUPPORTED_PROTOCOL_CAPABILITY")
+		return
+	}
+	codecProtocol := aigateway.ChatProtocol(grant.Protocol)
+	playgroundNative := debug && (grant.Protocol == "qwen" || grant.Protocol == "gemini")
+	if nativeQwen && (len(r.Header.Values("X-DashScope-SSE")) > 1 || r.Header.Get("X-DashScope-SSE") != "" && r.Header.Get("X-DashScope-SSE") != "enable") {
+		aiError(w, 400)
+		return
+	}
+	if (nativeGemini || nativeGeminiModels) && grant.Protocol != "gemini" {
+		aiError(w, 400, "UNSUPPORTED_PROTOCOL_CAPABILITY")
+		return
+	}
+	if (nativeOllama || nativeTags) && grant.Protocol != "ollama" {
+		aiError(w, 400, "UNSUPPORTED_PROTOCOL_CAPABILITY")
+		return
+	}
+	if nativeTags {
+		items := make([]map[string]string, 0, len(grant.Models))
+		for _, alias := range aigateway.ModelAliases(grant.Models) {
+			items = append(items, map[string]string{"name": alias, "model": alias})
+		}
+		writeJSON(w, 200, map[string]any{"models": items})
+		return
+	}
+	if nativeGeminiModels {
+		items := make([]map[string]any, 0, len(grant.Models))
+		for _, alias := range aigateway.ModelAliases(grant.Models) {
+			items = append(items, map[string]any{"name": "models/" + alias, "displayName": alias, "supportedGenerationMethods": []string{"generateContent"}})
+		}
+		writeJSON(w, 200, map[string]any{"models": items})
+		return
+	}
 	if nativeMessages && (grant.Protocol != "anthropic" || r.Header.Get("anthropic-beta") != "" || r.Header.Get("anthropic-version") != "" && r.Header.Get("anthropic-version") != "2023-06-01") {
 		aiError(w, 400, "UNSUPPORTED_PROTOCOL_CAPABILITY")
 		return
@@ -235,10 +311,20 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 		return
 	}
 	var prepared aigateway.Prepared
-	if nativeMessages {
+	if playgroundNative {
+		prepared, err = aigateway.PreparePlayground(raw, grant.Models, grant.Protocol)
+	} else if nativeResponses {
+		prepared, err = aigateway.PrepareResponses(raw, grant.Models)
+	} else if nativeQwen {
+		prepared, err = aigateway.PrepareQwen(raw, grant.Models, r.Header.Get("X-DashScope-SSE") == "enable")
+	} else if nativeMessages {
 		prepared, err = aigateway.PrepareMessages(raw, grant.Models)
+	} else if nativeOllama {
+		prepared, err = aigateway.PrepareOllamaChat(raw, grant.Models)
+	} else if nativeGemini {
+		prepared, err = aigateway.PrepareGemini(raw, geminiAlias, geminiStream, grant.Models)
 	} else {
-		prepared, err = aigateway.Prepare(raw, grant.Models, grant.Protocol)
+		prepared, err = aigateway.Prepare(raw, grant.Models, codecProtocol)
 	}
 	if err != nil {
 		aiError(w, aiStatus(err))
@@ -262,7 +348,7 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 		}
 		return
 	}
-	if grant.Metered && prepared.Stream && grant.Protocol == "openai-compatible" {
+	if grant.Metered && prepared.Stream && codecProtocol == "openai-compatible" && !nativeResponses {
 		if err = aigateway.IncludeStreamUsage(&prepared); err != nil {
 			aiError(w, 400)
 			return
@@ -271,13 +357,7 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 	started := time.Now()
 	usage := aigateway.Usage{}
 	defer func() {
-		record.DurationMS = time.Since(started).Milliseconds()
-		record.InputTokens = usage.Input
-		record.OutputTokens = usage.Output
-		record.Complete = usage.Complete
-		if ctx.Err() != nil {
-			record.Status = 499
-		}
+		finalizeAIRequest(ctx, record, usage, time.Since(started))
 		auditCtx, stop := context.WithTimeout(context.Background(), 3*time.Second)
 		defer stop()
 		if err := web.aiGateway.Record(auditCtx, record); err != nil {
@@ -304,7 +384,7 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 			}
 		}
 	}()
-	resp, err := grant.Upstream.RequestProtocol(ctx, "POST", prepared.Operation, grant.UpstreamKey, grant.Protocol, bytes.NewReader(prepared.Body))
+	resp, err := grant.Upstream.RequestProtocolStream(ctx, "POST", prepared.Operation, grant.UpstreamKey, grant.Protocol, bytes.NewReader(prepared.Body), prepared.Stream)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			record.Status = 504
@@ -340,6 +420,9 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 			return
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
+		if nativeOllama {
+			w.Header().Set("Content-Type", "application/x-ndjson")
+		}
 		w.Header().Set("X-Accel-Buffering", "no")
 		controller := http.NewResponseController(w)
 		emit := func(data []byte) error {
@@ -348,16 +431,30 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 			}
 			return controller.Flush()
 		}
-		if nativeMessages {
+		if playgroundNative {
+			err = aigateway.RelayPlayground(resp.Body, grant.Protocol, prepared.Alias, emit, &usage)
+		} else if nativeResponses {
+			err = aigateway.RelayResponsesSSE(resp.Body, prepared.Alias, emit, &usage)
+		} else if nativeQwen {
+			err = aigateway.RelayQwenSSE(resp.Body, emit, &usage)
+		} else if nativeMessages {
 			err = aigateway.RelayMessagesSSE(resp.Body, prepared.Alias, emit, &usage)
+		} else if nativeOllama {
+			err = aigateway.RelayOllamaChat(resp.Body, prepared.Alias, emit, &usage)
+		} else if nativeGemini {
+			err = aigateway.RelayGeminiSSE(resp.Body, prepared.Alias, emit, &usage)
 		} else {
-			err = aigateway.RelaySSE(resp.Body, grant.Protocol, prepared.Alias, emit, &usage)
+			err = aigateway.RelaySSE(resp.Body, codecProtocol, prepared.Alias, emit, &usage)
 		}
 		if err != nil {
 			// Stream already started: emit a sanitized error, never a successful DONE.
 			errorFrame := "data: {\"error\":{\"type\":\"upstream_error\",\"message\":\"Stream interrupted\"}}\n\n"
 			if nativeMessages {
 				errorFrame = "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Stream interrupted\"}}\n\n"
+			} else if nativeOllama {
+				errorFrame = "{\"error\":\"Stream interrupted\"}\n"
+			} else if nativeGemini {
+				errorFrame = "data: {\"error\":{\"code\":502,\"status\":\"UNAVAILABLE\",\"message\":\"Stream interrupted\"}}\n\n"
 			}
 			if _, e := io.WriteString(w, errorFrame); e == nil {
 				if e = controller.Flush(); e != nil {
@@ -372,10 +469,18 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 			aiError(w, 502)
 			return
 		}
-		if nativeMessages {
+		if nativeResponses {
+			body, e = aigateway.RewriteResponsesJSON(body, prepared.Alias, &usage)
+		} else if nativeQwen {
+			body, e = aigateway.RewriteQwenJSON(body, &usage)
+		} else if nativeMessages {
 			body, e = aigateway.RewriteMessagesJSON(body, prepared.Alias, &usage)
+		} else if nativeOllama {
+			body, e = aigateway.RewriteOllamaChatJSON(body, prepared.Alias, &usage)
+		} else if nativeGemini {
+			body, e = aigateway.RewriteGeminiJSON(body, prepared.Alias, &usage)
 		} else {
-			body, e = aigateway.RewriteJSON(body, grant.Protocol, prepared.Alias, &usage)
+			body, e = aigateway.RewriteJSON(body, codecProtocol, prepared.Alias, &usage)
 		}
 		if e != nil {
 			aiError(w, 502)
@@ -390,6 +495,21 @@ func (web *web) handleAIInference(w http.ResponseWriter, r *http.Request, id uin
 	record.Status = 200
 }
 
+func finalizeAIRequest(ctx context.Context, record *model.AIRequest, usage aigateway.Usage, duration time.Duration) {
+	record.DurationMS = duration.Milliseconds()
+	record.InputTokens = usage.Input
+	record.OutputTokens = usage.Output
+	record.Complete = usage.Complete
+	switch ctx.Err() {
+	case context.DeadlineExceeded:
+		record.Status = http.StatusGatewayTimeout
+		record.Complete = false
+	case context.Canceled:
+		record.Status = 499
+		record.Complete = false
+	}
+}
+
 func aiInferenceKey(r *http.Request, nativeMessages bool) (string, bool) {
 	if nativeMessages && len(r.Header.Values("x-api-key")) > 0 {
 		values := r.Header.Values("x-api-key")
@@ -399,4 +519,18 @@ func aiInferenceKey(r *http.Request, nativeMessages bool) (string, bool) {
 		return values[0], true
 	}
 	return bearerToken(r)
+}
+
+func geminiInferenceKey(r *http.Request) (string, bool) {
+	if len(r.Header.Values("x-api-key")) != 0 {
+		return "", false
+	}
+	values := r.Header.Values("x-goog-api-key")
+	if len(values) == 0 {
+		return bearerToken(r)
+	}
+	if len(values) != 1 || len(r.Header.Values("Authorization")) != 0 || strings.TrimSpace(values[0]) == "" || strings.TrimSpace(values[0]) != values[0] {
+		return "", false
+	}
+	return values[0], true
 }

@@ -10,6 +10,15 @@ import (
 
 type ApplicationType string
 
+func IsLLMApplicationType(t ApplicationType) bool {
+	switch t {
+	case "llm", "openai", "openai-compatible", "anthropic", "ark", "qwen", "gemini", "ollama":
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	ApplicationTypeLLM           ApplicationType = "llm"
 	ApplicationTypeTCP           ApplicationType = "tcp"  // TCP 应用
@@ -19,8 +28,13 @@ const (
 	ApplicationTypeVNC           ApplicationType = "vnc"  // VNC 应用
 	ApplicationTypeMySQL         ApplicationType = "mysql"
 	ApplicationTypeMariaDB       ApplicationType = "mariadb"
+	ApplicationTypeDoris         ApplicationType = "doris"
+	ApplicationTypeStarRocks     ApplicationType = "starrocks"
+	ApplicationTypeTiDB          ApplicationType = "tidb"
+	ApplicationTypeSMB           ApplicationType = "smb"
 	ApplicationTypeSQLServer     ApplicationType = "sqlserver"
 	ApplicationTypeOracle        ApplicationType = "oracle"
+	ApplicationTypeDameng        ApplicationType = "dameng"
 	ApplicationTypeClickHouse    ApplicationType = "clickhouse"
 	ApplicationTypeElasticsearch ApplicationType = "elasticsearch"
 	ApplicationTypeOpenSearch    ApplicationType = "opensearch"

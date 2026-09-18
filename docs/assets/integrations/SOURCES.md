@@ -58,3 +58,5 @@ Ollama uses the existing [Simple Icons Ollama mark](https://github.com/simple-ic
 `memcached.svg` is the existing Memcached mark from
 [SVG Logos by Gil Barbara](https://github.com/gilbarbara/logos/blob/main/logos/memcached.svg).
 Used to identify the accessed service; brand rights remain with their owners.
+
+- `qwen.svg`, `ark.svg`: Lobe Icons static SVG 1.90.0 (`qwen-color.svg`, `volcengine-color.svg`), MIT; https://github.com/lobehub/lobe-icons . Existing LICENSE-lobe-icons.txt applies.

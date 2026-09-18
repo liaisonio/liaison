@@ -1,8 +1,12 @@
 export const protocolLabels: Record<string, string> = {
   mysql: 'MySQL',
   mariadb: 'MariaDB',
+  doris: 'Doris',
+  starrocks: 'StarRocks',
+  tidb: 'TiDB',
   sqlserver: 'SQL Server',
   oracle: 'Oracle',
+  dameng: 'Dameng',
   clickhouse: 'ClickHouse',
   elasticsearch: 'Elasticsearch',
   opensearch: 'OpenSearch',
@@ -13,7 +17,7 @@ export const protocolLabels: Record<string, string> = {
 };
 
 export const isSQLProtocol = (protocol?: string) =>
-  ['mysql', 'mariadb', 'sqlserver', 'oracle', 'clickhouse', 'postgresql'].includes(String(protocol || '').toLowerCase());
+  ['mysql', 'mariadb', 'doris', 'starrocks', 'tidb', 'sqlserver', 'oracle', 'dameng', 'clickhouse', 'postgresql'].includes(String(protocol || '').toLowerCase());
 
 type Translate = (zh: string, en: string) => string;
 

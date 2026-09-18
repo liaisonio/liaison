@@ -20,6 +20,9 @@ import { MessageContent, ToolMessage } from './MessageContent';
 import ModelSelector from './ModelSelector';
 import {ReferenceTags,useResourceMentions} from './ResourceMentions';
 import type {AgentModelSelection,AgentResourceReference} from '@/services/agent';
+import AccessResults from './AccessResults';
+import {accessDraft, discardAccessDraft, type AccessDraft} from './handoff';
+import {useLocation} from 'react-router-dom';
 
 type AgentWorkspaceProps = {
   onPreviewCode?: (text:string) => void;
@@ -68,6 +71,13 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
 
 function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docked = false, dockBreakpoint = 850, managementSessionId, initialBusy = false, accessSessionId, connectionId, accessId, connectionAvailable = true, onSessionReady, initialModelSelection, recoveredDraft, beforeSend, contextLabel, contextDescription, appendDraft, onDraftAppended, onPreviewCode }: AgentWorkspaceProps) {
   const { tr } = useI18n();
+  const location = useLocation();
+  const [incomingDraft, setIncomingDraft] = useState<AccessDraft>();
+  const handoffID = location.state?.agentHandoff;
+  useEffect(() => {
+    if (!managementSessionId && accessId && open && handleId && connectionAvailable) setIncomingDraft(accessDraft(handoffID, accessId));
+    else setIncomingDraft(undefined);
+  }, [handoffID, accessId, open, handleId, connectionAvailable, managementSessionId]);
   const [compact, setCompact] = useState(() => window.matchMedia(`(max-width: ${dockBreakpoint}px)`).matches);
   useEffect(() => {
     const media = window.matchMedia(`(max-width: ${dockBreakpoint}px)`);
@@ -350,6 +360,16 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
           <button type="button" onClick={onClose} aria-label={tr('关闭', 'Close')}><X size={18} /></button>
         </header>
         <div className="agent-workspace-body" ref={bodyRef}>
+          {incomingDraft && <div className="agent-handoff-preview">
+            <strong>{tr('来自首页的问题','Question from Home')} · {incomingDraft.name}</strong>
+            <p>{incomingDraft.prompt}</p>
+            <small>{tr('将追加到当前草稿，不会自动发送。','This will be appended to your draft, not sent automatically.')}</small>
+            <div><Button onClick={()=>{discardAccessDraft(handoffID);setIncomingDraft(undefined);}}>{tr('忽略','Dismiss')}</Button><Button variant="primary" onClick={()=>{
+              const draft = accessDraft(handoffID, accessId);
+              if (draft) setPrompt(current => current ? `${current}\n\n${draft.prompt}` : draft.prompt);
+              discardAccessDraft(handoffID);setIncomingDraft(undefined);inputRef.current?.focus();
+            }}>{tr('填入草稿','Use draft')}</Button></div>
+          </div>}
           {contextLabel && <div className="agent-workspace-context" title={contextLabel}>{tr('当前上下文','Current context')} · {contextLabel}<small>{contextDescription || tr('仅位置与元数据，不自动读取文件内容。','Location and metadata only. File contents are not read automatically.')}</small></div>}
           {loading ? <div className="agent-workspace-state"><span className="ui-spinner" />{tr('正在准备上下文…', 'Preparing context…')}</div> : null}
           {!loading && !detail && !error ? <div className="agent-workspace-state">{tr('当前连接不可用于 Agent。', 'Agent is unavailable for this connection.')}</div> : null}
@@ -357,12 +377,15 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
             <div className="agent-workspace-empty">
               <Bot size={24} />
               <strong>{managementSessionId ? tr('从你的资源开始', 'Start with your resources') : tr('从当前连接开始', 'Work with this connection')}</strong>
-              <p>{managementSessionId ? tr('查询你有权限查看的连接器、设备和应用。', 'Explore connectors, devices and applications you have access to.') : tr('Agent 只会看到当前协议允许披露的工具和上下文。执行敏感操作前会请求你的确认。', 'Agent only sees tools and context disclosed for this connection. Sensitive actions require your approval.')}</p>
+              <p>{managementSessionId ? tr('查找你可见的访问入口，了解资源状态、模型和用量。', 'Find your access entries and explore resource status, models and usage.') : tr('Agent 只会看到当前协议允许披露的工具和上下文。执行敏感操作前会请求你的确认。', 'Agent only sees tools and context disclosed for this connection. Sensitive actions require your approval.')}</p>
             </div>
           ) : null}
           {detail?.messages.filter((message) => message.value.role !== 'system').map((message) => (
             <article key={message.id} className={`agent-message is-${message.value.role}`}>
-              {message.value.role === 'tool' ? <ToolMessage name={message.value.tool_name || 'tool'} content={message.value.content || ''} /> : <>
+              {message.value.role === 'tool' ? <>
+                {managementSessionId && message.value.tool_name === 'access.list' && <AccessResults content={message.value.content || ''} question={[...detail.messages].filter(item=>item.sequence<message.sequence&&item.value.role==='user').pop()?.value.content||''}/>}
+                <ToolMessage name={message.value.tool_name || 'tool'} content={message.value.content || ''} />
+              </> : <>
                 <span>{message.value.role === 'user' ? tr('你', 'You') : 'Agent'}</span>
                 {message.value.references && <ReferenceTags references={message.value.references}/>}
                 {message.value.content && <MessageContent text={message.value.content} onPreviewCode={message.value.role === 'assistant' && !busy && connectionAvailable ? onPreviewCode : undefined} />}

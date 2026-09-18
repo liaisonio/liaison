@@ -100,8 +100,8 @@ export function AppLayout() {
     /^\/webdata\/(\d+)(?:\/connections\/(\d+))?(?:\/sessions\/[^/]+(?:\/agent\/[^/]+)?)?$/,
   );
   const isWebSFTPPage = /^\/websftp\/\d+\/?$/.test(location.pathname);
-  const isWebDataPage = Boolean(webDataRoute) || isAIAccessPage || isWebSFTPPage || location.pathname.startsWith('/webs3/');
-  const accessFallback=isAIAccessPage?'/proxy?access_type=aiapi':isWebSFTPPage?'/proxy?access_type=websftp':'/proxy';
+  const isWebDataPage = Boolean(webDataRoute) || isAIAccessPage || isWebSFTPPage || location.pathname.startsWith('/webs3/') || location.pathname.startsWith('/websmb/');
+  const accessFallback=isAIAccessPage?'/proxy?category=llm':isWebSFTPPage?'/proxy?access_type=websftp':'/proxy';
   const backToSource=useAccessBack(accessFallback);
 
   const fetchUserInfo = useCallback(async () => {

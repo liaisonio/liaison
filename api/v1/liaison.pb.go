@@ -2223,6 +2223,7 @@ type Proxy struct {
 	EffectiveStatusMessage string                 `protobuf:"bytes,11,opt,name=effective_status_message,proto3" json:"effective_status_message,omitempty"`
 	ExposePublicPort       bool                   `protobuf:"varint,12,opt,name=expose_public_port,proto3" json:"expose_public_port,omitempty"`
 	AccessProtocol         string                 `protobuf:"bytes,13,opt,name=access_protocol,proto3" json:"access_protocol,omitempty"`
+	HttpEntryMode          string                 `protobuf:"bytes,14,opt,name=http_entry_mode,proto3" json:"http_entry_mode,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -2344,6 +2345,13 @@ func (x *Proxy) GetExposePublicPort() bool {
 func (x *Proxy) GetAccessProtocol() string {
 	if x != nil {
 		return x.AccessProtocol
+	}
+	return ""
+}
+
+func (x *Proxy) GetHttpEntryMode() string {
+	if x != nil {
+		return x.HttpEntryMode
 	}
 	return ""
 }
@@ -2529,9 +2537,13 @@ type CreateProxyRequest struct {
 	Port             int32                  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
 	Description      string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	ExposePublicPort bool                   `protobuf:"varint,5,opt,name=expose_public_port,proto3" json:"expose_public_port,omitempty"`
-	AccessProtocol   string                 `protobuf:"bytes,6,opt,name=access_protocol,proto3" json:"access_protocol,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Includes websftp for browser-only SFTP access to an SSH application.
+	// Supported selections: tcp, http, ssh, webssh, websftp, web, aiapi.
+	// Native RDP/VNC/database servers are not implemented; use tcp or web.
+	AccessProtocol string `protobuf:"bytes,6,opt,name=access_protocol,proto3" json:"access_protocol,omitempty"`
+	HttpEntryMode  string `protobuf:"bytes,7,opt,name=http_entry_mode,proto3" json:"http_entry_mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateProxyRequest) Reset() {
@@ -2606,6 +2618,13 @@ func (x *CreateProxyRequest) GetAccessProtocol() string {
 	return ""
 }
 
+func (x *CreateProxyRequest) GetHttpEntryMode() string {
+	if x != nil {
+		return x.HttpEntryMode
+	}
+	return ""
+}
+
 type CreateProxyResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -2675,9 +2694,11 @@ type UpdateProxyRequest struct {
 	Status           string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Description      string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
 	ExposePublicPort *bool                  `protobuf:"varint,6,opt,name=expose_public_port,proto3,oneof" json:"expose_public_port,omitempty"`
-	AccessProtocol   string                 `protobuf:"bytes,7,opt,name=access_protocol,proto3" json:"access_protocol,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Explicit selections use the same supported protocols as creation.
+	AccessProtocol string `protobuf:"bytes,7,opt,name=access_protocol,proto3" json:"access_protocol,omitempty"`
+	HttpEntryMode  string `protobuf:"bytes,8,opt,name=http_entry_mode,proto3" json:"http_entry_mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateProxyRequest) Reset() {
@@ -2755,6 +2776,13 @@ func (x *UpdateProxyRequest) GetExposePublicPort() bool {
 func (x *UpdateProxyRequest) GetAccessProtocol() string {
 	if x != nil {
 		return x.AccessProtocol
+	}
+	return ""
+}
+
+func (x *UpdateProxyRequest) GetHttpEntryMode() string {
+	if x != nil {
+		return x.HttpEntryMode
 	}
 	return ""
 }
@@ -4371,7 +4399,7 @@ const file_liaison_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\"I\n" +
 	"\x19DeleteApplicationResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xcb\x03\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xf5\x03\n" +
 	"\x05Proxy\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -4392,7 +4420,8 @@ const file_liaison_proto_rawDesc = "" +
 	" \x01(\tR\x10effective_status\x12:\n" +
 	"\x18effective_status_message\x18\v \x01(\tR\x18effective_status_message\x12.\n" +
 	"\x12expose_public_port\x18\f \x01(\bR\x12expose_public_port\x12(\n" +
-	"\x0faccess_protocol\x18\r \x01(\tR\x0faccess_protocol\"A\n" +
+	"\x0faccess_protocol\x18\r \x01(\tR\x0faccess_protocol\x12(\n" +
+	"\x0fhttp_entry_mode\x18\x0e \x01(\tR\x0fhttp_entry_mode\"A\n" +
 	"\aProxies\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12 \n" +
 	"\aproxies\x18\x02 \x03(\v2\x06.ProxyR\aproxies\"Z\n" +
@@ -4403,18 +4432,19 @@ const file_liaison_proto_rawDesc = "" +
 	"\x13ListProxiesResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
-	"\x04data\x18\x03 \x01(\v2\b.ProxiesR\x04data\"\xe0\x01\n" +
+	"\x04data\x18\x03 \x01(\v2\b.ProxiesR\x04data\"\x8a\x02\n" +
 	"\x12CreateProxyRequest\x12&\n" +
 	"\x0eapplication_id\x18\x01 \x01(\x04R\x0eapplication_id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
 	"\x04port\x18\x03 \x01(\x05R\x04port\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12.\n" +
 	"\x12expose_public_port\x18\x05 \x01(\bR\x12expose_public_port\x12(\n" +
-	"\x0faccess_protocol\x18\x06 \x01(\tR\x0faccess_protocol\"_\n" +
+	"\x0faccess_protocol\x18\x06 \x01(\tR\x0faccess_protocol\x12(\n" +
+	"\x0fhttp_entry_mode\x18\a \x01(\tR\x0fhttp_entry_mode\"_\n" +
 	"\x13CreateProxyResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1a\n" +
-	"\x04data\x18\x03 \x01(\v2\x06.ProxyR\x04data\"\xfc\x01\n" +
+	"\x04data\x18\x03 \x01(\v2\x06.ProxyR\x04data\"\xa6\x02\n" +
 	"\x12UpdateProxyRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -4422,7 +4452,8 @@ const file_liaison_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x123\n" +
 	"\x12expose_public_port\x18\x06 \x01(\bH\x00R\x12expose_public_port\x88\x01\x01\x12(\n" +
-	"\x0faccess_protocol\x18\a \x01(\tR\x0faccess_protocolB\x15\n" +
+	"\x0faccess_protocol\x18\a \x01(\tR\x0faccess_protocol\x12(\n" +
+	"\x0fhttp_entry_mode\x18\b \x01(\tR\x0fhttp_entry_modeB\x15\n" +
 	"\x13_expose_public_port\"_\n" +
 	"\x13UpdateProxyResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +

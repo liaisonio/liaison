@@ -1,3 +1,4 @@
+import {uniqueProtocolFamilies} from '@/constants/llmProtocols';
 import {request} from '@/api/client';
 import LLMProtocol from '@/components/icons/LLMProtocol';
 import {useSession} from '@/store/session';
@@ -31,6 +32,6 @@ export default function LLMSummary({id,revision,field}:{id:number;revision?:stri
  }
  if(field==='models')return <span title={value.models.join(', ')}>{value.models.length?<><code>{value.models.slice(0,2).join(', ')}</code>{value.models.length>2?` +${value.models.length-2}`:''}</>:tr('未配置','Not configured')}</span>;
  const protocol=field==='external'?value.external_protocol:value.upstream_protocol;
- if(field==='external' && value.external_protocols?.includes('anthropic'))return <span className="liaison-inline-name"><LLMProtocol protocol="openai-compatible"/><LLMProtocol protocol="anthropic"/></span>;
+ if(field==='external' && value.external_protocols?.length)return <span className="liaison-inline-name">{uniqueProtocolFamilies(value.external_protocols).map(p=><LLMProtocol key={p} protocol={p}/>)}</span>;
  return <LLMProtocol protocol={protocol}/>;
 }

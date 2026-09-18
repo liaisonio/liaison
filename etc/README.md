@@ -20,11 +20,11 @@ development examples do not change the package installer.
 
 ## Remote development deployment
 
-The repository-root `deploy-liaison.sh` requires explicit target hosts:
+The development deployment script `scripts/deploy-liaison.sh` requires explicit target hosts:
 
 ```sh
-MANAGER_HOST=manager.example.com ./deploy-liaison.sh --web
-EDGE_HOST=edge.example.com ./deploy-liaison.sh --edge
+MANAGER_HOST=manager.example.com ./scripts/deploy-liaison.sh --web
+EDGE_HOST=edge.example.com ./scripts/deploy-liaison.sh --edge
 ```
 
 For a full deployment, provide both `MANAGER_HOST` and `EDGE_HOST`. SSH users and

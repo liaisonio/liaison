@@ -255,6 +255,7 @@ message Proxy {
     string effective_status_message = 11 [json_name = "effective_status_message"];
     bool expose_public_port = 12 [json_name = "expose_public_port"];
     string access_protocol = 13 [json_name = "access_protocol"];
+    string http_entry_mode = 14 [json_name = "http_entry_mode"];
 }
 
 message Proxies {
@@ -286,6 +287,7 @@ message CreateProxyRequest {
     // Supported selections: tcp, http, ssh, webssh, websftp, web, aiapi.
     // Native RDP/VNC/database servers are not implemented; use tcp or web.
     string access_protocol = 6 [json_name = "access_protocol"];
+    string http_entry_mode = 7 [json_name = "http_entry_mode"];
 }
 
 message CreateProxyResponse {
@@ -304,6 +306,7 @@ message UpdateProxyRequest {
     optional bool expose_public_port = 6 [json_name = "expose_public_port"];
     // Explicit selections use the same supported protocols as creation.
     string access_protocol = 7 [json_name = "access_protocol"];
+    string http_entry_mode = 8 [json_name = "http_entry_mode"];
 }
 
 message UpdateProxyResponse {

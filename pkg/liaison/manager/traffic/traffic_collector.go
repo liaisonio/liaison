@@ -84,10 +84,20 @@ func (tc *TrafficCollector) Flush() {
 
 // flush 将统计数据落盘
 func (tc *TrafficCollector) flush() {
+	// An explicit zero means the manager observed no traffic for this access.
+	// Query failure or a stopped collector must not manufacture zero samples.
+	proxies, err := tc.repo.ListProxies(&dao.ListProxiesQuery{})
+	if err != nil {
+		log.Errorf("failed to enumerate traffic sampling targets: %s", err)
+	}
 	tc.mu.Lock()
-	if len(tc.stats) == 0 {
-		tc.mu.Unlock()
-		return
+	if err == nil {
+		for _, proxy := range proxies {
+			key := trafficKey(proxy.ID, proxy.ApplicationID)
+			if _, exists := tc.stats[key]; !exists {
+				tc.stats[key] = &trafficStats{ProxyID: proxy.ID, ApplicationID: proxy.ApplicationID}
+			}
+		}
 	}
 
 	// 复制统计数据

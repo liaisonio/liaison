@@ -1,3 +1,4 @@
+import {isLLMAccessType} from '@/constants/accessTypes';
 import { useI18n } from '@/i18n';
 import {
   getWebDataTarget,
@@ -95,7 +96,7 @@ export default function ConnectionSummary({
   if (!supportsInitialConnection(type))
     return (
       <span className="liaison-connection-muted">
-        {type === 'aiapi'
+        {isLLMAccessType(type)
           ? tr('API 密钥认证', 'API key authentication')
           : tr('客户端认证', 'Client authentication')}
       </span>
@@ -127,7 +128,7 @@ export default function ConnectionSummary({
   if(field==='username')return <span title={c.username}>{c.username||'—'}</span>;
   if(field==='database')return <span title={c.database}>{type==='webredis'?String(c.redisDB??0):c.database||'—'}</span>;
   if (c.domain) details.push(`${tr('域', 'Domain')}: ${c.domain}`);
-  if (c.schema) details.push(`${type==='webs3'?'Region':'Schema'}: ${c.schema}`);
+  if (c.schema) details.push(`${type==='websmb'?tr('域','Domain'):type==='webs3'?'Region':'Schema'}: ${c.schema}`);
   if (type === 'webmongodb' && c.authDatabase)
     details.push(`${tr('认证库', 'Auth DB')}: ${c.authDatabase}`);
   if ((databaseAccessTypes.includes(type)||type==='webs3') && c.tls && c.tls !== 'disable')

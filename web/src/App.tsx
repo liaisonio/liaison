@@ -1,4 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
+import { OptionalProtocolRefresh } from '@/components/OptionalProtocolRefresh';
 import { RuntimeBridge } from '@/lib/runtime';
 import { FeatureGate, PermissionRefresh } from '@/store/permissions';
 import { useSession } from '@/store/session';
@@ -19,6 +20,7 @@ const User = lazy(() => import('@/pages/User'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const WebSSH = lazy(() => import('@/pages/WebSSH'));
 const WebSFTP = lazy(() => import('@/pages/WebSFTP'));
+const WebSMB = lazy(() => import('@/pages/WebSMB'));
 const WebDesktop = lazy(() => import('@/pages/WebDesktop'));
 const WebData = lazy(() => import('@/pages/WebData'));
 const WebS3 = lazy(() => import('@/pages/WebS3'));
@@ -50,6 +52,7 @@ export default function App() {
     <>
       <RuntimeBridge />
       <PermissionRefresh />
+      <OptionalProtocolRefresh />
       <Suspense
         fallback={
           <div className="liaison-route-loading">
@@ -104,6 +107,7 @@ export default function App() {
             <Route path="/webdesktop/:proxyId/session/*" element={<WebDesktop />} />
             <Route path="/webdata/:proxyId" element={<AccessEntry family="webdata" />} />
             <Route path="/webs3/:proxyId/connections/:credentialId/*" element={<WebS3 />} />
+            <Route path="/websmb/:proxyId/connections/:credentialId/*" element={<WebSMB />} />
             <Route
               path="/webdata/:proxyId/connections/:credentialId/*"
               element={<WebData />}

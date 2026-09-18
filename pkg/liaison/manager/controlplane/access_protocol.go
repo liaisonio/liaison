@@ -41,7 +41,7 @@ func validateAccessProtocol(protocol model.AccessProtocol, application *model.Ap
 	}
 	switch protocol {
 	case model.AccessProtocolAI:
-		if application.ApplicationType != model.ApplicationTypeLLM {
+		if !model.IsLLMApplicationType(application.ApplicationType) {
 			return badRequest("ACCESS_PROTOCOL_MISMATCH", "AI API requires an LLM application")
 		}
 	case model.AccessProtocolTCP:
@@ -80,6 +80,9 @@ func validateAccessProtocol(protocol model.AccessProtocol, application *model.Ap
 			return badRequest("ACCESS_PROTOCOL_MISMATCH", "MongoDB 访问只能关联 MongoDB 应用")
 		}
 	case model.AccessProtocolWeb:
+		if application.ApplicationType == model.ApplicationTypeDameng && !isAllowedApplicationType("dameng") {
+			return badRequest("DRIVER_UNAVAILABLE", "当前版本未包含达梦驱动")
+		}
 		if !isWebOnlyCapableApplicationType(application.ApplicationType) {
 			return badRequest("ACCESS_PROTOCOL_MISMATCH", "该应用不支持网页访问")
 		}

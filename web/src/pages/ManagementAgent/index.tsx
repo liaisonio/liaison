@@ -85,9 +85,9 @@ export default function ManagementAgent() {
   };
   const presets = [
     { icon: Cable, label: tr('哪些连接器当前在线？', 'Which connectors are online?'), description: tr('查看连接状态', 'Review connection status'), prompt: tr('列出我可见的连接器和在线状态。', 'List my visible connectors and their online status.') },
-    { icon: HardDrive, label: tr('我的设备都运行什么系统？', 'What systems do my devices run?'), description: tr('了解设备信息', 'Explore device details'), prompt: tr('列出我可见的设备及操作系统。', 'List my visible devices and their operating systems.') },
-    { icon: Layers, label: tr('我有哪些可以访问的应用？', 'What applications can I access?'), description: tr('浏览应用与协议', 'Browse applications and protocols'), prompt: tr('列出我可见的应用及其协议和目标地址。', 'List my visible applications, protocols and targets.') },
-    { icon: Network, label: tr('应用分别指向哪些服务？', 'Where do my applications connect?'), description: tr('梳理服务地址', 'Review service targets'), prompt: tr('列出我可见应用的名称、协议、目标 IP 和端口，缺失的信息不要推测。', 'List the names, protocols, target IPs and ports of my visible applications. Do not infer missing information.') },
+    { icon: HardDrive, label: tr('有哪些数据库和存储可用？', 'Which databases and storage can I access?'), description: tr('查找数据库、缓存和文件入口', 'Find data, cache and file workspaces'), prompt: tr('查找我可见的数据库、缓存、S3、SMB 和 SFTP 访问，说明协议与启用状态，并提供返回的入口。未实际连接的不要声称连接正常。', 'Find my visible database, cache, S3, SMB and SFTP access entries. Show protocols, enabled states and returned entry paths. Do not claim live connectivity without testing.') },
+    { icon: Layers, label: tr('我有哪些可以打开的工作区？', 'Which workspaces can I open?'), description: tr('按业务类型浏览访问', 'Browse access by business category'), prompt: tr('列出我可见的访问，按 Web、Database、Cache、Storage、Desktop、LLM、TCP、SSH/SFTP 分类，并说明如何打开。应用存在不等于已建立访问。', 'List my visible access entries grouped by Web, Database, Cache, Storage, Desktop, LLM, TCP and SSH/SFTP, and explain how to open them. An application alone does not imply an access exists.') },
+    { icon: Network, label: tr('我能调用哪些模型？', 'Which models can I call?'), description: tr('查看模型、协议和我的 Token 用量', 'Review models, protocols and my token usage'), prompt: tr('查找我可见的 LLM 访问，查询可调用模型、客户端协议以及我最近 24 小时的 Token 用量。用量未确认时明确说明，不要查询或展示密钥。', 'Find my visible LLM accesses and inspect callable models, client protocols and my token usage over the last 24 hours. Mark unconfirmed usage explicitly; do not fetch or display key secrets.') },
   ];
   return <section className={`management-agent-page${historyOpen ? ' has-history' : ''}`}>
     <div className="management-agent-topbar">
@@ -110,7 +110,7 @@ export default function ManagementAgent() {
           protocol={tr('资源管理', 'Resources')} onClose={startNewChat} /> :
           <div className="management-agent-welcome">
             <h1>{tr('今天想了解什么？', 'What would you like to explore?')}</h1>
-            <p>{tr('从一个问题开始，了解你的连接器、设备和应用。', 'Ask a question about your connectors, devices and applications.')}</p>
+            <p>{tr('查找访问入口，了解资源状态、可调用模型和 Token 用量。', 'Find access entries, resource status, available models and token usage.')}</p>
             <div className="management-agent-input">
               {mentions.tags}{mentions.picker}
               <textarea ref={input} value={draft} maxLength={16000} rows={3} aria-label={tr('消息', 'Message')}

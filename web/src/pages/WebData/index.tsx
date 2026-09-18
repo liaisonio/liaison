@@ -1524,7 +1524,7 @@ const WebDataPage: React.FC = () => {
     const isMongoCollection =
       protocol === 'mongodb' && objectDetail.object_type === 'collection';
     return {
-      sqlRowActions: isSQLTable && protocol !== 'clickhouse',
+      sqlRowActions: isSQLTable && !['clickhouse','dameng'].includes(protocol),
       redisRowActions: isRedisKey && hasRedisRowActions(objectDetail),
       mongoRowActions: isMongoCollection,
     };
@@ -2165,7 +2165,7 @@ const WebDataPage: React.FC = () => {
               }
             />
           </Form.Item>
-          {!isRedis && (
+          {!isRedis && protocol !== 'dameng' && (
             <Form.Item
               name="database"
               className="is-full"
@@ -2201,7 +2201,8 @@ const WebDataPage: React.FC = () => {
                     <Form.Item name="tls_mode" label="TLS">
                       <Select options={tlsOptionsForProtocol(protocol, tr)} />
                     </Form.Item>
-                    {(protocol === 'postgresql' || protocol === 'oracle') && (
+                    {protocol==='dameng'&&<p>{tr('暂不支持数据库 TLS；连接器链路加密不受影响。','Database TLS is not yet supported. Connector encryption is unchanged.')}</p>}
+                    {(protocol === 'postgresql' || protocol === 'oracle' || protocol === 'dameng') && (
                       <Form.Item
                         name="schema"
                         label={tr('默认 Schema', 'Default Schema')}
@@ -2244,7 +2245,7 @@ const WebDataPage: React.FC = () => {
                         </Form.Item>
                       </>
                     )}
-                    {((isSQL && !['oracle', 'clickhouse'].includes(protocol)) || isMongo) && (
+                    {((isSQL && !['oracle', 'dameng', 'clickhouse'].includes(protocol)) || isMongo) && (
                       <Form.Item
                         name="connection_params"
                         label={tr('连接参数', 'Connection Parameters')}
@@ -2257,7 +2258,7 @@ const WebDataPage: React.FC = () => {
                           autoSize={{ minRows: 3, maxRows: 8 }}
                           className="webdata-textarea"
                           placeholder={
-                            (protocol === 'mysql' || protocol === 'mariadb')
+                            (['mysql', 'mariadb', 'doris', 'starrocks', 'tidb'].includes(protocol || ''))
                               ? 'charset=utf8mb4\nloc=Local'
                               : protocol === 'postgresql'
                               ? 'application_name=liaison-webdata'
@@ -2786,7 +2787,7 @@ const WebDataPage: React.FC = () => {
     const actionButtons = [
       {
         key: 'sql-insert-row',
-        show: isSQLTable,
+        show: isSQLTable && protocol !== 'dameng',
         node: (
           <Button
             icon={<PlusOutlined />}
@@ -3039,11 +3040,11 @@ const WebDataPage: React.FC = () => {
                     <>
                       <span>
                         <strong>
-                          {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver' || target?.protocol === 'oracle')
+                          {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver' || (target?.protocol === 'oracle' || target?.protocol === 'dameng'))
                             ? metadataSummary.schemas
                             : metadataSummary.databases}
                         </strong>
-                        {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver' || target?.protocol === 'oracle')
+                        {(target?.protocol === 'postgresql' || target?.protocol === 'sqlserver' || (target?.protocol === 'oracle' || target?.protocol === 'dameng'))
                           ? 'Schema'
                           : tr('库', 'DB')}
                       </span>

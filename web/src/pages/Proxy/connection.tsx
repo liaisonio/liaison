@@ -1,3 +1,4 @@
+import {isLLMAccessType} from '@/constants/accessTypes';
 import { request } from '@/api/client';
 import { Field, Input, Select } from '@/components/ui';
 import { useI18n } from '@/i18n';
@@ -39,9 +40,13 @@ export const emptyConnection = (): InitialConnection => ({
 export const databaseAccessTypes = [
   'webmysql',
   'webmariadb',
+  'webdoris',
+  'webstarrocks',
+  'webtidb',
   'webpostgresql',
   'websqlserver',
   'weboracle',
+  'webdameng',
   'webclickhouse',
   'webelasticsearch',
   'webopensearch',
@@ -50,7 +55,7 @@ export const databaseAccessTypes = [
   'webmongodb',
 ];
 export const supportsInitialConnection = (type: string) =>
-  ['webssh', 'websftp', 'webrdp', 'webvnc', 'webs3', ...databaseAccessTypes].includes(
+  ['webssh', 'websftp', 'webrdp', 'webvnc', 'webs3', 'websmb', ...databaseAccessTypes].includes(
     type,
   );
 
@@ -67,6 +72,18 @@ export function InitialConnectionFields({
 }) {
   const { tr } = useI18n();
   if (!supportsInitialConnection(type)) return null;
+  if(type==='websmb')return <fieldset className="is-full liaison-initial-connection" disabled={disabled}>
+    <legend>{tr('SMB 共享连接','SMB share connection')}</legend>
+    <div className="liaison-initial-connection-fields">
+      <Field label={tr('用户名','Username')} required><Input required value={value.username} onChange={e=>onChange({...value,username:e.target.value})}/></Field>
+      <Field label={tr('域（可选）','Domain (optional)')}><Input value={value.schema} onChange={e=>onChange({...value,schema:e.target.value})}/></Field>
+      <Field label={tr('共享名','Share name')} required hint={tr('仅填写共享名，不是 UNC 地址或目录路径。','Enter one share name, not a UNC address or directory path.')}><Input required value={value.database} onChange={e=>onChange({...value,database:e.target.value})}/></Field>
+      <p className="is-full">{tr('SMB2/3，要求消息签名。当前支持浏览、文本预览和下载，不提供写入操作。','SMB2/3 with required message signing. Browsing, text preview and download only; no write operations.')}</p>
+      <label className="liaison-checkbox is-full"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存密码','Save password')}</label>
+      {value.remember&&<Field label={tr('密码','Password')} hint={value.saved?tr('留空保留已保存密码','Leave blank to keep the saved password'):undefined}><Input type="password" autoComplete="new-password" required={!value.saved} placeholder={value.saved?'••••••••':undefined} value={value.password} onChange={e=>onChange({...value,password:e.target.value})}/></Field>}
+      {!value.remember&&<p>{tr('访问时输入密码，不保存。','Enter password when connecting; it will not be saved.')}</p>}
+    </div>
+  </fieldset>;
   if(type==='webs3')return <fieldset className="is-full liaison-initial-connection" disabled={disabled}>
     <legend>{tr('对象存储连接','Object storage connection')}</legend>
     <div className="liaison-initial-connection-fields">
@@ -123,6 +140,7 @@ export function InitialConnectionFields({
               />
             </Field>
           )}
+          {type === 'webdameng' && <Field label="Schema"><Input value={value.schema} placeholder={tr('默认使用账号的 Schema','Use account default if empty')} onChange={e=>set('schema',e.target.value)}/></Field>}
           <label className="liaison-checkbox is-full"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存密码','Save password')}</label>
           {!value.remember&&<p className="is-full">{tr('每次建立新会话时输入密码，密码不会保存。','Enter the password when starting a new session. It will not be saved.')}</p>}
           {value.remember&&<Field label={tr('密码', 'Password')} required={!data&&!value.saved} hint={value.saved?tr('留空保留已保存的密码','Leave blank to keep the saved password'):undefined}>
@@ -145,7 +163,7 @@ export function InitialConnectionFields({
               />
             </Field>
           )}
-          {data && type !== 'webredis' && (
+          {data && type !== 'webredis' && type !== 'webdameng' && (
             <Field
               label={
                 type === 'weboracle'
@@ -200,6 +218,7 @@ export function InitialConnectionFields({
               </Select>
             </Field>
           )}
+          {type==='webdameng'&&<p className="is-full">{tr('暂不支持数据库 TLS；连接器链路加密不受影响。','Database TLS is not yet supported. Connector encryption is unchanged.')}</p>}
         </div>
       )}
     </fieldset>
@@ -253,7 +272,7 @@ export async function saveInitialConnection(
       remember_password: c.remember,
       database: c.database.trim(),
       auth_database: type === 'webmongodb' ? c.auth_database.trim() : '',
-      tls_mode: c.tls_mode,
+      tls_mode: type === 'websmb' ? 'disable' : c.tls_mode,
       redis_db: Number(c.redis_db) || 0,
       schema: c.schema.trim(),
       direct_connection: c.extra?.direct_connection??true,
@@ -285,7 +304,7 @@ export async function directAccessPath(
   id: number,
   type: string,
 ): Promise<string> {
-  if (type === 'aiapi') return `/ai/${id}?tab=playground`;
+  if (isLLMAccessType(type)) return `/ai/${id}?tab=playground`;
   if (type === 'websftp') {
     const c=await loadAccessConnection(id,type);if(!c.credentialId)throw new AccessConfigurationRequired();
     return `/websftp/${id}?connect=1`;
@@ -308,5 +327,5 @@ export async function directAccessPath(
   if (r.code !== 200) throw Error('target');
   const c = r.data?.credentials?.[0];
   if(!c)throw new AccessConfigurationRequired();
-  return `/${type==='webs3'?'webs3':'webdata'}/${id}/connections/${c.id}`;
+  return `/${type==='webs3'?'webs3':type==='websmb'?'websmb':'webdata'}/${id}/connections/${c.id}`;
 }

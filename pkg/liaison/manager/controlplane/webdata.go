@@ -739,7 +739,9 @@ func (cp *controlPlane) loadWebDataCredentials(proxyID, userID uint, protocol st
 
 func isWebDataProtocol(protocol string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "mysql", "mariadb", "sqlserver", "oracle", "clickhouse", "elasticsearch", "opensearch", "postgresql", "redis", "memcached", "mongodb", "s3":
+	case "dameng":
+		return isAllowedApplicationType("dameng")
+	case "mysql", "mariadb", "doris", "starrocks", "tidb", "sqlserver", "oracle", "clickhouse", "elasticsearch", "opensearch", "postgresql", "redis", "memcached", "mongodb", "s3", "smb":
 		return true
 	default:
 		return false
@@ -748,7 +750,7 @@ func isWebDataProtocol(protocol string) bool {
 
 func isAccessAuditProtocol(protocol string) bool {
 	switch normalizeWebDataProtocol(protocol) {
-	case "ssh", "webssh", "websftp", "rdp", "vnc":
+	case "ssh", "webssh", "websftp", "rdp", "vnc", "dameng":
 		return true
 	default:
 		return isWebDataProtocol(protocol)
