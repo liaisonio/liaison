@@ -1,0 +1,16 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter,Routes,Route} from 'react-router-dom';
+import Home from '../src/pages/ManagementAgent';
+import Connector from '../src/pages/Connector';
+import Proxy from '../src/pages/Proxy';
+import {RuntimeBridge} from '../src/lib/runtime';
+import {applyThemeOnBoot} from '../src/store/theme';
+import '../src/styles/index.css';
+import {usePermissions} from '../src/store/permissions';
+import {useSession} from '../src/store/session';
+if(!import.meta.env.DEV)throw Error('Development fixture only');
+applyThemeOnBoot();
+usePermissions.setState({owner:useSession.getState().token,loaded:true,grants:{'settings.global.read':true,'settings.global.update':true}});
+const initial=new URLSearchParams(location.search).has('llm')?'/proxy?category=llm':'/';
+createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={[initial]}><RuntimeBridge/><main style={{padding:24}}><Routes><Route path="/" element={<Home/>}/><Route path="/connector" element={<Connector/>}/><Route path="/proxy" element={<Proxy/>}/></Routes></main></MemoryRouter>);

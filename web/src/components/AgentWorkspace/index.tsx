@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui';
+import {RequestError} from '@/api/client';
 import SessionReference from '@/components/SessionReference';
 import SessionInfo from '@/components/SessionReference/SessionInfo';
 import { connectionReference } from '@/components/SessionReference/useSessionPath';
@@ -7,6 +8,7 @@ import { useI18n } from '@/i18n';
 import {
   createAgentSession,
   getAgentSession,
+  setAgentSessionModel,
   getAgentStatus,
   resolveAgentApproval,
   runAgentTurn,
@@ -18,6 +20,8 @@ import { createPortal } from 'react-dom';
 import './index.less';
 import { MessageContent, ToolMessage } from './MessageContent';
 import ModelSelector from './ModelSelector';
+import {messageModel} from './messageModel';
+import {connectionError} from './connectionError';
 import {ReferenceTags,useResourceMentions} from './ResourceMentions';
 import type {AgentModelSelection,AgentResourceReference} from '@/services/agent';
 import AccessResults from './AccessResults';
@@ -92,6 +96,10 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
   const [modelSelection,setModelSelection]=useState<AgentModelSelection|undefined>(initialModelSelection);
   const selectionRestored=useRef(false);
   useEffect(()=>{
+    if (!managementSessionId && detail) {
+      setModelSelection(detail.session.model_selection?.provider_id ? detail.session.model_selection : undefined);
+      return;
+    }
     if(!detail||selectionRestored.current)return;
     const steps=[...detail.steps].reverse();
     for(const step of steps){
@@ -99,12 +107,15 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
       if(input?.model_selection?.provider_id){setModelSelection(input.model_selection);break;}
     }
     selectionRestored.current=true;
-  },[detail]);
+  },[detail,managementSessionId]);
   const [prompt, setPrompt] = useState('');
   const [streamText, setStreamText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [modelSaving,setModelSaving] = useState(false);
   const [error, setError] = useState('');
+  const [syncError, setSyncError] = useState('');
+  const [retryRevision, setRetryRevision] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const mentions=useResourceMentions(inputRef,prompt,setPrompt,!!managementSessionId);
@@ -123,7 +134,10 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
   const refresh = useCallback(async (sessionId = sessionIDRef.current) => {
     if (!sessionId) return;
     const response = await getAgentSession(sessionId);
-    if (response.data && sessionIDRef.current === sessionId) setDetail(response.data);
+    if (response.data && sessionIDRef.current === sessionId) {
+      setDetail(current=>current && current.session.id===sessionId && current.session.version>response.data!.session.version ? current : response.data);
+      setSyncError('');
+    }
   }, []);
 
   useEffect(() => {
@@ -131,6 +145,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
     draftSessionRef.current = '';
     setDetail(undefined);
     setStreamText('');
+    setSyncError('');
     setError('');
     setSending(false);
     setPrompt('');
@@ -178,10 +193,11 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
       }
       if (!active) return;
       setDetail(response.data);
-    }).catch((reason: Error) => { if (active) setError(reason.message); })
+      setSyncError('');
+    }).catch((reason: Error) => { if (active) {if(reason instanceof RequestError || reason instanceof TypeError)setSyncError(connectionError(reason,tr));else setError(reason.message);} })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; sessionIDRef.current = ''; };
-  }, [managementSessionId, accessSessionId, connectionId, accessId, handleId, open, tr]);
+  }, [managementSessionId, accessSessionId, connectionId, accessId, handleId, open, tr, retryRevision]);
 
   useEffect(() => {
     if (!open || !handleId || accessSessionId) return;
@@ -189,7 +205,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
       let active = true;
       setLoading(true);
       void refresh().catch((reason: Error) => {
-        if (active) setError(reason.message);
+        if (active) setSyncError(connectionError(reason,tr));
       }).finally(() => { if (active) setLoading(false); });
       return () => { active = false; };
     }
@@ -212,14 +228,15 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
         draftSessionRef.current = response.data.session.id;
         if (active) onSessionReady?.(response.data.session.id);
         if (active) setDetail(response.data);
+        if (active) setSyncError('');
       })
       .catch((reason: Error) => {
         if (pendingSessionRef.current?.handle === handleId) pendingSessionRef.current = undefined;
-        if (active) setError(reason.message);
+        if (active) {if(reason instanceof RequestError || reason instanceof TypeError)setSyncError(connectionError(reason,tr));else setError(reason.message);}
       })
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [handleId, open, title, refresh, tr, accessSessionId, onSessionReady]);
+  }, [handleId, open, title, refresh, tr, accessSessionId, onSessionReady, retryRevision]);
 
   useEffect(() => {
     if (open && connectionId && detail?.session.id && !accessSessionId) onSessionReady?.(detail.session.id);
@@ -234,7 +251,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
     const scheduleRefresh = () => {
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => void refresh().catch((reason: Error) => {
-        if (!controller.signal.aborted) setError(reason.message);
+        if (!controller.signal.aborted) setSyncError(connectionError(reason,tr));
       }), 120);
     };
     const connect = async () => {
@@ -254,7 +271,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
         if ([401, 403, 404].includes(reason?.response?.status)) {
           controller.abort();
           window.clearInterval(snapshotTimer);
-          setError(reason.message);
+          setSyncError(connectionError(reason,tr));
           return;
         }
       }
@@ -275,7 +292,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
       window.clearInterval(snapshotTimer);
       setStreamText('');
     };
-  }, [detail?.session.id, open, refresh]);
+  }, [detail?.session.id, open, refresh, tr, retryRevision]);
 
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: 'smooth' });
@@ -289,7 +306,21 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
     () => (detail?.approvals || []).filter((approval) => approval.status === 0),
     [detail?.approvals],
   );
-  const busy = initialBusy || loading || sending || Boolean(activeTurn && !terminalTurnStatuses.has(activeTurn.status));
+  const busy = initialBusy || loading || sending || modelSaving || Boolean(activeTurn && !terminalTurnStatuses.has(activeTurn.status));
+
+  const changeModel = async (value?: AgentModelSelection) => {
+    if (managementSessionId) { selectionRestored.current=true;setModelSelection(value);return; }
+    if (!detail || busy || pendingApprovals.length || !connectionAvailable) return;
+    const session=detail.session;
+    setModelSaving(true);setError('');
+    try {
+      const response=await setAgentSessionModel(session,value);
+      if(response.code!==200 || !response.data)throw new Error();
+      if(sessionIDRef.current===session.id){setDetail(current=>current&&({...current,session:response.data!}));setModelSelection(value);}
+    } catch {
+      if(sessionIDRef.current===session.id){setError(tr('模型切换失败，请刷新后重试；模型可能已被移除或会话正在运行。','Could not switch models. Refresh and retry; the model may be removed or the session busy.'));try{await refresh(session.id);}catch{/* Keep the model-switch error visible. */}}
+    } finally {setModelSaving(false);}
+  };
 
   const send = async () => {
     const value = prompt.trim();
@@ -372,7 +403,8 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
           </div>}
           {contextLabel && <div className="agent-workspace-context" title={contextLabel}>{tr('当前上下文','Current context')} · {contextLabel}<small>{contextDescription || tr('仅位置与元数据，不自动读取文件内容。','Location and metadata only. File contents are not read automatically.')}</small></div>}
           {loading ? <div className="agent-workspace-state"><span className="ui-spinner" />{tr('正在准备上下文…', 'Preparing context…')}</div> : null}
-          {!loading && !detail && !error ? <div className="agent-workspace-state">{tr('当前连接不可用于 Agent。', 'Agent is unavailable for this connection.')}</div> : null}
+          {!loading && !detail && !error && !syncError ? <div className="agent-workspace-state">{tr('当前连接不可用于 Agent。', 'Agent is unavailable for this connection.')}</div> : null}
+          {syncError && <div className="agent-workspace-error" role="alert">{syncError} <Button disabled={loading} onClick={()=>setRetryRevision(n=>n+1)}>{tr('重试','Retry')}</Button></div>}
           {detail && detail.messages.filter((message) => message.value.role !== 'system').length === 0 ? (
             <div className="agent-workspace-empty">
               <Bot size={24} />
@@ -386,7 +418,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
                 {managementSessionId && message.value.tool_name === 'access.list' && <AccessResults content={message.value.content || ''} question={[...detail.messages].filter(item=>item.sequence<message.sequence&&item.value.role==='user').pop()?.value.content||''}/>}
                 <ToolMessage name={message.value.tool_name || 'tool'} content={message.value.content || ''} />
               </> : <>
-                <span>{message.value.role === 'user' ? tr('你', 'You') : 'Agent'}</span>
+                <span>{message.value.role === 'user' ? tr('你', 'You') : <>Agent {messageModel(detail,message.turn_id) && <code>· {messageModel(detail,message.turn_id)}</code>}</>}</span>
                 {message.value.references && <ReferenceTags references={message.value.references}/>}
                 {message.value.content && <MessageContent text={message.value.content} onPreviewCode={message.value.role === 'assistant' && !busy && connectionAvailable ? onPreviewCode : undefined} />}
               </>}
@@ -434,7 +466,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
             rows={2}
           />
           <div className="agent-composer-toolbar">
-            {managementSessionId ? <section className="agent-composer-options">{mentions.button}<ModelSelector value={modelSelection} onChange={value=>{selectionRestored.current=true;setModelSelection(value);}} disabled={busy||initialBusy||pendingApprovals.length>0}/></section> : <span>{busy ? tr('可继续编写下一条消息', 'You can draft your next message') : tr('Shift + Enter 换行', 'Shift + Enter for a new line')}</span>}
+            <section className="agent-composer-options">{managementSessionId && mentions.button}<ModelSelector value={modelSelection} onChange={value=>void changeModel(value)} disabled={busy||initialBusy||pendingApprovals.length>0||!detail||!connectionAvailable}/></section>
             <Button variant="primary" aria-label={tr('发送', 'Send')} disabled={!connectionAvailable || !prompt.trim() || !detail || busy || pendingApprovals.length > 0} onClick={() => { inputRef.current?.focus(); void send(); }}><ArrowUp size={16} /></Button>
           </div>
           </div>

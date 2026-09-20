@@ -66,7 +66,7 @@ export async function request<T>(
     });
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error;
-    throw new RequestError((error as Error).message || 'Network error');
+    throw new RequestError(getLocale() === 'zh-CN' ? '无法连接服务，请检查网络后重试。' : 'Cannot reach the service. Check your connection and retry.');
   }
 
   const contentType = response.headers.get('content-type') || '';

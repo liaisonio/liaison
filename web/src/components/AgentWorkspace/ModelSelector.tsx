@@ -10,7 +10,7 @@ export default function ModelSelector({value,onChange,disabled}:{value?:AgentMod
  const [choices,setChoices]=useState<AgentModelChoice[]>([]);
  const [failed,setFailed]=useState(false);
  const [loaded,setLoaded]=useState(false);
- useEffect(()=>{let active=true;void getAgentStatus().then(r=>{if(active){setChoices(r.data?.models||[]);setLoaded(true);}}).catch(()=>{if(active){setFailed(true);setLoaded(true);}});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;const load=()=>void getAgentStatus().then(r=>{if(r.code!==200)throw new Error();if(active){setChoices(r.data?.models||[]);setFailed(false);setLoaded(true);}}).catch(()=>{if(active){setFailed(true);setLoaded(true);}});load();window.addEventListener('focus',load);return()=>{active=false;window.removeEventListener('focus',load);};},[]);
  const key=(m:AgentModelSelection)=>JSON.stringify([m.provider_id,m.model]);
  const current=value?key(value):'';
  const unavailable=!!value&&!choices.some(m=>key(m)===current);

@@ -11,9 +11,46 @@ import (
 
 type providerFunc func(context.Context, runtime.ModelRequest, runtime.ModelEventSink) (runtime.ModelResponse, error)
 
+func TestModelGenerator_ShellRulesDoNotRequireConversation(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		protocol string
+		memory   []runtime.ModelMessage
+	}{
+		{name: "ssh_without_memory", protocol: "ssh"},
+		{name: "ssh_with_memory", protocol: "ssh", memory: []runtime.ModelMessage{{Role: runtime.RoleUser, Content: "Show network addresses"}}},
+		{name: "database_unchanged", protocol: "mysql"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g, err := NewModelGenerator(providerFunc(func(_ context.Context, r runtime.ModelRequest, _ runtime.ModelEventSink) (runtime.ModelResponse, error) {
+				prompt := r.Messages[len(tc.memory)].Content
+				for _, rule := range []string{"never numbered prose", "Roman-numeral lists", "Do not invent placeholder arguments", "Preserve legitimate names"} {
+					if tc.protocol == "ssh" {
+						require.Contains(t, prompt, rule)
+					} else {
+						require.NotContains(t, prompt, rule)
+					}
+				}
+				if len(tc.memory) > 0 {
+					require.Contains(t, prompt, "Prefer the most recent relevant command")
+				} else {
+					require.NotContains(t, prompt, "Prefer the most recent relevant command")
+				}
+				require.Empty(t, r.Tools)
+				return runtime.ModelResponse{Text: `{"insertion":"a"}`}, nil
+			}))
+			require.NoError(t, err)
+			text, err := g.Suggest(context.Background(), Binding{Protocol: tc.protocol}, Input{Text: "ip ", Cursor: 3, AgentContext: tc.memory})
+			require.NoError(t, err)
+			require.Equal(t, "a", text)
+		})
+	}
+}
+
 func TestModelGenerator_ShellModeSharesSessionIdentityAndMemoryWithoutTools(t *testing.T) {
 	g, err := NewModelGenerator(providerFunc(func(_ context.Context, r runtime.ModelRequest, _ runtime.ModelEventSink) (runtime.ModelResponse, error) {
 		require.Equal(t, "shell-1", r.SessionID)
+		require.Equal(t, runtime.ModelSelection{ProviderID: "chosen", Model: "shell-model"}, r.Selection)
 		require.Empty(t, r.TurnID)
 		require.Empty(t, r.Tools)
 		require.Equal(t, "shared shell identity", r.Messages[0].Content)
@@ -24,7 +61,7 @@ func TestModelGenerator_ShellModeSharesSessionIdentityAndMemoryWithoutTools(t *t
 		return runtime.ModelResponse{Text: `{"insertion":" /srv/project"}`}, nil
 	}))
 	require.NoError(t, err)
-	_, err = g.Suggest(context.Background(), Binding{Protocol: "ssh"}, Input{AgentSessionID: "shell-1", Text: "cd", Cursor: 2, AgentContext: []runtime.ModelMessage{{Role: runtime.RoleSystem, Content: "shared shell identity"}, {Role: runtime.RoleUser, Content: "project located at /srv/project"}}})
+	_, err = g.Suggest(context.Background(), Binding{Protocol: "ssh"}, Input{ModelSelection: runtime.ModelSelection{ProviderID: "chosen", Model: "shell-model"}, AgentSessionID: "shell-1", Text: "cd", Cursor: 2, AgentContext: []runtime.ModelMessage{{Role: runtime.RoleSystem, Content: "shared shell identity"}, {Role: runtime.RoleUser, Content: "project located at /srv/project"}}})
 	require.NoError(t, err)
 }
 

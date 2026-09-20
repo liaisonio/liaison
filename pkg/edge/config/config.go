@@ -62,9 +62,13 @@ type Log struct {
 }
 
 type Configuration struct {
-	Daemon  Daemon  `yaml:"daemon,omitempty" json:"daemon"`
-	Manager Manager `yaml:"manager,omitempty" json:"manager"`
-	Log     Log     `yaml:"log,omitempty" json:"log"`
+	// Enabled when omitted; an explicit false remains an operator opt-out.
+	AllowRemoteUninstall bool `yaml:"allow_remote_uninstall" json:"allow_remote_uninstall"`
+	// Optional; absent for legacy installations. Never inferred from a key or URL.
+	InstanceID string  `yaml:"instance_id,omitempty" json:"instance_id,omitempty"`
+	Daemon     Daemon  `yaml:"daemon,omitempty" json:"daemon"`
+	Manager    Manager `yaml:"manager,omitempty" json:"manager"`
+	Log        Log     `yaml:"log,omitempty" json:"log"`
 }
 
 func initCmd() error {
@@ -87,6 +91,8 @@ func initCmd() error {
 func ShouldShowFingerprint() bool {
 	return showFingerprint
 }
+
+func ConfigFile() string { return file }
 
 // showFingerprintDetails 显示详细的指纹信息
 func showFingerprintDetails() {
@@ -147,7 +153,7 @@ func initConf() error {
 	if err != nil {
 		return err
 	}
-	Conf = &Configuration{}
+	Conf = &Configuration{AllowRemoteUninstall: true}
 	err = yaml.Unmarshal([]byte(data), Conf)
 	return err
 }

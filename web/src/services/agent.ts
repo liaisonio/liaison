@@ -43,6 +43,12 @@ export async function getAgentSession(sessionId: string) {
   return normalizeDetail(await request<API.Response<API.AgentSessionDetail>>(`/api/v1/agent/sessions/${sessionId}`));
 }
 
+export async function setAgentSessionModel(session: API.AgentSession, selection?: AgentModelSelection) {
+  return request<API.Response<API.AgentSession>>(`/api/v1/agent/sessions/${session.id}`, {
+    method:'PATCH', data:{version:session.version,model_selection:selection||{provider_id:'',model:''}},
+  });
+}
+
 export type AgentResourceReference = {type:'connector'|'device'|'application';id:string;name?:string};
 
 export async function runAgentTurn(sessionId: string, prompt: string, selection?:AgentModelSelection, references?:AgentResourceReference[]) {

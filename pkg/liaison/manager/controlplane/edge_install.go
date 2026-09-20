@@ -45,7 +45,7 @@ func connectorInstallCommands(manager config.Manager, accessKey, secretKey strin
 	}
 	shQuote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
 	psQuote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
-	unix := fmt.Sprintf("curl -k -fsSL %s | bash -s -- --access-key=%s --secret-key=%s --server-http-addr=%s --server-edge-addr=%s",
+	unix := fmt.Sprintf("curl -k -fsSL %s | bash -s -- --new-instance --access-key=%s --secret-key=%s --server-http-addr=%s --server-edge-addr=%s",
 		shQuote(baseURL+"/install.sh"), shQuote(accessKey), shQuote(secretKey), shQuote(downloadAddr), shQuote(edgeAddr))
 	windows := fmt.Sprintf("curl.exe -fsSL %s -o install.ps1; if ($LASTEXITCODE -eq 0) { powershell -ExecutionPolicy Bypass -File ./install.ps1 -AccessKey %s -SecretKey %s -ServerHttpAddr %s -ServerEdgeAddr %s }",
 		psQuote(baseURL+"/install.ps1"), psQuote(accessKey), psQuote(secretKey), psQuote(downloadAddr), psQuote(edgeAddr))

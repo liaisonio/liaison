@@ -205,6 +205,9 @@ func (service *Service) RunTurn(ctx context.Context, request RunTurnRequest) (ru
 		return runtime.RunResult{}, err
 	}
 	selection := request.ModelSelection
+	if selection.ProviderID == "" && selection.Model == "" {
+		selection = session.ModelSelection
+	}
 	if err := service.checkLiveAttachments(ctx, request.Actor, session); err != nil {
 		return runtime.RunResult{}, err
 	}

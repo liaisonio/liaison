@@ -79,6 +79,7 @@ const ProxyPage: React.FC = () => {
   const [applications, setApplications] = useState<API.Application[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const filters = {name:routeSearch.get('name')||'',access_type:routeType,application_id:routeSearch.get('application_id')||'',status:routeSearch.get('status')||''};
   const setFilters=(next:typeof filters|((previous:typeof filters)=>typeof filters))=>{
     const value=typeof next==='function'?next(filters):next;
@@ -120,11 +121,13 @@ const ProxyPage: React.FC = () => {
   const loadApplications = useCallback(async () => { try { const response = await getApplicationList({ page_size: 1000 }); if (response.code === 200) setApplications(response.data?.applications || []); } catch { setApplications([]); } }, []);
   const load = useCallback(async () => {
     setLoading(true);
+    setLoaded(false);
     try {
       const response = await getProxyList({ page: 1, page_size: 1000 });
       if (response.code !== 200) throw new Error(response.message);
       const resolved=await resolveLegacyLLMTypes(response.data?.proxies||[]);setRows(resolved);setApplications(old=>applyResolvedLLMTypes(old,resolved));
       window.dispatchEvent(new CustomEvent(ACCESS_TYPES_CHANGED_EVENT));
+      setLoaded(true);
     } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('加载访问失败', 'Failed to load access') }); }
     finally { setLoading(false); }
   }, [tr]);
@@ -351,6 +354,7 @@ const ProxyPage: React.FC = () => {
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
     <div className="liaison-filter-bar">
       <label className="liaison-compound"><span>{tr('访问名称', 'Access')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入访问名称', 'Access name')} /></label>{!group && !routeType ? <label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.access_type} onChange={(event) => { setFilters((value) => ({ ...value, access_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{ACCESS_TYPES.filter(item=>optionalProtocolEnabled(item.value)).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}<label className="liaison-compound"><span>{tr('应用', 'Application')}</span><select value={filters.application_id} onChange={(event) => { setFilters((value) => ({ ...value, application_id: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{applications.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="liaison-compound"><span>{tr('启用状态', 'Enabled')}</span><select value={filters.status} onChange={(event) => { setFilters((value) => ({ ...value, status: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="running">{tr('启用', 'Enabled')}</option><option value="stopped">{tr('停用', 'Disabled')}</option></select></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', access_type: routeType, application_id: '', status: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
+    {group?.value === 'llm' && loaded && !loading && !rows.some(row=>isLLMAccessType(getProxyAccessType(row))) && <Notice tone="info"><strong>{tr('接入本地模型', 'Connect a local model')}</strong><p>{tr('先创建并安装连接器，再添加模型应用、获取模型列表，最后创建访问并使用 API 示例或在线体验。', 'Create and install a connector, add a model application and fetch its models, then create access to use API examples or the Playground.')}</p><p>{tr('这里的 LLM 访问用于向客户端提供模型 API；设置中的模型仅供产品内助理使用。', 'LLM access exposes model APIs to clients. Models in Settings power the built-in assistants.')}</p><Link to="/connector?create=1">{tr('创建连接器', 'Create connector')}</Link> · <Link to="/resource/app">{tr('添加模型应用', 'Add a model application')}</Link></Notice>}
     <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('访问列表', 'Access')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建访问', 'Create access')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无访问', 'No access')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>
     <Modal open={createOpen} title={tr('新建访问', 'Create access')} onClose={closeCreate} closeOnMask={!saving} width={520} footer={<><Button onClick={closeCreate} disabled={saving}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-proxy" disabled={saving}>{saving?tr('保存中…','Saving…'):createdAccess?tr('保存连接','Save connection'):tr('确定','Create')}</Button></>}>{accessForm('create-proxy', create)}{createError&&<Notice tone="danger">{createError}</Notice>}</Modal>
     <Modal open={!!editRow} title={tr('编辑访问', 'Edit access')} onClose={() => {if(!saving){setEditRow(undefined);setInitialConnection(emptyConnection());}}} closeOnMask={!saving} width={520} footer={<><Button disabled={saving} onClick={() => {setEditRow(undefined);setInitialConnection(emptyConnection());}}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-proxy" disabled={saving}>{tr('确定', 'Save')}</Button></>}>{accessForm('edit-proxy', update, true)}{createError&&<Notice tone="danger">{createError}</Notice>}</Modal>

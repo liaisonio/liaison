@@ -31,7 +31,14 @@ try{
  await prompt();await write('find .');result='bad\ncommand';controller.suggest();await sleep();check(!view && status==='error','Reject terminal control characters');
  result='';controller.suggest();await sleep();check(!view && status==='empty','No static fallback');
  result='ERROR';controller.suggest();await sleep();check(!view && status==='error','Visible provider failure');
- result=' -type f';controller.setAutomatic(true);await sleep(450);check(!!view,'Automatic AI responds after the shorter 300ms debounce');
+ result=' -type f';controller.setAutomatic(true);await sleep(230);check(!!view,'Automatic AI responds after 150ms debounce');
+ const beforeReuse=calls;
+ term.input(' ',true);await write(' ');await sleep(30);
+ check(view?.input==='find . ' && calls===beforeReuse,'Matching typing reuses candidate immediately after echo');
+ term.input('-',true);await write('-');await sleep(230);
+ check(view?.candidates[0]==='find . -type f' && calls===beforeReuse,'Continued matching typing avoids another model request');
+ term.input('x',true);await write('x');await sleep(230);
+ check(calls>beforeReuse,'Diverging input requests a fresh candidate');
  await prompt();await write('ip');controller.suggest();await sleep();check(view?.input==='ip','Bare command reaches model');
  const beforeResize=calls;term.resize(89,24);await sleep(900);check(calls>beforeResize && !!view,'Resize must resume completion without another prompt');
  term.blur();await sleep();check(!view,'Blur hides candidate');term.focus();await sleep(900);check(!!view,'Focus restores automatic candidate');

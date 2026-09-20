@@ -15,7 +15,10 @@ type webSSHShellStarter interface {
 }
 
 func startWebSSHShell(session webSSHShellStarter) error {
-	if !strings.EqualFold(os.Getenv("LIAISON_WEBSSH_SHELL_INTEGRATION"), "true") {
+	// Prompt boundaries are required for safe automatic completion. Enable the
+	// session-local integration by default, retaining an explicit opt-out.
+	value := strings.TrimSpace(os.Getenv("LIAISON_WEBSSH_SHELL_INTEGRATION"))
+	if value != "" && !strings.EqualFold(value, "true") {
 		return session.Shell()
 	}
 	return session.Start(webSSHShellBootstrap())

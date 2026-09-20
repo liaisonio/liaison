@@ -652,13 +652,15 @@ func (store *DurableStore) GetToolSnapshot(ctx context.Context, snapshotID strin
 
 func sessionModel(value Session) *model.AgentSession {
 	return &model.AgentSession{Kind: string(value.Kind), ID: value.ID, OrganizationID: value.OrganizationID, CreatedBy: value.CreatedBy, Title: value.Title,
+		ModelProvider: value.ModelSelection.ProviderID, ModelName: value.ModelSelection.Model,
 		Status: uint8(value.Status), ActiveTurnID: value.ActiveTurnID, ActiveAttachmentID: value.ActiveAttachmentID,
 		Summary: value.Summary, Version: value.Version, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
 }
 
 func sessionFromModel(value *model.AgentSession) Session {
 	return Session{Kind: tool.SessionKind(value.Kind), ID: value.ID, OrganizationID: value.OrganizationID, CreatedBy: value.CreatedBy, Title: value.Title,
-		Status: SessionStatus(value.Status), ActiveTurnID: value.ActiveTurnID, ActiveAttachmentID: value.ActiveAttachmentID,
+		ModelSelection: ModelSelection{ProviderID: value.ModelProvider, Model: value.ModelName},
+		Status:         SessionStatus(value.Status), ActiveTurnID: value.ActiveTurnID, ActiveAttachmentID: value.ActiveAttachmentID,
 		Summary: value.Summary, Version: value.Version, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
 }
 

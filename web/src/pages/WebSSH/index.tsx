@@ -1191,7 +1191,7 @@ const WebSSHPage: React.FC = () => {
           <SessionWatermark lines={watermarkLines} />
         </div>
         {canAI && connected && agentHandleID && <section className="terminal-assistant">
-          <ShellAgent key={agentHandleID} handleId={agentHandleID} initialDetail={shellDetail?.handle === agentHandleID ? shellDetail.detail : undefined} ensureSession={ensureShellSession} exitCode={shellExitCode} controls={<>
+          <ShellAgent key={agentHandleID} handleId={agentHandleID} onModelChanging={changing=>{completionRef.current?.reset();if(!changing)completionRef.current?.setAutomatic(automaticAI);}} initialDetail={shellDetail?.handle === agentHandleID ? shellDetail.detail : undefined} ensureSession={ensureShellSession} exitCode={shellExitCode} controls={<>
             <button type="button" disabled={!terminalSelection.trim()} onClick={()=>setOutputShare(terminalSelection)}>{tr('分享选中输出','Share selected output')}</button>
             <button type="button" aria-pressed={automaticAI} onClick={() => {
               focusTerminal(true); completionRef.current?.setAutomatic(!automaticAI); setAutomaticAI(!automaticAI);

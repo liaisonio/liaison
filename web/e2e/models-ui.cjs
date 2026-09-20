@@ -1,0 +1,100 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch();
+ try{for(const locale of ['zh-CN','en-US'])for(const theme of ['dark','light']){
+  const ctx=await browser.newContext({viewport:{width:1440,height:1000}}),zh=locale==='zh-CN';
+  await ctx.addInitScript(({locale,theme})=>{localStorage.setItem('liaison-locale',locale);localStorage.setItem('liaison-theme-preference',theme)},{locale,theme});
+  let config={enabled:true,output_language:'en',default_provider:'deepseek',providers:[{id:'deepseek',type:'deepseek',base_url:'https://api.deepseek.com/v1',model:'deepseek-chat',models:['deepseek-chat','deepseek-reasoner'],has_api_key:true}]},fail=false,writes=0;
+  await ctx.route('**/api/v1/**',async route=>{
+   const req=route.request();let data={};
+   if(new URL(req.url()).pathname==='/api/v1/settings/model'){
+    if(req.method()==='PUT'){
+     writes++;
+     if(fail){fail=false;return route.fulfill({status:400,json:{code:400,message:'Save failed'}});}
+     config={...req.postDataJSON(),providers:req.postDataJSON().providers.map(p=>({...p,api_key:undefined,has_api_key:true}))};
+    }
+    data=config;
+   }
+   await route.fulfill({json:{code:200,data}});
+  });
+  const page=await ctx.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const btn=(cn,en)=>page.getByRole('button',{name:zh?cn:en,exact:true});
+  await page.goto(`${process.env.E2E_UI_URL}/e2e/models.html`);
+  await page.screenshot({path:`/tmp/models-reference-${locale}-${theme}.png`});
+  assert.deepEqual(await page.locator('.native-settings-tabs button').allTextContents(),zh?['模型','助理','API Token','偏好','关于']:['Models','Assistant','API Token','Preferences','About']);
+  await btn('助理','Assistant').click();
+  await page.getByLabel(zh?'AI 输出语言':'AI output language').waitFor();
+  assert.equal(await page.locator('.model-provider-card').count(),0);
+  await page.getByLabel(zh?'AI 输出语言':'AI output language').selectOption('zh');
+  await btn('模型','Models').click();
+  await page.getByRole('dialog').waitFor();
+  await btn('继续编辑','Keep editing').click();
+  await btn('保存全部更改','Save all changes').click();
+  await page.getByText(zh?'配置已保存，即时生效':'Settings saved and applied',{exact:true}).waitFor();
+  assert.equal(config.output_language,'zh');
+  assert.equal(config.providers[0].model,'deepseek-chat');
+  await page.screenshot({path:`/tmp/models-assistant-${locale}-${theme}.png`});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:`/tmp/models-assistant-${locale}-${theme}-mobile.png`});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.setViewportSize({width:1440,height:1000});
+  writes=0;
+  await btn('模型','Models').click();
+  await page.locator('.model-row').first().waitFor();
+  assert.equal(await page.getByLabel(zh?'AI 输出语言':'AI output language').count(),0);
+  await page.screenshot({path:`/tmp/models-${locale}-${theme}.png`});
+  await btn('设为默认','Set default').click();
+  await btn('偏好','Preferences').click();
+  await page.getByRole('dialog').waitFor();
+  await btn('继续编辑','Keep editing').click();
+  assert.match(await page.locator('.model-default-summary strong').innerText(),/deepseek-chat/);
+  assert.equal(writes,0);
+  await btn('测试连接','Test connection').click();
+  await page.locator('.model-provider-card .model-test-result').getByText(zh?'测试成功':'Test successful',{exact:true}).waitFor();
+  await page.screenshot({path:`/tmp/models-test-${locale}-${theme}.png`});
+  await page.locator('.model-picker-heading').click();
+  assert.equal(await page.locator('.model-picker-option').count(),8);
+  assert.equal(await page.locator('.model-picker-option').filter({hasText:'DeepSeek'}).count(),0);
+  await page.locator('.model-provider-picker').screenshot({path:`/tmp/models-picker-${locale}-${theme}.png`});
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('.model-provider-picker').screenshot({path:`/tmp/models-picker-${locale}-${theme}-mobile.png`});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.setViewportSize({width:1440,height:1000});
+  await btn('添加 OpenAI','Add OpenAI').click();
+  assert.equal(await page.locator('.model-provider-card').count(),2);
+  await btn('放弃更改','Discard changes').click();
+  await page.locator('.model-provider-title').click();
+  await btn('设为默认','Set default').click();
+  assert.equal(await page.locator('.model-test-result').count(),0);
+  assert.equal(writes,0);
+  fail=true;
+  await btn('保存全部更改','Save all changes').click();
+  await page.locator('.liaison-notice.is-danger').waitFor();
+  assert.match(await page.locator('.model-default-summary strong').innerText(),/deepseek-chat/);
+  await btn('保存全部更改','Save all changes').click();
+  await page.getByText(zh?'配置已保存，即时生效':'Settings saved and applied',{exact:true}).waitFor();
+  assert.match(await page.locator('.model-default-summary strong').innerText(),/deepseek-reasoner/);
+  await btn('删除模型 deepseek-reasoner','Delete model deepseek-reasoner').click();
+  assert(await btn('确认移除','Confirm removal').isDisabled());
+  await page.getByRole('dialog').locator('select').selectOption(JSON.stringify(['deepseek','deepseek-chat']));
+  await btn('确认移除','Confirm removal').click();
+  assert.equal(await page.locator('.model-row').count(),1);
+  await btn('放弃更改','Discard changes').click();
+  assert.equal(await page.locator('.model-row').count(),2);
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('.native-settings-content').evaluate(el=>el.scrollTop=0);
+  await page.screenshot({path:`/tmp/models-${locale}-${theme}-mobile.png`,fullPage:true});
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.locator('.model-row').last().scrollIntoViewIfNeeded();
+  await page.screenshot({path:`/tmp/models-${locale}-${theme}-mobile-rows.png`});
+  await btn('移除提供方','Remove provider').click();
+  await page.getByRole('dialog').getByText(zh?'这是最后一个模型，保存后 AI 功能将不可用。':'This is the last model. AI will be unavailable after saving.').waitFor();
+  await btn('确认移除','Confirm removal').click();
+  await btn('保存全部更改','Save all changes').click();
+  await page.getByText(zh?'配置已保存，即时生效':'Settings saved and applied',{exact:true}).waitFor();
+  assert.equal(config.providers.length,0);assert.equal(config.enabled,false);
+  assert.deepEqual(errors,[]);
+  console.log('PASS',locale,theme,'default/save/failure/delete/discard/mobile');await ctx.close();
+ }}finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -4,6 +4,7 @@
 # 此脚本会根据操作系统自动下载并安装对应的 Edge 安装包
 
 set -e
+set -o pipefail
 
 # 颜色输出
 RED='\033[0;31m'
@@ -22,11 +23,15 @@ LOG_DIR="/opt/liaison/logs"
 # 解析参数
 ACCESS_KEY=""
 SECRET_KEY=""
+INSTALL_MODE=""
+UPGRADE_INSTANCE=""
 
 show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
+    echo "  --new-instance         Create an isolated Linux/macOS instance"
+    echo "  --upgrade-instance=ID  Upgrade exactly this instance (or legacy), preserving configuration"
     echo "  --access-key=KEY        Access key (required)"
     echo "  --secret-key=KEY        Secret key (required)"
     echo "  --server-http-addr=ADDR HTTP download address (URL or host:port, for downloading packages)"
@@ -34,12 +39,28 @@ show_help() {
     echo "  -h, --help              Show this help message"
     echo ""
     echo "Example:"
-    echo "  $0 --access-key=xxx --secret-key=yyy --server-http-addr=example.com:443 --server-edge-addr=example.com:30012"
+    echo "  $0 --new-instance --access-key=xxx --secret-key=yyy --server-http-addr=example.com:443 --server-edge-addr=example.com:30012"
     exit 0
 }
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --allow-remote-uninstall)
+            # Compatibility with previously copied commands; now the default.
+            shift
+            ;;
+        --new-instance)
+            [[ -z "$INSTALL_MODE" ]] || { echo "Choose one installation mode"; exit 1; }
+            INSTALL_MODE="new"
+            shift
+            ;;
+        --upgrade-instance=*)
+            [[ -z "$INSTALL_MODE" ]] || { echo "Choose one installation mode"; exit 1; }
+            INSTALL_MODE="upgrade"
+            UPGRADE_INSTANCE="${1#*=}"
+            [[ "$UPGRADE_INSTANCE" == "legacy" || "$UPGRADE_INSTANCE" =~ ^[a-f0-9]{32}$ ]] || { echo "Invalid instance ID"; exit 1; }
+            shift
+            ;;
         --access-key=*)
             ACCESS_KEY="${1#*=}"
             shift
@@ -60,7 +81,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             ;;
         *)
-            echo -e "${RED}Unknown option: $1${NC}"
+            echo -e "${RED}Unknown option${NC}"
             echo "Use --help for usage information"
             exit 1
             ;;
@@ -68,15 +89,25 @@ while [[ $# -gt 0 ]]; do
 done
 
 # 验证必需参数
-if [[ -z "$SERVER_HTTP_ADDR" ]] || [[ -z "$SERVER_EDGE_ADDR" ]]; then
+if [[ -z "$SERVER_HTTP_ADDR" ]] || { [[ "$INSTALL_MODE" != "upgrade" ]] && [[ -z "$SERVER_EDGE_ADDR" ]]; }; then
     echo -e "${RED}Error: --server-http-addr and --server-edge-addr are required${NC}"
     echo "Use --help for usage information"
     exit 1
 fi
 
-if [ -z "$ACCESS_KEY" ] || [ -z "$SECRET_KEY" ]; then
+if [[ "$INSTALL_MODE" != "upgrade" ]] && { [ -z "$ACCESS_KEY" ] || [ -z "$SECRET_KEY" ]; }; then
     echo -e "${RED}Error: --access-key and --secret-key are required${NC}"
     echo "Use --help for usage information"
+    exit 1
+fi
+
+if [[ "$OSTYPE" == "linux-gnu"* || "$OSTYPE" == "darwin"* ]]; then
+    if [[ -z "$INSTALL_MODE" ]]; then
+        echo "Choose --new-instance or --upgrade-instance=ID (legacy for an existing standard installation). No files changed."
+        exit 1
+    fi
+elif [[ -n "$INSTALL_MODE" ]]; then
+    echo "Isolated installation is supported only on Linux and macOS."
     exit 1
 fi
 
@@ -139,10 +170,6 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     CONFIG_DIR="${HOME}/Library/Application Support/liaison"
     LOG_DIR="${HOME}/Library/Logs/liaison"
     INSTALL_DIR="/usr/local"  # 用于工作目录等
-    echo -e "${YELLOW}macOS 安装路径:${NC}"
-    echo -e "${YELLOW}  二进制: ${BIN_DIR}${NC}"
-    echo -e "${YELLOW}  配置: ${CONFIG_DIR}${NC}"
-    echo -e "${YELLOW}  日志: ${LOG_DIR}${NC}"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux 系统：使用标准 Linux 路径
     BIN_DIR="/usr/local/bin"
@@ -150,11 +177,6 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     DATA_DIR="/var/lib/liaison"
     LOG_DIR="/var/log/liaison"
     INSTALL_DIR="/usr/local"  # 用于工作目录等
-    echo -e "${YELLOW}Linux 安装路径:${NC}"
-    echo -e "${YELLOW}  二进制: ${BIN_DIR}${NC}"
-    echo -e "${YELLOW}  配置: ${CONFIG_DIR}${NC}"
-    echo -e "${YELLOW}  数据: ${DATA_DIR}${NC}"
-    echo -e "${YELLOW}  日志: ${LOG_DIR}${NC}"
 fi
 
 # 确定安装包文件名（统一使用 tar.gz 格式）
@@ -209,7 +231,11 @@ fi
 # 解压安装包
 echo -e "${YELLOW}Extracting package...${NC}"
 cd "$TMP_DIR"
-if ! tar -xzf "${PACKAGE_NAME}"; then
+EXTRACT_ARGS=()
+if [[ -n "$INSTALL_MODE" ]]; then
+    EXTRACT_ARGS=(liaison-edge)
+fi
+if ! tar -xzf "${PACKAGE_NAME}" "${EXTRACT_ARGS[@]}"; then
     echo -e "${RED}Error: Failed to extract package${NC}"
     exit 1
 fi
@@ -223,9 +249,22 @@ if [[ "$OS_ARCH" == "windows"* ]]; then
     BINARY_NAME="liaison-edge.exe"
 fi
 
-if [ ! -f "${TMP_DIR}/${BINARY_NAME}" ]; then
+if [ ! -f "${TMP_DIR}/${BINARY_NAME}" ] || [ -L "${TMP_DIR}/${BINARY_NAME}" ]; then
     echo -e "${RED}Error: Binary file ${BINARY_NAME} not found in package${NC}"
     exit 1
+fi
+
+# Unix lifecycle operations are performed by the downloaded binary. Never fall
+# through to the legacy shared-path installer, including on command failure.
+if [[ "$INSTALL_MODE" == "new" ]]; then
+    chmod 700 "${TMP_DIR}/${BINARY_NAME}"
+    printf '%s\n%s\n%s\n' "$SERVER_EDGE_ADDR" "$ACCESS_KEY" "$SECRET_KEY" |
+        "${TMP_DIR}/${BINARY_NAME}" --edge-install-new
+    exit $?
+elif [[ "$INSTALL_MODE" == "upgrade" ]]; then
+    chmod 700 "${TMP_DIR}/${BINARY_NAME}"
+    "${TMP_DIR}/${BINARY_NAME}" --edge-upgrade-instance "$UPGRADE_INSTANCE"
+    exit $?
 fi
 
 # Linux/macOS/Windows 安装
@@ -583,4 +622,3 @@ if [[ "$setup" =~ ^[Yy]$ ]]; then
 else
     echo -e "${YELLOW}跳过服务设置${NC}"
 fi
-

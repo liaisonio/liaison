@@ -1,0 +1,43 @@
+syntax = "proto3";
+package liaison.edge_lifecycle;
+option go_package = "github.com/liaisonio/liaison/api/edge_lifecycle;edge_lifecycle";
+
+// Additive Edge RPC contract: edge_installation_status, empty JSON object input.
+// Existing Manager/Edge versions do not need to implement this RPC.
+// This is a read-only preflight; verified ownership is NOT uninstall authority.
+// Console: GET /api/v1/edges/{id}/installation requires connectors.uninstall
+// plus visibility of the specified connector. Offline/old Edges return a safe
+// unsupported status. Execution additionally requires local Edge opt-in.
+message InstallationStatus {
+  uint32 version = 1;
+  string platform = 2;
+  string instance_id = 3;
+  string service = 4;
+  string installation_kind = 5;
+  bool legacy = 6;
+  bool ownership_verified = 7;
+  bool can_uninstall = 8;
+  // Stable, safe reason code. Never contains credentials or raw native errors.
+  string reason = 9;
+  string runtime_id = 10; // Random per-process binding; rejects commands after restart.
+}
+
+// POST /api/v1/edges/{id}/uninstall: authenticated, scoped management
+// permission plus exact connector name and freshly obtained instance binding.
+message CreateUninstallTask { string confirm_name = 1; string instance_id = 2; }
+// GET /api/v1/edges/{id}/uninstall/{task_id}: same authorization as create.
+// The reserved task ID "active" retrieves the outstanding task, or null.
+message UninstallTask {
+ string id = 1; uint64 edge_id = 2; string instance_id = 3;
+ string status = 4; string reason = 5; string expires_at = 6; // RFC3339 in HTTP JSON
+}
+// Edge RPC edge_uninstall: the URL is constrained to the configured Manager
+// hostname. Token is short-lived and permits only reporting this task's result.
+message UninstallCommand {
+ string task_id = 1; string instance_id = 2; int64 expires_at = 3;
+ string callback_url = 4; string callback_token = 5;
+ string runtime_id = 6;
+}
+// POST /api/v1/edge-uninstall-results/{task_id}, authenticated by the task-only
+// bearer token, never a user token or an Edge long-lived credential.
+message UninstallResult { string status = 1; string reason = 2; }

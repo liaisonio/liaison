@@ -142,3 +142,16 @@ A: 是的。删掉 `certs/server.*` 然后 `docker compose restart liaison`,entr
 
 **Q: 能换成 nginx 前置?**
 A: 可以,把 `MANAGER_PORT` 绑回 `127.0.0.1:8443`,前面架 nginx 反代到 `https://127.0.0.1:8443`。`server_url` 通过 `.env` 的 `SERVER_URL` 手动指定(取消 compose 文件里对应注释)。
+# AI 输出语言
+
+首次运行 `install.sh` 时，根据宿主机时区推荐 `zh`（中国大陆相关时区）
+或 `en`（其他及未知时区），交互安装可确认选择。无人值守安装可显式指定：
+
+```bash
+AGENT_OUTPUT_LANGUAGE=en bash install.sh
+```
+
+选择写入 `.env`，不跟随浏览器，也不在每次启动时重新检测。
+直接使用 Compose 时请在 `.env` 设置 `AGENT_OUTPUT_LANGUAGE=zh` 或 `en`；
+未设置则保留原有中文默认。升级保留已有选择，数据库中保存的模型语言配置优先。
+管理员之后可在“设置 → 模型配置”中修改；回退安装默认值不会覆盖已保存的设置。

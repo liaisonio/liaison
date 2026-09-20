@@ -23,7 +23,7 @@ func (p *shellStarterProbe) Shell() error               { p.shell = true; return
 func (p *shellStarterProbe) Start(command string) error { p.command = command; return p.err }
 
 func TestWebSSHShellFeatureFlag(t *testing.T) {
-	for _, value := range []string{"", "false", "true", "TRUE"} {
+	for _, value := range []string{"", "false", "true", "TRUE", " true ", "invalid"} {
 		t.Run(value, func(t *testing.T) {
 			t.Setenv("LIAISON_WEBSSH_SHELL_INTEGRATION", value)
 			failure := errors.New("shell refused")
@@ -31,7 +31,7 @@ func TestWebSSHShellFeatureFlag(t *testing.T) {
 			if !errors.Is(startWebSSHShell(probe), failure) {
 				t.Fatal("startup error was lost")
 			}
-			enabled := strings.EqualFold(value, "true")
+			enabled := strings.TrimSpace(value) == "" || strings.EqualFold(strings.TrimSpace(value), "true")
 			if probe.shell == enabled || (probe.command != "") != enabled {
 				t.Fatal("unexpected shell startup path")
 			}

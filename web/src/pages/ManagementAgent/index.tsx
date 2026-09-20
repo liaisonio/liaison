@@ -4,11 +4,12 @@ import ModelSelector from '@/components/AgentWorkspace/ModelSelector';
 import {useResourceMentions} from '@/components/AgentWorkspace/ResourceMentions';
 import type {AgentModelSelection,AgentResourceReference} from '@/services/agent';
 import { useI18n } from '@/i18n';
-import { getApplicationList, getDeviceList, getEdgeList } from '@/services/api';
+import { getEdgeList } from '@/services/api';
+import { useFeature } from '@/store/permissions';
 import { createManagementSession, getAgentStatus, listManagementSessions, runAgentTurn } from '@/services/agent';
-import { ArrowUp, Cable, HardDrive, History, Layers, MessageSquare, Plus, Network } from 'lucide-react';
+import { ArrowRight, ArrowUp, Cable, HardDrive, History, Layers, MessageSquare, Plus, Network, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import './index.less';
 
 export default function ManagementAgent() {
@@ -24,7 +25,12 @@ export default function ManagementAgent() {
   const [creating, setCreating] = useState(false);
   const [enabled, setEnabled] = useState<boolean>();
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [resourcesEmpty, setResourcesEmpty] = useState(false);
+  const [hasConnector, setHasConnector] = useState<boolean>();
+  const [hasModel, setHasModel] = useState<boolean>();
+  const modelsReadable = useFeature('settings.global.read');
+  const modelsWritable = useFeature('settings.global.update');
+  const canConfigureModels = modelsReadable && modelsWritable;
+  const needsSetup = hasConnector !== undefined && hasModel !== undefined && (!hasConnector || !hasModel);
   const input = useRef<HTMLTextAreaElement>(null);
   const mentions = useResourceMentions(input,draft,setDraft,enabled!==false&&!creating);
   const alive = useRef(true);
@@ -49,17 +55,20 @@ export default function ManagementAgent() {
   }, [selected, historyOpen]);
   useEffect(() => {
     let active = true;
-    void Promise.all([getEdgeList({ page_size: 1 }), getDeviceList({ page_size: 1 }), getApplicationList({ page_size: 1 })])
-      .then(([edges, devices, apps]) => {
-        if (active && edges.data && devices.data && apps.data) {
-          setResourcesEmpty(!(edges.data.edges?.length || devices.data.devices?.length || apps.data.applications?.length));
+    void getEdgeList({ page_size: 1 })
+      .then(edges => {
+        if (active && edges.code === 200 && Array.isArray(edges.data?.edges)) {
+          setHasConnector(edges.data.edges.length > 0);
         }
       }).catch(() => { /* An unavailable list is not evidence of an empty account. */ });
     return () => { active = false; };
   }, []);
   useEffect(() => {
     alive.current = true;
-    void getAgentStatus().then(r => { if (alive.current) setEnabled(Boolean(r.data?.enabled)); })
+    void getAgentStatus().then(r => { if (alive.current && r.code === 200 && r.data) {
+      setEnabled(Boolean(r.data.enabled));
+      if (Array.isArray(r.data.models)) setHasModel(r.data.models.length > 0);
+    } })
       .catch((e: Error) => { if (alive.current) setError(e.message); });
     void listManagementSessions().then(items => { if (alive.current) setSessions(items); })
       .catch((e: Error) => { if (alive.current) setError(e.message); });
@@ -120,11 +129,27 @@ export default function ManagementAgent() {
               <div><section className="agent-composer-options">{mentions.button}<ModelSelector value={modelSelection} onChange={setModelSelection} disabled={creating||enabled===false}/></section>
                 <button aria-label={tr('发送', 'Send')} disabled={!draft.trim() || !enabled || creating} onClick={() => void start()}><ArrowUp size={18} /></button></div>
             </div>
-            {resourcesEmpty ? <div className="management-agent-onboarding">
-              <h2>{tr('还没有可见的资源', 'No resources yet')}</h2>
-              <p>{tr('当前没有你可见的连接器、设备或应用。先添加连接器，接入设备和应用后，就可以在这里查询。', 'You have no visible connectors, devices or applications. Add a connector and connect your resources to explore them here.')}</p>
-              <a href="/connector">{tr('前往连接器', 'Go to connectors')}<ArrowUp size={14} /></a>
-            </div> : <div className="management-agent-presets">{presets.map(p => <button key={p.label} disabled={!enabled || creating} onClick={() => void start(p.prompt)}><span className="preset-title"><p.icon size={18} />{p.label}</span><span className="preset-description">{p.description}</span></button>)}</div>}
+            {needsSetup && <section className="management-agent-onboarding" aria-labelledby="home-setup-title">
+              <h2 id="home-setup-title">{tr('开始使用', 'Get started')}</h2>
+              <div className="management-agent-setup-grid">
+                {!hasModel && (canConfigureModels ? <Link className="management-agent-setup-card" to="/settings" aria-label={tr('配置模型', 'Set up model')}>
+                  <span className="management-agent-setup-icon"><Sparkles size={18}/></span>
+                  <h3>{tr('配置模型', 'Set up model')}</h3>
+                  <p>{tr('连接模型，开启你的 AI 助理。', 'Connect a model to enable your AI assistant.')}</p>
+                  <ArrowRight className="management-agent-setup-arrow" size={16}/>
+                </Link> : <div className="management-agent-setup-card is-unavailable">
+                  <span className="management-agent-setup-icon"><Sparkles size={18}/></span>
+                  <h3>{tr('配置模型', 'Set up model')}</h3><p>{tr('请联系管理员配置助理使用的模型。', 'Ask your administrator to configure an assistant model.')}</p>
+                </div>)}
+                {!hasConnector && <Link className="management-agent-setup-card" to="/connector?create=1" aria-label={tr('创建连接器', 'Create connector')}>
+                  <span className="management-agent-setup-icon"><Cable size={18}/></span>
+                  <h3>{tr('创建连接器', 'Create connector')}</h3>
+                  <p>{tr('接入本地网络中的模型与应用。', 'Connect models and applications on your local network.')}</p>
+                  <ArrowRight className="management-agent-setup-arrow" size={16}/>
+                </Link>}
+              </div>
+            </section>}
+            {hasConnector && enabled && <div className="management-agent-presets">{presets.map(p => <button key={p.label} disabled={creating} onClick={() => void start(p.prompt)}><span className="preset-title"><p.icon size={18} />{p.label}</span><span className="preset-description">{p.description}</span></button>)}</div>}
           </div>}
       </main>
     </div>

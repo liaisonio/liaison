@@ -1,3 +1,5 @@
+# Remote uninstall still requires Manager authorization and local ownership checks.
+allow_remote_uninstall: true
 manager:
   dial:
     addrs:
@@ -19,4 +21,3 @@ log:
   file: ${LOG_DIR}/liaison-edge.log  # 日志文件路径
   maxsize: 100  # 日志文件最大大小（MB）
   maxrolls: 10  # 保留的日志文件数量
-

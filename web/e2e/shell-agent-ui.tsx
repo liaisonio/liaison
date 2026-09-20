@@ -9,13 +9,13 @@ import '../src/pages/WebSSH/index.less';
 
 function Fixture(){
   const [risky,setRisky]=useState(true),[automatic,setAutomatic]=useState(true),[accepted,setAccepted]=useState('');
-  const input=risky?'rm -rf ':'ls ';
+  const input=risky?'rm -rf ':'ip ';
   return <main style={{padding:24,maxWidth:1200,margin:'auto'}}>
     <p style={{marginBottom:20}}>本地组件预览 · 不连接服务器、不执行命令</p>
     <div className="webssh-shell" style={{display:'block',height:'auto',minHeight:0,overflow:'visible'}}>
       <div style={{position:'relative',height:320,background:'#101418',color:'#d7dee8',padding:16,fontFamily:'monospace'}}>
         demo@host:~$ {input}
-        <CommandCompletion view={{input,candidates:[input+(risky?'/tmp/obsolete-cache':'-la')],selected:0,left:8,top:28,above:false}} onAccept={setAccepted}/>
+        <CommandCompletion view={{input,candidates:[input+(risky?'/tmp/obsolete-cache':'a')],selected:0,left:8,top:28,above:false}} onAccept={setAccepted}/>
       </div>
       <section className="terminal-assistant">
         <ShellAgent handleId="fixture" ensureSession={async()=>{throw Error('Fixture never connects');}} controls={<>

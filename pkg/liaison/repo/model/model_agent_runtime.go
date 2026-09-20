@@ -7,6 +7,8 @@ import (
 )
 
 type AgentSession struct {
+	ModelProvider      string         `gorm:"column:model_provider;type:varchar(128);not null;default:''" json:"model_provider"`
+	ModelName          string         `gorm:"column:model_name;type:varchar(200);not null;default:''" json:"model_name"`
 	Kind               string         `gorm:"column:kind;type:varchar(32);not null;default:access" json:"kind"`
 	ID                 string         `gorm:"column:id;type:varchar(64);primaryKey" json:"id"`
 	CreatedAt          time.Time      `gorm:"column:created_at;autoCreateTime" json:"created_at"`

@@ -29,6 +29,7 @@ type Binding struct {
 // Input contains editing context plus server-resolved Agent context. Clients
 // cannot supply Agent history. Cursor is a UTF-8 byte offset.
 type Input struct {
+	ModelSelection runtime.ModelSelection // Server-resolved; never accepted from HTTP.
 	AgentSessionID string
 	AgentContext   []runtime.ModelMessage // Server-resolved Shell Agent context; never accepted from HTTP.
 	Revision       uint64

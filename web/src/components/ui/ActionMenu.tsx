@@ -23,13 +23,13 @@ export default function ActionMenu({
   const [position, setPosition] = useState<{ top: number; left: number }>();
   const close = (restore = false) => {
     setPosition(undefined);
-    if (restore) trigger.current?.focus();
+    if (restore) trigger.current?.focus({ preventScroll: true });
   };
   useEffect(() => {
     if (!position) return;
     menu.current
       ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
-      ?.focus();
+      ?.focus({ preventScroll: true });
     const outside = (e: PointerEvent) => {
       if (
         !menu.current?.contains(e.target as Node) &&
@@ -108,7 +108,7 @@ export default function ActionMenu({
                 buttons[
                   (i + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) %
                     buttons.length
-                ]?.focus();
+                ]?.focus({ preventScroll: true });
               }
             }}
           >

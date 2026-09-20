@@ -9,6 +9,7 @@ set -eu
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 cd "$SCRIPT_DIR"
+. "$SCRIPT_DIR/ai-output-language.sh"
 
 GREEN=$'\033[0;32m'
 YELLOW=$'\033[1;33m'
@@ -98,12 +99,18 @@ else
         warn "  no input — using $PUBLIC_HOST"
     fi
 
+    if [ -f data/.initialized ]; then
+        INSTALL_AI_LANGUAGE=$(liaison_ai_language zh)
+    else
+        INSTALL_AI_LANGUAGE=$(liaison_ai_language)
+    fi
     cp .env.example .env
     INSTALL_MANAGER_PORT="${MANAGER_PORT:-443}"
     # Portable in-place sed (BSD + GNU).
     sed \
         -e "s|^LIAISON_PUBLIC_HOST=.*|LIAISON_PUBLIC_HOST=${PUBLIC_HOST}|" \
         -e "s|^MANAGER_PORT=.*|MANAGER_PORT=${INSTALL_MANAGER_PORT}|" \
+        -e "s|^AGENT_OUTPUT_LANGUAGE=.*|AGENT_OUTPUT_LANGUAGE=${INSTALL_AI_LANGUAGE}|" \
         .env > .env.tmp && mv .env.tmp .env
     log "==> Wrote .env (LIAISON_PUBLIC_HOST=${PUBLIC_HOST}, MANAGER_PORT=${INSTALL_MANAGER_PORT})"
 fi
@@ -120,6 +127,17 @@ if ! grep -q '^JWT_SECRET=.' .env; then
 fi
 
 # Load the final values for post-start messages.
+# Old installations used Chinese before this option existed.
+if ! grep -q '^AGENT_OUTPUT_LANGUAGE=.' .env; then
+    if [ -f data/.initialized ]; then
+        INSTALL_AI_LANGUAGE=zh
+    else
+        INSTALL_AI_LANGUAGE=$(liaison_ai_language)
+    fi
+    sed '/^AGENT_OUTPUT_LANGUAGE=/d' .env > .env.tmp
+    printf 'AGENT_OUTPUT_LANGUAGE=%s\n' "$INSTALL_AI_LANGUAGE" >> .env.tmp
+    mv .env.tmp .env
+fi
 # shellcheck disable=SC1091
 set -a; . ./.env; set +a
 : "${LIAISON_PUBLIC_HOST:=localhost}"

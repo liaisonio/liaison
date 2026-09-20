@@ -8,6 +8,7 @@ import (
 	"github.com/jumboframes/armorigo/log"
 	"github.com/liaisonio/liaison/pkg/edge/config"
 	"github.com/liaisonio/liaison/pkg/edge/frontierbound"
+	"github.com/liaisonio/liaison/pkg/edge/lifecycle"
 	"github.com/liaisonio/liaison/pkg/edge/pinger"
 	"github.com/liaisonio/liaison/pkg/edge/proxy"
 	"github.com/liaisonio/liaison/pkg/edge/reporter"
@@ -52,6 +53,14 @@ func NewEdge() (*Edge, error) {
 	if err != nil {
 		log.Errorf("init frontier bound error: %v", err)
 		return nil, err
+	}
+
+	// Lifecycle metadata is additive. Failure to expose it must not break an
+	// otherwise valid legacy connection or grant any uninstall capability.
+	if identity, identityErr := lifecycle.RuntimeIdentity(config.ConfigFile(), config.Conf.InstanceID); identityErr == nil {
+		if registerErr := lifecycle.RegisterStatus(frontierBound, identity, config.Conf.AllowRemoteUninstall, config.Conf.Manager.Dial.Addrs, config.Conf.Manager.Dial.TLS.InsecureSkipVerify); registerErr != nil {
+			log.Warnf("installation status capability unavailable")
+		}
 	}
 
 	_, err = proxy.NewProxy(frontierBound)

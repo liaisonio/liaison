@@ -26,6 +26,7 @@ ${WEB_TLS_CERTS}
   guacd_bridge_addr: ${GUACD_BRIDGE_ADDR}
   guacd_bridge_host: ${GUACD_BRIDGE_HOST}
   agent:
+    output_language: ${AGENT_OUTPUT_LANGUAGE}
     enabled: ${AGENT_ENABLED}
     base_url: ${AGENT_BASE_URL}
     model: ${AGENT_MODEL}
