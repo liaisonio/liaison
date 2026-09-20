@@ -83,3 +83,24 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Install browser test tools
+        run: |
+          npm install --prefix /tmp/liaison-browser-tests --no-audit --no-fund playwright@1.58.2
+          /tmp/liaison-browser-tests/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Core browser regression
+        env:
+          PLAYWRIGHT_MODULE: /tmp/liaison-browser-tests/node_modules/playwright
+        run: bash e2e/run-core.sh
+
+      - name: Upload browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-browser-screenshots
+          path: |
+            /tmp/models-*.png
+            /tmp/session-model-*.png
+            /tmp/liaison-shell-*.png
+            /tmp/product-polish-*.png

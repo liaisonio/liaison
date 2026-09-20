@@ -43,6 +43,32 @@ func TestOutputLanguagePersistenceAndValidation(t *testing.T) {
 	}
 }
 
+func TestInstallationLanguageDoesNotOverrideSavedSettings(t *testing.T) {
+	ctx := context.Background()
+	store := &memoryStore{}
+	authorize := func(context.Context, uint, string) error { return nil }
+	m, err := New(store, "test-secret", Config{OutputLanguage: "en"}, authorize)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := m.Get(ctx, 1)
+	if err != nil || v.OutputLanguage != "en" {
+		t.Fatalf("installation default: %+v %v", v, err)
+	}
+	_, err = m.Save(ctx, 1, Update{Config: Config{Providers: []ProviderConfig{}, OutputLanguage: "zh"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := New(store, "test-secret", Config{OutputLanguage: "en"}, authorize)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err = restarted.Get(ctx, 1)
+	if err != nil || v.OutputLanguage != "zh" {
+		t.Fatalf("saved configuration overwritten: %+v %v", v, err)
+	}
+}
+
 func TestOutputLanguageDirectivePreservesRequest(t *testing.T) {
 	for _, language := range []string{"zh", "en", ""} {
 		t.Run(language, func(t *testing.T) {

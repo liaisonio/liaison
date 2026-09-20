@@ -1,13 +1,15 @@
 import {useEffect, useRef, useState, type ReactNode} from 'react';
 import {Sparkles} from 'lucide-react';
 import {useI18n} from '@/i18n';
-import {getAgentSession, resolveAgentApproval, runAgentTurn} from '@/services/agent';
+import {getAgentSession, resolveAgentApproval, runAgentTurn, setAgentSessionModel, type AgentModelSelection} from '@/services/agent';
+import ModelSelector from '@/components/AgentWorkspace/ModelSelector';
+import {messageModel} from '@/components/AgentWorkspace/messageModel';
 import {MessageContent, ToolMessage} from '@/components/AgentWorkspace/MessageContent';
 import SessionInfo from '@/components/SessionReference/SessionInfo';
 import './ShellAgent.less';
 
 // Mounted with a live handle as its React key: never shares Sidepanel history.
-export default function ShellAgent({handleId, exitCode, ensureSession, initialDetail, controls}: {handleId: string; exitCode?: number; ensureSession: (handle: string) => Promise<API.AgentSessionDetail>; initialDetail?: API.AgentSessionDetail; controls?: ReactNode}) {
+export default function ShellAgent({handleId, exitCode, ensureSession, initialDetail, controls, onModelChanging}: {handleId: string; exitCode?: number; ensureSession: (handle: string) => Promise<API.AgentSessionDetail>; initialDetail?: API.AgentSessionDetail; controls?: ReactNode; onModelChanging?: (changing:boolean)=>void}) {
   const {tr} = useI18n();
   const [detail, setDetail] = useState<API.AgentSessionDetail>();
   const [expanded, setExpanded] = useState(false);
@@ -64,9 +66,23 @@ export default function ShellAgent({handleId, exitCode, ensureSession, initialDe
     '请读取当前 Shell 上下文与最近输出，简短分析最近命令的结果，给出下一步建议。不要执行命令；如需进一步诊断，先说明建议。',
     'Read the current Shell context and recent output. Briefly analyze the latest command result and suggest a next step. Do not execute commands; explain any recommended diagnosis first.',
   ));
+  const changeModel = async (value?:AgentModelSelection) => {
+    if(lock.current||running||pending.length)return;
+    lock.current=true;setBusy(true);setError('');
+    onModelChanging?.(true);
+    try {
+      const current=detail||await ensureSession(handleId);
+      session.current=current.session.id;
+      const response=await setAgentSessionModel(current.session,value);
+      if(response.code!==200||!response.data)throw new Error();
+      if(live.current)setDetail({...current,session:response.data});
+    }catch{if(live.current){setExpanded(true);setError(tr('模型切换失败，请刷新后重试。','Could not switch models. Refresh and retry.'));}}
+    finally{lock.current=false;if(live.current){setBusy(false);onModelChanging?.(false);}}
+  };
   return <div className="shell-agent" aria-label="Shell Agent">
     <div className="shell-agent-toolbar">
       <strong><Sparkles size={14}/> Shell Agent</strong><SessionInfo agentId={detail?.session.id}/>
+      <ModelSelector value={detail?.session.model_selection?.provider_id?detail.session.model_selection:undefined} onChange={value=>void changeModel(value)} disabled={busy||running||!!pending.length}/>
       {controls}
       {exitCode !== undefined && exitCode !== 0 && <span className="shell-agent-failure">{tr('命令退出码', 'Command exit code')} {exitCode}</span>}
       <button type="button" disabled={busy || running || !!pending.length} onClick={() => void analyze()}>{tr('分析最近结果', 'Analyze latest result')}</button>
@@ -76,7 +92,7 @@ export default function ShellAgent({handleId, exitCode, ensureSession, initialDe
       <p className="shell-agent-scope">{tr('分析会将当前连接的最近命令与输出发送给模型。诊断在独立 SSH 通道执行，每条命令需确认，不会输入到当前终端。', 'Analysis shares recent commands and output with the model. Diagnosis runs in a separate SSH channel; every command requires approval and is never typed into this terminal.')}</p>
       <div className="shell-agent-results" aria-live="polite" ref={results}>
         {detail?.messages.filter(m => m.value.role !== 'system').slice(-12).map(m => <article key={m.id}>
-          {m.value.role === 'tool' ? <ToolMessage name={m.value.tool_name || 'terminal'} content={m.value.content || ''}/> : m.value.content && <><small>{m.value.role === 'user' ? tr('你', 'You') : 'Shell Agent'}</small><MessageContent text={m.value.content}/></>}
+          {m.value.role === 'tool' ? <ToolMessage name={m.value.tool_name || 'terminal'} content={m.value.content || ''}/> : m.value.content && <><small>{m.value.role === 'user' ? tr('你', 'You') : <>Shell Agent {messageModel(detail!,m.turn_id) && <code>· {messageModel(detail!,m.turn_id)}</code>}</>}</small><MessageContent text={m.value.content}/></>}
         </article>)}
         {pending.map(a => <div className="shell-agent-approval" key={a.id}>
           <strong>{tr('确认诊断命令', 'Review diagnostic command')}</strong>

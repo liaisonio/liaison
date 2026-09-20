@@ -23,8 +23,15 @@ message AgentModelSelection {
 }
 message RunAgentTurnRequest {
   string prompt = 1;
-  AgentModelSelection model_selection = 2; // Omitted: system default.
+  AgentModelSelection model_selection = 2; // Omitted: saved session choice, otherwise system default.
   repeated AgentResourceReference references = 3; // Management only, max 8; server reauthorizes every ID.
+}
+
+// PATCH /api/v1/agent/sessions/{id}; owner-scoped, rejects active turns.
+// Empty model_selection follows the system default. No credentials are accepted.
+message UpdateAgentSessionModelRequest {
+  uint64 version = 1;
+  AgentModelSelection model_selection = 2;
 }
 
 message AgentResourceReference {

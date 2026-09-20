@@ -488,7 +488,7 @@ const DashboardPage: React.FC = () => {
           <header>
             <div>
               <h2>{tr('流量趋势', 'Traffic trend')}</h2>
-              <p>{tr(`活跃应用流量，最近 ${hours} 小时`, `Active application traffic over the last ${hours} hours`)}</p>
+              <p>{tr(`活跃应用流量，最近 ${hours} 小时`, `Active application traffic over the last ${hours} ${hours === 1 ? 'hour' : 'hours'}`)}</p>
               {loading&&<p role="status">{tr('正在更新…','Updating…')}</p>}
               {trafficError && <p role="status">{trafficCache.current.has(hours)?tr('流量数据未完整加载，当前保留上次结果。','Traffic data could not be fully loaded. Previous results are retained.'):tr('流量数据加载失败，请稍后重试。','Could not load traffic data. Please try again later.')}</p>}
             </div>

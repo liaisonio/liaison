@@ -9,14 +9,17 @@ no rule-based fallback. Shell integration supplies input boundaries, not candida
 
 ## Use
 
-Enable `LIAISON_WEBSSH_SHELL_INTEGRATION=true` on the manager and reconnect to
-Bash >= 4.4. Users also need the existing `ai.access.use` permission and an enabled
+Shell integration is enabled by default on the manager for new connections to
+Bash >= 4.4. Set `LIAISON_WEBSSH_SHELL_INTEGRATION=false` to opt out. Reconnect
+after changing this setting. Users also need the existing `ai.access.use` permission and an enabled
 Agent model. The permission and live handle ownership are checked by the existing
 Assistance service, not only by the frontend.
 
 - Type a command in the terminal, then press Ctrl+Space or click Suggest.
-- Optionally enable automatic AI for this connection. After 800 ms of idle,
-  confirmed remote echo is submitted. It starts disabled on each connection.
+- Automatic AI is enabled for eligible connections. After 150 ms of idle,
+  confirmed remote echo is submitted. Use the connection toolbar to disable it.
+- Continuing to type a matching candidate reuses its remaining suffix after
+  remote echo, without another model request. Diverging input invalidates it.
 - Tab or clicking inserts the returned suffix. Enter is never sent automatically.
 - Escape dismisses; typing, leaving the terminal, execution, paste, composition,
   resize and disconnection cancel pending suggestions.
@@ -24,7 +27,7 @@ Assistance service, not only by the frontend.
 By default only the current command draft is sent to the configured model.
 The connection-local context selector can explicitly include the current directory
 and recent completed commands, or additionally their bounded output. Changing
-scope cancels pending suggestions and turns automatic suggestions off. Reconnecting
+scope cancels pending suggestions and preserves the automatic suggestion setting. Reconnecting
 resets sharing to draft only. Directory listings and Agent chat history are never
 added by this feature. Do not put secrets in shared drafts, commands or output;
 best-effort redaction is not a guarantee that all sensitive text is removed.

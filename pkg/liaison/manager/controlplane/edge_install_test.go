@@ -24,7 +24,7 @@ func TestConnectorInstallCommands(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, part := range []string{tc.baseURL + "/install.sh", "--server-http-addr='" + tc.download + "'", "--server-edge-addr='" + tc.edge + "'"} {
+			for _, part := range []string{"--new-instance", tc.baseURL + "/install.sh", "--server-http-addr='" + tc.download + "'", "--server-edge-addr='" + tc.edge + "'"} {
 				if !strings.Contains(unix, part) {
 					t.Errorf("Unix command missing %q: %s", part, unix)
 				}

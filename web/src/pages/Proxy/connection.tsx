@@ -79,9 +79,11 @@ export function InitialConnectionFields({
       <Field label={tr('域（可选）','Domain (optional)')}><Input value={value.schema} onChange={e=>onChange({...value,schema:e.target.value})}/></Field>
       <Field label={tr('共享名','Share name')} required hint={tr('仅填写共享名，不是 UNC 地址或目录路径。','Enter one share name, not a UNC address or directory path.')}><Input required value={value.database} onChange={e=>onChange({...value,database:e.target.value})}/></Field>
       <p className="is-full">{tr('SMB2/3，要求消息签名。当前支持浏览、文本预览和下载，不提供写入操作。','SMB2/3 with required message signing. Browsing, text preview and download only; no write operations.')}</p>
-      <label className="liaison-checkbox is-full"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存密码','Save password')}</label>
+      <div className="liaison-initial-secret">
       {value.remember&&<Field label={tr('密码','Password')} hint={value.saved?tr('留空保留已保存密码','Leave blank to keep the saved password'):undefined}><Input type="password" autoComplete="new-password" required={!value.saved} placeholder={value.saved?'••••••••':undefined} value={value.password} onChange={e=>onChange({...value,password:e.target.value})}/></Field>}
+      <label className="liaison-checkbox"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存密码','Save password')}</label>
       {!value.remember&&<p>{tr('访问时输入密码，不保存。','Enter password when connecting; it will not be saved.')}</p>}
+      </div>
     </div>
   </fieldset>;
   if(type==='webs3')return <fieldset className="is-full liaison-initial-connection" disabled={disabled}>
@@ -91,9 +93,11 @@ export function InitialConnectionFields({
       <Field label={tr('区域','Region')}><Input placeholder="us-east-1" value={value.schema} onChange={e=>onChange({...value,schema:e.target.value})}/></Field>
       <Field label={tr('指定桶（可选）','Bucket (optional)')} hint={tr('限制在此桶内浏览；留空列出可见的桶。','Browse only this bucket; leave empty to list visible buckets.')}><Input value={value.database} onChange={e=>onChange({...value,database:e.target.value})}/></Field>
       <Field label="TLS"><Select value={value.tls_mode} onChange={e=>onChange({...value,tls_mode:e.target.value})}><option value="require">{tr('启用并验证证书','Enable and verify certificate')}</option><option value="disable">{tr('关闭（连接器到服务为 HTTP）','Off (HTTP from connector to service)')}</option></Select></Field>
-      <label className="liaison-checkbox is-full"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存 Secret Key','Save Secret Key')}</label>
+      <div className="liaison-initial-secret">
       {value.remember&&<Field label="Secret Key" hint={value.saved?tr('留空保留已保存密钥','Leave blank to keep the saved key'):undefined}><Input type="password" autoComplete="new-password" required={!value.saved} placeholder={value.saved?'••••••••':undefined} value={value.password} onChange={e=>onChange({...value,password:e.target.value})}/></Field>}
+      <label className="liaison-checkbox"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存 Secret Key','Save Secret Key')}</label>
       {!value.remember&&<p>{tr('访问时输入 Secret Key，不保存。','Enter Secret Key when connecting. It will not be saved.')}</p>}
+      </div>
     </div>
   </fieldset>;
   if (type === 'webmemcached') return <fieldset className="is-full liaison-initial-connection" disabled={disabled}>
@@ -141,8 +145,7 @@ export function InitialConnectionFields({
             </Field>
           )}
           {type === 'webdameng' && <Field label="Schema"><Input value={value.schema} placeholder={tr('默认使用账号的 Schema','Use account default if empty')} onChange={e=>set('schema',e.target.value)}/></Field>}
-          <label className="liaison-checkbox is-full"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存密码','Save password')}</label>
-          {!value.remember&&<p className="is-full">{tr('每次建立新会话时输入密码，密码不会保存。','Enter the password when starting a new session. It will not be saved.')}</p>}
+          <div className="liaison-initial-secret">
           {value.remember&&<Field label={tr('密码', 'Password')} required={!data&&!value.saved} hint={value.saved?tr('留空保留已保存的密码','Leave blank to keep the saved password'):undefined}>
             <Input
               autoComplete="new-password"
@@ -153,6 +156,9 @@ export function InitialConnectionFields({
               onChange={(e) => set('password', e.target.value)}
             />
           </Field>}
+          <label className="liaison-checkbox"><input type="checkbox" checked={value.remember} onChange={e=>onChange({...value,remember:e.target.checked,password:''})}/>{tr('保存密码','Save password')}</label>
+          {!value.remember&&<p>{tr('每次建立新会话时输入密码，密码不会保存。','Enter the password when starting a new session. It will not be saved.')}</p>}
+          </div>
           {type === 'webrdp' && (
             <Field label={tr('域', 'Domain')}>
               <Input

@@ -6,16 +6,17 @@ import (
 )
 
 const (
-	FeatureAudit         = "audit.read"
-	FeatureOrganizations = "organizations.read"
-	FeatureHomeAI        = "ai.home.use"
-	FeatureAccessAI      = "ai.access.use"
-	FeatureSettingsRead  = "settings.global.read"
-	FeatureSettingsWrite = "settings.global.update"
-	FeaturePermissions   = "permissions.manage"
-	FeatureFilesRead     = "webssh.files.read"
-	FeatureFilesUpload   = "webssh.files.upload"
-	FeatureStorageUpload = "webs3.files.upload"
+	FeatureConnectorUninstall = "connectors.uninstall"
+	FeatureAudit              = "audit.read"
+	FeatureOrganizations      = "organizations.read"
+	FeatureHomeAI             = "ai.home.use"
+	FeatureAccessAI           = "ai.access.use"
+	FeatureSettingsRead       = "settings.global.read"
+	FeatureSettingsWrite      = "settings.global.update"
+	FeaturePermissions        = "permissions.manage"
+	FeatureFilesRead          = "webssh.files.read"
+	FeatureFilesUpload        = "webssh.files.upload"
+	FeatureStorageUpload      = "webs3.files.upload"
 )
 
 type Feature struct {
@@ -24,6 +25,7 @@ type Feature struct {
 }
 
 var featureCatalog = []Feature{
+	{FeatureConnectorUninstall, "卸载连接器"},
 	{FeatureFilesRead, "文件浏览"}, {FeatureFilesUpload, "文件上传"},
 	{FeatureStorageUpload, "对象上传"},
 	{FeatureAudit, "日志与审计"},

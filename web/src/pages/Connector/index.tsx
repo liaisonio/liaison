@@ -11,6 +11,10 @@ import { createApplication, createEdge, createEdgeScanTask, createProxy, deleteE
 import { Check, Copy, Plus, Radar, Server } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WebEntryModeField, {useWebEntryMode} from '@/components/WebEntryModeField';
+import {useSearchParams} from 'react-router-dom';
+import {useFeature} from '@/store/permissions';
+import ActionMenu from '@/components/ui/ActionMenu';
+import Uninstall from './Uninstall';
 
 const pageSize = 10;
 const scanPollInterval = 500;
@@ -39,6 +43,13 @@ const ConnectorPage: React.FC = () => {
   const debouncedName = useDebouncedValue(filters.name);
   const debouncedDeviceName = useDebouncedValue(filters.device_name);
   const [createOpen, setCreateOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') return;
+    setCreateOpen(true);
+    const next = new URLSearchParams(searchParams); next.delete('create');
+    setSearchParams(next, {replace:true});
+  }, [searchParams, setSearchParams]);
   const [createName, setCreateName] = useState('');
   const [suggestedConnectorName, setSuggestedConnectorName] = useState(defaultConnectorName);
   const [createDescription, setCreateDescription] = useState('');
@@ -48,6 +59,8 @@ const ConnectorPage: React.FC = () => {
   const [installCopied, setInstallCopied] = useState(false);
   const [editRow, setEditRow] = useState<API.Edge>();
   const [deleteRow, setDeleteRow] = useState<API.Edge>();
+  const [uninstallRow,setUninstallRow]=useState<API.Edge>();
+  const canUninstall=useFeature('connectors.uninstall');
   const [saving, setSaving] = useState(false);
   const [togglingIds, setTogglingIds] = useState<number[]>([]);
   const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
@@ -237,10 +250,11 @@ const ConnectorPage: React.FC = () => {
     { key: 'runtime', title: tr('运行状态', 'Runtime'), width: 100, render: (row) => <Switch checked={row.status === 1} disabled={togglingIds.includes(row.id)} aria-busy={togglingIds.includes(row.id)} aria-label={tr(`运行连接器：${row.name}`,`Run connector: ${row.name}`)} onChange={() => void toggle(row)}/> },
     { key: 'created', title: tr('创建时间', 'Created'), width: 150, render: (row) => row.created_at },
     { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
-    { key: 'actions', title: tr('操作', 'Actions'), width: 175, render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" disabled={row.status !== 1 || row.online !== 1} onClick={() => void refreshScan(row)}>{tr('扫描应用', 'Scan')}</button><button className="liaison-table-link" onClick={() => { setEditRow(row); setCreateName(row.name); setCreateDescription(row.description || ''); }}>{tr('编辑', 'Edit')}</button><button className="liaison-table-link is-danger" onClick={() => setDeleteRow(row)}>{tr('删除', 'Delete')}</button></span> },
+    { key: 'actions', title: tr('操作', 'Actions'), width: 175, render: (row) => <span className="liaison-table-actions"><button className="liaison-table-link" disabled={row.status !== 1 || row.online !== 1} onClick={() => void refreshScan(row)}>{tr('扫描应用', 'Scan')}</button><button className="liaison-table-link" onClick={() => { setEditRow(row); setCreateName(row.name); setCreateDescription(row.description || ''); }}>{tr('编辑', 'Edit')}</button><ActionMenu label={tr(`更多操作：${row.name}`,`More actions: ${row.name}`)} items={[...(canUninstall?[{label:tr('卸载','Uninstall'),danger:true,onClick:()=>setUninstallRow(row)}]:[]),{label:tr('删除','Delete'),danger:true,onClick:()=>setDeleteRow(row)}]}/></span> },
   ];
 
   return <div className="liaison-page-stack">
+    {uninstallRow&&canUninstall&&<Uninstall key={uninstallRow.id} edge={uninstallRow} onClose={()=>setUninstallRow(undefined)} onComplete={()=>void load()}/>}
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
     <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('连接器名称', 'Connector')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入连接器名称', 'Connector name')} /></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => { setFilters((value) => ({ ...value, device_name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label><label className="liaison-compound"><span>{tr('在线状态', 'Online')}</span><select value={filters.online} onChange={(event) => { setFilters((value) => ({ ...value, online: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="1">{tr('在线', 'Online')}</option><option value="0">{tr('离线', 'Offline')}</option></select></label><label className="liaison-compound"><span>{tr('运行状态', 'Runtime')}</span><select value={filters.status} onChange={(event) => { setFilters((value) => ({ ...value, status: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="1">{tr('运行', 'Running')}</option><option value="2">{tr('停止', 'Stopped')}</option></select></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', device_name: '', online: '', status: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
     <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('连接器列表', 'Connectors')}</h2><Button variant="primary" onClick={openCreate} disabled={saving}><Plus size={14} />{tr('新建连接器', 'Create connector')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无连接器', 'No connectors')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>

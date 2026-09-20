@@ -1,0 +1,16 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import {MemoryRouter} from 'react-router-dom';
+import AgentWorkspace from '../src/components/AgentWorkspace';
+import ShellAgent from '../src/components/TerminalAssistant/ShellAgent';
+import {createAgentSession} from '../src/services/agent';
+import {RuntimeBridge} from '../src/lib/runtime';
+import {applyThemeOnBoot} from '../src/store/theme';
+import {usePermissions} from '../src/store/permissions';
+import {useSession} from '../src/store/session';
+import '../src/styles/index.css';
+if(!import.meta.env.DEV)throw Error('Development fixture only');
+applyThemeOnBoot();
+usePermissions.setState({owner:useSession.getState().token,loaded:true,grants:{'ai.access.use':true}});
+const shell=new URLSearchParams(location.search).has('shell');
+createRoot(document.getElementById('root')!).render(<MemoryRouter><RuntimeBridge/><main style={{padding:24,height:'100%',maxWidth:'100%'}}>{shell?<ShellAgent handleId="fixture" ensureSession={async()=>{const r=await createAgentSession('fixture','Shell','shell');return r.data!;}}/>:<AgentWorkspace open handleId="fixture" title="Database workspace" protocol="MySQL" onClose={()=>{}}/>}</main></MemoryRouter>);

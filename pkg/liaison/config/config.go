@@ -39,6 +39,7 @@ type Daemon struct {
 }
 
 type Agent struct {
+	OutputLanguage string        `yaml:"output_language,omitempty" json:"output_language"`
 	Enabled        bool          `yaml:"enabled,omitempty" json:"enabled"`
 	BaseURL        string        `yaml:"base_url,omitempty" json:"base_url"`
 	Model          string        `yaml:"model,omitempty" json:"model"`

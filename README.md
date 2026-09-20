@@ -44,9 +44,9 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.13.0/liaison-1.13.0-linux-amd64.tar.gz
-tar -xzf liaison-1.13.0-linux-amd64.tar.gz
-cd liaison-1.13.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.14.1/liaison-1.14.1-linux-amd64.tar.gz
+tar -xzf liaison-1.14.1-linux-amd64.tar.gz
+cd liaison-1.14.1-linux-amd64
 ./install.sh
 ```
 

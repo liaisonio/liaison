@@ -146,7 +146,8 @@ func NewLiaison() (*Liaison, error) {
 	agentEvents := agentruntime.NewEventBroker(128)
 	agentConfig := config.Conf.Manager.Agent
 	models, err := modelsettings.New(repo, config.Conf.Manager.JWTSecret, modelsettings.Config{
-		Enabled: agentConfig.Enabled, BaseURL: agentConfig.BaseURL, Model: agentConfig.Model, APIKey: os.Getenv(agentConfig.APIKeyEnv),
+		OutputLanguage: agentConfig.OutputLanguage,
+		Enabled:        agentConfig.Enabled, BaseURL: agentConfig.BaseURL, Model: agentConfig.Model, APIKey: os.Getenv(agentConfig.APIKeyEnv),
 	}, func(ctx context.Context, userID uint, action string) error {
 		actor, err := iamService.GetUserByID(userID)
 		if err != nil {

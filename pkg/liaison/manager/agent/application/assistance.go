@@ -85,6 +85,7 @@ func (g *shellGenerator) Suggest(ctx context.Context, binding assistance.Binding
 		return "", ErrUnavailable
 	}
 	input.AgentSessionID = session.ID
+	input.ModelSelection = session.ModelSelection
 	input.AgentContext, err = reader.ShellCompletionContext(ctx, tool.Principal{UserID: g.actor.ID, OrganizationID: session.OrganizationID}, session.ID)
 	if err != nil {
 		return "", err
@@ -93,8 +94,12 @@ func (g *shellGenerator) Suggest(ctx context.Context, binding assistance.Binding
 	if err != nil {
 		return "", err
 	}
-	if _, err := g.validate(ctx, binding, session.ID); err != nil {
+	current, err := g.validate(ctx, binding, session.ID)
+	if err != nil {
 		return "", err
+	}
+	if current.ModelSelection != session.ModelSelection {
+		return "", assistance.ErrStale
 	}
 	return text, nil
 }

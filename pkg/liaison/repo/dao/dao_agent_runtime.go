@@ -40,7 +40,7 @@ func (d *dao) UpdateAgentSessionCAS(ctx context.Context, session *model.AgentSes
 	}
 	result := d.getDB().WithContext(ctx).Model(&model.AgentSession{}).
 		Where("id = ? AND version = ?", session.ID, expectedVersion).
-		Select("title", "status", "active_turn_id", "active_attachment_id", "summary", "version", "updated_at").
+		Select("title", "status", "active_turn_id", "active_attachment_id", "summary", "model_provider", "model_name", "version", "updated_at").
 		Updates(session)
 	return result.RowsAffected == 1, result.Error
 }

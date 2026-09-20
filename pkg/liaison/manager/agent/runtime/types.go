@@ -62,6 +62,7 @@ const (
 )
 
 type Session struct {
+	ModelSelection     ModelSelection   `json:"model_selection"`
 	Kind               tool.SessionKind `json:"kind"`
 	ID                 string           `json:"id"`
 	OrganizationID     uint             `json:"organization_id"`

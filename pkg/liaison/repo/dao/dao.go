@@ -14,6 +14,10 @@ import (
 
 // Dao 接口定义
 type Dao interface {
+	CreateEdgeUninstallTask(context.Context, *model.EdgeUninstallTask) (bool, error)
+	GetEdgeUninstallTask(context.Context, uint64, string) (*model.EdgeUninstallTask, error)
+	GetEdgeUninstallTaskByID(context.Context, string) (*model.EdgeUninstallTask, error)
+	SetEdgeUninstallResult(context.Context, string, string, string) error
 	RevokeSession(context.Context, string, time.Time) error
 	IsSessionRevoked(context.Context, string) (bool, error)
 	GetAIApplication(context.Context, uint) (*model.AIApplication, error)
@@ -295,6 +299,7 @@ func (d *dao) initDB() error {
 		&model.AIApplication{}, &model.AIAccess{}, &model.AIKey{}, &model.AIRequest{},
 		&model.LLMTokenUsage{},
 		&model.Edge{},
+		&model.EdgeUninstallTask{},
 		&model.AccessKey{},
 		&model.Device{},
 		&model.EthernetInterface{},

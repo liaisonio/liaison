@@ -69,9 +69,9 @@ Installiere das tar.gz-Serverpaket und anschließend einen Konnektor.
 **1. Herunterladen**
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.13.0/liaison-1.13.0-linux-amd64.tar.gz
-tar -xzf liaison-1.13.0-linux-amd64.tar.gz
-cd liaison-1.13.0-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.14.1/liaison-1.14.1-linux-amd64.tar.gz
+tar -xzf liaison-1.14.1-linux-amd64.tar.gz
+cd liaison-1.14.1-linux-amd64
 ```
 
 **2. Installationsskript ausführen**

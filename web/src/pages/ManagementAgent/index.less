@@ -35,11 +35,20 @@
 .preset-title { display:flex; align-items:center; gap:10px; font-weight:500; line-height:1.6; }
 .preset-title svg { flex-shrink:0; color:rgb(var(--muted)); }
 .preset-description { color:rgb(var(--muted)); font-size:12px; line-height:1.6; }
-.management-agent-onboarding { margin:32px 0 24px; padding:24px; border:1px solid rgb(var(--line) / .6); border-radius:14px; background:rgb(var(--surface) / .45); }
-.management-agent-onboarding h2 { margin:0 0 8px; font-size:15px; font-weight:500; }
-.management-agent-onboarding p { margin:0 0 16px; color:rgb(var(--muted)); font-size:13px; line-height:1.8; }
-.management-agent-onboarding a { display:inline-flex; align-items:center; gap:8px; color:rgb(var(--accent)); font-size:13px; text-decoration:none; }
-.management-agent-onboarding a svg { transform:rotate(90deg); }
+.management-agent-onboarding { margin:24px 0; }
+.management-agent-onboarding > h2 { margin:0 0 12px; color:rgb(var(--muted)); font-size:12px; font-weight:500; }
+.management-agent-setup-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.management-agent-setup-card { position:relative; display:block; padding:20px; border:1px dashed rgb(var(--muted) / .45); border-radius:var(--surface-radius); color:rgb(var(--ink)); background:transparent; text-decoration:none; transition:background .15s,border-color .15s; }
+.management-agent-setup-card:only-child { grid-column:1 / -1; }
+.management-agent-setup-card:not(.is-unavailable):hover { background:rgb(var(--accent) / .04); border-color:rgb(var(--accent)); }
+.management-agent-setup-card:focus-visible { outline:2px solid rgb(var(--accent)); outline-offset:4px; }
+.management-agent-setup-arrow { position:absolute; right:20px; top:30px; color:rgb(var(--muted)); }
+.management-agent-setup-icon { display:grid; place-items:center; width:36px; height:36px; border-radius:var(--control-radius); color:rgb(var(--accent)); background:rgb(var(--accent) / .08); }
+.management-agent-setup-card h3 { margin:12px 0 4px; font-size:13px; font-weight:600; }
+.management-agent-setup-card p { margin:0; color:rgb(var(--muted)); font-size:12px; line-height:1.6; }
+@media(max-width:650px) {
+  .management-agent-setup-grid { grid-template-columns:1fr; gap:12px; }
+}
 .management-agent-presets button:hover { background:rgb(var(--panel)); color:rgb(var(--ink)); }
 .management-agent-welcome small { display:block; text-align:center; color:rgb(var(--muted)); font-size:11px; line-height:1.6; }
 .management-agent-error { margin:12px 20px; padding:10px 14px; border:1px solid rgb(var(--danger) / .3); border-radius:10px; color:rgb(var(--danger)); font-size:12px; }

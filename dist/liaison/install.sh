@@ -712,6 +712,13 @@ fi
 echo -e "${GREEN}${MSG_JWT_GENERATED}${NC}"
 
 # Render configuration templates
+. "${SCRIPT_DIR}/ai-output-language.sh"
+EXISTING_AI_LANGUAGE=""
+if [[ -f "$CONFIG_DIR/liaison.yaml" ]]; then
+    EXISTING_AI_LANGUAGE=$(sed -n 's/^    output_language: *\(zh\|en\) *$/\1/p' "$CONFIG_DIR/liaison.yaml" | head -n 1)
+    EXISTING_AI_LANGUAGE=${EXISTING_AI_LANGUAGE:-zh}
+fi
+AGENT_OUTPUT_LANGUAGE=$(liaison_ai_language "$EXISTING_AI_LANGUAGE")
 echo -e "${YELLOW}${MSG_RENDERING_CONFIG}${NC}"
 if [[ -d "$SCRIPT_DIR/conf" ]]; then
     # Render liaison.yaml from template
@@ -723,6 +730,7 @@ if [[ -d "$SCRIPT_DIR/conf" ]]; then
             -e "s|\${FRONTIER_PORT}|${FRONTIER_PORT}|g" \
             -e "s|\${FRONTIER_CONTROLPLANE_PORT}|${FRONTIER_CONTROLPLANE_PORT}|g" \
             -e "s|\${SERVER_URL}|${SERVER_URL}|g" \
+            -e "s|\${AGENT_OUTPUT_LANGUAGE}|${AGENT_OUTPUT_LANGUAGE}|g" \
             "$SCRIPT_DIR/conf/liaison.yaml.template" > "$CONFIG_DIR/liaison.yaml"
         chown root:"$SERVICE_GROUP" "$CONFIG_DIR/liaison.yaml"
         chmod 640 "$CONFIG_DIR/liaison.yaml"

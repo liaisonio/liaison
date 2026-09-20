@@ -286,3 +286,18 @@ For issues and questions:
 - Check the service logs: `sudo journalctl -u liaison -f`
 - Verify configuration: `sudo -u liaison /opt/liaison/bin/liaison -h`
 - Review system resources: `systemctl status liaison`
+
+## AI output language
+
+On a fresh installation, the installer recommends Simplified Chinese (`zh`)
+for mainland China timezones and English (`en`) for other or unknown timezones.
+An interactive installation lets you confirm the choice. For unattended setup:
+
+```bash
+sudo env AGENT_OUTPUT_LANGUAGE=en bash install.sh
+```
+
+This is a fixed product-wide default, not a browser preference. Existing
+installations keep their previous default (legacy installations: Chinese).
+Saved model settings take precedence; administrators can change the language
+in Settings → Models. Upgrading does not override those saved settings.

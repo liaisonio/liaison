@@ -211,6 +211,7 @@ func (web *web) handleAgentApprovalHTTP(w http.ResponseWriter, r *http.Request) 
 // handleAgentSessionHTTP reads or archives one Agent session.
 // @Summary Read or archive an Agent session
 // @Router /api/v1/agent/sessions/{id} [get]
+// @Router /api/v1/agent/sessions/{id} [patch]
 // @Success 200 {object} map[string]interface{}
 func (web *web) handleAgentSessionHTTP(w http.ResponseWriter, r *http.Request) {
 	actor, err := web.authenticateHTTP(r)
@@ -227,6 +228,30 @@ func (web *web) handleAgentSessionHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"code": 200, "message": "success", "data": detail})
+	case http.MethodPatch:
+		var request struct {
+			Version   uint64                       `json:"version"`
+			Selection *agentruntime.ModelSelection `json:"model_selection"`
+		}
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&request); err != nil || request.Selection == nil || request.Version == 0 {
+			writeAgentError(w, agentapplication.ErrInvalid)
+			return
+		}
+		service, ok := web.agentService.(interface {
+			SetSessionModel(context.Context, *model.User, string, uint64, agentruntime.ModelSelection) (agentruntime.Session, error)
+		})
+		if !ok {
+			writeAgentError(w, agentapplication.ErrUnavailable)
+			return
+		}
+		session, err := service.SetSessionModel(r.Context(), actor, sessionID, request.Version, *request.Selection)
+		if err != nil {
+			writeAgentError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"code": 200, "data": session})
 	case http.MethodDelete:
 		var request archiveAgentSessionHTTPRequest
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*1024))

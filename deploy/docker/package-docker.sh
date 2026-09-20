@@ -94,6 +94,7 @@ docker save "$GUACD_IMAGE" -o "$PACK_DIR/images/guacd.tar"
 # Pin the image tag inside the shipped compose via .env, so the release works
 # out of the box regardless of what LIAISON_IMAGE_TAG is set to in the user's shell.
 cp deploy/docker/docker-compose.release.yaml "$PACK_DIR/docker-compose.yaml"
+cp deploy/docker/ai-output-language.sh "$PACK_DIR/ai-output-language.sh"
 {
     cat deploy/docker/.env.example
     echo ""

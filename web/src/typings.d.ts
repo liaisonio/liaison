@@ -424,6 +424,7 @@ declare namespace API {
 
   // ========== Agent Runtime ==========
   interface AgentSession {
+    model_selection?: {provider_id: string; model: string};
     kind?: 'access' | 'management' | 'shell';
     id: string;
     organization_id: number;

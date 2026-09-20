@@ -4,7 +4,7 @@ import { BRAND_TITLE, BRAND_SUBTITLE } from '@/constants/brand';
 import { useI18n } from '@/i18n';
 import { createAPIToken, listAPITokens, revokeAPIToken } from '@/services/api';
 import { ACCENT_PRESETS, useAccentColor, useThemeMode } from '@/store/theme';
-import { Check, Copy, Github, Globe2, Info, KeyRound, Palette, Plus, Sun } from 'lucide-react';
+import { Bot, Check, Copy, Github, Globe2, Info, KeyRound, Palette, Plus, Sun } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './index.less';
 import Models from './Models';
@@ -17,7 +17,14 @@ const SettingsPage: React.FC = () => {
   const { tr, locale, setLocale } = useI18n();
   const { preference, setPreference } = useThemeMode();
   const { accentId, setAccentId } = useAccentColor();
-  const [active, setActive] = useState<'preferences' | 'tokens' | 'models' | 'about'>('preferences');
+  const [active, setActive] = useState<'preferences' | 'tokens' | 'models' | 'assistant' | 'about'>(modelsAllowed ? 'models' : 'tokens');
+  const [modelsDirty, setModelsDirty] = useState(false);
+  const [pendingTab, setPendingTab] = useState<typeof active>();
+  const selectTab = (tab: typeof active) => {
+    if (tab === active) return;
+    if ((active === 'models' || active === 'assistant') && modelsDirty) { setPendingTab(tab); return; }
+    setActive(tab);
+  };
   const shellRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -102,20 +109,22 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="settings-page native-settings-page">
+      <Modal open={!!pendingTab} title={tr('放弃未保存的更改？', 'Discard unsaved changes?')} onClose={() => setPendingTab(undefined)} footer={<><Button onClick={() => setPendingTab(undefined)}>{tr('继续编辑', 'Keep editing')}</Button><Button variant="danger" onClick={() => {if(pendingTab)setActive(pendingTab);setModelsDirty(false);setPendingTab(undefined);}}>{tr('放弃更改', 'Discard changes')}</Button></>}><DangerConfirm title={tr('设置尚未保存', 'Settings are not saved')} description={tr('离开后，此页面未保存的更改将丢失。', 'Leaving discards unsaved changes on this page.')}/></Modal>
       {notice ? <div className="settings-floating-notice"><Notice tone={notice.tone}>{notice.text}</Notice></div> : null}
       <div ref={shellRef} className="settings-shell native-settings-shell">
         <aside className="native-settings-tabs">
-          <button className={active === 'preferences' ? 'is-active' : ''} onClick={() => setActive('preferences')}><Palette size={15} />{tr('界面偏好', 'Appearance')}</button>
-          <button className={active === 'tokens' ? 'is-active' : ''} onClick={() => setActive('tokens')}><KeyRound size={15} />{tr('API Token', 'API Tokens')}</button>
-          {modelsAllowed && <button className={active === 'models' ? 'is-active' : ''} onClick={() => setActive('models')}><Globe2 size={15} />{tr('模型配置', 'Models')}</button>}
-          <button className={active === 'about' ? 'is-active' : ''} onClick={() => setActive('about')}><Info size={15} />{tr('关于', 'About')}</button>
+          {modelsAllowed && <button className={active === 'models' ? 'is-active' : ''} onClick={() => selectTab('models')}><Globe2 size={15} />{tr('模型', 'Models')}</button>}
+          {modelsAllowed && <button className={active === 'assistant' ? 'is-active' : ''} onClick={() => selectTab('assistant')}><Bot size={15} />{tr('助理', 'Assistant')}</button>}
+          <button className={active === 'tokens' ? 'is-active' : ''} onClick={() => selectTab('tokens')}><KeyRound size={15} />{tr('API Token', 'API Token')}</button>
+          <button className={active === 'preferences' ? 'is-active' : ''} onClick={() => selectTab('preferences')}><Palette size={15} />{tr('偏好', 'Preferences')}</button>
+          <button className={active === 'about' ? 'is-active' : ''} onClick={() => selectTab('about')}><Info size={15} />{tr('关于', 'About')}</button>
         </aside>
         <main ref={contentRef} className="native-settings-content">
-          {active === 'models' && modelsAllowed && <Models />}
+          {(active === 'models' || active === 'assistant') && modelsAllowed && <Models key={active} assistant={active === 'assistant'} onDirtyChange={setModelsDirty}/>}
           {active === 'preferences' ? (
             <section className="settings-section settings-preferences">
               <header className="settings-section-heading">
-                <h2>{tr('产品偏好', 'Product preferences')}</h2>
+                <h2>{tr('偏好', 'Preferences')}</h2>
                 <p>{tr('调整当前浏览器中的外观与交互偏好。', 'Customize appearance and interaction preferences for this browser.')}</p>
               </header>
               <div className="settings-preference-row">

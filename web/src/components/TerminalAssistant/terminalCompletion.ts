@@ -33,7 +33,9 @@ export function attachTerminalCompletion(
   let abort: AbortController | undefined;
   let scheduled = '';
   let inputEpoch = 0;
-  const hide = () => {
+  let reusable: {input: string; candidate: string} | undefined;
+  const hide = (keepCandidate = false) => {
+    if (!keepCandidate) reusable = undefined;
     revision++; clearTimeout(timer); abort?.abort(); abort = undefined;
     scheduled = ''; view = null; publish(null); status('idle');
   };
@@ -80,6 +82,13 @@ export function attachTerminalCompletion(
       return;
     }
     if (!manual && scheduled === input) return;
+    if (!manual && reusable && input.length >= reusable.input.length && reusable.candidate.startsWith(input)) {
+      if (input === reusable.candidate) { dismissed = input; hide(); return; }
+      const suffix = reusable.candidate.slice(input.length);
+      reusable.input = input;
+      render(input, suffix); status('idle');
+      return;
+    }
     hide(); scheduled = input;
     const current = revision;
     timer = setTimeout(async () => {
@@ -92,11 +101,12 @@ export function attachTerminalCompletion(
         if (controller.signal.aborted || current !== revision || read() !== input) return;
         if (!suffix) { status('empty'); return; }
         if (!validInsertion(suffix)) throw new Error('Invalid insertion');
+        reusable = {input, candidate: input + suffix};
         render(input, suffix); status('idle');
       } catch {
         if (current === revision) status('error');
       } finally { clearTimeout(timeout); }
-    }, manual ? 0 : 300);
+    }, manual ? 0 : 150);
   };
   const refresh = () => requestSuggestion();
   const accept = (candidate?: string) => {
@@ -154,7 +164,7 @@ export function attachTerminalCompletion(
     }
     if (event.key === 'Enter' || event.ctrlKey || event.altKey || event.metaKey
       || ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Delete', 'Tab', 'Escape'].includes(event.key)) suspend();
-    else hide(); // Wait for remote echo, not the local key event.
+    else hide(event.key.length === 1); // Keep candidates only for ordinary typing; wait for remote echo.
     return true;
   });
   const data = terminal.onData(value => {
@@ -167,7 +177,7 @@ export function attachTerminalCompletion(
     if (value.length !== 1 || !/^[\x20-\x7e\x7f]$/.test(value)) { suspend(); return; }
     const current = expectedEcho ?? readBuffer() ?? '';
     expectedEcho = value === '\x7f' ? current.slice(0, -1) : current + value;
-    hide();
+    hide(value !== '\x7f' && !!reusable && expectedEcho.length >= reusable.input.length && reusable.candidate.startsWith(expectedEcho));
   });
   const parsed = terminal.onWriteParsed(() => {
     if (navigationPending && readBuffer(true) !== undefined) {
@@ -181,13 +191,14 @@ export function attachTerminalCompletion(
   const refreshLayout = () => { hide(); queueMicrotask(refresh); };
   const scroll = terminal.onScroll(refreshLayout);
   const resize = terminal.onResize(refreshLayout);
-  const selection = terminal.onSelectionChange(hide);
+  const clearCandidate = () => hide();
+  const selection = terminal.onSelectionChange(clearCandidate);
   const onCompositionStart = () => { composing = true; suspend(); };
   const onCompositionEnd = () => { composing = false; };
   terminal.element?.addEventListener('paste', suspend, true);
   terminal.element?.addEventListener('compositionstart', onCompositionStart, true);
   terminal.element?.addEventListener('compositionend', onCompositionEnd, true);
-  terminal.textarea?.addEventListener('blur', hide);
+  terminal.textarea?.addEventListener('blur', clearCandidate);
   terminal.textarea?.addEventListener('focus', refresh);
   return {
     accept,
@@ -210,7 +221,7 @@ export function attachTerminalCompletion(
       terminal.element?.removeEventListener('paste', suspend, true);
       terminal.element?.removeEventListener('compositionstart', onCompositionStart, true);
       terminal.element?.removeEventListener('compositionend', onCompositionEnd, true);
-      terminal.textarea?.removeEventListener('blur', hide);
+      terminal.textarea?.removeEventListener('blur', clearCandidate);
       terminal.textarea?.removeEventListener('focus', refresh);
       terminal.attachCustomKeyEventHandler(() => true);
       hide();

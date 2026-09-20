@@ -274,6 +274,7 @@ fi
 
 # Copy install and uninstall scripts
 echo -e "${YELLOW}Copying install scripts...${NC}"
+cp deploy/docker/ai-output-language.sh "$PACK_DIR/ai-output-language.sh"
 if [[ "$(uname)" == "Darwin" ]]; then
     if [ -f "dist/liaison/install.sh" ]; then
         cp -X dist/liaison/install.sh "$PACK_DIR/" 2>/dev/null || cp dist/liaison/install.sh "$PACK_DIR/"

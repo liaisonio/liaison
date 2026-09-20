@@ -27,9 +27,13 @@ func TestAssistance_UsesShellSessionAndBindsLiveGeneration(t *testing.T) {
 	detail, err := service.CreateSession(context.Background(), CreateSessionRequest{Actor: actor, HandleID: "live-1", Kind: tool.SessionShell})
 	require.NoError(t, err)
 	service.runner = &completionContextRunner{}
+	selection := runtime.ModelSelection{ProviderID: "chosen", Model: "shell-model"}
+	_, err = service.store.(*runtime.MemoryStore).SetSessionModel(context.Background(), detail.Session.ID, detail.Session.Version, selection)
+	require.NoError(t, err)
 	calls := 0
 	session, err := service.NewAssistanceSession(context.Background(), actor, "live-1", assistanceGeneratorFunc(func(_ context.Context, b assistance.Binding, input assistance.Input) (string, error) {
 		calls++
+		require.Equal(t, selection, input.ModelSelection)
 		require.Equal(t, detail.Session.ID, input.AgentSessionID)
 		require.Equal(t, "shared conclusion", input.AgentContext[0].Content)
 		require.Equal(t, assistance.Binding{OwnerID: 7, HandleID: "live-1", Protocol: "ssh"}, b)
