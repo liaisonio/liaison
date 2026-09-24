@@ -30,7 +30,11 @@ const assert=require('node:assert/strict');
   }
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.screenshot({path:`/tmp/token-zero-${locale}-${theme}-${width}.png`,fullPage:true});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
   const refresh=page.getByRole('button',{name:zh?'刷新用量':'Refresh usage',exact:true});
-  mode='unknown';await refresh.click();await page.getByText(zh?'暂无已确认用量':'No confirmed usage yet',{exact:true}).waitFor();assert.equal(await chart.count(),0);
+  mode='unknown';await refresh.click();await page.getByText(zh?'暂无已确认用量':'No confirmed usage yet',{exact:true}).waitFor();assert.equal(await chart.count(),1);assert.equal(await chart.locator('.ai-token-line,.ai-token-point').count(),0);
+  await page.getByRole('button',{name:zh?'概览':'Overview',exact:true}).click();
+  await page.getByRole('button',{name:zh?'统计':'Statistics',exact:true}).click();await chart.waitFor();
+  await page.getByText(zh?'暂无已确认用量':'No confirmed usage yet',{exact:true}).waitFor();
+  for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.screenshot({path:`/tmp/token-unknown-${locale}-${theme}-${width}.png`,fullPage:true});}
   mode='failed';await refresh.click();await page.getByText(zh?'用量加载失败，请重试。':'Could not load usage. Please retry.',{exact:true}).waitFor();assert.equal(await chart.count(),0);
   mode='zero';await refresh.click();await chart.waitFor();assert.equal(await chart.locator('.ai-token-line').count(),1);
   await context.close();console.log('PASS zero trend ranges, unknown/error',locale,theme);

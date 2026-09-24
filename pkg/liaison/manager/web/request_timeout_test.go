@@ -14,6 +14,7 @@ func TestAgentDeadlineAndClientCancellation(t *testing.T) {
 		path    string
 		minimum time.Duration
 	}{
+		{"/api/v1/applications/probe", 7 * time.Second},
 		{"/api/v1/agent/sessions/s/turns", 4 * time.Minute},
 		{"/api/v1/settings/model/test", 20 * time.Second},
 		{"/api/v1/assistance/suggestions", 5 * time.Second},

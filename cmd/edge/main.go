@@ -10,11 +10,21 @@ import (
 	"github.com/jumboframes/armorigo/log"
 	"github.com/jumboframes/armorigo/sigaction"
 	"github.com/liaisonio/liaison/pkg/edge"
+	agentcommand "github.com/liaisonio/liaison/pkg/edge/agent/command"
 	"github.com/liaisonio/liaison/pkg/edge/config"
 	"github.com/liaisonio/liaison/pkg/edge/lifecycle"
 )
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--agent-discover" || os.Args[1] == "--agent-check") {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := agentcommand.Run(ctx, os.Args[1:], os.Stdout); err != nil {
+			fmt.Fprintln(os.Stderr, "Agent diagnostic failed:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && (os.Args[1] == "--edge-install-new" || os.Args[1] == "--edge-upgrade-instance") {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()

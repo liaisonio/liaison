@@ -17,6 +17,6 @@ if [[ "${E2E_EXTERNAL_SERVER:-0}" != 1 ]]; then
   done
   curl -fsS "$E2E_UI_URL/e2e/session-model.html" >/dev/null
 fi
-for test in models-ui session-model terminal-completion shell-agent-ui product-polish; do
+for test in models-ui session-model terminal-completion shell-agent-ui product-polish llm-empty application-probe llm-create access-application-flow access-password access-save-open access-empty edge-agent; do
   node "e2e/$test.cjs"
 done

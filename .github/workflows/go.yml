@@ -47,8 +47,12 @@ jobs:
 
       - name: Test
         shell: bash
+        env:
+          GOTMPDIR: ${{ runner.temp }}/liaison-go-test
         run: |
           set -euo pipefail
+          mkdir -p "$GOTMPDIR"
+          chmod 700 "$GOTMPDIR"
           for pkg in $(go list ./...); do
             if [[ ! "$pkg" =~ test/e2e ]]; then
               go test -race -timeout 120s "$pkg"
@@ -104,3 +108,7 @@ jobs:
             /tmp/session-model-*.png
             /tmp/liaison-shell-*.png
             /tmp/product-polish-*.png
+            /tmp/agent-*.png
+            /tmp/liaison-edge-agent-*.png
+            /tmp/access-*.png
+            /tmp/llm-*.png

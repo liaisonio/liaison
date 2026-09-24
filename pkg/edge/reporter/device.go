@@ -60,7 +60,9 @@ func repeatDeviceReport(ctx context.Context, retryInterval, reportInterval time.
 
 func (r *reporter) loopReportDeviceUsage(ctx context.Context) {
 	for {
-		deviceUsage, err := getDeviceUsage()
+		usageCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		deviceUsage, err := getDeviceUsage(usageCtx)
+		cancel()
 		if err != nil {
 			log.Errorf("get device usage error: %v", err)
 			// 失败后等待 1 分钟再重试
@@ -298,7 +300,7 @@ func getDeviceEthernetInterface() ([]*proto.DeviceEthernetInterface, error) {
 	return ethernetInterfaces, nil
 }
 
-func getDeviceUsage() (*proto.DeviceUsage, error) {
+func getDeviceUsage(ctx context.Context) (*proto.DeviceUsage, error) {
 	// 获取指纹
 	fingerprint, components, err := utils.GetFingerprint()
 	if err != nil {
@@ -314,9 +316,9 @@ func getDeviceUsage() (*proto.DeviceUsage, error) {
 		return nil, err
 	}
 	// 资源使用
-	cpuUsage, err := cpu.Percent(0, false)
+	cpuUsage, err := hostCPUPercent(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("collect CPU usage: %w", err)
 	}
 	diskUsage, err := disk.Usage("/")
 	if err != nil {
@@ -324,7 +326,7 @@ func getDeviceUsage() (*proto.DeviceUsage, error) {
 	}
 	deviceUsage := &proto.DeviceUsage{
 		Fingerprint: fingerprint,
-		CPUUsage:    float32(cpuUsage[0]),
+		CPUUsage:    float32(cpuUsage),
 		MemoryUsage: float32(memory.UsedPercent),
 		DiskUsage:   float32(diskUsage.UsedPercent),
 	}

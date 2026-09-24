@@ -14,6 +14,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/liaisonio/liaison/pkg/liaison/manager/aigateway"
@@ -30,9 +31,10 @@ var ErrAITokenQuota = errors.New("AI key token quota exhausted")
 var ErrAITokenUsage = errors.New("AI key token usage unconfirmed")
 
 type AIService struct {
-	cp     *controlPlane
-	iam    *iam.IAMService
-	cipher cipher.AEAD
+	setupMu sync.Mutex
+	cp      *controlPlane
+	iam     *iam.IAMService
+	cipher  cipher.AEAD
 }
 
 // NewAIService is optional on ControlPlane mocks; production creates it once,

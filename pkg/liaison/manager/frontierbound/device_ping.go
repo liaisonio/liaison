@@ -24,6 +24,8 @@ func (fb *frontierBound) getEdgeDiscoveredDevices(ctx context.Context, req gemin
 		rsp.SetError(err)
 		return
 	}
+	// Existing edges poll every 30 seconds, even when usage collection fails.
+	fb.updateEdgeHeartbeat(edgeID)
 
 	// 通过 EdgeDevice 关系表获取 Edge 发现的设备（类型为 Discovered）
 	discoveredType := model.EdgeDeviceRelationDiscovered

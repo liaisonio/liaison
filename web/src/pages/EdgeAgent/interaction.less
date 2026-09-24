@@ -1,0 +1,62 @@
+.edge-agent-input-requests {
+  padding: 16px; min-height: 0; overflow: auto;
+  border-top: 1px solid rgb(var(--line)); flex: 1;
+}
+.edge-agent-workspace.has-input .edge-agent-messages { flex: 0 1 90px; padding-block: 12px; }
+.edge-agent-workspace.has-input .edge-agent-composer textarea { display: none; }
+.edge-agent-workspace.has-input .edge-agent-composer-tools { margin-top: 0; }
+.edge-agent-workspace > .edge-agent-footnote { flex-shrink: 0; }
+.edge-agent-input-request {
+  border: 1px solid rgb(var(--accent) / .4); border-radius: var(--control-radius);
+  background: rgb(var(--panel)); padding: 16px; font-size: 13px;
+  & + & { margin-top: 16px; }
+  fieldset { min-width: 0; padding: 0; border: 0; margin: 16px 0; }
+  legend { width: 100%; padding: 0; margin-bottom: 12px; overflow-wrap: anywhere;
+    > span { display: block; font-size: 12px; color: rgb(var(--muted)); margin-bottom: 4px; }
+  }
+  .liaison-field { margin-top: 12px; }
+}
+.edge-agent-input-option {
+  display: flex; gap: 10px; align-items: flex-start; padding: 12px; margin: 8px 0;
+  border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); cursor: pointer;
+  input { flex-shrink: 0; margin-top: 3px; accent-color: rgb(var(--accent)); }
+  input:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 3px; }
+  > span { min-width: 0; overflow-wrap: anywhere; }
+  strong { font-size: 13px; font-weight: 600; }
+  small { display: block; margin-top: 4px; color: rgb(var(--muted)); font-size: 12px; }
+  &.is-selected { border-color: rgb(var(--accent)); background: rgb(var(--accent) / .06); }
+  &:hover { background: rgb(var(--accent) / .05); }
+}
+.edge-agent-input-actions { display: flex; justify-content: flex-end; }
+.edge-agent-activity ol > li.has-detail { display: block; padding: 0; }
+.edge-agent-activity li.has-detail > details { min-width: 0; }
+.edge-agent-activity li.has-detail > details > summary { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+.edge-agent-activity-detail {
+  min-width: 0; margin: 8px 0 12px; padding: 12px; background: rgb(var(--panel));
+  border: 1px solid rgb(var(--line)); border-radius: var(--control-radius);
+  pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; max-height: 280px; overflow: auto; background: rgb(var(--canvas)); padding: 12px; }
+  > small { display: block; margin-top: 8px; color: rgb(var(--muted)); }
+  .edge-agent-command-directory { display: block; overflow-wrap: anywhere; color: rgb(var(--muted)); }
+}
+.edge-agent-file-change {
+  min-width: 0; margin: 8px 0;
+  > summary { display: flex; gap: 8px; align-items: center; }
+  > summary code { overflow-wrap: anywhere; min-width: 0; }
+  > summary small { flex-shrink: 0; color: rgb(var(--muted)); }
+  > code { display: block; overflow-wrap: anywhere; }
+}
+.edge-agent-diff {
+  max-height: 340px; overflow: auto; margin-top: 8px; background: rgb(var(--canvas));
+  border: 1px solid rgb(var(--line)); border-radius: var(--control-radius);
+  &:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+}
+.edge-agent-diff-line {
+  display: flex; min-width: max-content; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 1.6;
+  > span { width: 36px; flex: 0 0 36px; text-align: right; padding-right: 6px; color: rgb(var(--muted)); user-select: none; }
+  > code { white-space: pre; padding: 0 8px; }
+  &.added { background: rgb(var(--chart-3) / .12); }
+  &.removed { background: rgb(var(--danger) / .12); }
+  &.hunk { color: rgb(var(--info)); background: rgb(var(--info) / .08); }
+  &.header { color: rgb(var(--muted)); }
+}

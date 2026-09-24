@@ -260,11 +260,15 @@ if [[ "$INSTALL_MODE" == "new" ]]; then
     chmod 700 "${TMP_DIR}/${BINARY_NAME}"
     printf '%s\n%s\n%s\n' "$SERVER_EDGE_ADDR" "$ACCESS_KEY" "$SECRET_KEY" |
         "${TMP_DIR}/${BINARY_NAME}" --edge-install-new
-    exit $?
+    printf '\nLiaison Edge installed successfully.\n'
+    printf 'Return to the console and confirm that this connector is online.\n'
+    exit 0
 elif [[ "$INSTALL_MODE" == "upgrade" ]]; then
     chmod 700 "${TMP_DIR}/${BINARY_NAME}"
     "${TMP_DIR}/${BINARY_NAME}" --edge-upgrade-instance "$UPGRADE_INSTANCE"
-    exit $?
+    printf '\nLiaison Edge upgraded successfully.\n'
+    printf 'Return to the console and confirm that this connector is online.\n'
+    exit 0
 fi
 
 # Linux/macOS/Windows 安装

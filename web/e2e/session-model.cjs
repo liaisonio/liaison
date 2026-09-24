@@ -19,12 +19,17 @@ try{for(const locale of ['zh-CN','en-US'])for(const theme of ['dark','light']){
  });
  const page=await ctx.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  const select=()=>page.getByRole('combobox',{name:zh?'对话模型':'Conversation model'});
- const choose=async(name)=>{await select().click();await page.getByRole('option',{name,exact:false}).first().click();await page.waitForTimeout(100);};
+ const choose=async(name)=>{
+  await select().click();
+  const saved=page.waitForResponse(response=>response.request().method()==='PATCH'&&response.url().includes('/agent/sessions'));
+  await page.getByRole('option',{name,exact:false}).first().click();
+  await saved;
+ };
  await page.goto(`${process.env.E2E_UI_URL}/e2e/session-model.html`);
  await select().waitFor();await choose('model-alternate');
  await page.waitForFunction(()=>document.querySelector('.agent-model-selector')?.textContent.includes('model-alternate'));
  assert.equal(session.model_selection.model,'model-alternate');assert.equal(patches,1);
- await page.reload();await select().waitFor();assert.match(await select().innerText(),/model-alternate/);
+ await page.reload();await select().filter({hasText:'model-alternate'}).waitFor();assert.match(await select().innerText(),/model-alternate/);
  await page.screenshot({path:`/tmp/session-model-${locale}-${theme}.png`});
  await choose('model-default');assert.equal(session.model_selection.provider_id,'');
  fail=true;await choose('model-alternate');await page.locator('.agent-workspace-error').waitFor();assert.equal(session.model_selection.provider_id,'');

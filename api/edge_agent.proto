@@ -1,0 +1,144 @@
+syntax = "proto3";
+package liaison.edge_agent;
+option go_package = "github.com/liaisonio/liaison/api/edge_agent;edge_agent";
+
+// Handwritten JSON transport contract, following application_probe.proto.
+// GET /api/v1/edge-agents/connectors: own connectors only.
+// POST /api/v1/edge-agents: discover/directories/sessions/start/resume/poll/watch/send/interrupt/stop/models/model/rename/delete/discard.
+// discard atomically closes and removes only an empty, idle owned session.
+// Requires authenticated ai.access.use and connector ownership on EVERY call.
+// Actor ID is injected by Manager, never accepted from the browser.
+// Start launches a read-only Codex instance as the Edge OS account and persists
+// its native thread. Resume is allowed only through an instance-scoped binding.
+// Saved-access sessions survive navigation: idle processes reclaimed after 30m,
+// or at 24h once idle. Active turns have no wall-clock deadline.
+// permissions selects read-only/workspace-write for subsequent turns (default read-only).
+// approve accepts/declines one live command request; never a permanent policy grant.
+// Closed snapshots remain in Edge memory for up to 24h; server history has no TTL.
+// Internal snapshot reads do not renew the idle lease.
+message EdgeAgentRequest {
+  uint64 edge_id = 1;
+  string action = 2;
+  string installation_id = 3;
+  string project = 4;
+  string session_id = 5;
+  string text = 6;
+  string skill_id = 7; // Opaque ID discovered by this owned session, never a client path.
+  string access_id = 8; // Manager-owned persistent entry; checked on every request.
+  string directory = 9; // directories action: browse folders, never file contents.
+  string working_directory = 10; // Optional session-only directory; default stays unchanged.
+  string cursor = 11; // watch action: last observed revision. Waits at most 15s.
+  string model = 12; // model action: must come from this session's native model catalog.
+  string title = 13; // rename action: session-only display name, maximum 120 runes.
+  string history_page = 14; // sessions action: server history page, 50 records per page.
+  string approval_id = 15;
+  string decision = 16; // approve: accept or decline.
+  string permission_mode = 17; // permissions: read-only or workspace-write.
+  string input_id = 18; // answer: opaque live request ID, not a native RPC ID.
+  repeated InputAnswer answers = 19;
+  string history_before = 20; // transcript: exclusive window cursor, one archived round per page.
+}
+// Edge RPC name: edge_agent_v1. No raw RPC forwarding from HTTP clients.
+message EdgeAgentRPCRequest {
+  uint32 version = 1;
+  string actor_id = 2;
+  EdgeAgentRequest request = 3;
+  string project_root = 4; // Manager-injected saved project, never accepted over HTTP.
+  ResumeState resume = 5; // Manager-injected display state; contains no native thread ID.
+  uint64 reset_revision = 6; // send only, Manager confirms previous display window is archived.
+}
+message ResumeState {
+  string session_id = 1;
+  repeated Message messages = 2;
+  repeated Activity activities = 3;
+  string title = 4;
+  string model = 5;
+  string started_at = 6;
+  uint64 revision = 7;
+  uint64 window = 8;
+  bool truncated = 9;
+}
+message Installation { string id = 1; string kind = 2; string path = 3; string source = 4; }
+message Message { string role = 1; string text = 2; }
+message EdgeAgentResult {
+  uint32 version = 1;
+  // ok, busy, unavailable, upgrade_required, not_found, unsupported_user,
+  // launch_failed, external_tools, authentication_required, session_closed, turn_failed,
+  // approval_declined, output_limit, expired, invalid_request.
+  string status = 2;
+  repeated Installation installations = 3;
+  string default_project = 4;
+  string session_id = 5;
+  bool running = 6;
+  bool closed = 7;
+  repeated Message messages = 8;
+  bool truncated = 9;
+  string thread_id = 10;
+  string model = 11;
+  string project = 12;
+  string started_at = 13;
+  repeated Skill skills = 14;
+  bool skills_available = 15;
+  string agent_version = 16;
+  uint64 revision = 17;
+  repeated Activity activities = 18;
+  string directory = 19;
+  string parent_directory = 20;
+  repeated Directory directories = 21;
+  repeated string directory_roots = 22;
+  repeated SessionSummary sessions = 23; // sessions action, scoped to actor + access.
+  bool sessions_available = 24;
+  repeated AgentModel models = 25;
+  bool models_available = 26;
+  string title = 27;
+  bool session_management = 28; // rename/delete supported; delete requires a closed session.
+  bool history_persistent = 29; // Server owns durable history, no automatic expiration.
+  bool archived = 30; // Read-only saved snapshot; not a native execution checkpoint.
+  int64 history_total = 31;
+  repeated Approval approvals = 32; // Live only, never persisted in history.
+  bool permissions_available = 33;
+  string permission_mode = 34;
+  repeated InputRequest input_requests = 35; // Live only; removed from persisted snapshots.
+  uint64 window = 36;
+  bool history_windowing = 37;
+}
+message Approval { string id = 1; string command = 2; string directory = 3; string reason = 4; }
+message AgentModel { string id = 1; string name = 2; }
+message SessionSummary {
+  string session_id = 1;
+  string thread_id = 2;
+  string title = 3;
+  string project = 4;
+  string updated_at = 5;
+  bool running = 6;
+  bool closed = 7;
+  string status = 8;
+}
+// Bounded owner-only command output and file changes. Never raw RPC or reasoning.
+message Activity {
+  string id = 1; string kind = 2; string status = 3; uint32 message_index = 4; int64 duration_ms = 5;
+  string command = 6; string directory = 7; string output = 8;
+  optional int32 exit_code = 9; repeated FileChange changes = 10;
+  bool truncated = 11;
+}
+message FileChange { string path = 1; string kind = 2; string diff = 3; string move_path = 4; }
+message InputOption { string label = 1; string description = 2; }
+message InputQuestion {
+  string id = 1; string header = 2; string question = 3;
+  bool is_other = 4; bool is_secret = 5; repeated InputOption options = 6;
+}
+message InputRequest { string id = 1; repeated InputQuestion questions = 2; bool blocking = 3; }
+message InputAnswer { string question_id = 1; repeated string answers = 2; }
+message Directory { string name = 1; string path = 2; }
+message Skill { string id = 1; string name = 2; string description = 3; }
+// GET /api/v1/agent-accesses?page=1&page_size=20; POST creates.
+// PUT/DELETE /api/v1/agent-accesses/{id}. Owner identity always comes from auth.
+// An entry stores no credentials and does not install or uninstall the Agent.
+message AgentAccess {
+  string id = 1;
+  string name = 2;
+  string kind = 3;
+  uint64 edge_id = 4;
+  string installation_id = 5;
+  string project = 6;
+}

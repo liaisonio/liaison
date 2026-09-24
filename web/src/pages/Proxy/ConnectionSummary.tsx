@@ -1,5 +1,6 @@
 import {isLLMAccessType} from '@/constants/accessTypes';
 import { useI18n } from '@/i18n';
+import { StatusPill } from '@/components/ui';
 import {
   getWebDataTarget,
   getWebDesktopTarget,
@@ -9,7 +10,7 @@ import { useSession } from '@/store/session';
 import { useEffect, useState } from 'react';
 import { databaseAccessTypes, supportsInitialConnection } from './connection';
 
-// Share only in-flight reads between the three cells, never cache credentials.
+// Share only in-flight reads between summary cells, never cache credentials.
 const pending = new Map<string, Promise<unknown>>();
 function sharedRead<T>(key:string,load:()=>Promise<T>):Promise<T>{
   const existing=pending.get(key);if(existing)return existing as Promise<T>;
@@ -28,6 +29,7 @@ type Summary = {
   tls?: string;
   redisDB?: number;
   count: number;
+  saved?: boolean;
 };
 
 export default function ConnectionSummary({
@@ -39,7 +41,7 @@ export default function ConnectionSummary({
   id: number;
   type: string;
   revision?: string;
-  field: 'username'|'database'|'advanced';
+  field: 'username'|'database'|'advanced'|'password';
 }) {
   const { tr } = useI18n();
   const owner = useSession((s) => s.token);
@@ -60,13 +62,14 @@ export default function ConnectionSummary({
         const r = await sharedRead(key,()=>getWebSSHTarget(id));
         if (r.code !== 200) throw Error('summary');
         const rows = r.data?.credentials || [];
-        value = { username: rows[0]?.username, count: rows.length };
+        value = { username: rows[0]?.username, saved: rows[0]?.saved, count: rows.length };
       } else if (type === 'webrdp' || type === 'webvnc') {
         const r = await sharedRead(key,()=>getWebDesktopTarget(id));
         if (r.code !== 200) throw Error('summary');
         const rows = r.data?.credentials || [];
         value = {
           username: rows[0]?.username,
+          saved: rows[0]?.saved,
           domain: rows[0]?.domain,
           count: rows.length,
         };
@@ -77,6 +80,7 @@ export default function ConnectionSummary({
           c = rows[0];
         value = {
           username: c?.username,
+          saved: c?.saved,
           database: c?.database,
           schema: c?.schema,
           authDatabase: c?.auth_database,
@@ -125,6 +129,7 @@ export default function ConnectionSummary({
       </span>
     );
   const details: string[] = [];
+  if(field==='password')return typeof c.saved==='boolean'?<StatusPill tone={c.saved?'success':'neutral'}>{c.saved?tr('已保存','Saved'):tr('未保存','Not saved')}</StatusPill>:<span className="liaison-connection-muted">—</span>;
   if(field==='username')return <span title={c.username}>{c.username||'—'}</span>;
   if(field==='database')return <span title={c.database}>{type==='webredis'?String(c.redisDB??0):c.database||'—'}</span>;
   if (c.domain) details.push(`${tr('域', 'Domain')}: ${c.domain}`);

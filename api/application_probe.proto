@@ -1,0 +1,23 @@
+syntax = "proto3";
+package liaison.application_probe;
+option go_package = "github.com/liaisonio/liaison/api/application_probe;application_probe";
+
+// POST /api/v1/applications/probe, authenticated application create permission
+// and connector visibility. With application_id, requires update permission and
+// application visibility; the server resolves its saved connector and target.
+// No application is created and no application payload is transmitted.
+message ProbeApplicationRequest {
+  uint64 edge_id = 1;
+  string host = 2;
+  uint32 port = 3;
+  uint64 application_id = 4;
+}
+// Additive JSON Edge RPC: application_tcp_probe. Version 1, five-second timeout.
+message TCPProbeRequest { string host = 1; uint32 port = 2; }
+message TCPProbeResult {
+  uint32 version = 1;
+  // reachable, refused, timeout, dns_error, unreachable, busy, connector_offline,
+  // edge_upgrade_required, probe_unavailable. Never returns raw network errors.
+  string status = 2;
+  int64 duration_ms = 3;
+}

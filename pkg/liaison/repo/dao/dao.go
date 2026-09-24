@@ -14,6 +14,18 @@ import (
 
 // Dao 接口定义
 type Dao interface {
+	ListAgentAccesses(context.Context, uint, int, int, ...model.AgentAccessFilter) ([]model.AgentAccess, int64, error)
+	GetAgentAccess(context.Context, uint, string) (*model.AgentAccess, error)
+	SaveAgentAccess(context.Context, *model.AgentAccess, bool) error
+	DeleteAgentAccess(context.Context, uint, string) error
+	SaveEdgeAgentHistory(context.Context, *model.EdgeAgentHistory) error
+	SaveEdgeAgentHistoryPage(context.Context, *model.EdgeAgentHistoryPage) error
+	PreviousEdgeAgentHistoryPage(context.Context, *model.EdgeAgentHistory, uint64) (*model.EdgeAgentHistoryPage, error)
+	GetEdgeAgentHistory(context.Context, *model.EdgeAgentHistory) (*model.EdgeAgentHistory, error)
+	ListEdgeAgentHistories(context.Context, *model.EdgeAgentHistory, int) ([]model.EdgeAgentHistory, int64, error)
+	MutateEdgeAgentHistory(context.Context, *model.EdgeAgentHistory, bool) error
+	PendingEdgeAgentHistories(context.Context) ([]model.EdgeAgentHistory, error)
+	TouchEdgeAgentHistory(context.Context, *model.EdgeAgentHistory, bool) error
 	CreateEdgeUninstallTask(context.Context, *model.EdgeUninstallTask) (bool, error)
 	GetEdgeUninstallTask(context.Context, uint64, string) (*model.EdgeUninstallTask, error)
 	GetEdgeUninstallTaskByID(context.Context, string) (*model.EdgeUninstallTask, error)
@@ -327,6 +339,9 @@ func (d *dao) initDB() error {
 		&model.ManagementAudit{},
 		&model.AgentSession{},
 		&model.AgentModelSetting{},
+		&model.AgentAccess{},
+		&model.EdgeAgentHistory{},
+		&model.EdgeAgentHistoryPage{},
 		&model.AgentAttachment{},
 		&model.AgentTurn{},
 		&model.AgentMessage{},
