@@ -21,7 +21,25 @@ func TestNPMLaunchWithServicePath(t *testing.T) {
 	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
 		t.Skip("Unix non-root launch test")
 	}
-	dir := t.TempDir()
+	// Executables below Linux /tmp are intentionally rejected, even when their
+	// immediate directory is private. Put this fixture under the user's cache
+	// rather than weakening the production ancestor-ownership checks.
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(cache, 0700); err != nil {
+		t.Fatal(err)
+	}
+	dir, err := os.MkdirTemp(cache, "liaison-agent-launch-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Error(err)
+		}
+	})
 	script := filepath.Join(dir, "codex.js")
 	entry := filepath.Join(dir, "codex")
 	node := filepath.Join(dir, "node")
