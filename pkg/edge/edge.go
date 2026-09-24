@@ -1,15 +1,20 @@
 package edge
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	_ "net/http/pprof"
+	"path/filepath"
 	"runtime"
 
 	"github.com/jumboframes/armorigo/log"
+	agentbridge "github.com/liaisonio/liaison/pkg/edge/agent/bridge"
 	"github.com/liaisonio/liaison/pkg/edge/config"
 	"github.com/liaisonio/liaison/pkg/edge/frontierbound"
 	"github.com/liaisonio/liaison/pkg/edge/lifecycle"
 	"github.com/liaisonio/liaison/pkg/edge/pinger"
+	"github.com/liaisonio/liaison/pkg/edge/probe"
 	"github.com/liaisonio/liaison/pkg/edge/proxy"
 	"github.com/liaisonio/liaison/pkg/edge/reporter"
 	"github.com/liaisonio/liaison/pkg/edge/scanner"
@@ -19,6 +24,7 @@ import (
 
 type Edge struct {
 	frontierBound frontierbound.FrontierBound
+	agents        *agentbridge.Bridge
 }
 
 func NewEdge() (*Edge, error) {
@@ -68,6 +74,9 @@ func NewEdge() (*Edge, error) {
 		log.Errorf("init proxy error: %v", err)
 		return nil, err
 	}
+	if registerErr := probe.Register(frontierBound); registerErr != nil {
+		log.Warnf("application probe capability unavailable")
+	}
 
 	_, err = reporter.NewReporter(frontierBound)
 	if err != nil {
@@ -87,11 +96,35 @@ func NewEdge() (*Edge, error) {
 		return nil, err
 	}
 
+	configPath, pathErr := filepath.Abs(config.ConfigFile())
+	var agents *agentbridge.Bridge
+	var agentErr error
+	if pathErr == nil {
+		agents, agentErr = agentbridge.New(context.Background(), filepath.Join(filepath.Dir(configPath), "agent-bindings.json"))
+	} else {
+		agentErr = pathErr
+	}
+	if agentErr == nil {
+		if agentErr = agents.Register(frontierBound); agentErr != nil {
+			if closeErr := agents.Close(); closeErr != nil {
+				log.Warnf("agent preview cleanup failed")
+			}
+			agents = nil
+		}
+	}
+	if agentErr != nil {
+		log.Warnf("agent preview capability unavailable")
+	}
 	return &Edge{
 		frontierBound: frontierBound,
+		agents:        agents,
 	}, nil
 }
 
 func (e *Edge) Close() error {
-	return e.frontierBound.Close()
+	var agentErr error
+	if e.agents != nil {
+		agentErr = e.agents.Close()
+	}
+	return errors.Join(agentErr, e.frontierBound.Close())
 }

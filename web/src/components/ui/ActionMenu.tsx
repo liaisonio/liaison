@@ -1,5 +1,5 @@
 import { MoreHorizontal, MoreVertical } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import './ActionMenu.less';
 
@@ -13,10 +13,16 @@ export default function ActionMenu({
   label,
   items,
   vertical = false,
+  icon,
+  disabled = false,
+  placement = 'bottom',
 }: {
   label: string;
   items: ActionMenuItem[];
   vertical?: boolean;
+  icon?: ReactNode;
+  disabled?: boolean;
+  placement?: 'top' | 'bottom';
 }) {
   const trigger = useRef<HTMLButtonElement>(null),
     menu = useRef<HTMLDivElement>(null);
@@ -53,8 +59,8 @@ export default function ActionMenu({
     const r = trigger.current?.getBoundingClientRect();
     if (r)
       setPosition({
-        left: Math.max(8, Math.min(r.right - 176, innerWidth - 184)),
-        top: Math.max(
+        left: Math.max(8, Math.min(placement === 'top' ? r.left : r.right - 176, innerWidth - 184)),
+        top: placement === 'top' ? Math.max(40, r.top - 6) : Math.max(
           8,
           Math.min(r.bottom + 6, innerHeight - items.length * 36 - 24),
         ),
@@ -66,6 +72,7 @@ export default function ActionMenu({
         type="button"
         className="liaison-action-menu-trigger"
         ref={trigger}
+        disabled={disabled}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={!!position}
@@ -77,7 +84,7 @@ export default function ActionMenu({
           }
         }}
       >
-        {vertical ? <MoreVertical size={16} /> : <MoreHorizontal size={16} />}
+        {icon ?? (vertical ? <MoreVertical size={16} /> : <MoreHorizontal size={16} />)}
       </button>
       {position &&
         createPortal(
@@ -86,7 +93,7 @@ export default function ActionMenu({
             role="menu"
             aria-label={label}
             ref={menu}
-            style={position}
+            style={placement === 'top' ? {...position, transform: 'translateY(-100%)', maxHeight: position.top - 8, maxWidth: 'calc(100vw - 16px)'} : position}
             onBlur={(e) => {
               if (!e.currentTarget.contains(e.relatedTarget)) close();
             }}

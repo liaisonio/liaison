@@ -90,17 +90,18 @@ export function AppLayout() {
     },
   };
   const isAIAccessPage = /^\/ai\/\d+\/?$/.test(location.pathname);
+  const isEdgeAgentPage = location.pathname === '/access/agents';
   const page = location.pathname.startsWith('/webs3/') ? { title: 'WebS3', description: '' } : location.pathname.startsWith('/websftp/') ? { title: 'Web SFTP', description: '' } : isAIAccessPage ? { title: tr('OpenAI 协议', 'OpenAI protocol'), description: '' } : location.pathname.startsWith('/webdata/')
     ? {
         title: tr('数据访问', 'Data access'),
         description: tr('数据库连接与查询控制台', 'Database connection and query console'),
       }
-    : pages[location.pathname];
+    : isEdgeAgentPage ? {title:tr('访问','Access'),description:tr('统一管理应用入口与访问策略','Manage application entry points and access policies')} : pages[location.pathname];
   const webDataRoute = location.pathname.match(
     /^\/webdata\/(\d+)(?:\/connections\/(\d+))?(?:\/sessions\/[^/]+(?:\/agent\/[^/]+)?)?$/,
   );
   const isWebSFTPPage = /^\/websftp\/\d+\/?$/.test(location.pathname);
-  const isWebDataPage = Boolean(webDataRoute) || isAIAccessPage || isWebSFTPPage || location.pathname.startsWith('/webs3/') || location.pathname.startsWith('/websmb/');
+  const isWebDataPage = Boolean(webDataRoute) || isAIAccessPage || (isEdgeAgentPage && new URLSearchParams(location.search).has('access')) || isWebSFTPPage || location.pathname.startsWith('/webs3/') || location.pathname.startsWith('/websmb/');
   const accessFallback=isAIAccessPage?'/proxy?category=llm':isWebSFTPPage?'/proxy?access_type=websftp':'/proxy';
   const backToSource=useAccessBack(accessFallback);
 

@@ -123,6 +123,11 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	}
 	srv := kratoshttp.NewServer(opts...)
 	v1.RegisterLiaisonServiceHTTPServer(srv, web)
+	srv.HandleFunc("/api/v1/applications/probe", web.handleApplicationProbeHTTP)
+	srv.HandleFunc("/api/v1/edge-agents", web.handleEdgeAgentHTTP)
+	srv.HandleFunc("/api/v1/edge-agents/connectors", web.handleEdgeAgentHTTP)
+	srv.HandleFunc("/api/v1/agent-accesses", web.handleAgentAccessHTTP)
+	srv.HandlePrefix("/api/v1/agent-accesses/", http.HandlerFunc(web.handleAgentAccessHTTP))
 	srv.HandleFunc("/api/v1/edges/{id}/installation", web.handleEdgeInstallationHTTP)
 	srv.HandleFunc("/api/v1/edges/{id}/uninstall", web.handleEdgeUninstallHTTP)
 	srv.HandleFunc("/api/v1/edges/{id}/uninstall/{task}", web.handleEdgeUninstallHTTP)

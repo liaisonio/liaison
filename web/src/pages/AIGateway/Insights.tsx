@@ -28,7 +28,7 @@ export function Insights({base,records,models}:{base:string;records:RequestRecor
   </div>
   {!!usage?.summary.unknown_requests&&<p>{tr(`${usage.summary.unknown_requests} 次请求用量未确认，不计为零。`,`${usage.summary.unknown_requests} requests have unconfirmed usage; not counted as zero.`)}</p>}
   <h2>{tr('Token 用量趋势','Token usage trend')}</h2><p>{confirmedZero?tr('所选时间范围内已确认用量为 0 · UTC。','Confirmed zero usage in the selected time range · UTC.'):tr(`最近 100 条用量记录 · ${bucketMinutes<60?`${bucketMinutes} 分钟`:`${bucketMinutes/60} 小时`}粒度 · UTC。空档不补零，非完整趋势。`,`Latest 100 usage records · ${bucketMinutes<60?`${bucketMinutes} min`:`${bucketMinutes/60}h`} buckets · UTC. Gaps are not zero-filled; partial trend.`)}</p>
-  {!usage&&!failed?<p role="status">{tr('加载中…','Loading…')}</p>:usage?<TokenTrend key={hours} points={points} bucketMs={bucketMs}/>:null}
+  {!usage&&!failed?<p role="status">{tr('加载中…','Loading…')}</p>:usage?<TokenTrend key={hours} points={points} bucketMs={bucketMs} rangeStart={rangeEnd-hours*3600000} rangeEnd={rangeEnd}/>:null}
   <h2>{tr('模型最近调用','Recent model results')}</h2><p>{tr('根据当前用户最近请求展示，不代表主动健康探测。','Based on your recent requests, not active health probes.')}</p>
   <div className="ai-insights-models">{models.map(model=>{const last=records.find(r=>r.model===model);return <div key={model}><code>{model}</code><StatusPill tone={!last?'neutral':last.status<300&&last.complete?'success':'danger'}>{!last?tr('尚未调用','Not called'):last.status<300&&last.complete?tr('最近成功','Last call succeeded'):tr('最近未完成','Last call failed or incomplete')}</StatusPill></div>;})}</div>
  </section>;

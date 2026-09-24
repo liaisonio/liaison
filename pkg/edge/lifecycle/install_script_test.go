@@ -62,6 +62,9 @@ func TestDownloadScriptDispatch(t *testing.T) {
 				t.Fatalf("unsafe dispatch: %s", data)
 			}
 			if mode == "missing-mode" {
+				if strings.Contains(string(data), "successfully") {
+					t.Fatal("reported success without an installation mode")
+				}
 				if err == nil {
 					t.Fatal("implicit mode accepted")
 				}
@@ -71,11 +74,22 @@ func TestDownloadScriptDispatch(t *testing.T) {
 				return
 			}
 			if mode == "binary-failure" {
+				if strings.Contains(string(data), "successfully") {
+					t.Fatal("reported success after binary failure")
+				}
 				if cmd.ProcessState.ExitCode() != 88 {
 					t.Fatalf("lost failure exit: %v %s", err, data)
 				}
 			} else if err != nil {
 				t.Fatalf("dispatch: %v %s", err, data)
+			} else {
+				result := "Liaison Edge installed successfully."
+				if mode == "upgrade" {
+					result = "Liaison Edge upgraded successfully."
+				}
+				if !strings.Contains(string(data), result) || !strings.HasSuffix(strings.TrimSpace(string(data)), "Return to the console and confirm that this connector is online.") {
+					t.Fatalf("missing installation result or next step: %s", data)
+				}
 			}
 			got, err := os.ReadFile(filepath.Join(dir, "args"))
 			if err != nil {

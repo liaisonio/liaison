@@ -30,13 +30,15 @@ import (
 )
 
 type Liaison struct {
-	web              web.Web
-	frontierBound    frontierbound.FrontierBound
-	entry            *entry.Entry
-	repo             repo.Repo
-	iamService       *iam.IAMService
-	accessSessions   *accesssession.Registry
-	trafficCollector *traffic.TrafficCollector
+	agentHistoryCancel context.CancelFunc
+	agentHistoryDone   chan struct{}
+	web                web.Web
+	frontierBound      frontierbound.FrontierBound
+	entry              *entry.Entry
+	repo               repo.Repo
+	iamService         *iam.IAMService
+	accessSessions     *accesssession.Registry
+	trafficCollector   *traffic.TrafficCollector
 }
 
 func NewLiaison() (*Liaison, error) {
@@ -201,14 +203,19 @@ func NewLiaison() (*Liaison, error) {
 	entryOwned = false
 	trafficCollectorOwned = false
 	repoOwned = false
+	historyCtx, historyCancel := context.WithCancel(context.Background())
+	historyDone := make(chan struct{})
+	go func() { defer close(historyDone); controlPlane.RunAgentHistory(historyCtx) }()
 	return &Liaison{
-		web:              webServer,
-		frontierBound:    frontierBound,
-		entry:            entry,
-		repo:             repo,
-		iamService:       iamService,
-		accessSessions:   accessSessions,
-		trafficCollector: trafficCollector,
+		agentHistoryCancel: historyCancel,
+		agentHistoryDone:   historyDone,
+		web:                webServer,
+		frontierBound:      frontierBound,
+		entry:              entry,
+		repo:               repo,
+		iamService:         iamService,
+		accessSessions:     accessSessions,
+		trafficCollector:   trafficCollector,
 	}, nil
 }
 
@@ -262,6 +269,10 @@ func (l *Liaison) Serve() error {
 }
 
 func (l *Liaison) Close() error {
+	if l.agentHistoryCancel != nil {
+		l.agentHistoryCancel()
+		<-l.agentHistoryDone
+	}
 	err := l.web.Close()
 	if err != nil {
 		return err

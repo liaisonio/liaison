@@ -20,6 +20,7 @@
 }
 .liaison-initial-connection-fields {
   display: grid;
+  align-items: start;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
@@ -41,6 +42,18 @@
 .liaison-access-identity {
   display: contents;
 }
+.liaison-llm-create-form { display:grid; gap:20px; }
+.liaison-llm-create-identity { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:16px; }
+@media(max-width:480px){.liaison-llm-create-identity{grid-template-columns:minmax(0,1fr);}}
+.liaison-access-route-note { margin:0; color:rgb(var(--muted)); font-size:12px; line-height:1.6; }
+.liaison-llm-draft { display:grid; gap:16px; min-width:0; border:0; margin:0; padding:0; }
+.liaison-llm-draft details { border-top:1px solid rgb(var(--line)); padding-top:12px; }
+.liaison-llm-draft summary { cursor:pointer; color:rgb(var(--muted)); font-size:12px; }
+.liaison-llm-draft summary:focus-visible { outline:2px solid rgb(var(--accent)); outline-offset:3px; }
+.liaison-llm-draft details > .liaison-field { margin-top:12px; }
+.liaison-llm-draft .liaison-checkbox { display:flex; align-items:center; gap:8px; font-size:12px; }
+.liaison-llm-draft .liaison-checkbox input { accent-color:rgb(var(--accent)); }
+.liaison-llm-draft .liaison-field small { overflow-wrap:anywhere; }
 .liaison-llm-mapping {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end;}
 .liaison-llm-models {max-height:220px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid rgb(var(--line));border-radius:var(--control-radius);}
 .liaison-llm-models code {overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}

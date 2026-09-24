@@ -21,6 +21,29 @@ message ApplicationConfig {
   bool has_api_key = 6; // Read-only.
   string application_type = 7; // Read-only protocol family. OpenAI permits both API profiles; legacy llm remains configurable.
 }
+// POST /api/v1/ai/setup/probe: connector-only discovery, never persists data.
+// POST /api/v1/ai/setup: atomically create application, upstream and access.
+// Requires applications:create/update and accesses:create/update plus connector
+// visibility. Existing targets return 409; shared configurations are not changed.
+message AISetupRequest {
+  uint64 edge_id = 1;
+  string service_url = 2; // HTTP(S) API root; no userinfo, query or fragment.
+  string protocol = 3;
+  string api_key = 4; // Write-only.
+  string application_name = 5;
+  string name = 6;
+  string description = 7;
+  map<string,string> models = 8;
+}
+message AISetupResult {
+  uint64 id = 1; // New access ID.
+  uint64 application_id = 2;
+}
+message AISetupProbeResult {
+  string state = 1; // compatible, auth_required, unsupported, unknown, unreachable, busy.
+  repeated string models = 2;
+  string protocol = 3;
+}
 // GET/PUT /api/v1/ai/accesses/{id}
 message AccessConfig {
   bool enabled = 1;

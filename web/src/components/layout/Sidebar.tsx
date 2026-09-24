@@ -29,12 +29,13 @@ type NavItem = {
 
 export function Sidebar() {
   const homeAI = useFeature('ai.home.use');
+  const accessAI = useFeature('ai.access.use');
   const audit = useFeature('audit.read');
   const { tr } = useI18n();
   const collapsed = useUi((state) => state.sidebarCollapsed);
   const toggleSidebar = useUi((state) => state.toggleSidebar);
   const location = useLocation();
-  const [accessOpen, setAccessOpen] = useState(location.pathname === '/proxy');
+  const [accessOpen, setAccessOpen] = useState(location.pathname === '/proxy' || location.pathname === '/access/agents');
   const [logsOpen, setLogsOpen] = useState(location.pathname.startsWith('/logs/'));
 
   const primary: NavItem[] = [
@@ -51,7 +52,7 @@ export function Sidebar() {
   const activeAccessType = accessGroup(new URLSearchParams(location.search))?.value;
 
   useEffect(() => {
-    if (location.pathname === '/proxy') {
+    if (location.pathname === '/proxy' || location.pathname === '/access/agents') {
       setAccessOpen(true);
     }
   }, [location.pathname]);
@@ -104,7 +105,7 @@ export function Sidebar() {
           ) : (
             <div
               className={`liaison-nav-expandable${
-                location.pathname === '/proxy' ? ' is-active' : ''
+                location.pathname === '/proxy' || location.pathname === '/access/agents' ? ' is-active' : ''
               }`}
             >
               <button
@@ -150,6 +151,7 @@ export function Sidebar() {
                       <span>{type.label}</span>
                     </Link>
                   ))}
+                  {accessAI && <Link to="/access/agents" className={`liaison-nav-child${location.pathname === '/access/agents' ? ' is-active' : ''}`}><span>Agent</span></Link>}
                 </div>
               )}
             </div>

@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n';
 import OverflowTabs from '@/components/ui/OverflowTabs';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { history, useSearchParams } from '@/lib/runtime';
-import { createProxy, deleteProxy, deleteProxyFirewall, getApplicationList, getClientIP, getProxyFirewall, getProxyList, updateProxy, upsertProxyFirewall } from '@/services/api';
+import { createApplication, createProxy, deleteProxy, deleteProxyFirewall, getApplicationList, getClientIP, getProxyFirewall, getProxyList, updateProxy, upsertProxyFirewall } from '@/services/api';
 import { Check, Copy, Globe2, Plus, Shield, Terminal, Trash2 } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -16,6 +16,11 @@ import {Switch} from '@/components/ui/complex';
 import {Link} from 'react-router-dom';
 import ConnectionSummary from './ConnectionSummary';
 import LLMSummary from './LLMSummary';
+import LLMEmptyState from './LLMEmptyState';
+import AccessEmptyState from './AccessEmptyState';
+import LLMApplicationDraft, {type LLMDraftHandle} from './LLMApplicationDraft';
+import LLMApplicationPicker from './LLMApplicationPicker';
+import ApplicationDraft, {applicationTarget} from './ApplicationDraft';
 import LLMConnection, {type LLMConnectionHandle} from './LLMConnection';
 import { InitialConnectionFields, emptyConnection, saveInitialConnection, directAccessPath, loadAccessConnection, AccessConfigurationRequired, supportsInitialConnection, databaseAccessTypes } from './connection';
 import './connection.less';
@@ -25,6 +30,7 @@ import {launchWebEntry} from '@/services/webEntry';
 import WebEntryModeField, {useWebEntryMode} from '@/components/WebEntryModeField';
 
 const pageSize = 10;
+const supportsSavedPassword = (type?: string) => !!type && supportsInitialConnection(type) && !['webs3', 'webmemcached'].includes(type);
 const defaultAccessName = () => {
   const bytes = new Uint8Array(4);
   window.crypto.getRandomValues(bytes);
@@ -91,7 +97,14 @@ const ProxyPage: React.FC = () => {
   const debouncedName = useDebouncedValue(filters.name);
   const [createOpen, setCreateOpen] = useState(false);
   const llmConnection=useRef<LLMConnectionHandle>(null);
+  const llmDraft=useRef<LLMDraftHandle>(null);
+  const [applicationSource,setApplicationSource]=useState<'existing'|'new'>();
+  const [llmEdge,setLLMEdge]=useState('');
+  const [applicationDraft,setApplicationDraft]=useState({name:'',address:''});
+  const [createdApplication,setCreatedApplication]=useState<API.Application>();
+  const [draftReady,setDraftReady]=useState(false),[connectionReady,setConnectionReady]=useState(false);
   const [editRow, setEditRow] = useState<API.Proxy>();
+  const [openAfterSave, setOpenAfterSave] = useState(false);
   const webEntry = useWebEntryMode();
   const {mode:entryMode,setMode:setEntryMode} = webEntry;
   const [deleteRow, setDeleteRow] = useState<API.Proxy>();
@@ -147,6 +160,10 @@ const ProxyPage: React.FC = () => {
     });
   }, [debouncedName, filters.access_type, filters.application_id, filters.status, rows,group]);
   const visibleRows = useMemo(() => filteredRows.slice((page - 1) * pageSize, page * pageSize), [filteredRows, page]);
+  const categoryHasRows=rows.some(row=>isSupportedAccessType(getProxyAccessType(row))&&(!group||group.types.includes(getProxyAccessType(row)||'')));
+  const initialEmpty=loaded&&!loading&&!categoryHasRows&&!filters.name&&!filters.application_id&&!filters.status;
+  const filteredEmpty=loaded&&!loading&&!initialEmpty&&filteredRows.length===0;
+  const resetEmptyFilters=()=>{setFilters({name:'',access_type:group?.types.length===1?group.types[0]:'',application_id:'',status:''});setPage(1);};
 
   const selectedAccessType = routeType || form.access_type;
   const closeCreate=()=>{if(saving)return;setCreateOpen(false);setInitialConnection(emptyConnection());setCreatedAccess(undefined);setCreateError('');};
@@ -163,7 +180,11 @@ const ProxyPage: React.FC = () => {
     return applyResolvedLLMTypes(applications,rows).filter((item) => protocolFamily(item.application_type) === protocolFamily(applicationType));
   }, [applications, rows, selectedAccessType]);
   const selectedApplication = useMemo(() => applications.find((item) => String(item.id) === form.application_id), [applications, form.application_id]);
+  const llmSource=applicationSource||'existing';
   const openCreate = () => {
+    setApplicationDraft({name:'',address:''});setCreatedApplication(undefined);
+    setApplicationSource(undefined);
+    setLLMEdge('');
     setEntryMode('path');
     setInitialConnection(emptyConnection()); setCreatedAccess(undefined); setCreateError('');
     setSuggestedAccessName(defaultAccessName());
@@ -173,25 +194,45 @@ const ProxyPage: React.FC = () => {
   useEffect(()=>{
     const id=routeSearch.get('new_application');
     if(!id||!applications.some(a=>String(a.id)===id&&isLLMApplicationType(a.application_type)))return;
-    openCreate();setForm({name:routeSearch.get('new_name')||'',application_id:id,access_type:protocolFamily(applyResolvedLLMTypes(applications,rows).find(a=>String(a.id)===id)?.application_type)||'',port:'',description:''});
+    openCreate();setLLMEdge(String(applications.find(a=>String(a.id)===id)?.edge_id||''));setApplicationSource('existing');setForm({name:routeSearch.get('new_name')||'',application_id:id,access_type:protocolFamily(applyResolvedLLMTypes(applications,rows).find(a=>String(a.id)===id)?.application_type)||'',port:'',description:''});
     const search=new URLSearchParams(routeSearch);search.delete('new_application');search.delete('new_name');setRouteSearch(search,{replace:true});
   },[applications,routeSearch]);
   const create = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedAccessType || !selectedApplication) { setNotice({ tone: 'danger', text: tr('请选择访问协议和应用', 'Select an access protocol and application') }); return; }
+    if(saving)return;
+    if(isLLMAccessType(selectedAccessType)&&llmSource==='new'){
+      if(!llmDraft.current)return;
+      setSaving(true);setCreateError('');
+      try{
+        await llmDraft.current.create(form.name.trim()||suggestedAccessName,form.description);
+        setCreateOpen(false);setNotice({tone:'success',text:tr('应用和访问已创建','Application and access created')});
+        window.dispatchEvent(new Event('liaison-llm-config-updated'));
+        await Promise.all([loadApplications(),load()]);
+      }catch(error){setCreateError((error as Error).message);void loadApplications();}
+      finally{setSaving(false);}
+      return;
+    }
+    if (!selectedAccessType || (llmSource==='existing'?!selectedApplication:!llmEdge||!applicationTarget(applicationDraft.address))) { setCreateError(tr('请选择应用，或填写新应用的连接信息。','Select an application, or complete the new application connection.')); return; }
     if (!isAccessType(selectedAccessType)) return;
     const webOnly = isWebAccessType(selectedAccessType) || selectedAccessType==='http' && entryMode!=='port';
     setSaving(true);
     const accessProtocol = accessProtocolForType(selectedAccessType);
     setCreateError('');
     let access = createdAccess;
+    let application = createdApplication || selectedApplication;
     try {
+      if(llmSource==='new'&&!createdApplication){
+        const target=applicationTarget(applicationDraft.address)!;
+        const response=await createApplication({name:applicationDraft.name.trim()||`App-${applicationDraft.address.trim()}`,edge_id:Number(llmEdge),application_type:applicationTypeForAccess(selectedAccessType),ip:target.host,port:target.port});
+        if(response.code!==200||!response.data)throw Error('application');
+        application=response.data;setCreatedApplication(application);void loadApplications();
+      }
       if(isLLMAccessType(selectedAccessType)){
         if(!llmConnection.current)throw Error('configuration');
         await llmConnection.current.saveUpstream();
       }
       if (!access) {
-        const response = await createProxy({ name: form.name.trim() || suggestedAccessName, description: form.description, application_id: selectedApplication.id, access_protocol: accessProtocol, http_entry_mode:selectedAccessType==='http'?entryMode:undefined, expose_public_port: !webOnly, port: !webOnly && form.port ? Number(form.port) : undefined });
+        const response = await createProxy({ name: form.name.trim() || suggestedAccessName, description: form.description, application_id: application!.id, access_protocol: accessProtocol, http_entry_mode:selectedAccessType==='http'?entryMode:undefined, expose_public_port: !webOnly, port: !webOnly && form.port ? Number(form.port) : undefined });
         if (response.code !== 200 || !response.data) throw new Error('create');
         access=response.data; setCreatedAccess(access);
       }
@@ -201,11 +242,12 @@ const ProxyPage: React.FC = () => {
       setCreateOpen(false);setInitialConnection(emptyConnection());setCreatedAccess(undefined);
       setNotice({tone:'success',text:tr('访问已创建','Access created')});await load();
     } catch {
-      setCreateError(access ? tr('访问已创建，但连接配置未保存。请修正后重试，不会重复创建访问。','Access was created, but its connection was not saved. Correct the configuration and retry; no duplicate access will be created.') : tr('创建失败，请检查配置后重试。','Creation failed. Check the configuration and retry.'));
+      setCreateError(access ? tr('访问已创建，但连接配置未保存。请修正后重试，不会重复创建访问。','Access was created, but its connection was not saved. Correct the configuration and retry; no duplicate access will be created.') : llmSource==='new'&&application ? tr('应用已创建，但访问未创建。重试会复用此应用；关闭后可在应用列表找到它。','The application was created, but access was not. Retry reuses this application; it remains in Applications if you close this dialog.') : tr('创建失败，请检查配置后重试。','Creation failed. Check the configuration and retry.'));
       if(access)void load();
     } finally {setSaving(false);}
   };
-  const openEdit = async (row:API.Proxy) => {
+  const openEdit = async (row:API.Proxy, continueAccess = false) => {
+    setOpenAfterSave(continueAccess);
     setEntryMode(row.http_entry_mode || 'port');
     setOpeningId(row.id);
     try {
@@ -235,7 +277,16 @@ const ProxyPage: React.FC = () => {
       await saveInitialConnection(editRow.id,getProxyAccessType(editRow)||'',form.name.trim(),initialConnection);
       setInitialConnection(await loadAccessConnection(editRow.id,getProxyAccessType(editRow)||''));
     }catch{setCreateError(tr('连接配置保存失败，请检查后重试。','Unable to save connection configuration. Check it and retry.'));setSaving(false);return;}
-    try { const isHTTP=getProxyAccessType(editRow)==='http'; const response = await updateProxy(editRow.id, { name: form.name.trim(), description: form.description, http_entry_mode:isHTTP?entryMode:undefined, port: (!isHTTP||entryMode==='port')&&form.port ? Number(form.port) : undefined, expose_public_port: isHTTP?entryMode==='port':isProxyPublicPortExposed(editRow) }); if (response.code !== 200) throw new Error(response.message); setEditRow(undefined); setNotice({ tone: 'success', text: tr('访问已更新', 'Access updated') }); await load(); }
+    try { const isHTTP=getProxyAccessType(editRow)==='http'; const response = await updateProxy(editRow.id, { name: form.name.trim(), description: form.description, http_entry_mode:isHTTP?entryMode:undefined, port: (!isHTTP||entryMode==='port')&&form.port ? Number(form.port) : undefined, expose_public_port: isHTTP?entryMode==='port':isProxyPublicPortExposed(editRow) }); if (response.code !== 200) throw new Error(response.message);
+      if(openAfterSave){
+        try {
+          const path=await directAccessPath(editRow.id,getProxyAccessType(editRow)||'');
+          const search=routeSearch.toString(),from=`/proxy${search?`?${search}`:''}`;
+          setEditRow(undefined);setOpenAfterSave(false);
+          history.push(`${path}${path.includes('?')?'&':'?'}from=${encodeURIComponent(from)}`);
+        }catch{setCreateError(tr('配置已保存，但无法打开访问，请重试。','Configuration saved, but access could not be opened. Please retry.'));}
+      }else{setEditRow(undefined);setNotice({ tone: 'success', text: tr('访问已更新', 'Access updated') });await load();}
+    }
     catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('更新失败', 'Update failed') }); } finally { setSaving(false); }
   };
   const remove = async () => { if (!deleteRow) return; try { const response = await deleteProxy(deleteRow.id); if (response.code !== 200) throw new Error(response.message); setDeleteRow(undefined); setNotice({ tone: 'success', text: tr('访问已删除', 'Access deleted') }); await load(); } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('删除失败', 'Delete failed') }); } };
@@ -289,7 +340,7 @@ const ProxyPage: React.FC = () => {
       if(openingId!==undefined)return;
       setOpeningId(row.id);
       try {history.push(internalPath(await directAccessPath(row.id,type)));}
-      catch (error) {if(error instanceof AccessConfigurationRequired)await openEdit(row);else setNotice({tone:'danger',text:tr('无法打开访问，请检查权限和连接状态后重试。','Unable to open access. Check permissions and connection status, then retry.')});}
+      catch (error) {if(error instanceof AccessConfigurationRequired)await openEdit(row,true);else setNotice({tone:'danger',text:tr('无法打开访问，请检查权限和连接状态后重试。','Unable to open access. Check permissions and connection status, then retry.')});}
       finally {setOpeningId(undefined);}
       return;
     }
@@ -310,6 +361,9 @@ const ProxyPage: React.FC = () => {
       ...(!['webvnc','webmemcached'].includes(routeType)?[{key:'username',title:routeType==='webs3'?'Access Key':tr('用户名','Username'),width:120,render:(row:API.Proxy)=><ConnectionSummary field="username" id={row.id} type={routeType} revision={row.updated_at}/>}]:[]),
       ...((databaseAccessTypes.includes(routeType)&&routeType!=='webmemcached')||['webs3','websmb'].includes(routeType)?[{key:'database',title:routeType==='websmb'?tr('共享名','Share'):routeType==='webs3'?tr('存储桶','Bucket'):routeType==='weboracle'?tr('服务名 / SID','Service / SID'):tr('数据库','Database'),width:150,render:(row:API.Proxy)=><ConnectionSummary field="database" id={row.id} type={routeType} revision={row.updated_at}/>}]:[]),
       {key:'advanced',title:tr('连接选项','Connection options'),width:190,render:(row:API.Proxy)=><ConnectionSummary field="advanced" id={row.id} type={routeType} revision={row.updated_at}/>},
+    ]:[]),
+    ...(supportsSavedPassword(routeType)||filteredRows.some(row=>supportsSavedPassword(getProxyAccessType(row)))?[
+      {key:'password_saved',title:tr('我的密码','My password'),width:120,render:(row:API.Proxy)=>supportsSavedPassword(getProxyAccessType(row))?<ConnectionSummary field="password" id={row.id} type={getProxyAccessType(row)||''} revision={row.updated_at}/>:<span className="liaison-connection-muted">—</span>},
     ]:[]),
     ...((isLLMAccessType(routeType)||group?.value==='llm')?[
       {key:'external_protocol',title:tr('调用协议','Client protocol'),width:160,render:(row:API.Proxy)=><LLMSummary id={row.id} revision={row.updated_at} field="external"/>},
@@ -333,19 +387,44 @@ const ProxyPage: React.FC = () => {
   ];
 
   const accessForm = (id: string, submit: (event: FormEvent) => void, editing = false) => {
+    if(!editing&&isLLMAccessType(selectedAccessType)) {
+      const useApplication=(value:string)=>{
+        setApplicationSource(value==='new'?'new':'existing');setCreateError('');
+        const app=applications.find(a=>String(a.id)===value);
+        setConnectionReady(false);setForm(old=>({...old,application_id:app?value:''}));
+      };
+      return <form id={id} className="liaison-llm-create-form" onSubmit={submit}>
+        <p className="liaison-access-route-note">{tr('访问通过连接器连接到应用或模型服务。','Access reaches your application or model service through the connector.')}</p>
+        <fieldset className="liaison-llm-draft" disabled={saving||!!createdAccess}>
+          <div className="liaison-llm-create-identity">
+          <Field label={tr('访问名称','Access name')}><Input disabled={saving} value={form.name} onChange={e=>setForm(old=>({...old,name:e.target.value}))} placeholder={suggestedAccessName}/></Field>
+          <Field label={tr('访问协议','Protocol')} required><Select aria-label={tr('访问协议','Protocol')} value={selectedAccessType} disabled={!!routeType} onChange={e=>{setApplicationSource(undefined);setConnectionReady(false);setDraftReady(false);setForm(old=>({...old,access_type:e.target.value,application_id:''}));}}>{ACCESS_CREATION_TYPES.filter(p=>isLLMAccessType(p.value)).map(p=><option key={p.value} value={p.value}>{p.label}</option>)}</Select></Field>
+          </div>
+          <LLMApplicationPicker edge={llmEdge} application={llmSource==='new'?'new':form.application_id} protocol={selectedAccessType} applications={availableApplications} disabled={saving||!!createdAccess}
+            onEdge={value=>{setLLMEdge(value);setForm(old=>({...old,application_id:''}));setCreateError('');}} onApplication={useApplication}/>
+        </fieldset>
+        {createOpen&&llmEdge&&<div hidden={llmSource!=='new'}><LLMApplicationDraft key={`${llmEdge}:${selectedAccessType}`} edge={llmEdge} ref={llmDraft} protocol={selectedAccessType} applications={applications} disabled={saving||llmSource!=='new'} onUse={useApplication} onReady={setDraftReady}/></div>}
+        {form.application_id&&<LLMConnection key={form.application_id} ref={llmConnection} applicationId={form.application_id} disabled={saving} reuseUpstream onReady={setConnectionReady}/>}
+      </form>;
+    }
     const isHTTP=(editing?getProxyAccessType(editRow):selectedAccessType)==='http';
-    const exposesPublicPort = isHTTP?entryMode==='port':editing ? isProxyPublicPortExposed(editRow) : Boolean(selectedApplication && !isWebAccessType(selectedAccessType));
+    const exposesPublicPort = isHTTP?entryMode==='port':editing ? isProxyPublicPortExposed(editRow) : Boolean(selectedAccessType && !isWebAccessType(selectedAccessType));
     return <form id={id} className={`liaison-access-form${editing ? ' is-editing' : ''}${routeType ? ' is-protocol-fixed' : ''}`} onSubmit={submit}>
+      {!editing&&<p className="is-full liaison-access-route-note">{tr('访问通过连接器连接到应用或模型服务。','Access reaches your application or model service through the connector.')}</p>}
       <fieldset className="liaison-access-identity" disabled={saving||(!editing&&!!createdAccess)}>
       <Field label={tr('访问名称', 'Access name')}><Input value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder={editing ? undefined : suggestedAccessName} /></Field>
-      {!editing ? <Field label={tr('访问协议', 'Protocol')} required><Select value={selectedAccessType} disabled={Boolean(routeType)} onChange={(event) => { setInitialConnection(emptyConnection()); setForm((value) => ({ ...value, access_type: event.target.value, application_id: '', port: '' })); }}><option value="">{tr('选择协议', 'Select protocol')}</option>{ACCESS_CREATION_TYPES.filter(item=>optionalProtocolEnabled(item.value)&&(!group||group.types.includes(item.value))).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field> : null}
-      {!editing ? <div className="is-full"><Field label={tr('应用', 'Application')} required hint={!selectedAccessType ? tr('请先选择访问协议', 'Select a protocol first') : availableApplications.length === 0 ? tr('该协议暂无可用应用', 'No available applications for this protocol') : undefined}><Select value={form.application_id} disabled={!selectedAccessType || availableApplications.length === 0} onChange={(event) => { setInitialConnection(emptyConnection()); setForm((value) => ({ ...value, application_id: event.target.value })); }}><option value="">{!selectedAccessType ? tr('先选择协议', 'Select protocol first') : tr('选择应用', 'Select application')}</option>{availableApplications.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.ip}:{item.port}</option>)}</Select></Field></div> : null}
+      {!editing ? <Field label={tr('访问协议', 'Protocol')} required><Select value={selectedAccessType} disabled={Boolean(routeType)||!!createdApplication} onChange={(event) => { setApplicationSource(undefined);setApplicationDraft({name:'',address:''});setInitialConnection(emptyConnection()); setForm((value) => ({ ...value, access_type: event.target.value, application_id: '', port: '' })); }}><option value="">{tr('选择协议', 'Select protocol')}</option>{ACCESS_CREATION_TYPES.filter(item=>optionalProtocolEnabled(item.value)&&(!group||group.types.includes(item.value))).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field> : null}
+      {!editing&&<div className="is-full liaison-llm-draft"><LLMApplicationPicker edge={llmEdge} application={llmSource==='new'?'new':form.application_id} protocol={selectedAccessType} applications={availableApplications} disabled={saving||!selectedAccessType||!!createdApplication||!!createdAccess}
+        onEdge={value=>{setLLMEdge(value);setInitialConnection(emptyConnection());setForm(old=>({...old,application_id:''}));setCreateError('');}}
+        onApplication={value=>{setApplicationSource(value==='new'?'new':'existing');setInitialConnection(emptyConnection());setForm(old=>({...old,application_id:value==='new'?'':value}));setCreateError('');}}/>
+        {llmSource==='new'&&llmEdge&&<ApplicationDraft edge={llmEdge} value={applicationDraft} onChange={setApplicationDraft} disabled={saving||!!createdApplication||!!createdAccess}/>}
+      </div>}
       {isHTTP&&<div className="is-full"><WebEntryModeField {...webEntry}/></div>}
-      <div className={editing || !exposesPublicPort ? 'is-full' : 'liaison-access-description'}><Field label={tr('描述', 'Description')}><Input value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} placeholder={tr('选填', 'Optional')} /></Field></div>
+      {!(isLLMAccessType(selectedAccessType)&&!editing&&llmSource==='new')&&<div className={editing || !exposesPublicPort ? 'is-full' : 'liaison-access-description'}><Field label={tr('描述', 'Description')}><Input value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} placeholder={tr('选填', 'Optional')} /></Field></div>}
       {exposesPublicPort ? <div className="liaison-access-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty for automatic assignment')}><Input type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm((value) => ({ ...value, port: event.target.value }))} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}
       </fieldset>
       <InitialConnectionFields type={editing?getProxyAccessType(editRow)||'':selectedAccessType} value={initialConnection} onChange={setInitialConnection} disabled={saving}/>
-      {isLLMAccessType(editing?getProxyAccessType(editRow):selectedAccessType)&&form.application_id&&<LLMConnection key={`${editing?'edit':'create'}:${form.application_id}`} ref={llmConnection} applicationId={form.application_id} accessId={editing?editRow?.id:undefined} disabled={saving}/>}
+      {isLLMAccessType(editing?getProxyAccessType(editRow):selectedAccessType)&&form.application_id&&<div className="is-full" hidden={!editing&&llmSource!=='existing'}><LLMConnection key={`${editing?'edit':'create'}:${form.application_id}`} ref={llmConnection} applicationId={form.application_id} accessId={editing?editRow?.id:undefined} disabled={saving||(!editing&&llmSource!=='existing')}/></div>}
     </form>;
   };
 
@@ -354,10 +433,9 @@ const ProxyPage: React.FC = () => {
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
     <div className="liaison-filter-bar">
       <label className="liaison-compound"><span>{tr('访问名称', 'Access')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入访问名称', 'Access name')} /></label>{!group && !routeType ? <label className="liaison-compound"><span>{tr('协议', 'Protocol')}</span><select value={filters.access_type} onChange={(event) => { setFilters((value) => ({ ...value, access_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{ACCESS_TYPES.filter(item=>optionalProtocolEnabled(item.value)).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label> : null}<label className="liaison-compound"><span>{tr('应用', 'Application')}</span><select value={filters.application_id} onChange={(event) => { setFilters((value) => ({ ...value, application_id: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{applications.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="liaison-compound"><span>{tr('启用状态', 'Enabled')}</span><select value={filters.status} onChange={(event) => { setFilters((value) => ({ ...value, status: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option><option value="running">{tr('启用', 'Enabled')}</option><option value="stopped">{tr('停用', 'Disabled')}</option></select></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', access_type: routeType, application_id: '', status: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
-    {group?.value === 'llm' && loaded && !loading && !rows.some(row=>isLLMAccessType(getProxyAccessType(row))) && <Notice tone="info"><strong>{tr('接入本地模型', 'Connect a local model')}</strong><p>{tr('先创建并安装连接器，再添加模型应用、获取模型列表，最后创建访问并使用 API 示例或在线体验。', 'Create and install a connector, add a model application and fetch its models, then create access to use API examples or the Playground.')}</p><p>{tr('这里的 LLM 访问用于向客户端提供模型 API；设置中的模型仅供产品内助理使用。', 'LLM access exposes model APIs to clients. Models in Settings power the built-in assistants.')}</p><Link to="/connector?create=1">{tr('创建连接器', 'Create connector')}</Link> · <Link to="/resource/app">{tr('添加模型应用', 'Add a model application')}</Link></Notice>}
-    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('访问列表', 'Access')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建访问', 'Create access')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无访问', 'No access')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>
-    <Modal open={createOpen} title={tr('新建访问', 'Create access')} onClose={closeCreate} closeOnMask={!saving} width={520} footer={<><Button onClick={closeCreate} disabled={saving}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-proxy" disabled={saving}>{saving?tr('保存中…','Saving…'):createdAccess?tr('保存连接','Save connection'):tr('确定','Create')}</Button></>}>{accessForm('create-proxy', create)}{createError&&<Notice tone="danger">{createError}</Notice>}</Modal>
-    <Modal open={!!editRow} title={tr('编辑访问', 'Edit access')} onClose={() => {if(!saving){setEditRow(undefined);setInitialConnection(emptyConnection());}}} closeOnMask={!saving} width={520} footer={<><Button disabled={saving} onClick={() => {setEditRow(undefined);setInitialConnection(emptyConnection());}}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-proxy" disabled={saving}>{tr('确定', 'Save')}</Button></>}>{accessForm('edit-proxy', update, true)}{createError&&<Notice tone="danger">{createError}</Notice>}</Modal>
+    <section className="liaison-list-panel"><header className="liaison-list-header"><h2>{tr('访问列表', 'Access')}</h2>{!initialEmpty && loaded && <Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建访问', 'Create access')}</Button>}</header>{initialEmpty ? group?.value==='llm'?<LLMEmptyState onCreate={openCreate}/>:<AccessEmptyState category={group?.value} onCreate={openCreate}/> : filteredEmpty?<AccessEmptyState onReset={resetEmptyFilters}/>:<><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无访问', 'No access')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></>}</section>
+    <Modal open={createOpen} title={tr('新建访问', 'Create access')} onClose={closeCreate} closeOnMask={!saving} width={520} footer={<><Button onClick={closeCreate} disabled={saving}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-proxy" disabled={saving||(isLLMAccessType(selectedAccessType)&&(llmSource==='new'?!llmEdge||!draftReady:!form.application_id||!connectionReady))}>{saving?tr('保存中…','Saving…'):createdAccess?tr('保存连接','Save connection'):isLLMAccessType(selectedAccessType)?tr('创建访问','Create access'):tr('确定','Create')}</Button></>}>{accessForm('create-proxy', create)}{createError&&<Notice tone="danger">{createError}</Notice>}</Modal>
+    <Modal open={!!editRow} title={openAfterSave?tr('配置访问','Configure access'):tr('编辑访问', 'Edit access')} onClose={() => {if(!saving){setEditRow(undefined);setOpenAfterSave(false);setInitialConnection(emptyConnection());}}} closeOnMask={!saving} width={520} footer={<><Button disabled={saving} onClick={() => {setEditRow(undefined);setOpenAfterSave(false);setInitialConnection(emptyConnection());}}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-proxy" disabled={saving}>{openAfterSave?tr('保存并访问','Save & open'):tr('确定', 'Save')}</Button></>}>{accessForm('edit-proxy', update, true)}{createError&&<Notice tone="danger">{createError}</Notice>}</Modal>
     <Modal open={!!deleteRow} title={tr('删除访问', 'Delete access')} onClose={() => setDeleteRow(undefined)} width={430} footer={<><Button onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('该访问入口和防火墙规则将立即停止，此操作无法撤销。', 'This endpoint and its firewall rules will stop immediately. This cannot be undone.')} /></Modal>
     <Drawer open={!!firewallRow} title={<span className="liaison-firewall-title">{tr('防火墙', 'Firewall')}<small>{firewallRow?.name}</small></span>} onClose={() => setFirewallRow(undefined)}>
       <div className="liaison-firewall-overview">

@@ -30,6 +30,8 @@ func aiStatus(err error) int {
 		return 403
 	case errors.Is(err, controlplane.ErrAIUnavailable):
 		return 503
+	case errors.Is(err, controlplane.ErrAIExistingApplication):
+		return 409
 	default:
 		return 500
 	}
@@ -80,7 +82,15 @@ func (web *web) handleAIGatewayHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/ai/"), "/")
-	if len(parts) < 2 || r.URL.RawPath != "" {
+	if r.URL.RawPath != "" {
+		aiError(w, 400)
+		return
+	}
+	if parts[0] == "setup" {
+		web.handleAISetupHTTP(w, r)
+		return
+	}
+	if len(parts) < 2 {
 		aiError(w, 400)
 		return
 	}

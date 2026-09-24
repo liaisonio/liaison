@@ -47,6 +47,20 @@ func (fb *frontierBound) updateEdgeHeartbeat(edgeID uint64) {
 	err = fb.repo.UpdateEdgeHeartbeatAt(edgeID, now)
 	if err != nil {
 		log.Errorf("update edge heartbeat error: %s, edge_id: %d", err, edgeID)
+		return
+	}
+	// An authenticated connector proves its own host is alive independently of
+	// resource collection. Never refresh discovered or unrelated devices here.
+	hostType := model.EdgeDeviceRelationHost
+	relations, err := fb.repo.GetEdgeDevicesByEdgeID(edgeID, &hostType)
+	if err != nil {
+		log.Errorf("get edge host relation: %v", err)
+		return
+	}
+	for _, relation := range relations {
+		if err := fb.repo.UpdateDeviceHeartbeat(relation.DeviceID); err != nil {
+			log.Errorf("update edge host heartbeat: %v", err)
+		}
 	}
 }
 

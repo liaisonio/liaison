@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"crypto/cipher"
 	"net"
 
 	v1 "github.com/liaisonio/liaison/api/v1"
@@ -14,6 +15,7 @@ import (
 )
 
 type ControlPlane interface {
+	RunAgentHistory(context.Context)
 	ResolveAgentResource(ctx context.Context, userID uint, resourceType string, resourceID uint64) (string, error)
 	CreateEdge(ctx context.Context, req *v1.CreateEdgeRequest) (*v1.CreateEdgeResponse, error)
 	GetEdge(ctx context.Context, req *v1.GetEdgeRequest) (*v1.GetEdgeResponse, error)
@@ -97,10 +99,24 @@ func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound f
 		repo:            repo,
 		frontierBound:   frontierBound,
 		trafficRecorder: trafficRecorder,
+		probeSlots:      make(chan struct{}, 4),
 	}
 
 	if len(authorize) > 0 {
 		cp.authorizeFeature = authorize[0]
+	}
+	if conf != nil {
+		secret := conf.Manager.CredentialSecret
+		if secret == "" {
+			secret = conf.Manager.JWTSecret
+		}
+		if secret != "" {
+			var err error
+			cp.historyCipher, err = newHistoryCipher(secret)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	// 初始化任务检查
 	go cp.checkTask()
@@ -109,6 +125,9 @@ func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound f
 }
 
 type controlPlane struct {
+	historyCipher    cipher.AEAD
+	probeSlots       chan struct{}
+	probeLimiter     probeRateLimit
 	authorizeFeature func(context.Context, string) error
 	conf             *config.Configuration
 	repo             repo.Repo
