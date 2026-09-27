@@ -3,11 +3,12 @@ import { createRoot } from 'react-dom/client';
 import '../src/components/AgentWorkspace/index.less';
 import { Transcript } from '../src/pages/EdgeAgent/Transcript';
 import { resolveFileLink } from '../src/pages/EdgeAgent/fileLink';
+import {documentLink,previewTarget} from '../src/pages/EdgeAgent/documentLink';
 import '../src/pages/EdgeAgent/index.less';
 import '../src/pages/EdgeAgent/interaction.less';
 import type { AgentSnapshot } from '../src/services/edgeAgent';
 import '../src/styles/index.css';
-Object.assign(window, { resolveFileLink });
+Object.assign(window, { resolveFileLink,documentLink,previewTarget });
 function Fixture() {
   const [running, setRunning] = useState(true),
     [window, setWindow] = useState(0),

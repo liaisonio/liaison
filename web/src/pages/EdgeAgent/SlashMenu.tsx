@@ -9,7 +9,7 @@ export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,
   const open=(forcedOpen||/^\/[^\s/]*$/.test(text))&&!disabled&&!dismissed;
   const commands=[{id:'status',name:'/status',description:tr('查看会话信息','View session details'),run:onStatus},{id:'new',name:'/new',description:tr('在当前项目新建会话','Start a new conversation in this project'),run:onNew}];
   const options=[...commands,...skills.map(s=>({id:s.id,name:s.name,description:s.description,run:()=>onSkill(s)}))].filter(o=>`${o.name} ${o.description}`.toLowerCase().includes(query));
-  function choose(i:number){const selected=options[i];if(!selected)return;setDismissed(true);if(!forcedOpen)setText('');onClose?.();input.current?.focus();selected.run();}
+  function choose(i:number){const selected=options[i];if(!selected)return;setDismissed(true);if(!forcedOpen)setText('');onClose?.();input.current?.focus({preventScroll:true});selected.run();}
   useEffect(()=>{setIndex(0);setDismissed(false);},[text]);
   useEffect(()=>{if(forcedOpen){setIndex(0);setDismissed(false);}},[forcedOpen]);
   useEffect(()=>{
@@ -24,7 +24,14 @@ export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,
     window.addEventListener('blur',dismiss);
     return()=>{document.removeEventListener('pointerdown',outside,true);document.removeEventListener('focusin',outside);el.removeEventListener('blur',blur);window.removeEventListener('blur',dismiss);};
   },[open,onClose,input]);
-  useEffect(()=>{if(open)list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({block:'nearest'});},[index,open]);
+  useEffect(()=>{
+    if(!open)return;
+    const container=list.current,item=container?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if(!container||!item)return;
+    const bounds=container.getBoundingClientRect(),row=item.getBoundingClientRect();
+    if(row.top<bounds.top)container.scrollTop+=row.top-bounds.top;
+    else if(row.bottom>bounds.bottom)container.scrollTop+=row.bottom-bounds.bottom;
+  },[index,open]);
   useEffect(()=>{
     const el=input.current;if(!el)return;
     if(open){el.setAttribute('aria-controls',id);el.setAttribute('aria-activedescendant',`${id}-${index}`);el.setAttribute('aria-haspopup','listbox');}

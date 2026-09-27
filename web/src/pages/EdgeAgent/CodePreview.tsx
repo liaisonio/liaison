@@ -1,7 +1,10 @@
+import { FileLinkContext } from '@/components/AgentWorkspace/FileLinkContext';
+import { MessageContent } from '@/components/AgentWorkspace/MessageContent';
 import { Button, Modal, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { edgeAgent, type AgentSnapshot } from '@/services/edgeAgent';
 import {
+  ArrowLeft,
   Copy,
   Download,
   File,
@@ -9,12 +12,17 @@ import {
   Maximize2,
   Minimize2,
 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useAgentFiles, type AgentFile } from './Files';
 import './code-preview.less';
-import { resolveFileLink } from './fileLink';
-import { MessageContent } from '@/components/AgentWorkspace/MessageContent';
-import { FileLinkContext } from '@/components/AgentWorkspace/FileLinkContext';
+import { documentLink, previewTarget } from './documentLink';
 
 const PreviewCode = lazy(() => import('./PreviewCode'));
 type Reply = AgentSnapshot & {
@@ -58,15 +66,71 @@ export function CodePreview({
   const body = useRef<HTMLDivElement>(null),
     drag = useRef<{ x: number; width: number }>();
   const files = useAgentFiles(edge, access, session),
-    target = resolveFileLink(location, project);
-  const markdown = /(?:\.md|\.markdown|(?:^|\/)readme)$/i.test(target?.path || '');
+    target = previewTarget(location, project);
+  const [history, setHistory] = useState<string[]>([]);
+  const [anchorRevision, setAnchorRevision] = useState(0);
+  const navigate = useCallback(
+    (next: string) => {
+      if (next === location) { setAnchorRevision(value => value + 1); return; }
+      setHistory((previous) => [...previous, location]);
+      setLocation(next);
+    },
+    [location],
+  );
+  const openDocumentLink = useCallback(
+    (href: string) => {
+      const next = documentLink(href, target?.path || '', project);
+      if (next === undefined) {
+        setNote(
+          tr(
+            '此链接不在当前项目内或格式不受支持。',
+            'This link is outside the project or uses an unsupported format.',
+          ),
+        );
+        return;
+      }
+      setNote('');
+      navigate(next);
+    },
+    [target?.path, project, navigate, tr],
+  );
+  const markdown = /(?:\.md|\.markdown|(?:^|\/)readme)$/i.test(
+    target?.path || '',
+  );
   const [sourceView, setSourceView] = useState(Boolean(target?.line));
   useEffect(() => setSourceView(Boolean(target?.line)), [location]);
   const canRender = markdown && text !== undefined && text.length <= 200000;
   useEffect(() => {
+    if (loading || sourceView || !canRender) return;
+    const container = body.current?.querySelector<HTMLElement>(
+      '.agent-document-preview',
+    );
+    if (!container) return;
+    const heading = target?.anchor
+      ? Array.from(container.querySelectorAll<HTMLElement>('[id]')).find(
+          (el) => el.id === target.anchor,
+        )
+      : undefined;
+    container.scrollTop = heading
+      ? heading.getBoundingClientRect().top -
+        container.getBoundingClientRect().top +
+        container.scrollTop -
+        16
+      : 0;
+    if (target?.anchor && !heading)
+      setNote(
+        tr(
+          '未找到该标题，已显示文档开头。',
+          'Heading not found. Showing the start of the document.',
+        ),
+      );
+  }, [loading, sourceView, canRender, target?.anchor, text, anchorRevision]);
+  useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const modal = body.current?.closest<HTMLElement>('.liaison-modal');
-    modal?.querySelector<HTMLButtonElement>('header button')?.focus();
+    modal
+      ?.querySelector<HTMLButtonElement>('header button')
+      ?.focus({ preventScroll: true });
     const trap = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || !modal) return;
       const controls = Array.from(
@@ -83,20 +147,20 @@ export function CodePreview({
           !modal.contains(document.activeElement))
       ) {
         event.preventDefault();
-        last?.focus();
+        last?.focus({ preventScroll: true });
       } else if (
         !event.shiftKey &&
         (document.activeElement === last ||
           !modal.contains(document.activeElement))
       ) {
         event.preventDefault();
-        first.focus();
+        first.focus({ preventScroll: true });
       }
     };
     document.addEventListener('keydown', trap);
     return () => {
       document.removeEventListener('keydown', trap);
-      previous?.isConnected && previous.focus();
+      previous?.isConnected && previous.focus({ preventScroll: true });
     };
   }, []);
   useEffect(() => {
@@ -250,14 +314,19 @@ export function CodePreview({
     }
     void load();
     return () => abort.abort();
-  }, [location, project, edge, access, session, available, revision]);
+  }, [target?.path, project, edge, access, session, available, revision]);
   useEffect(() => {
     const el = body.current;
     if (!el || text === undefined || !target?.line) return;
-    const scroll = () =>
-      el
-        .querySelector('.agent-source-line.is-target')
-        ?.scrollIntoView({ block: 'center' });
+    const scroll = () => {
+      const source = el.querySelector<HTMLElement>('.agent-source-code'),
+        line = el.querySelector<HTMLElement>('.agent-source-line.is-target');
+      if (source && line)
+        source.scrollTop +=
+          line.getBoundingClientRect().top -
+          source.getBoundingClientRect().top -
+          source.clientHeight / 2;
+    };
     const observer = new MutationObserver(scroll);
     observer.observe(el, { childList: true, subtree: true });
     scroll();
@@ -281,7 +350,11 @@ export function CodePreview({
   return (
     <Modal
       open
-      title={markdown ? tr('文件预览', 'File preview') : tr('代码预览', 'Code preview')}
+      title={
+        markdown
+          ? tr('文件预览', 'File preview')
+          : tr('代码预览', 'Code preview')
+      }
       onClose={onClose}
       width={wide ? window.innerWidth : width}
       className={`agent-code-preview-panel${wide ? ' is-wide' : ''}`}
@@ -328,10 +401,34 @@ export function CodePreview({
           </code>
           <small>{tr('当前文件内容', 'Current file contents')}</small>
           <div>
-            {canRender && <>
-              <Button aria-pressed={!sourceView} onClick={() => setSourceView(false)}>{tr('预览', 'Preview')}</Button>
-              <Button aria-pressed={sourceView} onClick={() => setSourceView(true)}>{tr('源码', 'Source')}</Button>
-            </>}
+            {!!history.length && (
+              <Button
+                aria-label={tr('返回上个文件', 'Back to previous file')}
+                onClick={() => {
+                  setNote('');
+                  setLocation(history[history.length - 1]);
+                  setHistory((previous) => previous.slice(0, -1));
+                }}
+              >
+                <ArrowLeft size={14} />
+              </Button>
+            )}
+            {canRender && (
+              <>
+                <Button
+                  aria-pressed={!sourceView}
+                  onClick={() => setSourceView(false)}
+                >
+                  {tr('预览', 'Preview')}
+                </Button>
+                <Button
+                  aria-pressed={sourceView}
+                  onClick={() => setSourceView(true)}
+                >
+                  {tr('源码', 'Source')}
+                </Button>
+              </>
+            )}
             <Button
               aria-label={tr('复制路径', 'Copy path')}
               title={tr('复制路径', 'Copy path')}
@@ -341,7 +438,9 @@ export function CodePreview({
             </Button>
             {text !== undefined && (
               <Button onClick={() => void copy(text)}>
-                {markdown ? tr('复制源码', 'Copy source') : tr('复制代码', 'Copy code')}
+                {markdown
+                  ? tr('复制源码', 'Copy source')
+                  : tr('复制代码', 'Copy code')}
               </Button>
             )}
             {file && (
@@ -384,23 +483,38 @@ export function CodePreview({
         ) : (
           <>
             {note && <Notice>{note}</Notice>}
-            {markdown && text !== undefined && !canRender && <Notice>{tr('文档较大，已切换为源码显示。', 'This document is large and is displayed as source.')}</Notice>}
+            {markdown && text !== undefined && !canRender && (
+              <Notice>
+                {tr(
+                  '文档较大，已切换为源码显示。',
+                  'This document is large and is displayed as source.',
+                )}
+              </Notice>
+            )}
             {text !== undefined && (
               <>
-                {canRender && !sourceView ? <div className="agent-document-preview" key={location}>
-                  <FileLinkContext.Provider value={undefined}><MessageContent text={text}/></FileLinkContext.Provider>
-                </div> : <Suspense
-                  fallback={
-                    <p role="status">{tr('正在加载代码…', 'Loading code…')}</p>
-                  }
-                >
-                  <PreviewCode
-                    text={text}
-                    path={target?.path || ''}
-                    line={target?.line}
-                    endLine={target?.endLine}
-                  />
-                </Suspense>}
+                {canRender && !sourceView ? (
+                  <div className="agent-document-preview" key={location}>
+                    <FileLinkContext.Provider value={openDocumentLink}>
+                      <MessageContent text={text} onAnchor={openDocumentLink} />
+                    </FileLinkContext.Provider>
+                  </div>
+                ) : (
+                  <Suspense
+                    fallback={
+                      <p role="status">
+                        {tr('正在加载代码…', 'Loading code…')}
+                      </p>
+                    }
+                  >
+                    <PreviewCode
+                      text={text}
+                      path={target?.path || ''}
+                      line={target?.line}
+                      endLine={target?.endLine}
+                    />
+                  </Suspense>
+                )}
                 {target?.line && target.line > text.split('\n').length && (
                   <Notice>
                     {tr(
@@ -416,7 +530,7 @@ export function CodePreview({
                 {target?.path !== '.' && (
                   <Button
                     onClick={() =>
-                      setLocation(
+                      navigate(
                         target!.path.split('/').slice(0, -1).join('/') || '.',
                       )
                     }
@@ -431,7 +545,7 @@ export function CodePreview({
                   <Button
                     variant="ghost"
                     key={entry.path}
-                    onClick={() => setLocation(entry.path)}
+                    onClick={() => navigate(entry.path)}
                   >
                     {entry.directory ? (
                       <Folder size={15} />

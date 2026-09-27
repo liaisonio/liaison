@@ -23,7 +23,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
             'long '.repeat(200) +
             '\n';
           const bytes = Buffer.from(source);
-          const markdown = '# Project guide\n\n## Setup\n\n- Install dependencies\n- Start the service\n\n| Feature | Status |\n| --- | --- |\n| Preview | Ready |\n\n```bash\nnpm run dev\n```\n\n![Tracking image](https://example.invalid/tracker.png)\n\n<script>window.markdownExecuted=true</script>\n';
+          const markdown = '# Project guide\n\n## Setup\n\n- Install dependencies\n- Start the service\n\n| Feature | Status |\n| --- | --- |\n| Preview | Ready |\n\n```bash\nnpm run dev\n```\n\n![Tracking image](https://example.invalid/tracker.png)\n\n<script>window.markdownExecuted=true</script>\n\n[Details](docs/guide.md) · [Jump to end](#conclusion) · [Forbidden](../secret)\n\n'+Array.from({length:30},(_,i)=>`Paragraph ${i}`).join('\n\n')+'\n\n## Conclusion\n\nDone.';
           page.on('pageerror', (e) => errors.push(e.message));
           await page.addInitScript(
             ({ locale, dark }) => {
@@ -66,12 +66,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
               if (f.path === 'slow.go')
                 await new Promise((r) => setTimeout(r, 500));
               const data =
-                f.path === 'README.md' ? Buffer.from(markdown) : f.path === 'binary.dat' ? Buffer.from([0, 1, 2]) : bytes;
+                f.path === 'README.md' ? Buffer.from(markdown) : f.path==='docs/guide.md'?Buffer.from('# Details\n\n[Parent document](../README.md#setup)\n\n[Code](../src/main.go#L3)'): f.path === 'binary.dat' ? Buffer.from([0, 1, 2]) : bytes;
               if (
                 f.path &&
                 ![
                   'src/main.go',
                   'README.md',
+                  'docs/guide.md',
                   'main.go',
                   'large.go',
                   'binary.dat',
@@ -125,12 +126,38 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
           );
           await button('Entry').waitFor();
           assert.equal(calls.length, 0, 'No automatic file reads');
+          const navigation=await page.evaluate(()=>[
+            window.documentLink('../README.md#setup','docs/guide.md','/workspace/project'),
+            window.documentLink('main.go:3','src/README.md','/workspace/project'),
+            window.documentLink('../../secret','docs/guide.md','/workspace/project'),
+            window.documentLink('%2e%2e/%2e%2e/secret','docs/guide.md','/workspace/project'),
+            window.documentLink('//remote/secret','README.md','/workspace/project'),
+            window.documentLink('javascript:alert(1)','README.md','/workspace/project')
+          ]);
+          assert.deepEqual(navigation.slice(0,2),['README.md#setup','src/main.go#L3']);assert(navigation.slice(2).every(v=>v==null));
           await button('README').click();
           await dialog().getByRole('heading', {name:'Project guide',exact:true}).waitFor();
           assert.equal(await dialog().locator('table').count(),1);
           assert.equal(await dialog().locator('img,script').count(),0);
           assert.equal(await page.evaluate(()=>window.markdownExecuted),undefined);
           await page.screenshot({path:`/tmp/readme-preview-${locale}-${dark}-${width}.png`});
+          const reads=calls.filter(c=>c.action==='file_read').length;
+          await dialog().getByRole('button',{name:'Jump to end',exact:true}).click();
+          await page.waitForFunction(()=>document.querySelector('.agent-document-preview')?.scrollTop>100);
+          assert.equal(calls.filter(c=>c.action==='file_read').length,reads,'Anchor navigation must not refetch');
+          await dialog().locator('.agent-document-preview').evaluate(el=>{el.scrollTop=0;});
+          await dialog().getByRole('button',{name:'Jump to end',exact:true}).click();
+          await page.waitForFunction(()=>document.querySelector('.agent-document-preview')?.scrollTop>100);
+          await dialog().getByRole('button',{name:zh?'返回上个文件':'Back to previous file',exact:true}).click();
+          await dialog().getByRole('button',{name:'Forbidden',exact:true}).click();
+          assert.equal(calls.filter(c=>c.action==='file_read').length,reads,'Rejected links never read files');
+          await dialog().getByRole('button',{name:'Details',exact:true}).click();
+          await dialog().getByRole('heading',{name:'Details',exact:true}).waitFor();
+          await dialog().getByRole('button',{name:'Code',exact:true}).click();
+          await dialog().locator('.agent-source-line.is-target').waitFor();
+          await dialog().getByRole('button',{name:zh?'返回上个文件':'Back to previous file',exact:true}).click();
+          await dialog().getByRole('button',{name:'Parent document',exact:true}).click();
+          await dialog().getByRole('heading',{name:'Project guide',exact:true}).waitFor();
           await dialog().getByRole('button',{name:zh?'源码':'Source',exact:true}).click();
           await dialog().locator('.agent-source-code').waitFor();
           await dialog().getByRole('button',{name:zh?'预览':'Preview',exact:true}).click();

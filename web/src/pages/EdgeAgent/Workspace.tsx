@@ -14,6 +14,7 @@ import {useAgentFiles,ProjectFiles,FileDownloadContext} from './Files';
 import {ModelPicker} from './ModelPicker';
 import {InputRequest} from './InputRequest';
 import {ApprovalDialog} from './ApprovalDialog';
+import {CodePreview} from './CodePreview';
 import '@/components/AgentWorkspace/index.less';
 import './index.less';
 import './interaction.less';
@@ -34,6 +35,7 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
   const live=useRef<{edge:number;id:string}>(),mounted=useRef(true),sequence=useRef(0),applied=useRef(0),busy=useRef(false);
   const input=useRef<HTMLTextAreaElement>(null);
   const [modelPicker,setModelPicker]=useState(false);
+  const [filePreview,setFilePreview]=useState<{path:string;session:string}>();
   const active=Boolean(session?.session_id&&!session.closed);
   const files=useAgentFiles(Number(edge),access.id,session?.session_id),[filesOpen,setFilesOpen]=useState(false);
   const canUpload=active&&!!session?.files_upload_available&&!pending&&!session?.running;
@@ -190,7 +192,8 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
 {session.input_requests?.map(request=><InputRequest key={request.id} request={request} disabled={pending} onCancel={()=>void act('interrupt')} onAnswer={answers=>void permissionAction('answer',{input_id:request.id,answers})}/>)}
       </section>}
       {active&&session.approvals?.[0]&&<ApprovalDialog key={session.approvals[0].id} approval={session.approvals[0]} count={session.approvals.length} pending={pending} error={error} onDecision={decision=>void permissionAction('approve',{approval_id:session.approvals![0].id,decision})}/>}
-      {files.feedback}{filesOpen&&session.session_id&&<ProjectFiles edge={Number(edge)} access={access.id} session={session.session_id} onClose={()=>setFilesOpen(false)} onDownload={f=>void files.download(f)} busy={files.busy}/>}
+      {files.feedback}{filesOpen&&session.session_id&&<ProjectFiles edge={Number(edge)} access={access.id} session={session.session_id} onClose={()=>setFilesOpen(false)} onDownload={f=>void files.download(f)} onPreview={f=>setFilePreview({path:f.path.split('/').map(encodeURIComponent).join('/'),session:session.session_id!})} busy={files.busy}/>}
+      {filePreview?.session===session.session_id&&session.session_id&&filePreview&&<CodePreview key={`${session.session_id}:${filePreview.path}`} href={filePreview.path} project={session.project||project} edge={Number(edge)} access={access.id} session={session.session_id} available={Boolean(session.files_available)} onClose={()=>setFilePreview(undefined)}/>}
       <form className="edge-agent-composer" onDragOver={e=>{if(canUpload&&e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();if(canUpload)void files.upload(Array.from(e.dataTransfer.files));}}} onSubmit={e=>{e.preventDefault();if(canSend)void act('send');}}>
         {files.controls}{files.chips}
         {skill&&<div className="edge-agent-selected-skill"><span>{skill.name}</span><Button variant="ghost" aria-label={tr('移除技能','Remove skill')} onClick={()=>{setSkill(undefined);input.current?.focus();}}><X size={13}/></Button></div>}

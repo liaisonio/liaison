@@ -5,6 +5,7 @@ import ReactMarkdown, {defaultUrlTransform,type Components} from 'react-markdown
 import {FileLinkContext,isFileReference} from './FileLinkContext';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from './MermaidBlock';
+import {headingAnchors} from './headingAnchors';
 
 export function CodeBlock({ text, language = '', onPreview }: { text: string; language?: string; onPreview?: (text:string) => void }) {
   const { tr } = useI18n();
@@ -17,7 +18,7 @@ export function CodeBlock({ text, language = '', onPreview }: { text: string; la
   </div>;
 }
 
-export const MessageContent = memo(function MessageContent({ text, onPreviewCode }: { text: string; onPreviewCode?: (text:string) => void }) {
+export const MessageContent = memo(function MessageContent({ text, onPreviewCode, onAnchor }: { text: string; onPreviewCode?: (text:string) => void; onAnchor?: (href:string)=>void }) {
   const openFile=useContext(FileLinkContext);
   // Keep diagram component identities stable while surrounding text streams.
   const components=useMemo<Components>(()=>({
@@ -29,14 +30,15 @@ export const MessageContent = memo(function MessageContent({ text, onPreviewCode
     },
     table({children}) { return <div className="agent-markdown-table"><table>{children}</table></div>; },
     a({href, children}) {
+      if(href?.startsWith('#')&&onAnchor)return <button type="button" className="agent-file-link" onClick={()=>onAnchor(href)}>{children}</button>;
       if(href&&/^https?:\/\//i.test(href))return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
       if(href&&openFile&&isFileReference(href))return <button type="button" className="agent-file-link" title={href} onClick={()=>openFile(href)}>{children}</button>;
       return <span title={href}>{children}</span>;
     },
     // Model-supplied images must not initiate tracking requests.
     img({alt}) { return <span>{alt}</span>; },
-  }),[onPreviewCode,openFile]);
-  return <div className="agent-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml urlTransform={(url,key)=>openFile&&key==='href'&&isFileReference(url)?url:defaultUrlTransform(url)} components={components}>{text}</ReactMarkdown></div>;
+  }),[onPreviewCode,openFile,onAnchor]);
+  return <div className="agent-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={onAnchor?[headingAnchors]:[]} skipHtml urlTransform={(url,key)=>openFile&&key==='href'&&isFileReference(url)?url:defaultUrlTransform(url)} components={components}>{text}</ReactMarkdown></div>;
 });
 
 export function ToolMessage({ name, content, command }: { name: string; content: string; command?: string }) {

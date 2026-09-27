@@ -29,7 +29,8 @@ durable user/access/session binding and saved project.
 
 The composer supports file selection, image selection, file drop and image paste.
 Uploads have progress/cancel, local image previews and removable attachment chips.
-Project files can be browsed/downloaded from the session header; sent attachment
+Project files can be browsed from the session header; clicking a file opens its
+preview and a separate action downloads it. Sent attachment
 chips also provide download actions. File content requires an online connector.
 
 Conversation file links open a resizable right-side preview (full-screen on small
@@ -51,7 +52,10 @@ README (without an extension), `.md` and `.markdown` files default to the shared
 safe Markdown preview, with a source toggle. Links with line targets default to
 source so line navigation remains precise. Markdown rendering is capped at 200,000
 characters; larger documents fall back to source. Raw HTML and embedded images are
-not loaded. File references within the document are currently non-interactive;
+not loaded. Project-relative document links, source line links and heading anchors
+open inside the preview with back navigation. Parent segments are normalized only
+within the project; paths escaping the project are rejected before a file read.
+Heading navigation reuses the loaded contents and only scrolls the preview pane.
 HTTP(S) links can be opened explicitly in a separate tab.
 
 The optional `files_available` / `files_upload_available` capabilities gate controls.
