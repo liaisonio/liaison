@@ -4,13 +4,26 @@ import type {AgentSkill} from '@/services/edgeAgent';
 
 export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,onStatus,onNew,forcedOpen=false,onClose}:{text:string;setText:(s:string)=>void;input:RefObject<HTMLTextAreaElement>;skills:AgentSkill[];available:boolean;disabled:boolean;onSkill:(s:AgentSkill)=>void;onStatus:()=>void;onNew:()=>void;forcedOpen?:boolean;onClose?:()=>void}){
   const {tr}=useI18n();const [index,setIndex]=useState(0),[dismissed,setDismissed]=useState(false);
-  const id=useId(),list=useRef<HTMLDivElement>(null);
+  const id=useId(),list=useRef<HTMLDivElement>(null),panel=useRef<HTMLElement>(null);
   const query=!forcedOpen&&text.startsWith('/')?text.slice(1).toLowerCase():'';
   const open=(forcedOpen||/^\/[^\s/]*$/.test(text))&&!disabled&&!dismissed;
   const commands=[{id:'status',name:'/status',description:tr('查看会话信息','View session details'),run:onStatus},{id:'new',name:'/new',description:tr('在当前项目新建会话','Start a new conversation in this project'),run:onNew}];
   const options=[...commands,...skills.map(s=>({id:s.id,name:s.name,description:s.description,run:()=>onSkill(s)}))].filter(o=>`${o.name} ${o.description}`.toLowerCase().includes(query));
-  function choose(i:number){const selected=options[i];if(!selected)return;selected.run();if(!forcedOpen)setText('');onClose?.();input.current?.focus();}
-  useEffect(()=>{setIndex(0);setDismissed(false);},[text,forcedOpen]);
+  function choose(i:number){const selected=options[i];if(!selected)return;setDismissed(true);if(!forcedOpen)setText('');onClose?.();input.current?.focus();selected.run();}
+  useEffect(()=>{setIndex(0);setDismissed(false);},[text]);
+  useEffect(()=>{if(forcedOpen){setIndex(0);setDismissed(false);}},[forcedOpen]);
+  useEffect(()=>{
+    const el=input.current;if(!open||!el)return;
+    const inside=(target:EventTarget|null)=>target instanceof Node&&(target===el||Boolean(panel.current?.contains(target)));
+    const dismiss=()=>{setDismissed(true);onClose?.();};
+    const outside=(event:Event)=>{if(!inside(event.target))dismiss();};
+    const blur=(event:FocusEvent)=>{if(!inside(event.relatedTarget))dismiss();};
+    document.addEventListener('pointerdown',outside,true);
+    document.addEventListener('focusin',outside);
+    el.addEventListener('blur',blur);
+    window.addEventListener('blur',dismiss);
+    return()=>{document.removeEventListener('pointerdown',outside,true);document.removeEventListener('focusin',outside);el.removeEventListener('blur',blur);window.removeEventListener('blur',dismiss);};
+  },[open,onClose,input]);
   useEffect(()=>{if(open)list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({block:'nearest'});},[index,open]);
   useEffect(()=>{
     const el=input.current;if(!el)return;
@@ -30,7 +43,7 @@ export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,
     el.addEventListener('keydown',handle,true);return()=>el.removeEventListener('keydown',handle,true);
   },[open,index,text,skills,forcedOpen]);
   if(!open)return null;
-  return <section className="edge-agent-slash" aria-label={tr('命令与技能','Commands and skills')}>
+  return <section ref={panel} className="edge-agent-slash" aria-label={tr('命令与技能','Commands and skills')}>
     <div className="edge-agent-slash-title">{tr('命令与技能','Commands and skills')}</div>
     <div id={id} ref={list} role="listbox" aria-label={tr('选择命令或技能','Choose a command or skill')}>{options.map((o,i)=><button id={`${id}-${i}`} tabIndex={-1} type="button" role="option" aria-selected={i===index} className={i===index?'is-active':''} key={o.id} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(i)}><strong>{o.name}</strong><span title={o.description}>{o.description}</span></button>)}</div>
     {!options.length&&<p>{tr('没有匹配的命令或技能。','No matching commands or skills.')}</p>}

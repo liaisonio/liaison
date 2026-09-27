@@ -1,21 +1,54 @@
-import {useEffect,useRef,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import {Link,useSearchParams} from 'react-router-dom';
-import {ChevronRight,Folder,MessageSquare,PanelLeft,Plus,RefreshCw,X} from 'lucide-react';
+import {ChevronRight,Folder,MessageSquare,Maximize2,Minimize2,PanelLeft,PanelLeftClose,Plus,RefreshCw,X} from 'lucide-react';
+import {OpenAIIcon} from '@/components/AgentWorkspace/ProviderIcon';
 import {Button,Notice,Modal,DangerConfirm,Field,Input} from '@/components/ui';
 import ActionMenu from '@/components/ui/ActionMenu';
 import {useI18n} from '@/i18n';
 import {RequestError} from '@/api/client';
 import {edgeAgent,type AgentAccess,type AgentSessionSummary} from '@/services/edgeAgent';
 import Workspace from './Workspace';
+import {useSessionResize} from './SessionResize';
 
 export default function SessionsWorkspace({access}:{access:AgentAccess}){
  const {tr}=useI18n(),[params,setParams]=useSearchParams();
+ const resize=useSessionResize();
  const [items,setItems]=useState<AgentSessionSummary[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[denied,setDenied]=useState(false);
  const [selection,setSelection]=useState<{key:number;id?:string;directory?:string}>(),[current,setCurrent]=useState('');
  const [collapsed,setCollapsed]=useState<Set<string>>(()=>new Set());
  const [persistent,setPersistent]=useState(false),[page,setPage]=useState(1),[total,setTotal]=useState(0);
  const [management,setManagement]=useState(false),[operation,setOperation]=useState<{kind:'rename'|'delete';row:AgentSessionSummary}>(),[title,setTitle]=useState(''),[saving,setSaving]=useState(false),[operationError,setOperationError]=useState('');
  const [open,setOpen]=useState(()=>window.innerWidth>=1000),[refresh,setRefresh]=useState(0);
+ // Keep the view in the URL so reloads restore it without affecting other tabs.
+ const expanded=params.get('view')==='full';
+ const setExpanded=useCallback((value:boolean|((previous:boolean)=>boolean))=>{
+  setParams(previous=>{
+   const next=new URLSearchParams(previous);
+   const full=typeof value==='function'?value(previous.get('view')==='full'):value;
+   if(full)next.set('view','full');else next.delete('view');
+   return next;
+  },{replace:true});
+ },[setParams]);
+ const pageRoot=useRef<HTMLDivElement>(null);
+ useEffect(()=>{
+  if(!expanded)return;
+  // Keep the workspace mounted: expanding must not resume or recreate a session.
+  const siblings:HTMLElement[]=[];
+  let node:HTMLElement|null=pageRoot.current;
+  while(node&&node!==document.body){
+   for(const sibling of Array.from(node.parentElement?.children||[])){
+    if(sibling!==node&&sibling instanceof HTMLElement&&!sibling.inert){sibling.inert=true;siblings.push(sibling);}
+   }
+   node=node.parentElement;
+  }
+  const escape=(event:KeyboardEvent)=>{
+   if(event.key!=='Escape'||event.defaultPrevented||document.querySelector('[role="dialog"], [role="listbox"], [role="menu"]'))return;
+   setExpanded(false);pageRoot.current?.querySelector<HTMLButtonElement>('[data-page-expand]')?.focus();
+  };
+  // Inspect overlays before their own Escape handlers synchronously unmount them.
+  window.addEventListener('keydown',escape,true);
+  return()=>{window.removeEventListener('keydown',escape,true);siblings.forEach(sibling=>{sibling.inert=false;});};
+ },[expanded,setExpanded]);
  const initialized=useRef(false),requested=useRef(params.get('session'));
  useEffect(()=>{
   const abort=new AbortController();let timer:ReturnType<typeof setTimeout>;
@@ -52,10 +85,10 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
   }catch{setOperationError(tr('操作未完成，请刷新状态后重试。','Operation did not complete. Refresh the status and retry.'));}
   finally{setSaving(false);}
  }
- return <div className="edge-agent-sessions-page">
-  <div className="edge-agent-toolbar"><nav className="edge-agent-breadcrumb" aria-label={tr('面包屑','Breadcrumb')}><Link to="/access/agents">Agent</Link><ChevronRight size={12}/><span>{access.name}</span></nav><Button aria-expanded={open} aria-controls="agent-session-list" onClick={()=>setOpen(v=>!v)}><PanelLeft size={15}/>{open?tr('收起会话','Hide sessions'):tr('展开会话','Show sessions')}</Button></div>
+ return <div ref={pageRoot} className={`edge-agent-sessions-page${expanded?' is-page-expanded':''}`}>
+  <div className="edge-agent-toolbar"><nav className="edge-agent-breadcrumb" aria-label={tr('面包屑','Breadcrumb')}><Link to="/access/agents">Agent</Link><ChevronRight size={12}/><span className="edge-agent-kind"><OpenAIIcon size={14}/>Codex</span><ChevronRight size={12}/><span title={access.name}>{access.name}</span></nav><div className="edge-agent-view-actions"><Button aria-expanded={open} aria-controls="agent-session-list" onClick={()=>setOpen(v=>!v)}>{open?<PanelLeftClose size={15}/>:<PanelLeft size={15}/>} {open?tr('收起会话列表','Hide conversations'):tr('显示会话列表','Show conversations')}</Button><Button data-page-expand aria-pressed={expanded} title={expanded?tr('退出全页面 · Esc','Exit full page · Esc'):tr('全页面展开','Expand to full page')} onClick={()=>setExpanded(v=>!v)}>{expanded?<Minimize2 size={15}/>:<Maximize2 size={15}/>} {expanded?tr('退出全页面','Exit full page'):tr('全页面展开','Expand to full page')}</Button></div></div>
   {error&&<Notice tone="danger">{error}<Button onClick={()=>setRefresh(v=>v+1)}>{tr('重试','Retry')}</Button></Notice>}
-  <div className={`edge-agent-session-layout ${open?'is-open':''}`}>
+  <div ref={resize.layout} style={resize.style} className={`edge-agent-session-layout ${open?'is-open':''} ${resize.dragging?'is-resizing':''}`}>
    {open&&<aside id="agent-session-list" className="edge-agent-session-list" aria-label={tr('会话列表','Session list')}>
     <header><strong>{tr('会话','Sessions')}</strong><Button variant="ghost" aria-label={tr('刷新会话','Refresh sessions')} onClick={()=>setRefresh(v=>v+1)}><RefreshCw size={14}/></Button></header>
     <Button disabled={loading||denied||!initialized.current} onClick={()=>choose(undefined,items.find(s=>s.session_id===current)?.project)}><Plus size={14}/>{tr('新建会话','New conversation')}</Button>
@@ -68,8 +101,8 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
      </section>;})}
     </div>
     {persistent&&total>50&&<div className="edge-agent-history-pager"><Button disabled={page===1} onClick={()=>setPage(p=>p-1)}>{tr('上一页','Previous')}</Button><span>{page} / {Math.ceil(total/50)}</span><Button disabled={page*50>=total} onClick={()=>setPage(p=>p+1)}>{tr('下一页','Next')}</Button></div>}
-    <footer>{persistent?tr('历史保存在服务端，不自动过期。空闲时仅结束运行实例。','History is stored on the server without automatic expiration. Idle instances may stop.'):tr('当前连接器使用临时历史，请升级服务端启用持久化。','Temporary history. Upgrade the server to enable persistence.')}</footer>
    </aside>}
+   {open&&resize.separator}
 <div className="edge-agent-session-main">{selection&&!denied?<Workspace key={selection.key} access={access} initialSessionID={selection.id} initialDirectory={selection.directory} onSessionRemoved={id=>{setItems(rows=>rows.filter(row=>row.session_id!==id));setCurrent('');setParams(p=>{const next=new URLSearchParams(p);next.delete('session');return next;},{replace:true});setRefresh(v=>v+1);}} onSessionReady={id=>{setCurrent(id);setParams(p=>{const next=new URLSearchParams(p);next.set('session',id);return next;},{replace:true});setRefresh(v=>v+1);}}/>:loading?<Notice>{tr('正在加载会话…','Loading sessions…')}</Notice>:<Notice>{tr('选择一个会话，或新建会话开始。','Select a conversation or start a new one.')}</Notice>}</div>
   </div>
   <Modal open={Boolean(operation)} title={operation?.kind==='rename'?tr('重命名会话','Rename conversation'):tr('删除会话','Delete conversation')} onClose={()=>{if(!saving)setOperation(undefined);}} footer={<><Button disabled={saving} onClick={()=>setOperation(undefined)}>{tr('取消','Cancel')}</Button><Button variant={operation?.kind==='delete'?'danger':'primary'} loading={saving} disabled={saving||(operation?.kind==='rename'&&!title.trim())} onClick={()=>void manage()}>{operation?.kind==='delete'?tr('删除','Delete'):tr('保存','Save')}</Button></>}>

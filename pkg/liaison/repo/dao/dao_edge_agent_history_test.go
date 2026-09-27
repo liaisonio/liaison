@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
@@ -13,6 +14,49 @@ import (
 	"time"
 )
 
+func TestHistoryBatchLimitsCursorAndScope(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "batch.db")), &gorm.Config{})
+	require.NoError(t, err)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
+	require.NoError(t, db.AutoMigrate(&model.EdgeAgentHistoryPage{}))
+	d := &dao{db: db}
+	ctx := context.Background()
+	scope := &model.EdgeAgentHistory{OwnerID: 1, AccessID: "access", EdgeID: 7, SessionID: "session"}
+	for i := uint64(0); i < 45; i++ {
+		require.NoError(t, db.Create(&model.EdgeAgentHistoryPage{OwnerID: 1, AccessID: "access", EdgeID: 7, SessionID: "session", Window: i, Payload: []byte("small")}).Error)
+	}
+	pages, err := d.ListEdgeAgentHistoryPages(ctx, scope, 45, 20, 2<<20)
+	require.NoError(t, err)
+	require.Len(t, pages, 20)
+	require.EqualValues(t, 44, pages[0].Window)
+	require.EqualValues(t, 25, pages[19].Window)
+	pages, err = d.ListEdgeAgentHistoryPages(ctx, scope, 25, 20, 2<<20)
+	require.NoError(t, err)
+	require.Len(t, pages, 20)
+	require.EqualValues(t, 24, pages[0].Window)
+	pages, err = d.ListEdgeAgentHistoryPages(ctx, scope, 5, 20, 2<<20)
+	require.NoError(t, err)
+	require.Len(t, pages, 5)
+	require.Zero(t, pages[4].Window)
+	for _, foreign := range []model.EdgeAgentHistory{{OwnerID: 2, AccessID: "access", EdgeID: 7, SessionID: "session"}, {OwnerID: 1, AccessID: "other", EdgeID: 7, SessionID: "session"}, {OwnerID: 1, AccessID: "access", EdgeID: 8, SessionID: "session"}, {OwnerID: 1, AccessID: "access", EdgeID: 7, SessionID: "other"}} {
+		pages, err = d.ListEdgeAgentHistoryPages(ctx, &foreign, 45, 20, 2<<20)
+		require.NoError(t, err)
+		require.Empty(t, pages)
+	}
+	require.NoError(t, db.Model(&model.EdgeAgentHistoryPage{}).Where("window >= ?", 40).Update("payload", bytes.Repeat([]byte("x"), 500<<10)).Error)
+	pages, err = d.ListEdgeAgentHistoryPages(ctx, scope, 45, 20, (2<<20)-1024)
+	require.NoError(t, err)
+	require.Len(t, pages, 4)
+	pages, err = d.ListEdgeAgentHistoryPages(ctx, scope, pages[3].Window, 20, (2<<20)-1024)
+	require.NoError(t, err)
+	require.EqualValues(t, 40, pages[0].Window)
+	_, err = d.ListEdgeAgentHistoryPages(ctx, scope, 45, 21, 2<<20)
+	require.Error(t, err)
+}
+
 func TestEdgeAgentHistoryDurabilityScopeAndTombstone(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "history.db")
 	db, err := gorm.Open(sqlite.Open(file), &gorm.Config{})
@@ -21,7 +65,7 @@ func TestEdgeAgentHistoryDurabilityScopeAndTombstone(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(string(up)).Error)
 	require.NoError(t, db.Exec(string(up)).Error)
-	require.NoError(t, db.AutoMigrate(&model.AgentAccess{}, &model.EdgeAgentHistory{}, &model.EdgeAgentHistoryPage{}))
+	require.NoError(t, db.AutoMigrate(&model.AgentApplication{}, &model.AgentAccess{}, &model.EdgeAgentHistory{}, &model.EdgeAgentHistoryPage{}))
 	d := &dao{db: db}
 	ctx := context.Background()
 	require.NoError(t, d.SaveAgentAccess(ctx, &model.AgentAccess{ID: "access", OwnerID: 1, EdgeID: 7}, true))

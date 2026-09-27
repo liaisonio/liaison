@@ -11,7 +11,7 @@ export default function ProtocolIcon({protocol}:{protocol:string}){
   const Icon=key==='ssh'?SquareTerminal:FolderSync;
   return <Icon size={18} strokeWidth={1.75} style={{flexShrink:0}} aria-hidden="true"/>;
  }
- const name=key==='rdp'?'windows':key==='openai-compatible'?'openai':key;
+ const name=key==='rdp'?'windows':['openai-compatible','codex'].includes(key)?'openai':key;
  const src=assets[`../../../../docs/assets/integrations/${name}.${name==='vnc'?'png':'svg'}`];
  if(src)return <img src={src} alt="" width={18} height={18} style={{objectFit:'contain',flexShrink:0}}/>;
  const Icon=['http','https'].includes(key)?Globe:['llm','aiapi'].includes(key)?BrainCircuit:Cable;

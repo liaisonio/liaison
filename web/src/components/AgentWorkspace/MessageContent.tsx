@@ -1,8 +1,9 @@
 import { useI18n } from '@/i18n';
 import { Check, ChevronRight, CircleAlert, Copy, Terminal } from 'lucide-react';
-import { Children, isValidElement, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { Children, isValidElement, memo, useMemo, useState } from 'react';
+import ReactMarkdown, {type Components} from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MermaidBlock } from './MermaidBlock';
 
 export function CodeBlock({ text, language = '', onPreview }: { text: string; language?: string; onPreview?: (text:string) => void }) {
   const { tr } = useI18n();
@@ -15,19 +16,22 @@ export function CodeBlock({ text, language = '', onPreview }: { text: string; la
   </div>;
 }
 
-export function MessageContent({ text, onPreviewCode }: { text: string; onPreviewCode?: (text:string) => void }) {
-  return <div className="agent-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml components={{
+export const MessageContent = memo(function MessageContent({ text, onPreviewCode }: { text: string; onPreviewCode?: (text:string) => void }) {
+  // Keep diagram component identities stable while surrounding text streams.
+  const components=useMemo<Components>(()=>({
     pre({children}) {
       const child = Children.toArray(children)[0];
       if (!isValidElement<{children?: React.ReactNode; className?: string}>(child)) return <pre>{children}</pre>;
+      if (child.props.className?.toLowerCase() === 'language-mermaid') return <MermaidBlock text={String(child.props.children ?? '').replace(/\n$/, '')}/>;
       return <CodeBlock onPreview={onPreviewCode} language={child.props.className?.replace(/^language-/, '')} text={String(child.props.children ?? '').replace(/\n$/, '')}/>;
     },
     table({children}) { return <div className="agent-markdown-table"><table>{children}</table></div>; },
     a({href, children}) { return href ? <a href={href} target="_blank" rel="noopener noreferrer">{children}</a> : <span>{children}</span>; },
     // Model-supplied images must not initiate tracking requests.
     img({alt}) { return <span>{alt}</span>; },
-  }}>{text}</ReactMarkdown></div>;
-}
+  }),[onPreviewCode]);
+  return <div className="agent-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml components={components}>{text}</ReactMarkdown></div>;
+});
 
 export function ToolMessage({ name, content, command }: { name: string; content: string; command?: string }) {
   const { tr } = useI18n();

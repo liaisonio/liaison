@@ -37,6 +37,19 @@ message EdgeAgentRequest {
   string input_id = 18; // answer: opaque live request ID, not a native RPC ID.
   repeated InputAnswer answers = 19;
   string history_before = 20; // transcript: exclusive window cursor, one archived round per page.
+  AgentFileOperation file = 21; // file_* actions only; bounded chunks, never model content.
+  repeated string attachments = 22; // send: session-local relative attachment paths, max 8.
+}
+// file_list, file_begin, file_write, file_commit, file_cancel, file_read.
+// Transfers require own access + session + connector on every chunk. Uploads
+// create unique files under .liaison-attachments/<session>, never overwrite.
+message AgentFileOperation {
+  string path = 1; string name = 2; string transfer_id = 3;
+  int64 offset = 4; int64 size = 5; bytes data = 6;
+}
+message AgentFile {
+  string name = 1; string path = 2; int64 size = 3; bool directory = 4;
+  string media_type = 5;
 }
 // Edge RPC name: edge_agent_v1. No raw RPC forwarding from HTTP clients.
 message EdgeAgentRPCRequest {
@@ -59,7 +72,7 @@ message ResumeState {
   bool truncated = 9;
 }
 message Installation { string id = 1; string kind = 2; string path = 3; string source = 4; }
-message Message { string role = 1; string text = 2; }
+message Message { string role = 1; string text = 2; repeated AgentFile attachments = 3; }
 message EdgeAgentResult {
   uint32 version = 1;
   // ok, busy, unavailable, upgrade_required, not_found, unsupported_user,
@@ -101,8 +114,16 @@ message EdgeAgentResult {
   repeated InputRequest input_requests = 35; // Live only; removed from persisted snapshots.
   uint64 window = 36;
   bool history_windowing = 37;
+  bool files_available = 38;
+  repeated AgentFile files = 39;
+  AgentFile file = 40;
+  string transfer_id = 41;
+  bytes file_data = 42;
+  int64 file_offset = 43;
+  bool file_done = 44;
+  bool files_upload_available = 45;
 }
-message Approval { string id = 1; string command = 2; string directory = 3; string reason = 4; }
+message Approval { string id = 1; string command = 2; string directory = 3; string reason = 4; string kind = 5; repeated FileChange changes = 6; }
 message AgentModel { string id = 1; string name = 2; }
 message SessionSummary {
   string session_id = 1;

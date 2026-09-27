@@ -1,0 +1,64 @@
+const assert=require('node:assert/strict');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{
+ const browser=await chromium.launch(process.env.CHROME_EXECUTABLE?{executablePath:process.env.CHROME_EXECUTABLE}:undefined);
+ try{
+  for(const locale of ['zh-CN','en-US'])for(const dark of [false,true])for(const width of [1280,390]){
+   const page=await browser.newPage({viewport:{width,height:900}}),errors=[],remote=[];
+   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.url().includes('invalid.example'))remote.push(r.url());});
+   await page.addInitScript(({locale,dark})=>{if(window!==top)return;localStorage.setItem('liaison-locale',locale);document.addEventListener('DOMContentLoaded',()=>document.documentElement.className=dark?'dark':'light');},{locale,dark});
+   await page.goto((process.env.E2E_UI_URL||'http://127.0.0.1:5301')+'/e2e/mermaid.html');
+   const zh=locale==='zh-CN',frame=()=>page.frameLocator('iframe'),ready=async()=>{await frame().locator('svg').waitFor();await page.waitForFunction(()=>document.querySelector('iframe')?.style.visibility==='visible');};
+   await ready();assert.equal(await page.locator('iframe').getAttribute('sandbox'),'allow-scripts');
+   assert.equal(await frame().locator('html').evaluate(el=>getComputedStyle(el).backgroundColor),dark?'rgb(11, 11, 17)':'rgb(244, 245, 248)');
+   assert.equal(await frame().locator('body').evaluate(()=>{try{return !!parent.document}catch{return false}}),false,'Renderer cannot access console DOM');
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   await page.screenshot({path:`/tmp/mermaid-${locale}-${dark}-${width}.png`,fullPage:true});
+   await frame().locator('body').evaluate(()=>window.__diagramSentinel='stable');
+   await page.waitForTimeout(1000);
+   await page.getByRole('button',{name:'Append text',exact:true}).click();
+   await page.evaluate(()=>document.documentElement.style.setProperty('--unrelated','1'));
+   await page.waitForTimeout(700);
+   assert.equal(await frame().locator('body').evaluate(()=>window.__diagramSentinel),'stable','Polling, trailing streamed text and unrelated style mutations must preserve the iframe');
+   await page.getByRole('button',{name:zh?'放大图表':'Expand diagram',exact:true}).click();
+   const dialog=page.getByRole('dialog'),large=dialog.frameLocator('iframe');
+   await large.locator('svg').waitFor();
+   assert(await large.locator('svg').evaluate(el=>{const r=el.getBoundingClientRect();return r.width<=innerWidth&&r.height<=innerHeight;}),'Fit window shows the whole diagram');
+   await dialog.getByRole('combobox',{name:zh?'缩放比例':'Zoom level'}).selectOption('200');
+   await page.waitForTimeout(150);
+   assert(await large.locator('svg').evaluate(el=>el.getBoundingClientRect().width>innerWidth),'200% zoom expands the diagram inside the viewer');
+   const bounds=await dialog.locator('iframe').boundingBox();
+   await page.mouse.move(bounds.x+150,bounds.y+80);await page.mouse.down();await page.mouse.move(bounds.x+70,bounds.y+50,{steps:8});await page.mouse.up();
+   assert(await large.locator('body').evaluate(()=>scrollX>0),'Dragging pans the enlarged diagram');
+   await dialog.getByRole('button',{name:zh?'适应窗口':'Fit window',exact:true}).click();
+   await page.waitForTimeout(150);assert(await large.locator('body').evaluate(()=>scrollX===0&&scrollY===0));
+   assert(await dialog.getByRole('combobox',{name:zh?'缩放比例':'Zoom level'}).evaluate(el=>parseFloat(getComputedStyle(el).lineHeight)<=el.clientHeight),'Zoom text fits its control');
+   await large.locator('body').evaluate(()=>{window.__fitCount=0;window.addEventListener('message',e=>{if(e.data?.type==='liaison-mermaid-scale')window.__fitCount++});});
+   await dialog.getByRole('button',{name:zh?'适应窗口':'Fit window',exact:true}).click();
+   await page.waitForTimeout(150);
+   assert.equal(await large.locator('body').evaluate(()=>window.__fitCount),1,'Fit resets even when already selected');
+   await page.screenshot({path:`/tmp/mermaid-viewer-${locale}-${dark}-${width}.png`,fullPage:true});
+   const panel=dialog.locator('.liaison-modal'),diagramBox=await panel.boundingBox();
+   await dialog.getByRole('button',{name:zh?'源码':'Source',exact:true}).click();
+   const sourceBox=await panel.boundingBox();
+   assert(Math.abs(diagramBox.height-sourceBox.height)<1&&Math.abs(diagramBox.y-sourceBox.y)<1,'Source tab preserves modal height and position');
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+   await page.screenshot({path:`/tmp/mermaid-source-${locale}-${dark}-${width}.png`,fullPage:true});
+   await dialog.getByRole('button',{name:zh?'图形':'Diagram',exact:true}).click();
+   await large.locator('body').click();await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});
+   assert.equal(await frame().locator('body').evaluate(()=>window.__diagramSentinel),'stable','Opening and closing viewer must not reload inline diagram');
+   await page.getByRole('button',{name:zh?'源码':'Source',exact:true}).click();assert((await page.locator('pre').innerText()).includes('flowchart LR'));
+   await page.getByRole('button',{name:zh?'图形':'Diagram',exact:true}).click();await ready();
+   await page.getByRole('textbox',{name:'Diagram source'}).fill('sequenceDiagram\n participant A as Client\n participant B as Codex\n A->>B: Hello\n B-->>A: Answer');await ready();await frame().getByText('Hello',{exact:true}).waitFor();
+   await page.getByRole('textbox',{name:'Diagram source'}).fill('flowchart LR\n A["<img src=https://invalid.example/tracker onerror=alert(1)>"] --> B[Safe]\n click B "https://invalid.example/click"');
+   await ready();assert.deepEqual(remote,[]);assert.equal(await frame().locator('a[href], image[href], img[src]').count(),0);
+   await page.getByRole('textbox',{name:'Diagram source'}).fill('not a diagram');await page.getByRole('status').filter({hasText:zh?'暂时无法':'Unable to render'}).waitFor();
+   await page.getByRole('textbox',{name:'Diagram source'}).fill('flowchart TB\n A --> B');await ready();
+   await page.evaluate(()=>document.documentElement.className=document.documentElement.classList.contains('dark')?'light':'dark');
+   await page.waitForTimeout(500);await ready();
+   await page.getByRole('textbox',{name:'Diagram source'}).fill('%%{init: {"securityLevel":"loose"}}%%\nflowchart LR\n A --> B');await page.getByRole('status').filter({hasText:zh?'暂时无法':'Unable to render'}).waitFor();
+   assert.deepEqual(errors,[]);await page.close();
+  }
+  console.log('PASS Mermaid: flowchart, sequence, source toggle, streaming recovery, theme, sandbox, remote image/link blocking, configuration rejection, 8 UI combinations');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

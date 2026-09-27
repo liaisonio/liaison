@@ -9,6 +9,7 @@ import (
 )
 
 type AgentAccessInput struct {
+	ApplicationID  string `json:"application_id"`
 	Name           string `json:"name"`
 	Kind           string `json:"kind"`
 	EdgeID         uint64 `json:"edge_id"`
@@ -51,6 +52,19 @@ func (cp *controlPlane) SaveAgentAccess(ctx context.Context, id string, input Ag
 	}
 	input.Name = strings.TrimSpace(input.Name)
 	input.Project = strings.TrimSpace(input.Project)
+	if input.ApplicationID != "" {
+		if len(input.ApplicationID) != 32 {
+			return nil, badRequest("INVALID_APPLICATION", "Invalid application")
+		}
+		app, err := cp.repo.GetAgentApplication(ctx, actor, input.ApplicationID)
+		if err != nil {
+			return nil, mapRecordNotFound(err, "APPLICATION_NOT_FOUND", "Application unavailable")
+		}
+		if (input.EdgeID != 0 && input.EdgeID != app.EdgeID) || (input.Kind != "" && input.Kind != app.Kind) || (input.InstallationID != "" && input.InstallationID != app.InstallationID) {
+			return nil, badRequest("APPLICATION_MISMATCH", "Application does not match access")
+		}
+		input.EdgeID, input.Kind, input.InstallationID = app.EdgeID, app.Kind, app.InstallationID
+	}
 	if input.Kind != "codex" || input.Name == "" || len(input.Name) > 120 || len(input.InstallationID) != 32 || input.Project == "" || len(input.Project) > 4096 || strings.ContainsRune(input.Project, 0) || (id != "" && len(id) != 32) {
 		return nil, badRequest("INVALID_AGENT_ACCESS", "Invalid Agent access")
 	}
@@ -72,7 +86,7 @@ func (cp *controlPlane) SaveAgentAccess(ctx context.Context, id string, input Ag
 			return nil, mapRecordNotFound(err, "ACCESS_NOT_FOUND", "Access unavailable")
 		}
 	}
-	row := &model.AgentAccess{ID: id, OwnerID: actor, Name: input.Name, Kind: input.Kind, EdgeID: input.EdgeID, InstallationID: input.InstallationID, Project: input.Project}
+	row := &model.AgentAccess{ApplicationID: input.ApplicationID, ID: id, OwnerID: actor, Name: input.Name, Kind: input.Kind, EdgeID: input.EdgeID, InstallationID: input.InstallationID, Project: input.Project}
 	if err := cp.repo.SaveAgentAccess(ctx, row, create); err != nil {
 		return nil, mapRecordNotFound(err, "ACCESS_NOT_FOUND", "Access unavailable")
 	}

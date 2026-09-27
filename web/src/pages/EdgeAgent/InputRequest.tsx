@@ -3,7 +3,7 @@ import {Button,Field,Input} from '@/components/ui';
 import {useI18n} from '@/i18n';
 import type {AgentInputRequest} from '@/services/edgeAgent';
 
-export function InputRequest({request,disabled,onAnswer}:{request:AgentInputRequest;disabled:boolean;onAnswer:(answers:{question_id:string;answers:string[]}[])=>void}){
+export function InputRequest({request,disabled,onAnswer,onCancel}:{request:AgentInputRequest;disabled:boolean;onAnswer:(answers:{question_id:string;answers:string[]}[])=>void;onCancel?:()=>void}){
  const {tr}=useI18n();
  const [selected,setSelected]=useState<Record<string,string>>({});
  const [custom,setCustom]=useState<Record<string,string>>({});
@@ -20,6 +20,6 @@ export function InputRequest({request,disabled,onAnswer}:{request:AgentInputRequ
    {q.is_other&&Boolean(q.options?.length)&&<label className={`edge-agent-input-option ${selected[q.id]==='custom'?'is-selected':''}`}><input type="radio" name={`${request.id}-${q.id}`} checked={selected[q.id]==='custom'} onChange={()=>setSelected(v=>({...v,[q.id]:'custom'}))}/><span>{tr('其他回答','Other answer')}</span></label>}
    {(!q.options?.length||selected[q.id]==='custom')&&<Field label={tr('你的回答','Your answer')} hint={q.is_secret?tr('回答会传给 Codex，不会写入 Liaison 历史。','Sent to Codex, not stored in Liaison history.'):undefined}><Input type={q.is_secret?'password':'text'} autoComplete="off" maxLength={4096} value={custom[q.id]||''} onChange={e=>setCustom(v=>({...v,[q.id]:e.target.value}))}/></Field>}
   </fieldset>)}
-  <div className="edge-agent-input-actions"><Button type="submit" variant="primary" disabled={disabled||!complete} loading={disabled}>{tr('提交回答','Submit answers')}</Button></div>
+  <div className="edge-agent-input-actions">{onCancel&&<Button type="button" disabled={disabled} onClick={onCancel}>{tr('停止本轮','Stop turn')}</Button>}<Button type="submit" variant="primary" disabled={disabled||!complete} loading={disabled}>{tr('提交回答','Submit answers')}</Button></div>
  </form>;
 }

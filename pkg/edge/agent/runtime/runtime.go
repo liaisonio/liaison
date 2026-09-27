@@ -23,6 +23,12 @@ type Thread struct {
 }
 type Model struct{ ID, Name string }
 
+// Attachment paths are prepared by the trusted Edge file service, not the browser.
+type Attachment struct{ Path, ImagePath string }
+type AttachmentSession interface {
+	SendAttachments(context.Context, string, string, string, string, []Attachment) (string, error)
+}
+
 // Optional native catalog and per-turn model selection. Never writes local configuration.
 type ModelSession interface {
 	Models(context.Context) ([]Model, error)
@@ -57,6 +63,11 @@ type Session interface {
 type PermissionSession interface {
 	SetPermissionMode(string) error
 	ApproveCommand(context.Context, rpc.Message) error
+}
+
+// FileApprovalSession accepts only a reviewed single request, never a root grant.
+type FileApprovalSession interface {
+	ApproveFileChange(context.Context, rpc.Message) error
 }
 
 type InputSession interface {

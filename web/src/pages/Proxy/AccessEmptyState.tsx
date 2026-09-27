@@ -1,4 +1,4 @@
-import {ArrowRight, Bot, Cable, Database, FolderOpen, Globe2, Layers, Monitor, Search, Terminal} from 'lucide-react';
+import {Bot, Cable, Database, FolderOpen, Globe2, Layers, Monitor, Search, Terminal} from 'lucide-react';
 import type {ReactNode} from 'react';
 import {Button} from '@/components/ui';
 import {useI18n} from '@/i18n';
@@ -23,6 +23,6 @@ export default function AccessEmptyState({category,onCreate,onReset,actionLabel}
   const content=types[category||'']||{icon:Globe2,title:tr('创建第一个访问','Create your first access'),description:tr('通过连接器连接应用或模型服务，创建安全访问入口。','Connect to an application or model service through a connector to create a secure access endpoint.')};
   const Icon=onReset?Search:content.icon;
   return <EmptyAccessLayout icon={<Icon size={20}/>} title={<h3>{onReset?tr('暂无匹配访问','No matching access'):content.title}</h3>} description={onReset?tr('试试其他筛选条件，或重置筛选。','Try different filters or reset them.'):content.description}>
-    {onReset?<Button onClick={onReset}>{tr('重置筛选','Reset filters')}</Button>:onCreate&&<Button variant="primary" onClick={onCreate}>{actionLabel||tr('新建访问','Create access')}<ArrowRight size={14}/></Button>}
+    {onReset?<Button onClick={onReset}>{tr('重置筛选','Reset filters')}</Button>:onCreate&&<Button variant="primary" onClick={onCreate}>{actionLabel||tr('新建访问','Create access')}</Button>}
   </EmptyAccessLayout>;
 }

@@ -179,7 +179,7 @@ func (cp *controlPlane) EdgeAgent(ctx context.Context, req proto.EdgeAgentReques
 		if saved == nil {
 			return proto.EdgeAgentResult{Version: 1, Status: "not_found"}, nil
 		}
-		return cp.previousTranscript(ctx, scope, req.HistoryBefore)
+		return cp.previousTranscript(ctx, scope, req.HistoryBefore, req.HistoryLimit)
 	}
 	if req.Action == "send" {
 		currentReq := proto.EdgeAgentRequest{Action: "snapshot", EdgeID: req.EdgeID, AccessID: req.AccessID, SessionID: req.SessionID}

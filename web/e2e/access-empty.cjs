@@ -22,6 +22,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    const url=category==='agent'?`${base}/e2e/edge-agent.html`:`${base}/e2e/product-polish.html?entry=${encodeURIComponent('/proxy?category='+category)}`;
    await page.goto(url);
    const empty=page.locator('.liaison-access-empty');await empty.getByRole('button',{name:zh?'新建访问':'Create access',exact:true}).waitFor();
+   assert.equal(await empty.locator('.lucide-arrow-right').count(),0,'Creation actions have no navigation arrow');
+   const spacing=await empty.evaluate(el=>{const css=getComputedStyle(el);return {top:parseFloat(css.paddingTop),bottom:parseFloat(css.paddingBottom)};});
+   assert(spacing.bottom>=48&&spacing.bottom>spacing.top,'Empty states retain generous bottom breathing room');
    assert.equal(await page.locator('.liaison-list-header').getByRole('button',{name:zh?'新建访问':'Create access',exact:true}).count(),0);
    if(category==='llm'){
     assert.equal(await empty.locator('details').count(),0);

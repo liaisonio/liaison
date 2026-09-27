@@ -10,26 +10,29 @@ import (
 const RPCEdgeAgent = "edge_agent_v1"
 
 type EdgeAgentRequest struct {
-	HistoryBefore    string             `json:"history_before,omitempty"`
-	EdgeID           uint64             `json:"edge_id"`
-	Action           string             `json:"action"`
-	InstallationID   string             `json:"installation_id,omitempty"`
-	Project          string             `json:"project,omitempty"`
-	SessionID        string             `json:"session_id,omitempty"`
-	Text             string             `json:"text,omitempty"`
-	SkillID          string             `json:"skill_id,omitempty"`
-	AccessID         string             `json:"access_id,omitempty"`
-	Directory        string             `json:"directory,omitempty"`
-	WorkingDirectory string             `json:"working_directory,omitempty"`
-	Cursor           string             `json:"cursor,omitempty"`
-	Model            string             `json:"model,omitempty"`
-	Title            string             `json:"title,omitempty"`
-	HistoryPage      string             `json:"history_page,omitempty"`
-	ApprovalID       string             `json:"approval_id,omitempty"`
-	Decision         string             `json:"decision,omitempty"`
-	PermissionMode   string             `json:"permission_mode,omitempty"`
-	InputID          string             `json:"input_id,omitempty"`
-	Answers          []AgentInputAnswer `json:"answers,omitempty"`
+	File             *AgentFileOperation `json:"file,omitempty"`
+	Attachments      []string            `json:"attachments,omitempty"`
+	HistoryLimit     string              `json:"history_limit,omitempty"`
+	HistoryBefore    string              `json:"history_before,omitempty"`
+	EdgeID           uint64              `json:"edge_id"`
+	Action           string              `json:"action"`
+	InstallationID   string              `json:"installation_id,omitempty"`
+	Project          string              `json:"project,omitempty"`
+	SessionID        string              `json:"session_id,omitempty"`
+	Text             string              `json:"text,omitempty"`
+	SkillID          string              `json:"skill_id,omitempty"`
+	AccessID         string              `json:"access_id,omitempty"`
+	Directory        string              `json:"directory,omitempty"`
+	WorkingDirectory string              `json:"working_directory,omitempty"`
+	Cursor           string              `json:"cursor,omitempty"`
+	Model            string              `json:"model,omitempty"`
+	Title            string              `json:"title,omitempty"`
+	HistoryPage      string              `json:"history_page,omitempty"`
+	ApprovalID       string              `json:"approval_id,omitempty"`
+	Decision         string              `json:"decision,omitempty"`
+	PermissionMode   string              `json:"permission_mode,omitempty"`
+	InputID          string              `json:"input_id,omitempty"`
+	Answers          []AgentInputAnswer  `json:"answers,omitempty"`
 }
 type EdgeAgentRPCRequest struct {
 	ResetRevision uint64           `json:"reset_revision,omitempty"`
@@ -57,15 +60,18 @@ type AgentInstallation struct {
 	Source string `json:"source"`
 }
 type EdgeAgentMessage struct {
-	Role   string `json:"role"`
-	Text   string `json:"text"`
-	ItemID string `json:"-"`
+	Attachments []AgentFile `json:"attachments,omitempty"`
+	Role        string      `json:"role"`
+	Text        string      `json:"text"`
+	ItemID      string      `json:"-"`
 }
 type AgentDirectory struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 }
 type AgentActivity struct {
+	Label        string            `json:"label,omitempty"`
+	Plan         []AgentPlanStep   `json:"plan,omitempty"`
 	ID           string            `json:"id"`
 	Kind         string            `json:"kind"`
 	Status       string            `json:"status"`
@@ -77,6 +83,10 @@ type AgentActivity struct {
 	ExitCode     *int              `json:"exit_code,omitempty"`
 	Changes      []AgentFileChange `json:"changes,omitempty"`
 	Truncated    bool              `json:"truncated,omitempty"`
+}
+type AgentPlanStep struct {
+	Step   string `json:"step"`
+	Status string `json:"status"`
 }
 type AgentFileChange struct {
 	Path     string `json:"path"`
@@ -106,6 +116,16 @@ type AgentInputAnswer struct {
 	Answers    []string `json:"answers"`
 }
 type EdgeAgentResult struct {
+	FilesAvailable       bool                  `json:"files_available,omitempty"`
+	FilesUploadAvailable bool                  `json:"files_upload_available,omitempty"`
+	Files                []AgentFile           `json:"files,omitempty"`
+	File                 *AgentFile            `json:"file,omitempty"`
+	TransferID           string                `json:"transfer_id,omitempty"`
+	FileData             []byte                `json:"file_data,omitempty"`
+	FileOffset           int64                 `json:"file_offset,omitempty"`
+	FileDone             bool                  `json:"file_done,omitempty"`
+	HistoryPages         []EdgeAgentResult     `json:"history_pages,omitempty"`
+	HistoryBefore        string                `json:"history_before,omitempty"`
 	Window               uint64                `json:"window,omitempty"`
 	HistoryWindowing     bool                  `json:"history_windowing,omitempty"`
 	InputRequests        []AgentInputRequest   `json:"input_requests,omitempty"`
@@ -147,10 +167,12 @@ type EdgeAgentResult struct {
 
 // AgentApproval is a display-only projection. Native RPC IDs remain on Edge.
 type AgentApproval struct {
-	ID        string `json:"id"`
-	Command   string `json:"command"`
-	Directory string `json:"directory"`
-	Reason    string `json:"reason"`
+	Kind      string            `json:"kind,omitempty"`
+	Changes   []AgentFileChange `json:"changes,omitempty"`
+	ID        string            `json:"id"`
+	Command   string            `json:"command"`
+	Directory string            `json:"directory"`
+	Reason    string            `json:"reason"`
 }
 type AgentModel struct {
 	ID   string `json:"id"`
@@ -175,6 +197,15 @@ type AgentSkill struct {
 }
 
 func (r EdgeAgentRequest) Valid() bool {
+	if !r.validFiles() {
+		return false
+	}
+	if r.HistoryLimit != "" {
+		limit, err := strconv.Atoi(r.HistoryLimit)
+		if r.Action != "transcript" || err != nil || limit < 1 || limit > 20 {
+			return false
+		}
+	}
 	if r.Action == "transcript" {
 		before, err := strconv.ParseUint(r.HistoryBefore, 10, 63)
 		if err != nil || before == 0 || len(r.AccessID) != 32 {
@@ -247,6 +278,8 @@ func (r EdgeAgentRequest) Valid() bool {
 		return false
 	}
 	switch r.Action {
+	case "file_list", "file_begin", "file_write", "file_commit", "file_cancel", "file_read":
+		return len(r.AccessID) == 32 && len(r.SessionID) == 32 && r.Text == "" && r.Project == "" && r.InstallationID == ""
 	case "sessions":
 		return len(r.AccessID) == 32 && r.SessionID == "" && r.Text == "" && r.Project == "" && r.InstallationID == ""
 	case "directories":
@@ -260,7 +293,7 @@ func (r EdgeAgentRequest) Valid() bool {
 	case "poll", "snapshot", "watch", "stop", "interrupt", "models", "model", "rename", "delete", "discard", "approve", "permissions", "answer", "transcript":
 		return len(r.SessionID) == 32 && r.Text == "" && r.Project == "" && r.InstallationID == ""
 	case "send":
-		return len(r.SessionID) == 32 && r.Text != "" && r.Project == "" && r.InstallationID == ""
+		return len(r.SessionID) == 32 && (r.Text != "" || len(r.Attachments) > 0) && r.Project == "" && r.InstallationID == ""
 	}
 	return false
 }
