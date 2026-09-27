@@ -32,6 +32,28 @@ Uploads have progress/cancel, local image previews and removable attachment chip
 Project files can be browsed/downloaded from the session header; sent attachment
 chips also provide download actions. File content requires an online connector.
 
+Conversation file links open a resizable right-side preview (full-screen on small
+screens), with syntax highlighting, line numbers, line-range navigation, copying
+and download. HTTP(S) links remain external links. Relative paths and absolute paths
+inside the current project are converted to project-relative reads; invalid or
+out-of-project paths do not trigger a read. Edge still enforces the actual boundary,
+including symlink traversal, for every request. Directory links use the same scoped
+file browser API. Previewing does not execute Codex commands or synchronize a repo.
+
+Previews show current file contents, not historical revisions. UTF-8 text previews
+are limited to 1 MiB and 10,000 lines; syntax highlighting is limited to 200,000
+characters and is loaded on demand. Other files can be downloaded within the
+existing transfer limit. Highlighting produces React text/span nodes, not raw HTML.
+Closing a preview aborts reads; unfinished known transfers are cancelled. Preview
+contents remain in browser memory, not conversation history or browser storage.
+
+README (without an extension), `.md` and `.markdown` files default to the shared
+safe Markdown preview, with a source toggle. Links with line targets default to
+source so line navigation remains precise. Markdown rendering is capped at 200,000
+characters; larger documents fall back to source. Raw HTML and embedded images are
+not loaded. File references within the document are currently non-interactive;
+HTTP(S) links can be opened explicitly in a separate tab.
+
 The optional `files_available` / `files_upload_available` capabilities gate controls.
 Both Manager and Edge must be upgraded; older connectors remain usable for chat
 without file controls. Native model/configuration selection is unchanged. The current

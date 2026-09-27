@@ -194,23 +194,15 @@
   .edge-agent-keyhint { display: none; }
 }
 .edge-agent-history-pager { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px; font-size:12px; color:rgb(var(--muted)); }
-.edge-agent-approvals {
-  padding: 16px;
-  max-height: 40vh;
-  overflow: auto;
-  border-top: 1px solid rgb(var(--line));
-  .edge-agent-approval {
-    padding: 16px;
-    border: 1px solid rgb(var(--accent) / .4);
-    border-radius: var(--control-radius);
-    background: rgb(var(--panel));
-    & + .edge-agent-approval { margin-top: 12px; }
-    strong { font-size: 13px; }
-    p { color: rgb(var(--muted)); font-size: 12px; margin: 8px 0; overflow-wrap: anywhere; }
+.edge-agent-approval {
+    .edge-agent-approval-reason { color: rgb(var(--ink)); font-size: 13px; margin: 0 0 12px; overflow-wrap: anywhere; }
+    .edge-agent-approval-note { color: rgb(var(--muted)); font-size: 12px; margin: 0 0 16px; }
+    details { border-top: 1px solid rgb(var(--line)); padding-top: 12px; }
+    summary { cursor: pointer; color: rgb(var(--muted)); font-size: 12px; padding: 4px 0; }
+    summary:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+    details > code { display: block; margin-top: 12px; }
     code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
-    pre { max-height: 160px; overflow: auto; padding: 12px; background: rgb(var(--canvas)); }
-    > .edge-agent-approval-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-    > .edge-agent-approval-change { margin-top: 12px; min-width: 0; }
-  }
+    pre { max-height: 200px; overflow: auto; padding: 12px; border-radius: var(--control-radius); background: rgb(var(--canvas)); }
+    .edge-agent-approval-change { margin-top: 12px; min-width: 0; }
 }
 .edge-agent-permission .liaison-action-menu-trigger { width: auto; padding: 0 4px; font-size: 12px; }

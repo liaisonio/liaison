@@ -13,7 +13,7 @@ import {Transcript} from './Transcript';
 import {useAgentFiles,ProjectFiles,FileDownloadContext} from './Files';
 import {ModelPicker} from './ModelPicker';
 import {InputRequest} from './InputRequest';
-import {DiffView} from './DiffView';
+import {ApprovalDialog} from './ApprovalDialog';
 import '@/components/AgentWorkspace/index.less';
 import './index.less';
 import './interaction.less';
@@ -104,7 +104,7 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
     return()=>{stopped=true;clearTimeout(timer);abort.abort();};
   },[active,edge,session?.session_id]);
   useEffect(()=>{const el=input.current;if(el){el.style.height='auto';el.style.height=`${Math.min(el.scrollHeight,160)}px`;}},[text,session?.session_id]);
-  useEffect(()=>{if(active)input.current?.focus();},[active]);
+  useEffect(()=>{if(active&&!session?.approvals?.length)input.current?.focus({preventScroll:true});},[active]);
   useEffect(()=>{if(!loading&&(selected?.online||initialSessionID)&&!started.current){started.current=true;if(initialSessionID)void resume(initialSessionID);else void act('start');}},[loading,selected?.online]);
 
 
@@ -176,7 +176,7 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
   }
 
   return <div className="edge-agent-page edge-agent-session-page">
-    {error&&<div role="alert"><Notice tone="danger">{error}</Notice></div>}
+    {error&&!(active&&session?.approvals?.length)&&<div role="alert"><Notice tone="danger">{error}</Notice></div>}
     {loading?<Notice>{tr('正在加载连接器…','Loading connectors…')}</Notice>:!connectors.length?<Notice>{tr('暂无可用的自有连接器。','No owned connectors available.')} <Link to="/connector">{tr('创建连接器','Create connector')}</Link></Notice>:null}
     {!session?.session_id&&!loading&&<section className="edge-agent-setup"><div className="edge-agent-start"><div>{resumable&&<Button disabled={pending||!selected?.online} loading={pending} onClick={()=>void resumeNative()}>{tr('恢复会话','Resume conversation')}</Button>}<Button variant="primary" disabled={pending||!selected?.online} loading={pending&&!resumable} onClick={()=>void act('start')}>{session?.session_id?tr('新建会话','New conversation'):tr('开始会话','Start session')}</Button></div></div></section>}
     {session?.session_id&&<section className={`edge-agent-workspace${active&&session.input_requests?.length?' has-input':''}`}>
@@ -189,15 +189,7 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
       {active&&Boolean(session.input_requests?.length)&&<section className="edge-agent-input-requests" aria-label={tr('待回答的问题','Pending questions')}>
 {session.input_requests?.map(request=><InputRequest key={request.id} request={request} disabled={pending} onCancel={()=>void act('interrupt')} onAnswer={answers=>void permissionAction('answer',{input_id:request.id,answers})}/>)}
       </section>}
-      {active&&Boolean(session.approvals?.length)&&<section className="edge-agent-approvals" aria-label={tr('等待审批','Waiting for approval')}>
-        {session.approvals?.map(approval=><div key={approval.id} className="edge-agent-approval">
-<strong>{approval.kind==='fileChange'?tr('允许这些文件修改？','Allow these file changes?'):tr('允许执行此命令？','Allow this command?')}</strong>
-<p>{approval.kind==='fileChange'?tr('请检查文件与差异，仅授权本次修改。','Review the files and diff; approval applies once.'):tr('此命令需要越出当前沙箱。请检查命令与目录，仅授权本次执行。','This command needs to run beyond the current sandbox. Review the command and directory; approval applies once.')}</p>
-          {approval.reason&&<p>{approval.reason}</p>}
-<code>{approval.directory}</code>{approval.command&&<pre>{approval.command}</pre>}{approval.changes?.map((change,index)=><div key={index} className="edge-agent-approval-change"><code>{change.path}{change.move_path?` → ${change.move_path}`:''}</code><DiffView text={change.diff}/></div>)}
-<div className="edge-agent-approval-actions"><Button disabled={pending} onClick={()=>void permissionAction('approve',{approval_id:approval.id,decision:'decline'})}>{tr('拒绝','Decline')}</Button><Button variant="primary" disabled={pending} onClick={()=>void permissionAction('approve',{approval_id:approval.id,decision:'accept'})}>{tr('允许一次','Allow once')}</Button></div>
-        </div>)}
-      </section>}
+      {active&&session.approvals?.[0]&&<ApprovalDialog key={session.approvals[0].id} approval={session.approvals[0]} count={session.approvals.length} pending={pending} error={error} onDecision={decision=>void permissionAction('approve',{approval_id:session.approvals![0].id,decision})}/>}
       {files.feedback}{filesOpen&&session.session_id&&<ProjectFiles edge={Number(edge)} access={access.id} session={session.session_id} onClose={()=>setFilesOpen(false)} onDownload={f=>void files.download(f)} busy={files.busy}/>}
       <form className="edge-agent-composer" onDragOver={e=>{if(canUpload&&e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();if(canUpload)void files.upload(Array.from(e.dataTransfer.files));}}} onSubmit={e=>{e.preventDefault();if(canSend)void act('send');}}>
         {files.controls}{files.chips}

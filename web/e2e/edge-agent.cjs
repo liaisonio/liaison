@@ -20,12 +20,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     if(route.request().method()==='POST'){const app={...route.request().postDataJSON(),id:'f'.repeat(32),access_count:0};applications=[app];return route.fulfill({json:{data:app}});}
     await route.fulfill({json:{data:{items:applications,total:applications.length}}});
    });
+   const actions=[];
    const fileTransfers=new Map(),uploadedFiles=new Map();let fileSerial=0,failFile=false,slowFile=false;
    await page.route('**/api/v1/edge-agents**',async route=>{
     const req=route.request();let data;
     if(req.method()==='GET')data=[{id:6,name:'Mac mini',device:'Mac-mini.local',online:!offline}];
     else{
      const body=req.postDataJSON();
+     actions.push(body);
      if(body.action.startsWith('file_')){
       const f=body.file;let reply={version:1,status:'ok'};
       if(failFile&&body.action==='file_begin')return route.fulfill({status:403,json:{message:'Forbidden'}});
@@ -121,6 +123,33 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    assert.equal(await page.locator('.edge-agent-project .edge-agent-codex-label').count(),0);
    assert.equal(await page.locator('.edge-agent-breadcrumb .edge-agent-kind').innerText(),'Codex');
    assert.equal(await page.locator('.edge-agent-breadcrumb .edge-agent-kind svg').count(),1);
+   if(process.env.E2E_SCROLL_ONLY==='1'){
+    snapshot={...snapshot,revision:(snapshot.revision||0)+1,running:false,messages:[{role:'user',text:'Scroll check'},{role:'assistant',text:Array.from({length:60},(_,i)=>`Paragraph ${i}. Read this historical message.`).join('\n\n')}]};sessions.set(snapshot.session_id,snapshot);
+    await page.getByText('Paragraph 59. Read this historical message.',{exact:true}).waitFor();
+    const messages=page.locator('.edge-agent-messages'),input=page.getByRole('textbox',{name:zh?'消息':'Message',exact:true});
+    const position=()=>page.evaluate(()=>{const e=document.querySelector('.edge-agent-messages');return {top:e.scrollTop,height:e.clientHeight,outer:Array.from(document.querySelectorAll('body,main,.edge-agent-sessions-page,.edge-agent-session-layout,.edge-agent-session-main,.edge-agent-workspace')).map(n=>({name:n.className||n.tagName,top:n.scrollTop,y:n.getBoundingClientRect().y}))};});
+    await messages.evaluate(e=>{e.scrollTop=700;});await page.waitForTimeout(200);const before=await position();
+    await input.click();await page.waitForTimeout(200);assert.deepEqual(await position(),before,'Clicking input preserves scroll and layout');
+    await input.fill('Line one\nLine two\nLine three\nLine four\nLine five');await page.waitForTimeout(200);assert.equal((await position()).top,before.top);
+    await input.fill('/');await page.waitForTimeout(200);assert.equal((await position()).top,before.top);
+    await input.fill('');
+    for(const decision of ['accept','decline','escape']){
+     const prior=await position();
+     snapshot={...snapshot,revision:snapshot.revision+1,running:true,approvals:[{id:'f'.repeat(32),reason:'Inspect the project environment',command:'pwd',directory:'/project'}]};sessions.set(snapshot.session_id,snapshot);
+     const dialog=page.getByRole('dialog');await dialog.waitFor();
+     assert.equal(await dialog.evaluate(e=>e.contains(document.activeElement)),true,'Focus stays inside the approval');
+     for(let i=0;i<7;i++){await page.keyboard.press('Tab');assert(await dialog.evaluate(e=>e.contains(document.activeElement)),'Tab is trapped inside the approval');}
+     await dialog.locator('.liaison-modal-mask').click({position:{x:2,y:2}});assert.equal(await dialog.count(),1,'Backdrop never authorizes or dismisses');
+     assert.deepEqual(await position(),prior,'Approval does not resize or scroll the transcript');
+     await page.screenshot({path:`/tmp/agent-approval-dialog-${locale}-${dark}-${width}.png`});
+     if(decision==='escape')await page.keyboard.press('Escape');
+     else await dialog.getByRole('button',{name:decision==='accept'?(zh?'确认':'Confirm'):(zh?'取消':'Cancel'),exact:true}).click();
+     await dialog.waitFor({state:'detached'});
+     assert.equal(actions.filter(a=>a.action==='approve').at(-1).decision,decision==='accept'?'accept':'decline');
+     assert.deepEqual(await position(),prior,'Closing approval preserves the transcript');
+    }
+    await page.screenshot({path:`/tmp/agent-scroll-${locale}-${dark}-${width}.png`,fullPage:true});await page.close();continue;
+   }
    if(process.env.E2E_HISTORY_HEADER_ONLY==='1'){
     snapshot={...snapshot,closed:true,running:false,status:'session_closed',archived:true,messages:[{role:'user',text:'Earlier request'},{role:'assistant',text:'Saved history'}]};sessions.set(snapshot.session_id,snapshot);
     await page.reload();
@@ -291,10 +320,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.getByRole('button',{name:zh?'工作区写入':'Workspace write',exact:true}).waitFor();
    await page.getByRole('textbox',{name:zh?'消息':'Message',exact:true}).fill('__approval_test__');
    await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).click();
-   await page.getByRole('button',{name:zh?'允许一次':'Allow once',exact:true}).waitFor();
+   await page.getByRole('dialog').getByRole('button',{name:zh?'确认':'Confirm',exact:true}).waitFor();
    await page.screenshot({path:`/tmp/agent-approval-${locale}-${dark}-${width}.png`,fullPage:true});
-   await page.getByRole('button',{name:zh?'允许一次':'Allow once',exact:true}).click();
-   await page.getByRole('button',{name:zh?'允许一次':'Allow once',exact:true}).waitFor({state:'detached'});
+   await page.getByRole('dialog').getByRole('button',{name:zh?'确认':'Confirm',exact:true}).click();
+   await page.getByRole('dialog').waitFor({state:'detached'});
    await page.getByRole('textbox',{name:zh?'消息':'Message',exact:true}).fill('__input_test__');
    await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).click();
    const inputForm=page.getByRole('form',{name:zh?'回答问题':'Answer questions'});
@@ -339,11 +368,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     assert(await activity.evaluate(el=>el.open),'Manual expansion survives completion');assert(await detail.evaluate(el=>el.open),'Manual detail expansion survives completion');
     for(const decision of ['accept','decline']){
      publish({running:true,approvals:[{id:'f'.repeat(32),kind:'fileChange',directory:'/project',reason:'Review this patch',command:'',changes:[{path:'notes.txt',kind:'update',diff:'@@ -1 +1 @@\n-old\n+new'}]}]});
-     const approval=page.locator('.edge-agent-approval');await approval.getByText(zh?'允许这些文件修改？':'Allow these file changes?',{exact:true}).waitFor();
+     const approval=page.locator('.edge-agent-approval');await approval.getByText(zh?'确认文件修改':'Confirm file changes',{exact:true}).waitFor();
+     await approval.locator('summary').click();
      await approval.locator('.edge-agent-diff-line.added').waitFor();
      assert(!(await approval.innerText()).includes('越出当前沙箱'),'File approval uses file-specific copy');
      await page.screenshot({path:`/tmp/agent-file-approval-${locale}-${dark}-${width}.png`,fullPage:true});
-     await approval.getByRole('button',{name:decision==='accept'?(zh?'允许一次':'Allow once'):(zh?'拒绝':'Decline'),exact:true}).click();await approval.waitFor({state:'detached'});
+     await approval.getByRole('button',{name:decision==='accept'?(zh?'确认':'Confirm'):(zh?'取消':'Cancel'),exact:true}).click();await approval.waitFor({state:'detached'});
     }
     publish({running:true,input_requests:[{id:'e'.repeat(32),blocking:true,questions:[{id:'choice',question:'Choose or enter an answer',is_other:true,is_secret:true,options:[{label:'Default',description:'Use the default'}]}]}]});
     await inputForm.waitFor();assert(await inputForm.getByRole('button',{name:zh?'提交回答':'Submit answers'}).isDisabled());
@@ -429,7 +459,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.reload();
    await page.getByRole('heading',{name:'Project',exact:true}).last().waitFor();
    assert.equal(starts,2,'Reload must reconnect without launching a new process');
-   const toggle=page.getByRole('button',{name:zh?/^(展开|收起)会话$/:/^(Show|Hide) sessions$/});
+   const toggle=page.getByRole('button',{name:zh?/^(显示|收起)会话列表$/:/^(Show|Hide) conversations$/});
    if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();
    await page.getByRole('button',{name:zh?'刷新会话':'Refresh sessions'}).click();
    const groups=page.locator('.edge-agent-project-group');

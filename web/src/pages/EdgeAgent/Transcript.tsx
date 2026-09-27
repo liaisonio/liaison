@@ -1,4 +1,4 @@
-import {Fragment,memo,useEffect,useLayoutEffect,useRef,useState,type ReactNode} from 'react';
+import {Fragment,memo,useCallback,useEffect,useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 import {ArrowDown} from 'lucide-react';
 import {Button,Notice} from '@/components/ui';
 import {MessageContent} from '@/components/AgentWorkspace/MessageContent';
@@ -6,19 +6,23 @@ import {useI18n} from '@/i18n';
 import {edgeAgent,type AgentSnapshot} from '@/services/edgeAgent';
 import {Activity} from './Activity';
 import {FileAttachments} from './Files';
+import {FileLinkContext} from '@/components/AgentWorkspace/FileLinkContext';
+import {CodePreview} from './CodePreview';
 
 const Round=memo(function Round({snapshot,live=false}:{snapshot:AgentSnapshot;live?:boolean}){
  const {tr}=useI18n();
  const running=live&&snapshot.running;
  return <>
   {snapshot.truncated&&<Notice>{tr('本轮内容较长，仅显示部分记录；不会因此中断任务。','This round is long; some display content is omitted. The task is not interrupted.')}</Notice>}
-{snapshot.messages?.map((m,index)=><article key={index} className={`agent-message ${m.role==='user'?'is-user':''}${m.role==='assistant'&&running&&index===snapshot.messages!.length-1?' is-streaming':''}`}><span className="edge-agent-codex-label">{m.role==='user'?tr('你','You'):'Codex'}</span>{!!m.attachments?.length&&<FileAttachments files={m.attachments}/>}<MessageContent text={m.text||(m.role==='assistant'&&running&&!snapshot.activities?.some(a=>a.message_index===index)?tr('正在准备回复…','Preparing a response…'):'')}/><Activity activeTurn={running&&(index===snapshot.messages!.length-1||Boolean(snapshot.activities?.some(a=>a.message_index===index&&a.status==='running')))} items={snapshot.activities?.filter(a=>a.message_index===index)||[]}/></article>)}
+{snapshot.messages?.map((m,index)=><article key={index} className={`agent-message ${m.role==='user'?'is-user':''}${m.role==='assistant'&&running&&index===snapshot.messages!.length-1?' is-streaming':''}`}><span className="edge-agent-codex-label">{m.role==='user'?tr('你','You'):'Codex'}</span>{!!m.attachments?.length&&<FileAttachments files={m.attachments}/>}<MessageContent text={m.text||(m.role==='assistant'&&running&&!snapshot.activities?.some(a=>a.message_index===index)?tr('正在准备回复…','Preparing a response…'):'')}/><Activity activeTurn={running} items={snapshot.activities?.filter(a=>a.message_index===index)||[]}/></article>)}
  </>;
 });
 
 // Mounted per session: delayed responses cannot append another session's history.
 export function Transcript({session,edge,accessID,children}:{session:AgentSnapshot;edge:number;accessID:string;children:ReactNode}){
  const {tr}=useI18n();
+ const [preview,setPreview]=useState<string>();
+ const openFile=useCallback((href:string)=>setPreview(href),[]);
  const [pages,setPages]=useState<AgentSnapshot[]>([]),[before,setBefore]=useState('');
  const [loading,setLoading]=useState(false),[failed,setFailed]=useState(false),[away,setAway]=useState(false);
  const container=useRef<HTMLDivElement>(null),stick=useRef(true),request=useRef<AbortController>();
@@ -63,7 +67,7 @@ export function Transcript({session,edge,accessID,children}:{session:AgentSnapsh
   else if(anchor.current)el.scrollTop=anchor.current.top+el.scrollHeight-anchor.current.height;
   anchor.current=undefined;
  },[pages,session.messages]);
- return <>
+ return <FileLinkContext.Provider value={openFile}>
   <div className="edge-agent-messages" ref={container} onScroll={()=>{const el=container.current;if(el){stick.current=el.scrollHeight-el.scrollTop-el.clientHeight<80;setAway(!stick.current);}}}>
    {(loading||failed||before)&&<nav className="edge-agent-history-nav" aria-label={tr('对话历史','Conversation history')}>
     {failed&&<span role="status">{tr('历史加载失败，当前对话仍可使用。','History could not load. You can still use this conversation.')}</span>}
@@ -77,5 +81,6 @@ export function Transcript({session,edge,accessID,children}:{session:AgentSnapsh
    <Round key={window} snapshot={session} live/>
   </div>
   {away&&!session.approvals?.length&&!session.input_requests?.length&&<Button className="edge-agent-jump" aria-label={tr('回到最新消息','Jump to latest')} onClick={()=>{stick.current=true;setAway(false);container.current?.scrollTo({top:container.current.scrollHeight,behavior:'smooth'});}}><ArrowDown size={15}/></Button>}
- </>;
+  {preview!==undefined&&session.session_id&&<CodePreview key={preview} href={preview} project={session.project||''} edge={edge} access={accessID} session={session.session_id} available={Boolean(session.files_available)} onClose={()=>setPreview(undefined)}/>}
+ </FileLinkContext.Provider>;
 }
