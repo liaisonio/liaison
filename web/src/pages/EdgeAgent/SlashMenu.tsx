@@ -7,7 +7,7 @@ export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,
   const id=useId(),list=useRef<HTMLDivElement>(null),panel=useRef<HTMLElement>(null);
   const query=!forcedOpen&&text.startsWith('/')?text.slice(1).toLowerCase():'';
   const open=(forcedOpen||/^\/[^\s/]*$/.test(text))&&!disabled&&!dismissed;
-  const commands=[{id:'status',name:'/status',description:tr('查看会话信息','View session details'),run:onStatus},{id:'new',name:'/new',description:tr('在当前项目新建会话','Start a new conversation in this project'),run:onNew}];
+  const commands=[{id:'status',name:'/status',description:tr('查看会话信息','View session details'),run:onStatus},{id:'new',name:'/new',description:tr('选择项目目录并新建会话','Choose a project folder and start a conversation'),run:onNew}];
   const options=[...commands,...skills.map(s=>({id:s.id,name:s.name,description:s.description,run:()=>onSkill(s)}))].filter(o=>`${o.name} ${o.description}`.toLowerCase().includes(query));
   function choose(i:number){const selected=options[i];if(!selected)return;setDismissed(true);if(!forcedOpen)setText('');onClose?.();input.current?.focus({preventScroll:true});selected.run();}
   useEffect(()=>{setIndex(0);setDismissed(false);},[text]);

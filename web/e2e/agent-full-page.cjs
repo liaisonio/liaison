@@ -11,7 +11,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
  try {
   for(const locale of ['zh-CN','en-US'])for(const theme of ['light','dark'])for(const width of [1280,390]){
    const page=await browser.newPage({viewport:{width,height:900},ignoreHTTPSErrors:process.env.E2E_IGNORE_HTTPS_ERRORS==='1'});
-   let failAccess=false,deny=false,replyVersion=1,needsApproval=true;const errors=[];
+   let failAccess=false,deny=false,replyVersion=1,needsApproval=true,emptyHistory=false;const errors=[],starts=[];
    page.on('pageerror',()=>errors.push('browser error'));
    await page.addInitScript(({locale,theme})=>{
     localStorage.setItem('token','synthetic-layout-test');
@@ -38,9 +38,17 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
     else if(path==='/api/v1/edge-agents/connectors')data=[{id:1,name:'Test connector',device:'Test device',online:true}];
     else if(path==='/api/v1/edge-agents'){
      const {action,history_search,session_id}=route.request().postDataJSON();
+     if(process.env.E2E_NEW_DIRECTORY==='1'&&action==='directories'){
+      const directory=route.request().postDataJSON().directory||access.project;
+      return route.fulfill({json:{code:200,data:{version:1,status:'ok',directory,directories:[{name:'another-project',path:'/workspace/another-project'}]}}});
+     }
+     if(process.env.E2E_NEW_DIRECTORY==='1'&&action==='start'){
+      starts.push(route.request().postDataJSON());
+      return route.fulfill({json:{code:200,data:{...session,project:starts.at(-1).working_directory||access.project}}});
+     }
      assert(['sessions','poll','transcript'].includes(action),'layout tests must not start or modify a session');
      const rows=[{...session,reply_token:'main',updated_at:'2026-01-01T00:00:00Z'},...Array.from({length:11},(_,i)=>({...session,session_id:String(i).padStart(32,'d'),reply_token:`reply-${replyVersion}`,attention:i===0&&needsApproval?'approval':undefined,title:`Conversation ${i+1}`,running:i===0,updated_at:'2026-01-01T00:00:00Z'}))];
-     const matches=history_search?[{...rows[1],title:'Older matching conversation',project:'/workspace/archive'}]:rows;
+     const matches=emptyHistory?[]:history_search?[{...rows[1],title:'Older matching conversation',project:'/workspace/archive'}]:rows;
      data=action==='sessions'?{version:1,status:'ok',history_search_available:true,history_total:matches.length,attention_sessions:rows.filter(s=>s.attention),sessions_available:true,session_management:true,sessions:matches}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:{...session,session_id:session_id||session.session_id,reply_token:session_id&&session_id!==session.session_id?`reply-${replyVersion}`:'main'};
     }
     await route.fulfill({json:{code:200,data}});
@@ -56,6 +64,29 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    await page.locator('.liaison-app-frame').waitFor();
    await hidden();
    await page.getByText('Layout ready.',{exact:true}).waitFor();
+   if(process.env.E2E_NEW_DIRECTORY==='1'){
+    const label=locale==='zh-CN'?'新建会话':'New conversation';
+    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'显示会话列表':'Show conversations',exact:true}).click();
+    for(const button of [page.locator('.edge-agent-session-list').getByRole('button',{name:label,exact:true}),page.locator('.edge-agent-project-group-heading').getByRole('button',{name:label+' · '+access.project,exact:true})]){
+     await button.click();const dialog=page.getByRole('dialog');await dialog.waitFor();
+     await dialog.getByRole('button',{name:locale==='zh-CN'?'在此目录新建':'Create in this folder'}).waitFor();
+     assert.equal(starts.length,0,'opening folder picker must not create a session');
+     await dialog.getByRole('button',{name:locale==='zh-CN'?'取消':'Cancel',exact:true}).click();
+     assert(new URL(page.url()).searchParams.get('session')===session.session_id,'cancel preserves selected session');
+    }
+    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'收起会话列表':'Hide conversations',exact:true}).click();
+    await page.locator('.edge-agent-session-actions').getByRole('button',{name:label,exact:true}).click();
+    const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'another-project'}).click();
+    await page.waitForFunction(()=>document.querySelector('.edge-agent-directory-path input')?.value==='/workspace/another-project'&&!document.querySelector('.edge-agent-directory-list[aria-busy="true"]'));
+    await page.screenshot({path:`/tmp/agent-new-directory-${locale}-${theme}-${width}.png`});
+    assert(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+    await dialog.getByRole('button',{name:locale==='zh-CN'?'在此目录新建':'Create in this folder'}).click();
+    await page.waitForFunction(()=>!document.querySelector('[role="dialog"]'));await delay(900);
+    assert.equal(starts.length,1);assert.equal(starts[0].working_directory,'/workspace/another-project');
+    emptyHistory=true;await page.goto(`${origin}/access/agents?access=${access.id}&view=full`);await delay(2200);
+    assert.equal(starts.length,1,'an empty history must not auto-create a session');
+    assert.deepEqual(errors,[]);console.log('PASS choose directory before creation, cancel and empty history',locale,theme,width);await page.close();continue;
+   }
    await hidden();
    await page.locator('.agent-code .hljs-keyword').first().waitFor();
    const code=page.locator('.agent-code').first();

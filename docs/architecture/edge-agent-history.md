@@ -18,6 +18,34 @@ so the UI debounces explicit searches and does not repeat them on its five-secon
 status refresh. Large installations should benchmark this path before enabling
 frequent searches, and consider a separate encrypted metadata index later.
 
+While a search is open, the client refreshes the complete matching page roughly
+every 30 seconds (plus request time), including sessions outside the first
+unfiltered page, renames and deletions. Five-second updates still refresh matching
+live rows and attention signals. Explicit Refresh performs a full search
+immediately. Search results do not display the project group's Show more control.
+
+## Drafts and browser timing observations
+
+Unsent composer text is kept in `sessionStorage`, scoped by authenticated account,
+access and conversation. Switching conversations and refreshing the same tab
+restores it. Successful sends, conversation deletion and logout clear the relevant
+drafts; failures do not automatically resend or clear them. Storage failures leave
+the in-memory draft usable and display a warning. Only text (up to 16,000 characters)
+is saved, not attachments, selected skills, approval answers or permissions. This
+is tab-local plaintext browser storage, not encrypted cloud history or cross-device
+draft synchronization. Closing the tab normally ends its lifetime; browser session
+restoration may preserve tab storage. Scope keys never contain authentication tokens.
+
+Session details show observations for the last send in the current mounted
+workspace: send request round trip, first new assistant text received, and observed
+turn end. Measurements use one browser's monotonic clock, exclude old assistant
+text, and flag background-tab observations. A failed or ambiguous send is labelled
+unconfirmed rather than given a fabricated completion time. These intervals start
+at Send and overlap; they are not additive. They include transport and processing,
+and turn duration may also include tools and approval waits. Network, Manager/Edge,
+App Server and model-only latencies are not independently instrumented yet. No
+message bodies or timing telemetry are sent to an external service.
+
 Live summaries expose `attention` (`approval`, `input`, `failed`) and scoped
 `attention_sessions` independent of the selected search page. These are display
 signals only, never authorization capabilities or archived approval requests.

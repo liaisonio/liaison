@@ -4,7 +4,7 @@ import {Button,Field,Input,Modal,Notice} from '@/components/ui';
 import {useI18n} from '@/i18n';
 import {edgeAgent,type AgentSnapshot} from '@/services/edgeAgent';
 
-export function DirectoryBrowser({edge,accessID,current,onClose,onSelect,switching=false}:{edge:number;accessID?:string;current:string;onClose:()=>void;onSelect:(path:string)=>void;switching?:boolean}){
+export function DirectoryBrowser({edge,accessID,current,onClose,onSelect,switching=false,creating=false}:{edge:number;accessID?:string;current:string;onClose:()=>void;onSelect:(path:string)=>void;switching?:boolean;creating?:boolean}){
  const {tr}=useI18n();const [path,setPath]=useState(current),[data,setData]=useState<AgentSnapshot>(),[pending,setPending]=useState(false),[error,setError]=useState('');
  const abort=useRef<AbortController>();
  async function load(directory:string){
@@ -17,7 +17,7 @@ export function DirectoryBrowser({edge,accessID,current,onClose,onSelect,switchi
   finally{if(!controller.signal.aborted)setPending(false);}
  }
  useEffect(()=>{void load(current);return()=>abort.current?.abort();},[edge,accessID]);
- return <Modal open width={600} title={tr('选择工作目录','Choose working directory')} onClose={onClose} footer={<><Button onClick={onClose}>{tr('取消','Cancel')}</Button><Button variant="primary" disabled={pending||!!error||!data?.directory||path!==data.directory} onClick={()=>onSelect(data!.directory!)}>{tr('选择此目录','Select folder')}</Button></>}>
+ return <Modal open width={600} title={creating?tr('新建会话 · 选择项目目录','New conversation · Choose project folder'):tr('选择工作目录','Choose working directory')} onClose={onClose} footer={<><Button onClick={onClose}>{tr('取消','Cancel')}</Button><Button variant="primary" disabled={pending||!!error||!data?.directory||path!==data.directory} onClick={()=>onSelect(data!.directory!)}>{creating?tr('在此目录新建','Create in this folder'):tr('选择此目录','Select folder')}</Button></>}>
   <div className="edge-agent-directory-browser">
    <Field label={tr('远端目录','Remote directory')} hint={tr('仅浏览连接器运行用户的主目录及此访问保存的项目目录。','Browse only the connector user’s home and this access entry’s saved project.')}><div className="edge-agent-directory-path"><Input value={path} maxLength={4096} onChange={e=>setPath(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();void load(path);}}}/><Button disabled={pending} onClick={()=>void load(path)}>{tr('打开','Open')}</Button></div></Field>
    <div className="edge-agent-directory-roots"><Button disabled={pending} onClick={()=>void load('')}>{tr('主目录','Home')}</Button>{data?.directory_roots?.slice(1).map(root=><Button key={root} title={root} disabled={pending} onClick={()=>void load(root)}>{tr('默认项目','Default project')}</Button>)}<Button disabled={pending||!data?.parent_directory} aria-label={tr('上一级','Parent folder')} onClick={()=>void load(data!.parent_directory!)}><ArrowUp size={14}/></Button></div>

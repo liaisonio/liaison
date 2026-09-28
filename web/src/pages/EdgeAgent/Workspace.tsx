@@ -15,11 +15,13 @@ import {ModelPicker} from './ModelPicker';
 import {InputRequest} from './InputRequest';
 import {ApprovalDialog} from './ApprovalDialog';
 import {CodePreview} from './CodePreview';
+import {useDraft} from './useDraft';
+import {useTurnTiming} from './useTurnTiming';
 import '@/components/AgentWorkspace/index.less';
 import './index.less';
 import './interaction.less';
 
-export default function Workspace({access,initialSessionID,initialDirectory,onSessionReady,onSessionRemoved,onRead}:{access:AgentAccess;initialSessionID?:string;initialDirectory?:string;onSessionReady?:(id:string)=>void;onSessionRemoved?:(id:string)=>void;onRead?:(id:string,token:string)=>void}){
+export default function Workspace({access,initialSessionID,initialDirectory,onNew,onSessionReady,onSessionRemoved,onRead}:{access:AgentAccess;initialSessionID?:string;initialDirectory?:string;onNew:(directory?:string)=>void;onSessionReady?:(id:string)=>void;onSessionRemoved?:(id:string)=>void;onRead?:(id:string,token:string)=>void}){
   const edgeAgent=(edge:number,action:string,fields:Record<string,unknown>={},signal?:AbortSignal)=>callAgent(edge,action,{...fields,access_id:access.id},signal);
   const {tr}=useI18n();
   const [connectors,setConnectors]=useState<AgentConnector[]>([]),[loading,setLoading]=useState(true);
@@ -31,7 +33,10 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
   const workingDirectory=useRef(initialDirectory||access.project),revision=useRef(0);
   const [resumeBlocked,setResumeBlocked]=useState('');
   const [pending,setPending]=useState(false),[error,setError]=useState('');
-  const [session,setSession]=useState<AgentSnapshot>(),[text,setText]=useState(''),[confirm,setConfirm]=useState(false),[pollFailed,setPollFailed]=useState(false);
+  const [session,setSession]=useState<AgentSnapshot>(),[confirm,setConfirm]=useState(false),[pollFailed,setPollFailed]=useState(false);
+  const draft=useDraft(access.id,session?.session_id||initialSessionID);
+  const {text,setText}=draft;
+  const timing=useTurnTiming();
   useEffect(()=>{
     const read=()=>{if(document.visibilityState==='visible'&&session?.session_id&&session.reply_token)onRead?.(session.session_id,session.reply_token);};
     read();document.addEventListener('visibilitychange',read);return()=>document.removeEventListener('visibilitychange',read);
@@ -77,6 +82,7 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
   const apply=(next:AgentSnapshot,id:number)=>{
     if(!mounted.current||id<applied.current)return;
     applied.current=id;revision.current=next.revision||0;setSession(next);
+    timing.observe(next);
     if(next.closed)live.current=undefined;
   };
   useEffect(()=>{
@@ -111,7 +117,7 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
   },[active,edge,session?.session_id]);
   useEffect(()=>{const el=input.current;if(el){el.style.height='auto';el.style.height=`${Math.min(el.scrollHeight,160)}px`;}},[text,session?.session_id]);
   useEffect(()=>{if(active&&!session?.approvals?.length)input.current?.focus({preventScroll:true});},[active]);
-  useEffect(()=>{if(!loading&&(selected?.online||initialSessionID)&&!started.current){started.current=true;if(initialSessionID)void resume(initialSessionID);else void act('start');}},[loading,selected?.online]);
+  useEffect(()=>{if(!loading&&(selected?.online||initialSessionID)&&!started.current){started.current=true;if(initialSessionID)void resume(initialSessionID);else if(initialDirectory)void act('start');}},[loading,selected?.online]);
 
 
   async function resume(sessionID:string){
@@ -158,6 +164,8 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
     const id=++sequence.current;
     const target=directory||workingDirectory.current;
     const fields:Record<string,unknown>=action==='start'?{installation_id:installation,project:project.trim(),...(target!==project?{working_directory:target}:{})}:{session_id:session?.session_id||'',...(action==='send'?{text:text.trim(),attachments:files.attachments.map(f=>f.path),...(skill?{skill_id:skill.id}:{})}:{})};
+    if(action==='send'&&session)timing.begin(session);
+    if(action==='start')timing.reset();
     try{
       if(action==='start'&&directory&&emptySession&&session?.session_id){
         const previous=session.session_id;retiring.current=previous;
@@ -171,22 +179,24 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
         applied.current=id;live.current=undefined;workingDirectory.current=target;setSession(undefined);onSessionRemoved?.(previous);
       }
       const next=await edgeAgent(Number(edge),action,fields);
+      if(action==='send'&&next.session_id&&next.status==='ok')draft.clearSent(text);
       if(!mounted.current)return;
+      if(action==='send')timing.response(Boolean(next.session_id&&next.status==='ok'));
       if(!next.session_id){if(action==='stop'){setNextDirectory('');}setError(statusText(next.status));return;}
       if(action==='start'&&!next.closed)live.current={edge:Number(edge),id:next.session_id};
       if(action==='start'){setResumeBlocked('');workingDirectory.current=next.project||target;setNextDirectory('');if(!directory)setText('');setSkill(undefined);onSessionReady?.(next.session_id);}
       apply(next,id);setPollFailed(false);
       if(action==='send'&&next.status==='ok'){files.clear();setText('');setSkill(undefined);input.current?.focus();}
-    }catch{retiring.current='';if(action==='stop'){setNextDirectory('');}if(mounted.current)setError(tr('操作结果未确认，请等待状态刷新，不会自动重试。','Operation outcome is unconfirmed. Wait for a status update; it will not retry automatically.'));}
+    }catch{retiring.current='';if(action==='stop'){setNextDirectory('');}if(mounted.current){if(action==='send')timing.response(false);setError(tr('操作结果未确认，请等待状态刷新，不会自动重试。','Operation outcome is unconfirmed. Wait for a status update; it will not retry automatically.'));}}
     finally{busy.current=false;if(mounted.current){setPending(false);setConfirm(false);}}
   }
 
   return <div className="edge-agent-page edge-agent-session-page">
     {error&&!(active&&session?.approvals?.length)&&<div role="alert"><Notice tone="danger">{error}</Notice></div>}
     {loading?<Notice>{tr('正在加载连接器…','Loading connectors…')}</Notice>:!connectors.length?<Notice>{tr('暂无可用的自有连接器。','No owned connectors available.')} <Link to="/connector">{tr('创建连接器','Create connector')}</Link></Notice>:null}
-    {!session?.session_id&&!loading&&<section className="edge-agent-setup"><div className="edge-agent-start"><div>{resumable&&<Button disabled={pending||!selected?.online} loading={pending} onClick={()=>void resumeNative()}>{tr('恢复会话','Resume conversation')}</Button>}<Button variant="primary" disabled={pending||!selected?.online} loading={pending&&!resumable} onClick={()=>void act('start')}>{session?.session_id?tr('新建会话','New conversation'):tr('开始会话','Start session')}</Button></div></div></section>}
+    {!session?.session_id&&!loading&&<section className="edge-agent-setup"><div className="edge-agent-start"><div>{resumable&&<Button disabled={pending||!selected?.online} loading={pending} onClick={()=>void resumeNative()}>{tr('恢复会话','Resume conversation')}</Button>}<Button variant="primary" disabled={pending||!selected?.online} loading={pending&&!resumable} onClick={()=>onNew(workingDirectory.current)}>{session?.session_id?tr('新建会话','New conversation'):tr('开始会话','Start session')}</Button></div></div></section>}
     {session?.session_id&&<section className={`edge-agent-workspace${active&&session.input_requests?.length?' has-input':''}`}>
-      <header><div className="edge-agent-project"><Button variant="ghost" aria-label={tr('选择工作目录','Choose working directory')} title={tr('选择工作目录','Choose working directory')} disabled={pending} onClick={()=>setBrowsing(true)}><Folder size={16}/></Button><div><strong title={session.project||project}>{(session.project||project).split(/[\\/]/).filter(Boolean).pop()||project}</strong><span title={selected?.name}>{selected?.device||selected?.name}</span></div></div><div className="edge-agent-session-actions"><span tabIndex={!active?0:undefined} title={!active?(resumeBlocked||(!selected?.online?tr('连接器离线，暂时无法恢复。','The connector is offline. Resume is temporarily unavailable.'):!resumable?tr('此会话无法恢复，历史仍可查看。','This conversation cannot be resumed. Its history remains available.'):tr('可尝试恢复原设备上的 Codex 会话。','Resume the native Codex conversation on the original device.'))):undefined}><StatusPill tone={active?'success':'neutral'}>{active?session.input_requests?.some(r=>r.blocking)?tr('等待回答','Waiting for input'):session.approvals?.length?tr('等待审批','Waiting for approval'):session.running?tr('正在回复','Responding'):tr('已连接','Connected'):tr('已结束','Ended')}</StatusPill></span>{session.files_available&&<Button variant="ghost" aria-label={tr('项目文件','Project files')} title={tr('项目文件','Project files')} onClick={()=>setFilesOpen(true)}><FolderOpen size={16}/></Button>}<Button variant="ghost" title={tr('会话详情','Session details')} aria-label={tr('会话详情','Session details')} onClick={()=>setDetails(true)}><Info size={16}/></Button>{!active&&<>{resumable&&!resumeBlocked&&selected?.online&&<Button variant="primary" disabled={pending} loading={pending} onClick={()=>void resumeNative()}>{tr('恢复会话','Resume conversation')}</Button>}<Button disabled={pending||!selected?.online} onClick={()=>void act('start')}><Plus size={16}/>{tr('新建会话','New conversation')}</Button></>}{active&&<><Button variant="primary" title={tr('新建会话','New conversation')} aria-label={tr('新建会话','New conversation')} disabled={pending} onClick={()=>{void act('start');}}><Plus size={16}/>{tr('新建会话','New conversation')}</Button><Button variant="secondary" title={tr('结束会话','End session')} aria-label={tr('结束会话','End session')} disabled={pending} onClick={()=>{setConfirm(true);}}><Square size={14}/>{tr('结束会话','End session')}</Button></>}</div></header>
+      <header><div className="edge-agent-project"><Button variant="ghost" aria-label={tr('选择工作目录','Choose working directory')} title={tr('选择工作目录','Choose working directory')} disabled={pending} onClick={()=>setBrowsing(true)}><Folder size={16}/></Button><div><strong title={session.project||project}>{(session.project||project).split(/[\\/]/).filter(Boolean).pop()||project}</strong><span title={selected?.name}>{selected?.device||selected?.name}</span></div></div><div className="edge-agent-session-actions"><span tabIndex={!active?0:undefined} title={!active?(resumeBlocked||(!selected?.online?tr('连接器离线，暂时无法恢复。','The connector is offline. Resume is temporarily unavailable.'):!resumable?tr('此会话无法恢复，历史仍可查看。','This conversation cannot be resumed. Its history remains available.'):tr('可尝试恢复原设备上的 Codex 会话。','Resume the native Codex conversation on the original device.'))):undefined}><StatusPill tone={active?'success':'neutral'}>{active?session.input_requests?.some(r=>r.blocking)?tr('等待回答','Waiting for input'):session.approvals?.length?tr('等待审批','Waiting for approval'):session.running?tr('正在回复','Responding'):tr('已连接','Connected'):tr('已结束','Ended')}</StatusPill></span>{session.files_available&&<Button variant="ghost" aria-label={tr('项目文件','Project files')} title={tr('项目文件','Project files')} onClick={()=>setFilesOpen(true)}><FolderOpen size={16}/></Button>}<Button variant="ghost" title={tr('会话详情','Session details')} aria-label={tr('会话详情','Session details')} onClick={()=>setDetails(true)}><Info size={16}/></Button>{!active&&<>{resumable&&!resumeBlocked&&selected?.online&&<Button variant="primary" disabled={pending} loading={pending} onClick={()=>void resumeNative()}>{tr('恢复会话','Resume conversation')}</Button>}<Button disabled={pending||!selected?.online} onClick={()=>onNew(workingDirectory.current)}><Plus size={16}/>{tr('新建会话','New conversation')}</Button></>}{active&&<><Button variant="primary" title={tr('新建会话','New conversation')} aria-label={tr('新建会话','New conversation')} disabled={pending} onClick={()=>onNew(workingDirectory.current)}><Plus size={16}/>{tr('新建会话','New conversation')}</Button><Button variant="secondary" title={tr('结束会话','End session')} aria-label={tr('结束会话','End session')} disabled={pending} onClick={()=>{setConfirm(true);}}><Square size={14}/>{tr('结束会话','End session')}</Button></>}</div></header>
       {pollFailed&&<Notice tone="warning">{tr('连接暂时中断，正在重连。不会重发未确认的操作；切换页面不会中断任务。','Connection interrupted. Reconnecting without replaying operations. Switching pages does not stop a running task.')}</Notice>}
       {!session.closed&&session.status!=='ok'&&<Notice tone={session.closed?'info':'warning'}>{statusText(session.status)}</Notice>}
       <FileDownloadContext.Provider value={session.files_available?f=>void files.download(f):undefined}><Transcript key={session.session_id} session={session} edge={Number(edge)} accessID={access.id}>
@@ -200,8 +210,9 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
       {filePreview?.session===session.session_id&&session.session_id&&filePreview&&<CodePreview key={`${session.session_id}:${filePreview.path}`} href={filePreview.path} project={session.project||project} edge={Number(edge)} access={access.id} session={session.session_id} available={Boolean(session.files_available)} onClose={()=>setFilePreview(undefined)}/>}
       <form className="edge-agent-composer" onDragOver={e=>{if(canUpload&&e.dataTransfer.types.includes('Files'))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();if(canUpload)void files.upload(Array.from(e.dataTransfer.files));}}} onSubmit={e=>{e.preventDefault();if(canSend)void act('send');}}>
         {files.controls}{files.chips}
+        {!!text&&!draft.saved&&<Notice tone="warning">{tr('草稿暂时无法保存，刷新后可能丢失。','The draft could not be saved and may be lost on refresh.')}</Notice>}
         {skill&&<div className="edge-agent-selected-skill"><span>{skill.name}</span><Button variant="ghost" aria-label={tr('移除技能','Remove skill')} onClick={()=>{setSkill(undefined);input.current?.focus();}}><X size={13}/></Button></div>}
-        <SlashMenu text={text} setText={setText} input={input} skills={session.skills||[]} available={Boolean(session.skills_available)} disabled={!active||pending||session.running} onSkill={setSkill} onStatus={()=>setDetails(true)} onNew={()=>{void act('start');}} forcedOpen={commandsOpen} onClose={()=>setCommandsOpen(false)}/>
+        <SlashMenu text={text} setText={setText} input={input} skills={session.skills||[]} available={Boolean(session.skills_available)} disabled={!active||pending||session.running} onSkill={setSkill} onStatus={()=>setDetails(true)} onNew={()=>onNew(workingDirectory.current)} forcedOpen={commandsOpen} onClose={()=>setCommandsOpen(false)}/>
 <textarea onPaste={e=>{const images=Array.from(e.clipboardData.files).filter(f=>f.type.startsWith('image/'));if(images.length&&canUpload){e.preventDefault();void files.upload(images);}}} ref={input} rows={2} aria-label={tr('消息','Message')} value={text} disabled={!active} readOnly={pending} maxLength={16000} onChange={e=>setText(e.target.value)} placeholder={active?tr('询问当前项目，输入 / 选择技能','Ask about this project, or type / for skills'):tr('会话已结束','Session ended')} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();if(canSend)void act('send');}}}/>
         <div className="edge-agent-composer-tools"><ActionMenu label={tr('添加与工具','Add and tools')} icon={<Plus size={16}/>} placement="top" disabled={!active||pending} items={[
           {label:tr('上传文件','Upload files'),disabled:!canUpload||files.busy,onClick:()=>files.input.current?.click()},
@@ -220,7 +231,7 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
     </section>}
     <Modal open={confirm} title={nextDirectory?tr('切换工作目录','Switch working directory'):tr('结束会话','End session')} onClose={()=>{if(!pending){setNextDirectory('');setConfirm(false);}}} footer={<><Button disabled={pending} onClick={()=>{setNextDirectory('');setConfirm(false);}}>{tr('取消','Cancel')}</Button><Button variant="primary" disabled={pending} loading={pending} onClick={()=>{if(nextDirectory)void act('start',nextDirectory);else void act('stop');}}>{nextDirectory?tr('新建会话','New conversation'):tr('结束会话','End session')}</Button></>}><DangerConfirm title={nextDirectory?tr('在新目录开始会话？','Start a conversation in the new folder?'):tr('关闭本次 Codex 实例？','Close this Codex instance?')} description={nextDirectory?(emptySession?tr('当前空会话将移除，其他会话不受影响。','The current empty conversation will be removed. Other conversations are unaffected.'):tr('当前会话已有内容，将予以保留。','The current conversation has content and will be retained.')):tr('不会关闭其他会话。已结束的会话可在列表中查看，不能继续发送消息。','Other sessions will not be closed. Ended conversations remain viewable in the list, but cannot receive messages.')}/>{nextDirectory&&<code className="edge-agent-switch-path">{nextDirectory}</code>}</Modal>
 {browsing&&<DirectoryBrowser edge={Number(edge)} accessID={access.id} current={session?.project||workingDirectory.current} switching={active} onClose={()=>setBrowsing(false)} onSelect={path=>{setBrowsing(false);if(path===(session?.project||workingDirectory.current))return;if(active){setNextDirectory(path);setConfirm(true);}else void act('start',path);}}/>}
-    <SessionDetails open={details} onClose={()=>setDetails(false)} session={session} connector={selected}/>
+    <SessionDetails open={details} onClose={()=>setDetails(false)} session={session} connector={selected} timing={timing.timing}/>
     {modelPicker&&session&&<ModelPicker access={access} session={session} onClose={()=>{setModelPicker(false);input.current?.focus();}} onChange={next=>apply(next,++sequence.current)}/>}
   </div>;
 }
