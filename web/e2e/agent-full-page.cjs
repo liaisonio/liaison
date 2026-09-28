@@ -58,9 +58,12 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    const responsive=async()=>{
     const sizes=await page.locator('.edge-agent-messages').evaluate(el=>{
      const css=getComputedStyle(el),message=el.querySelector('.agent-message:not(.is-user)');
-     return {available:el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight),message:message.getBoundingClientRect().width,overflow:el.scrollWidth-el.clientWidth,pageOverflow:document.documentElement.scrollWidth-innerWidth};
+     const rect=message.getBoundingClientRect(),panel=el.getBoundingClientRect(),composer=document.querySelector('.edge-agent-composer').getBoundingClientRect();
+     return {available:el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight),message:rect.width,center:Math.abs(rect.x+rect.width/2-panel.x-panel.width/2),composerCenter:Math.abs(composer.x+composer.width/2-rect.x-rect.width/2),composerWidth:composer.width,overflow:el.scrollWidth-el.clientWidth,pageOverflow:document.documentElement.scrollWidth-innerWidth};
     });
     assert(Math.abs(sizes.message-sizes.available)<2,JSON.stringify(sizes));
+    assert(sizes.message<=881&&sizes.composerWidth<=881,'reading column must stay bounded on wide screens');
+    assert(sizes.center<2&&sizes.composerCenter<2,'messages and composer must share a centered reading column');
     assert(sizes.overflow<=1&&sizes.pageOverflow<=1,'conversation must not overflow horizontally');
     return sizes.message;
    };
@@ -70,7 +73,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
     const wide=await responsive();
     await page.screenshot({path:`/tmp/agent-wide-${locale}-${theme}.png`});
     await page.setViewportSize({width:1280,height:900});
-    assert(wide>await responsive()+500,'messages should grow with the conversation panel');
+    assert(Math.abs(wide-await responsive())<2,'wide screens should keep a comfortable reading width');
    }
    await page.screenshot({path:`/tmp/agent-full-page-${locale}-${theme}-${width}.png`});
    const inputMounted=await page.locator('.edge-agent-workspace').evaluate(el=>{el.dataset.mountCheck='preserved';return true;});assert(inputMounted);

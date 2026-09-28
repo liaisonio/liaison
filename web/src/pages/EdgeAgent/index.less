@@ -116,7 +116,7 @@
 .edge-agent-workspace > header span,.edge-agent-workspace > header code { color: rgb(var(--muted)); font-size: 12px; }
 .edge-agent-workspace > header code { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; }
 .edge-agent-workspace > .liaison-notice { margin: 12px 20px; }
-.edge-agent-messages { display: flex; flex-direction: column; flex:1; min-height:0; gap: 28px; padding: 28px 24px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter:stable; }
+.edge-agent-messages { display: flex; flex-direction: column; flex:1; min-height:0; gap: 28px; padding: 28px max(24px, calc((100% - 880px) / 2)); overflow: auto; overscroll-behavior: contain; scrollbar-gutter:stable both-edges; }
 .edge-agent-messages .agent-message { max-width:100%; grid-template-columns:minmax(0,1fr); }
 .edge-agent-messages .agent-markdown { max-width:100%; grid-template-columns:minmax(0,1fr); }
 .edge-agent-messages .agent-message > span { font-size:12px; }
@@ -129,7 +129,7 @@
 .edge-agent-empty-icon { display:grid; place-items:center; width:44px; height:44px; border-radius:var(--surface-radius); background:rgb(var(--panel)); color:rgb(var(--ink)); margin-bottom:4px; }
 .edge-agent-starters { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:14px; }
 .edge-agent-starters .liaison-button { color:rgb(var(--muted)); }
-.edge-agent-composer { position:relative; container-type:inline-size; container-name:edge-composer; flex-shrink:0; margin: 0 20px 16px; padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--surface-radius); background: rgb(var(--panel)); }
+.edge-agent-composer { position:relative; container-type:inline-size; container-name:edge-composer; flex-shrink:0; width:calc(100% - 48px); max-width:880px; margin: 0 auto 16px; padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--surface-radius); background: rgb(var(--panel)); }
 .edge-agent-composer:focus-within { border-color: rgb(var(--accent)); box-shadow: 0 0 0 3px rgb(var(--accent) / .1); }
 .edge-agent-composer textarea { display:block; width: 100%; min-height:52px; max-height:160px; resize:none; padding:0; border: 0; outline: 0; background: transparent; color: rgb(var(--ink)); font-size: 13px; line-height:1.75; }
 .edge-agent-composer > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -186,7 +186,7 @@
   .edge-agent-workspace > header { align-items:flex-start; }
   .edge-agent-workspace > header > div:first-child { flex-basis:100%; }
   .edge-agent-session-actions { margin-left:auto; }
-  .edge-agent-composer { margin: 0 12px 12px; padding:12px; }
+  .edge-agent-composer { width:calc(100% - 32px); margin: 0 auto 12px; padding:12px; }
   .edge-agent-starters { flex-direction:column; width:100%; }
   .edge-agent-empty { width:100%; }
   .edge-agent-starters .liaison-button { justify-content:space-between; }
