@@ -1368,6 +1368,20 @@ button {
   padding: 8px 24px 28px;
 }
 
+/* Apply full-page presentation from the route, including loading/error states.
+   Keep the outlet mounted when toggling so active sessions are not recreated. */
+.liaison-app-frame.is-agent-full-page > .liaison-global-header,
+.liaison-app-frame.is-agent-full-page > .liaison-shell > .liaison-sidebar,
+.liaison-app-frame.is-agent-full-page > .liaison-shell > .liaison-workspace > .liaison-page-header {
+  display: none;
+}
+.liaison-app-frame.is-agent-full-page .liaison-page-body {
+  padding: 16px;
+}
+@media (max-width: 600px) {
+  .liaison-app-frame.is-agent-full-page .liaison-page-body { padding: 8px; }
+}
+
 .liaison-loading {
   display: flex;
   height: 100%;
