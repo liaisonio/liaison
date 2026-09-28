@@ -3,7 +3,8 @@ const assert = require('node:assert/strict');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const origin = process.env.E2E_UI_URL || 'http://127.0.0.1:5303';
 const access = {id:'a'.repeat(32),name:'Layout verification',kind:'codex',edge_id:1,installation_id:'b'.repeat(32),project:'/workspace/demo'};
-const session = {version:1,status:'ok',session_id:'c'.repeat(32),thread_id:'test-thread',project:access.project,title:'Layout verification',closed:true,running:false,messages:[{role:'assistant',text:'Layout ready.'}],history_persistent:true};
+const answer = 'Layout ready.\n\n' + '检查文件与模型的对应关系。 Verify the project configuration and request handling. '.repeat(12) + '\n\n```text\n' + 'long-output-'.repeat(100) + '\n```\n\n| File | Description |\n| --- | --- |\n| `src/example.ts` | Responsive preview |';
+const session = {version:1,status:'ok',session_id:'c'.repeat(32),thread_id:'test-thread',project:access.project,title:'Layout verification',closed:true,running:false,messages:[{role:'user',text:'Check the layout. 检查布局。'},{role:'assistant',text:answer}],history_persistent:true};
 const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
 (async()=>{
  const browser = await chromium.launch(process.env.CHROME_EXECUTABLE?{executablePath:process.env.CHROME_EXECUTABLE}:undefined);
@@ -54,6 +55,23 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    await hidden();
    await page.getByText('Layout ready.',{exact:true}).waitFor();
    await hidden();
+   const responsive=async()=>{
+    const sizes=await page.locator('.edge-agent-messages').evaluate(el=>{
+     const css=getComputedStyle(el),message=el.querySelector('.agent-message:not(.is-user)');
+     return {available:el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight),message:message.getBoundingClientRect().width,overflow:el.scrollWidth-el.clientWidth,pageOverflow:document.documentElement.scrollWidth-innerWidth};
+    });
+    assert(Math.abs(sizes.message-sizes.available)<2,JSON.stringify(sizes));
+    assert(sizes.overflow<=1&&sizes.pageOverflow<=1,'conversation must not overflow horizontally');
+    return sizes.message;
+   };
+   await responsive();
+   if(width===1280){
+    await page.setViewportSize({width:1920,height:900});
+    const wide=await responsive();
+    await page.screenshot({path:`/tmp/agent-wide-${locale}-${theme}.png`});
+    await page.setViewportSize({width:1280,height:900});
+    assert(wide>await responsive()+500,'messages should grow with the conversation panel');
+   }
    await page.screenshot({path:`/tmp/agent-full-page-${locale}-${theme}-${width}.png`});
    const inputMounted=await page.locator('.edge-agent-workspace').evaluate(el=>{el.dataset.mountCheck='preserved';return true;});assert(inputMounted);
    // This recorder covers document bootstrap, not the intentional normal view
@@ -61,6 +79,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    await page.evaluate(()=>{window.observeFullPage=false;});
    await page.locator('[data-page-expand]').click();
    await page.locator('.liaison-global-header').waitFor({state:'visible'});
+   await responsive();
    assert(await page.locator('.liaison-global-header').isVisible());
    assert.equal(await page.locator('.edge-agent-workspace').getAttribute('data-mount-check'),'preserved');
    await page.screenshot({path:`/tmp/agent-normal-page-${locale}-${theme}-${width}.png`});
