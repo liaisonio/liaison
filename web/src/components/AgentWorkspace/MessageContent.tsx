@@ -1,22 +1,39 @@
 import { useI18n } from '@/i18n';
 import { Check, ChevronRight, CircleAlert, Copy, Terminal, WrapText } from 'lucide-react';
-import { Children, isValidElement, lazy, Suspense, memo, useContext, useMemo, useState } from 'react';
+import { Children, isValidElement, lazy, Suspense, memo, useContext, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import ReactMarkdown, {defaultUrlTransform,type Components} from 'react-markdown';
 import {FileLinkContext,isFileReference} from './FileLinkContext';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from './MermaidBlock';
 import {headingAnchors} from './headingAnchors';
 const HighlightedCode=lazy(()=>import('./HighlightedCode'));
+import {useCopyText} from './useCopyText';
 
 export function CodeBlock({ text, language = '', onPreview }: { text: string; language?: string; onPreview?: (text:string) => void }) {
   const { tr } = useI18n();
-  const [copied, setCopied] = useState(false);
+  const {state:copyState,copy}=useCopyText(text);
+  const copied=copyState==='copied';
+  const [expanded,setExpanded]=useState(false),[long,setLong]=useState(false);
+  const pre=useRef<HTMLPreElement>(null);
   const [wrap,setWrap]=useState(false);
-  return <div className={`agent-code${wrap?' is-wrapped':''}`}>
+  useLayoutEffect(()=>{
+    const el=pre.current;if(!el)return;
+    const measure=()=>setLong(el.scrollHeight>260);
+    measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();
+  },[text,wrap]);
+  return <div className={`agent-code${wrap?' is-wrapped':''}${expanded?' is-expanded-code':''}`}>
     <div className="agent-code-toolbar"><span>{language || tr('输出', 'Output')}</span>{onPreview && <button className="agent-code-preview" type="button" onClick={() => onPreview(text)}>{tr('预览填入', 'Preview in editor')}</button>}<button type="button" title={tr('自动换行','Wrap lines')} aria-label={tr('自动换行','Wrap lines')} aria-pressed={wrap} onClick={()=>setWrap(v=>!v)}><WrapText size={14}/></button><button type="button" title={copied?tr('已复制','Copied'):tr('复制', 'Copy')} aria-label={tr('复制', 'Copy')} onClick={() => {
-      void navigator.clipboard.writeText(text).then(() => setCopied(true)).catch(() => setCopied(false));
+      void copy();
     }}>{copied ? <Check size={13} /> : <Copy size={13} />}</button></div>
-    <pre tabIndex={0}><code>{language?<Suspense fallback={text}><HighlightedCode text={text} language={language}/></Suspense>:text}</code></pre>
+    {copyState!=='idle'&&<div className="agent-code-feedback" role="status">{copied?tr('已复制','Copied'):tr('复制失败，请选择文本手动复制。','Copy failed. Select the text and copy manually.')}</div>}
+    <pre ref={pre} tabIndex={0}><code>{language?<Suspense fallback={text}><HighlightedCode text={text} language={language}/></Suspense>:text}</code></pre>
+    {(long||expanded)&&<button className="agent-code-expand" type="button" aria-expanded={expanded} onClick={event=>{
+      // Keep the clicked control anchored when collapsing a tall block.
+      const button=event.currentTarget,scroller=button.closest('.edge-agent-messages');
+      const top=button.getBoundingClientRect().top;
+      setExpanded(value=>!value);
+      if(expanded&&scroller)requestAnimationFrame(()=>{scroller.scrollTop+=button.getBoundingClientRect().top-top;});
+    }}>{expanded?tr('收起代码','Collapse code'):tr('展开代码','Expand code')}</button>}
   </div>;
 }
 

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const origin = process.env.E2E_UI_URL || 'http://127.0.0.1:5303';
 const access = {id:'a'.repeat(32),name:'Layout verification',kind:'codex',edge_id:1,installation_id:'b'.repeat(32),project:'/workspace/demo'};
-const answer = 'Layout ready.\n\n' + '检查文件与模型的对应关系。 Verify the project configuration and request handling. '.repeat(12) + '\n\n```go\nimport "example.org/project/log"\n\nopt.SetLog(log.New())\n// ' + 'long-output-'.repeat(100) + '\n```\n\n| File | Description |\n| --- | --- |\n| `src/example.ts` | Responsive preview |';
+const answer = 'Layout ready.\n\n' + '检查文件与模型的对应关系。 Verify the project configuration and request handling. '.repeat(12) + '\n\n```go\nimport "example.org/project/log"\n\nopt.SetLog(log.New())\n'+ '// Example line\n'.repeat(20)+'// ' + 'long-output-'.repeat(100) + '\n```\n\n| File | Description |\n| --- | --- |\n| `src/example.ts` | Responsive preview |';
 const session = {version:1,status:'ok',session_id:'c'.repeat(32),thread_id:'test-thread',project:access.project,title:'Layout verification',closed:true,running:false,messages:[{role:'user',text:'Check the layout. 检查布局。'},{role:'assistant',text:answer}],history_persistent:true};
 const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
 (async()=>{
@@ -64,14 +64,42 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    await page.evaluate(()=>{window.copiedCode='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copiedCode=text;}}});});
    await code.getByRole('button',{name:locale==='zh-CN'?'复制':'Copy',exact:true}).click();
    assert((await page.evaluate(()=>window.copiedCode)).includes('opt.SetLog(log.New())'));
+   await code.getByRole('status').waitFor({state:'hidden'});
+   await page.evaluate(()=>{navigator.clipboard.writeText=async()=>{throw new Error('Clipboard unavailable');};});
+   await code.getByRole('button',{name:locale==='zh-CN'?'复制':'Copy',exact:true}).click();
+   assert((await code.getByRole('status').textContent()).includes(locale==='zh-CN'?'复制失败':'Copy failed'));
+   await page.evaluate(()=>{navigator.clipboard.writeText=async text=>{window.copiedCode=text;};});
+   await code.getByRole('button',{name:locale==='zh-CN'?'复制':'Copy',exact:true}).click();
+   await code.getByRole('status').waitFor({state:'hidden'});
+   await code.getByRole('button',{name:locale==='zh-CN'?'展开代码':'Expand code',exact:true}).click();
+   assert.equal(await code.locator('pre').evaluate(el=>getComputedStyle(el).maxHeight),'none');
+   await code.getByRole('button',{name:locale==='zh-CN'?'收起代码':'Collapse code',exact:true}).click();
+   assert.equal(await code.locator('pre').evaluate(el=>getComputedStyle(el).maxHeight),'260px');
+   if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'显示会话列表':'Show conversations',exact:true}).click();
+   const project=page.locator('.edge-agent-project-name');
+   await project.focus();await page.getByRole('tooltip').waitFor();assert.equal(await page.getByRole('tooltip').textContent(),access.project);
+   await project.click();await page.getByRole('dialog').waitFor();
+   await page.keyboard.press('Tab');
+   assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)),'path dialog keeps keyboard focus');
+   await page.screenshot({path:`/tmp/agent-path-${locale}-${theme}-${width}.png`});
+   await page.getByRole('button',{name:locale==='zh-CN'?'复制路径':'Copy path',exact:true}).click();
+   assert.equal(await page.evaluate(()=>window.copiedCode),access.project);
+   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+   if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'收起会话列表':'Hide conversations',exact:true}).click();
    if(width===1280){
     assert.equal(await page.locator('.edge-agent-session-item').count(),8);
     assert.equal(await page.locator('.edge-agent-group-path').count(),0);
-    assert.equal(await page.locator('.edge-agent-project-group-heading button').first().getAttribute('title'),access.project);
+    assert.equal(await page.locator('.edge-agent-project-group-heading small').count(),0);
     await page.getByRole('button',{name:locale==='zh-CN'?'展开显示':'Show more',exact:true}).click();
     assert.equal(await page.locator('.edge-agent-session-item').count(),12);
+    await page.reload();await page.getByText('Layout ready.',{exact:true}).waitFor();
+    assert.equal(await page.locator('.edge-agent-session-item').count(),12,'expanded list survives reload');
     await page.getByRole('button',{name:locale==='zh-CN'?'收起':'Show less',exact:true}).click();
     assert.equal(await page.locator('.edge-agent-session-item').count(),8);
+    await page.locator('.edge-agent-project-group-heading button').first().click();
+    await page.reload();await page.getByText('Layout ready.',{exact:true}).waitFor();
+    assert.equal(await page.locator('.edge-agent-session-item').count(),0,'collapsed project survives reload');
+    await page.locator('.edge-agent-project-group-heading button').first().click();
    }
    const responsive=async()=>{
     const sizes=await page.locator('.edge-agent-messages').evaluate(el=>{

@@ -9,14 +9,16 @@ import {RequestError} from '@/api/client';
 import {edgeAgent,type AgentAccess,type AgentSessionSummary} from '@/services/edgeAgent';
 import Workspace from './Workspace';
 import {useSessionResize} from './SessionResize';
+import {ProjectPath} from './ProjectPath';
+import {useProjectListState} from './useProjectListState';
 
 export default function SessionsWorkspace({access}:{access:AgentAccess}){
  const {tr}=useI18n(),[params,setParams]=useSearchParams();
  const resize=useSessionResize();
  const [items,setItems]=useState<AgentSessionSummary[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[denied,setDenied]=useState(false);
  const [selection,setSelection]=useState<{key:number;id?:string;directory?:string}>(),[current,setCurrent]=useState('');
- const [collapsed,setCollapsed]=useState<Set<string>>(()=>new Set());
- const [showAll,setShowAll]=useState<Set<string>>(()=>new Set());
+ const [collapsed,setCollapsed]=useProjectListState(access.id,'collapsed');
+ const [showAll,setShowAll]=useProjectListState(access.id,'expanded');
  const [persistent,setPersistent]=useState(false),[page,setPage]=useState(1),[total,setTotal]=useState(0);
  const [management,setManagement]=useState(false),[operation,setOperation]=useState<{kind:'rename'|'delete';row:AgentSessionSummary}>(),[title,setTitle]=useState(''),[saving,setSaving]=useState(false),[operationError,setOperationError]=useState('');
  const [open,setOpen]=useState(()=>window.innerWidth>=1000),[refresh,setRefresh]=useState(0);
@@ -96,7 +98,7 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
     <div className="edge-agent-session-items">
      {loading?<p role="status">{tr('正在加载…','Loading…')}</p>:!items.length?<p>{tr('暂无会话','No sessions yet')}</p>:null}
      {[...groups].map(([path,rows],index)=>{const expanded=!collapsed.has(path),name=path.split(/[\\/]/).filter(Boolean).pop()||path;const visible=showAll.has(path)?rows:rows.filter((s,i)=>i<8||s.session_id===current);return <section key={path} className="edge-agent-project-group">
-      <div className="edge-agent-project-group-heading"><Button variant="ghost" title={path} aria-expanded={expanded} aria-controls={`agent-project-${index}`} onClick={()=>setCollapsed(previous=>{const next=new Set(previous);if(next.has(path))next.delete(path);else next.add(path);return next;})}><ChevronRight size={12} className={expanded?'is-expanded':''}/><Folder size={14}/><strong>{name}</strong><small>{rows.length}</small></Button><Button variant="ghost" disabled={denied} title={tr('在此项目新建会话','New conversation in this project')} aria-label={`${tr('新建会话','New conversation')} · ${path}`} onClick={()=>choose(undefined,path)}><Plus size={13}/></Button></div>
+      <div className="edge-agent-project-group-heading"><Button variant="ghost" aria-label={`${expanded?tr('收起项目','Collapse project'):tr('展开项目','Expand project')} · ${name}`} aria-expanded={expanded} aria-controls={`agent-project-${index}`} onClick={()=>setCollapsed(previous=>{const next=new Set(previous);if(next.has(path))next.delete(path);else next.add(path);return next;})}><ChevronRight size={12} className={expanded?'is-expanded':''}/><Folder size={14}/></Button><ProjectPath path={path} name={name}/><Button variant="ghost" disabled={denied} title={tr('在此项目新建会话','New conversation in this project')} aria-label={`${tr('新建会话','New conversation')} · ${path}`} onClick={()=>choose(undefined,path)}><Plus size={13}/></Button></div>
       {expanded&&<div id={`agent-project-${index}`}>{visible.map(s=><div key={s.session_id} className="edge-agent-session-row"><Button variant="ghost" className={`edge-agent-session-item ${current===s.session_id?'is-selected':''}`} title={`${s.title||tr('新会话','New conversation')}\n${status(s)} · ${new Date(s.updated_at).toLocaleString(tr('zh-CN','en-US'))}`} aria-current={current===s.session_id?'true':undefined} onClick={()=>choose(s.session_id)}><span className="edge-agent-session-title"><strong>{s.title||tr('新会话','New conversation')}</strong>{s.running&&<LoaderCircle size={13} className="is-running" aria-label={tr('运行中','Running')}/>}</span></Button>{management&&<ActionMenu label={tr('会话操作','Conversation actions')} disabled={saving} items={[{label:tr('重命名','Rename'),onClick:()=>{setTitle(s.title);setOperationError('');setOperation({kind:'rename',row:s});}},{label:tr('删除','Delete'),danger:true,onClick:()=>{setOperationError('');setOperation({kind:'delete',row:s});}}]}/>}</div>)}{rows.length>8&&<Button variant="ghost" className="edge-agent-show-more" aria-expanded={showAll.has(path)} onClick={()=>setShowAll(previous=>{const next=new Set(previous);if(next.has(path))next.delete(path);else next.add(path);return next;})}>{showAll.has(path)?tr('收起','Show less'):tr('展开显示','Show more')}</Button>}</div>}
      </section>;})}
     </div>
