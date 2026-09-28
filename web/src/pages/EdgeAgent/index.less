@@ -33,6 +33,11 @@
 .edge-agent-session-list header {display:flex;align-items:center;gap:4px;}
 .edge-agent-session-list header strong {font-size:13px;font-weight:680;flex:1;}
 .edge-agent-session-items {flex:1;min-height:0;overflow:auto;}
+.edge-agent-unread {width:6px;height:6px;flex-shrink:0;border-radius:50%;background:rgb(var(--accent));}
+.edge-agent-attention {max-height:144px;overflow:auto;border-bottom:1px solid rgb(var(--line));padding-bottom:8px;}
+.edge-agent-attention .liaison-button {width:100%;justify-content:flex-start;font-size:12px;gap:6px;}
+.edge-agent-attention span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left;}
+.edge-agent-attention small {color:rgb(var(--muted));font-size:11px;}
 .edge-agent-session-items h3 {font-size:12px;font-weight:500;color:rgb(var(--muted));margin:16px 8px 8px;}
 .edge-agent-session-items section:first-child h3 {margin-top:0;}
 .edge-agent-project-group {margin-bottom:16px;}

@@ -2,6 +2,31 @@
 
 Status: implementation of the user-approved server-side history proposal.
 
+## Conversation search and notifications
+
+`sessions.history_search` accepts at most 100 Unicode characters and matches
+case-insensitive substrings of the conversation title (including renames) or
+project path, within the authenticated owner/access/connector scope. It does not
+search message bodies. Results use the existing 50-row pagination and a matched
+`history_total`; `history_search_available` advertises support. Older servers
+must not be presented as having searched all history.
+
+Metadata remains encrypted. The first implementation decrypts scoped batches
+and keeps only the requested result page in memory; cancellation returns an
+error rather than incomplete results. Search cost is linear in scoped history,
+so the UI debounces explicit searches and does not repeat them on its five-second
+status refresh. Large installations should benchmark this path before enabling
+frequent searches, and consider a separate encrypted metadata index later.
+
+Live summaries expose `attention` (`approval`, `input`, `failed`) and scoped
+`attention_sessions` independent of the selected search page. These are display
+signals only, never authorization capabilities or archived approval requests.
+`reply_token` is a digest of assistant output and its round, unaffected by
+renaming or tool-only updates. The client keeps read markers per access in this
+browser tab, baselines previously unseen sessions, and clears unread only after
+the corresponding snapshot is loaded in a visible tab. Read state is not synced
+between browsers. No retention, database schema or native execution policy changes.
+
 - Manager owns durable conversation history in the existing database; Edge owns execution.
 - History has no TTL. Idle execution shutdown and Edge memory eviction never delete server history.
 - Store bounded encrypted snapshots (messages, safe activity metadata, model, project, native thread ID), scoped by owner, access, connector and session ID. Do not persist credentials or raw RPC events.

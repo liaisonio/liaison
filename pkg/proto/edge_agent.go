@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -28,6 +30,7 @@ type EdgeAgentRequest struct {
 	Model            string              `json:"model,omitempty"`
 	Title            string              `json:"title,omitempty"`
 	HistoryPage      string              `json:"history_page,omitempty"`
+	HistorySearch    string              `json:"history_search,omitempty"`
 	ApprovalID       string              `json:"approval_id,omitempty"`
 	Decision         string              `json:"decision,omitempty"`
 	PermissionMode   string              `json:"permission_mode,omitempty"`
@@ -116,53 +119,56 @@ type AgentInputAnswer struct {
 	Answers    []string `json:"answers"`
 }
 type EdgeAgentResult struct {
-	FilesAvailable       bool                  `json:"files_available,omitempty"`
-	FilesUploadAvailable bool                  `json:"files_upload_available,omitempty"`
-	Files                []AgentFile           `json:"files,omitempty"`
-	File                 *AgentFile            `json:"file,omitempty"`
-	TransferID           string                `json:"transfer_id,omitempty"`
-	FileData             []byte                `json:"file_data,omitempty"`
-	FileOffset           int64                 `json:"file_offset,omitempty"`
-	FileDone             bool                  `json:"file_done,omitempty"`
-	HistoryPages         []EdgeAgentResult     `json:"history_pages,omitempty"`
-	HistoryBefore        string                `json:"history_before,omitempty"`
-	Window               uint64                `json:"window,omitempty"`
-	HistoryWindowing     bool                  `json:"history_windowing,omitempty"`
-	InputRequests        []AgentInputRequest   `json:"input_requests,omitempty"`
-	Approvals            []AgentApproval       `json:"approvals,omitempty"`
-	PermissionsAvailable bool                  `json:"permissions_available,omitempty"`
-	PermissionMode       string                `json:"permission_mode,omitempty"`
-	HistoryPersistent    bool                  `json:"history_persistent,omitempty"`
-	Archived             bool                  `json:"archived,omitempty"`
-	HistoryTotal         int64                 `json:"history_total,omitempty"`
-	Models               []AgentModel          `json:"models,omitempty"`
-	ModelsAvailable      bool                  `json:"models_available,omitempty"`
-	Title                string                `json:"title,omitempty"`
-	SessionManagement    bool                  `json:"session_management,omitempty"`
-	Sessions             []AgentSessionSummary `json:"sessions,omitempty"`
-	SessionsAvailable    bool                  `json:"sessions_available,omitempty"`
-	Revision             uint64                `json:"revision,omitempty"`
-	Activities           []AgentActivity       `json:"activities,omitempty"`
-	Directory            string                `json:"directory,omitempty"`
-	ParentDirectory      string                `json:"parent_directory,omitempty"`
-	Directories          []AgentDirectory      `json:"directories,omitempty"`
-	DirectoryRoots       []string              `json:"directory_roots,omitempty"`
-	AgentVersion         string                `json:"agent_version,omitempty"`
-	ThreadID             string                `json:"thread_id,omitempty"`
-	Model                string                `json:"model,omitempty"`
-	Project              string                `json:"project,omitempty"`
-	StartedAt            string                `json:"started_at,omitempty"`
-	Skills               []AgentSkill          `json:"skills,omitempty"`
-	SkillsAvailable      bool                  `json:"skills_available"`
-	Version              int                   `json:"version"`
-	Status               string                `json:"status"`
-	Installations        []AgentInstallation   `json:"installations,omitempty"`
-	DefaultProject       string                `json:"default_project,omitempty"`
-	SessionID            string                `json:"session_id,omitempty"`
-	Running              bool                  `json:"running"`
-	Closed               bool                  `json:"closed"`
-	Messages             []EdgeAgentMessage    `json:"messages,omitempty"`
-	Truncated            bool                  `json:"truncated,omitempty"`
+	HistorySearchAvailable bool                  `json:"history_search_available,omitempty"`
+	ReplyToken             string                `json:"reply_token,omitempty"`
+	AttentionSessions      []AgentSessionSummary `json:"attention_sessions,omitempty"`
+	FilesAvailable         bool                  `json:"files_available,omitempty"`
+	FilesUploadAvailable   bool                  `json:"files_upload_available,omitempty"`
+	Files                  []AgentFile           `json:"files,omitempty"`
+	File                   *AgentFile            `json:"file,omitempty"`
+	TransferID             string                `json:"transfer_id,omitempty"`
+	FileData               []byte                `json:"file_data,omitempty"`
+	FileOffset             int64                 `json:"file_offset,omitempty"`
+	FileDone               bool                  `json:"file_done,omitempty"`
+	HistoryPages           []EdgeAgentResult     `json:"history_pages,omitempty"`
+	HistoryBefore          string                `json:"history_before,omitempty"`
+	Window                 uint64                `json:"window,omitempty"`
+	HistoryWindowing       bool                  `json:"history_windowing,omitempty"`
+	InputRequests          []AgentInputRequest   `json:"input_requests,omitempty"`
+	Approvals              []AgentApproval       `json:"approvals,omitempty"`
+	PermissionsAvailable   bool                  `json:"permissions_available,omitempty"`
+	PermissionMode         string                `json:"permission_mode,omitempty"`
+	HistoryPersistent      bool                  `json:"history_persistent,omitempty"`
+	Archived               bool                  `json:"archived,omitempty"`
+	HistoryTotal           int64                 `json:"history_total,omitempty"`
+	Models                 []AgentModel          `json:"models,omitempty"`
+	ModelsAvailable        bool                  `json:"models_available,omitempty"`
+	Title                  string                `json:"title,omitempty"`
+	SessionManagement      bool                  `json:"session_management,omitempty"`
+	Sessions               []AgentSessionSummary `json:"sessions,omitempty"`
+	SessionsAvailable      bool                  `json:"sessions_available,omitempty"`
+	Revision               uint64                `json:"revision,omitempty"`
+	Activities             []AgentActivity       `json:"activities,omitempty"`
+	Directory              string                `json:"directory,omitempty"`
+	ParentDirectory        string                `json:"parent_directory,omitempty"`
+	Directories            []AgentDirectory      `json:"directories,omitempty"`
+	DirectoryRoots         []string              `json:"directory_roots,omitempty"`
+	AgentVersion           string                `json:"agent_version,omitempty"`
+	ThreadID               string                `json:"thread_id,omitempty"`
+	Model                  string                `json:"model,omitempty"`
+	Project                string                `json:"project,omitempty"`
+	StartedAt              string                `json:"started_at,omitempty"`
+	Skills                 []AgentSkill          `json:"skills,omitempty"`
+	SkillsAvailable        bool                  `json:"skills_available"`
+	Version                int                   `json:"version"`
+	Status                 string                `json:"status"`
+	Installations          []AgentInstallation   `json:"installations,omitempty"`
+	DefaultProject         string                `json:"default_project,omitempty"`
+	SessionID              string                `json:"session_id,omitempty"`
+	Running                bool                  `json:"running"`
+	Closed                 bool                  `json:"closed"`
+	Messages               []EdgeAgentMessage    `json:"messages,omitempty"`
+	Truncated              bool                  `json:"truncated,omitempty"`
 }
 
 // AgentApproval is a display-only projection. Native RPC IDs remain on Edge.
@@ -180,14 +186,16 @@ type AgentModel struct {
 }
 
 type AgentSessionSummary struct {
-	SessionID string `json:"session_id"`
-	ThreadID  string `json:"thread_id"`
-	Title     string `json:"title"`
-	Project   string `json:"project"`
-	UpdatedAt string `json:"updated_at"`
-	Running   bool   `json:"running"`
-	Closed    bool   `json:"closed"`
-	Status    string `json:"status"`
+	ReplyToken string `json:"reply_token,omitempty"`
+	Attention  string `json:"attention,omitempty"`
+	SessionID  string `json:"session_id"`
+	ThreadID   string `json:"thread_id"`
+	Title      string `json:"title"`
+	Project    string `json:"project"`
+	UpdatedAt  string `json:"updated_at"`
+	Running    bool   `json:"running"`
+	Closed     bool   `json:"closed"`
+	Status     string `json:"status"`
 }
 
 type AgentSkill struct {
@@ -197,6 +205,9 @@ type AgentSkill struct {
 }
 
 func (r EdgeAgentRequest) Valid() bool {
+	if r.HistorySearch != "" && (r.Action != "sessions" || !utf8.ValidString(r.HistorySearch) || utf8.RuneCountInString(r.HistorySearch) > 100 || strings.ContainsFunc(r.HistorySearch, unicode.IsControl)) {
+		return false
+	}
 	if !r.validFiles() {
 		return false
 	}
@@ -296,4 +307,22 @@ func (r EdgeAgentRequest) Valid() bool {
 		return len(r.SessionID) == 32 && (r.Text != "" || len(r.Attachments) > 0) && r.Project == "" && r.InstallationID == ""
 	}
 	return false
+}
+
+// AgentReplyToken changes only when assistant-visible output changes, not for
+// renames, polling, permissions or tool progress. It contains no message text.
+func AgentReplyToken(window uint64, messages []EdgeAgentMessage) string {
+	h := sha256.New()
+	fmt.Fprintf(h, "%d:", window)
+	found := false
+	for _, message := range messages {
+		if message.Role == "assistant" && message.Text != "" {
+			found = true
+			fmt.Fprintf(h, "%d:%s", len(message.Text), message.Text)
+		}
+	}
+	if !found {
+		return ""
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

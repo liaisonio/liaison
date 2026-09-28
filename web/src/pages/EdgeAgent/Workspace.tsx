@@ -19,7 +19,7 @@ import '@/components/AgentWorkspace/index.less';
 import './index.less';
 import './interaction.less';
 
-export default function Workspace({access,initialSessionID,initialDirectory,onSessionReady,onSessionRemoved}:{access:AgentAccess;initialSessionID?:string;initialDirectory?:string;onSessionReady?:(id:string)=>void;onSessionRemoved?:(id:string)=>void}){
+export default function Workspace({access,initialSessionID,initialDirectory,onSessionReady,onSessionRemoved,onRead}:{access:AgentAccess;initialSessionID?:string;initialDirectory?:string;onSessionReady?:(id:string)=>void;onSessionRemoved?:(id:string)=>void;onRead?:(id:string,token:string)=>void}){
   const edgeAgent=(edge:number,action:string,fields:Record<string,unknown>={},signal?:AbortSignal)=>callAgent(edge,action,{...fields,access_id:access.id},signal);
   const {tr}=useI18n();
   const [connectors,setConnectors]=useState<AgentConnector[]>([]),[loading,setLoading]=useState(true);
@@ -32,6 +32,10 @@ export default function Workspace({access,initialSessionID,initialDirectory,onSe
   const [resumeBlocked,setResumeBlocked]=useState('');
   const [pending,setPending]=useState(false),[error,setError]=useState('');
   const [session,setSession]=useState<AgentSnapshot>(),[text,setText]=useState(''),[confirm,setConfirm]=useState(false),[pollFailed,setPollFailed]=useState(false);
+  useEffect(()=>{
+    const read=()=>{if(document.visibilityState==='visible'&&session?.session_id&&session.reply_token)onRead?.(session.session_id,session.reply_token);};
+    read();document.addEventListener('visibilitychange',read);return()=>document.removeEventListener('visibilitychange',read);
+  },[session?.session_id,session?.reply_token,onRead]);
   const live=useRef<{edge:number;id:string}>(),mounted=useRef(true),sequence=useRef(0),applied=useRef(0),busy=useRef(false);
   const input=useRef<HTMLTextAreaElement>(null);
   const [modelPicker,setModelPicker]=useState(false);

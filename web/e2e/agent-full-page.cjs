@@ -11,7 +11,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
  try {
   for(const locale of ['zh-CN','en-US'])for(const theme of ['light','dark'])for(const width of [1280,390]){
    const page=await browser.newPage({viewport:{width,height:900},ignoreHTTPSErrors:process.env.E2E_IGNORE_HTTPS_ERRORS==='1'});
-   let failAccess=false,deny=false;const errors=[];
+   let failAccess=false,deny=false,replyVersion=1,needsApproval=true;const errors=[];
    page.on('pageerror',()=>errors.push('browser error'));
    await page.addInitScript(({locale,theme})=>{
     localStorage.setItem('token','synthetic-layout-test');
@@ -37,9 +37,11 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
     }else if(path==='/api/v1/agent-accesses')data={items:[],total:0};
     else if(path==='/api/v1/edge-agents/connectors')data=[{id:1,name:'Test connector',device:'Test device',online:true}];
     else if(path==='/api/v1/edge-agents'){
-     const {action}=route.request().postDataJSON();
+     const {action,history_search,session_id}=route.request().postDataJSON();
      assert(['sessions','poll','transcript'].includes(action),'layout tests must not start or modify a session');
-     data=action==='sessions'?{version:1,status:'ok',sessions_available:true,session_management:true,sessions:[{...session,updated_at:'2026-01-01T00:00:00Z'},...Array.from({length:11},(_,i)=>({...session,session_id:String(i).padStart(32,'d'),title:`Conversation ${i+1}`,running:i===0,updated_at:'2026-01-01T00:00:00Z'}))]}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:session;
+     const rows=[{...session,reply_token:'main',updated_at:'2026-01-01T00:00:00Z'},...Array.from({length:11},(_,i)=>({...session,session_id:String(i).padStart(32,'d'),reply_token:`reply-${replyVersion}`,attention:i===0&&needsApproval?'approval':undefined,title:`Conversation ${i+1}`,running:i===0,updated_at:'2026-01-01T00:00:00Z'}))];
+     const matches=history_search?[{...rows[1],title:'Older matching conversation',project:'/workspace/archive'}]:rows;
+     data=action==='sessions'?{version:1,status:'ok',history_search_available:true,history_total:matches.length,attention_sessions:rows.filter(s=>s.attention),sessions_available:true,session_management:true,sessions:matches}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:{...session,session_id:session_id||session.session_id,reply_token:session_id&&session_id!==session.session_id?`reply-${replyVersion}`:'main'};
     }
     await route.fulfill({json:{code:200,data}});
    });
@@ -85,6 +87,25 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    await page.getByRole('button',{name:locale==='zh-CN'?'复制路径':'Copy path',exact:true}).click();
    assert.equal(await page.evaluate(()=>window.copiedCode),access.project);
    await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+   if(process.env.E2E_MULTI_SESSION==='1'){
+    const search=page.getByRole('searchbox',{name:locale==='zh-CN'?'搜索全部会话':'Search all conversations'});
+    await search.fill('archive');await page.getByText('Older matching conversation',{exact:true}).waitFor();
+    assert.equal(await page.locator('.edge-agent-session-item').count(),1);
+    assert(await page.locator('.edge-agent-attention').isVisible(),'attention remains visible outside search results');
+    await search.fill('');await page.getByText('Conversation 7',{exact:true}).waitFor();
+    assert.equal(await page.locator('.edge-agent-unread').count(),0);
+    replyVersion=2;
+    await page.getByRole('button',{name:locale==='zh-CN'?'刷新会话':'Refresh sessions',exact:true}).click();
+    await page.locator('.edge-agent-unread').first().waitFor();
+    await page.locator('.edge-agent-session-item').filter({hasText:'Conversation 1'}).click();
+    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'显示会话列表':'Show conversations',exact:true}).click();
+    await page.waitForFunction(()=>!document.querySelector('.edge-agent-session-item[aria-current="true"] .edge-agent-unread'));
+    needsApproval=false;await page.getByRole('button',{name:locale==='zh-CN'?'刷新会话':'Refresh sessions',exact:true}).click();
+    await page.locator('.edge-agent-attention').waitFor({state:'hidden'});
+    await page.screenshot({path:`/tmp/agent-multi-${locale}-${theme}-${width}.png`});
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);
+    console.log(`PASS search/attention/unread/read ${locale} ${theme} ${width}`);await page.close();continue;
+   }
    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'收起会话列表':'Hide conversations',exact:true}).click();
    if(width===1280){
     assert.equal(await page.locator('.edge-agent-session-item').count(),8);
