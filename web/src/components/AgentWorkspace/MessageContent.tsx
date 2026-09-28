@@ -1,20 +1,22 @@
 import { useI18n } from '@/i18n';
-import { Check, ChevronRight, CircleAlert, Copy, Terminal } from 'lucide-react';
-import { Children, isValidElement, memo, useContext, useMemo, useState } from 'react';
+import { Check, ChevronRight, CircleAlert, Copy, Terminal, WrapText } from 'lucide-react';
+import { Children, isValidElement, lazy, Suspense, memo, useContext, useMemo, useState } from 'react';
 import ReactMarkdown, {defaultUrlTransform,type Components} from 'react-markdown';
 import {FileLinkContext,isFileReference} from './FileLinkContext';
 import remarkGfm from 'remark-gfm';
 import { MermaidBlock } from './MermaidBlock';
 import {headingAnchors} from './headingAnchors';
+const HighlightedCode=lazy(()=>import('./HighlightedCode'));
 
 export function CodeBlock({ text, language = '', onPreview }: { text: string; language?: string; onPreview?: (text:string) => void }) {
   const { tr } = useI18n();
   const [copied, setCopied] = useState(false);
-  return <div className="agent-code">
-    <div className="agent-code-toolbar"><span>{language || tr('输出', 'Output')}</span>{onPreview && <button className="agent-code-preview" type="button" onClick={() => onPreview(text)}>{tr('预览填入', 'Preview in editor')}</button>}<button type="button" aria-label={tr('复制', 'Copy')} onClick={() => {
+  const [wrap,setWrap]=useState(false);
+  return <div className={`agent-code${wrap?' is-wrapped':''}`}>
+    <div className="agent-code-toolbar"><span>{language || tr('输出', 'Output')}</span>{onPreview && <button className="agent-code-preview" type="button" onClick={() => onPreview(text)}>{tr('预览填入', 'Preview in editor')}</button>}<button type="button" title={tr('自动换行','Wrap lines')} aria-label={tr('自动换行','Wrap lines')} aria-pressed={wrap} onClick={()=>setWrap(v=>!v)}><WrapText size={14}/></button><button type="button" title={copied?tr('已复制','Copied'):tr('复制', 'Copy')} aria-label={tr('复制', 'Copy')} onClick={() => {
       void navigator.clipboard.writeText(text).then(() => setCopied(true)).catch(() => setCopied(false));
     }}>{copied ? <Check size={13} /> : <Copy size={13} />}</button></div>
-    <pre><code>{text}</code></pre>
+    <pre tabIndex={0}><code>{language?<Suspense fallback={text}><HighlightedCode text={text} language={language}/></Suspense>:text}</code></pre>
   </div>;
 }
 

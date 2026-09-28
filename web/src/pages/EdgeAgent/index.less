@@ -42,13 +42,20 @@
 .edge-agent-project-group-heading svg {flex-shrink:0;}
 .edge-agent-project-group-heading .is-expanded {transform:rotate(90deg);}
 .edge-agent-project-group-heading small {margin-left:auto;color:rgb(var(--muted));font-size:11px;}
-.edge-agent-group-path {display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin:0 6px 8px;color:rgb(var(--muted));font:11px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
-.edge-agent-session-items .edge-agent-session-item {width:100%;display:flex;flex-direction:column;align-items:stretch;gap:6px;text-align:left;padding:10px 8px;margin-bottom:4px;}
-.edge-agent-session-item.is-selected {background:rgb(var(--accent) / .1);box-shadow:inset 2px 0 rgb(var(--accent));}
-.edge-agent-session-row {display:flex;align-items:center;gap:2px;}
+.edge-agent-session-items .edge-agent-session-item {width:100%;display:flex;align-items:center;text-align:left;padding:6px 8px;min-height:32px;}
+.edge-agent-session-item.is-selected {background:rgb(var(--accent) / .1);color:rgb(var(--ink));}
+.edge-agent-show-more {margin-left:26px;color:rgb(var(--muted));font-size:12px;}
+.edge-agent-session-row {display:flex;align-items:center;gap:2px;margin-left:26px;}
 .edge-agent-session-row > .edge-agent-session-item {flex:1;min-width:0;}
 .edge-agent-session-row > .liaison-action-menu-trigger {flex-shrink:0;}
-.edge-agent-session-title {display:flex;align-items:center;gap:8px;min-width:0;}
+.edge-agent-session-title {display:flex;align-items:center;gap:8px;min-width:0;width:100%;}
+.edge-agent-session-title strong {flex:1;}
+.edge-agent-session-title .is-running {animation:liaison-spin 1s linear infinite;}
+@media (prefers-reduced-motion:reduce) { .edge-agent-session-title .is-running {animation:none;} }
+@media (hover:hover) {
+ .edge-agent-session-row > .liaison-action-menu-trigger {opacity:0;}
+ .edge-agent-session-row:hover > .liaison-action-menu-trigger,.edge-agent-session-row:focus-within > .liaison-action-menu-trigger,.edge-agent-session-row > .liaison-action-menu-trigger[aria-expanded='true'] {opacity:1;}
+}
 .edge-agent-session-title svg {flex-shrink:0;color:rgb(var(--muted));}
 .edge-agent-session-title strong {font-size:13px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .edge-agent-session-item code {font:11px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:rgb(var(--muted));}

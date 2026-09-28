@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const origin = process.env.E2E_UI_URL || 'http://127.0.0.1:5303';
 const access = {id:'a'.repeat(32),name:'Layout verification',kind:'codex',edge_id:1,installation_id:'b'.repeat(32),project:'/workspace/demo'};
-const answer = 'Layout ready.\n\n' + '检查文件与模型的对应关系。 Verify the project configuration and request handling. '.repeat(12) + '\n\n```text\n' + 'long-output-'.repeat(100) + '\n```\n\n| File | Description |\n| --- | --- |\n| `src/example.ts` | Responsive preview |';
+const answer = 'Layout ready.\n\n' + '检查文件与模型的对应关系。 Verify the project configuration and request handling. '.repeat(12) + '\n\n```go\nimport "example.org/project/log"\n\nopt.SetLog(log.New())\n// ' + 'long-output-'.repeat(100) + '\n```\n\n| File | Description |\n| --- | --- |\n| `src/example.ts` | Responsive preview |';
 const session = {version:1,status:'ok',session_id:'c'.repeat(32),thread_id:'test-thread',project:access.project,title:'Layout verification',closed:true,running:false,messages:[{role:'user',text:'Check the layout. 检查布局。'},{role:'assistant',text:answer}],history_persistent:true};
 const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
 (async()=>{
@@ -39,7 +39,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
     else if(path==='/api/v1/edge-agents'){
      const {action}=route.request().postDataJSON();
      assert(['sessions','poll','transcript'].includes(action),'layout tests must not start or modify a session');
-     data=action==='sessions'?{version:1,status:'ok',sessions_available:true,sessions:[{...session,updated_at:'2026-01-01T00:00:00Z'}]}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:session;
+     data=action==='sessions'?{version:1,status:'ok',sessions_available:true,session_management:true,sessions:[{...session,updated_at:'2026-01-01T00:00:00Z'},...Array.from({length:11},(_,i)=>({...session,session_id:String(i).padStart(32,'d'),title:`Conversation ${i+1}`,running:i===0,updated_at:'2026-01-01T00:00:00Z'}))]}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:session;
     }
     await route.fulfill({json:{code:200,data}});
    });
@@ -55,6 +55,24 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    await hidden();
    await page.getByText('Layout ready.',{exact:true}).waitFor();
    await hidden();
+   await page.locator('.agent-code .hljs-keyword').first().waitFor();
+   const code=page.locator('.agent-code').first();
+   const wrap=code.getByRole('button',{name:locale==='zh-CN'?'自动换行':'Wrap lines',exact:true});
+   await wrap.click();assert.equal(await wrap.getAttribute('aria-pressed'),'true');
+   assert.equal(await code.locator('pre').evaluate(el=>getComputedStyle(el).whiteSpace),'pre-wrap');
+   await wrap.click();
+   await page.evaluate(()=>{window.copiedCode='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copiedCode=text;}}});});
+   await code.getByRole('button',{name:locale==='zh-CN'?'复制':'Copy',exact:true}).click();
+   assert((await page.evaluate(()=>window.copiedCode)).includes('opt.SetLog(log.New())'));
+   if(width===1280){
+    assert.equal(await page.locator('.edge-agent-session-item').count(),8);
+    assert.equal(await page.locator('.edge-agent-group-path').count(),0);
+    assert.equal(await page.locator('.edge-agent-project-group-heading button').first().getAttribute('title'),access.project);
+    await page.getByRole('button',{name:locale==='zh-CN'?'展开显示':'Show more',exact:true}).click();
+    assert.equal(await page.locator('.edge-agent-session-item').count(),12);
+    await page.getByRole('button',{name:locale==='zh-CN'?'收起':'Show less',exact:true}).click();
+    assert.equal(await page.locator('.edge-agent-session-item').count(),8);
+   }
    const responsive=async()=>{
     const sizes=await page.locator('.edge-agent-messages').evaluate(el=>{
      const css=getComputedStyle(el),message=el.querySelector('.agent-message:not(.is-user)');
