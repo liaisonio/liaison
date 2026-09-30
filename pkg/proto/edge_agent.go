@@ -37,6 +37,13 @@ type EdgeAgentRequest struct {
 	InputID          string              `json:"input_id,omitempty"`
 	Answers          []AgentInputAnswer  `json:"answers,omitempty"`
 }
+
+// AgentTurnTiming contains Edge-local elapsed times, not model inference latency.
+type AgentTurnTiming struct {
+	DispatchMS   *int64 `json:"dispatch_ms,omitempty"`
+	FirstReplyMS *int64 `json:"first_reply_ms,omitempty"`
+	FinishedMS   *int64 `json:"finished_ms,omitempty"`
+}
 type EdgeAgentRPCRequest struct {
 	ResetRevision uint64           `json:"reset_revision,omitempty"`
 	Version       int              `json:"version"`
@@ -119,6 +126,8 @@ type AgentInputAnswer struct {
 	Answers    []string `json:"answers"`
 }
 type EdgeAgentResult struct {
+	TurnTiming             *AgentTurnTiming      `json:"turn_timing,omitempty"`
+	RequestServiceMS       *int64                `json:"request_service_ms,omitempty"`
 	HistorySearchAvailable bool                  `json:"history_search_available,omitempty"`
 	ReplyToken             string                `json:"reply_token,omitempty"`
 	AttentionSessions      []AgentSessionSummary `json:"attention_sessions,omitempty"`

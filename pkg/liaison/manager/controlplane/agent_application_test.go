@@ -40,6 +40,42 @@ func (r *applicationAgentRepo) DeleteAgentApplication(context.Context, uint, str
 
 type installationAgentFrontier struct{ *agentFrontier }
 
+type claudeInstallationFrontier struct{ *agentFrontier }
+
+func (f *claudeInstallationFrontier) EdgeAgent(ctx context.Context, id uint64, req proto.EdgeAgentRPCRequest) (proto.EdgeAgentResult, error) {
+	result, err := f.agentFrontier.EdgeAgent(ctx, id, req)
+	result.Installations = []proto.AgentInstallation{{ID: strings.Repeat("b", 32), Kind: "claude"}}
+	return result, err
+}
+
+func TestClaudeApplicationRequiresMatchingDiscoveryAndOwnedBinding(t *testing.T) {
+	r := &applicationAgentRepo{entryAgentRepo: &entryAgentRepo{agentRepo: &agentRepo{installationRepo: &installationRepo{edge: model.Edge{Model: gorm.Model{ID: 7}, Online: model.EdgeOnlineStatusOnline, Status: model.EdgeStatusRunning}}, owner: 2}}}
+	f := &claudeInstallationFrontier{&agentFrontier{}}
+	cp := &controlPlane{repo: r, frontierBound: f, authorizeFeature: func(context.Context, string) error { return nil }}
+	ctx := context.WithValue(context.Background(), "user_id", uint(2))
+	input := AgentApplicationInput{Name: "Claude Code", Kind: "codex", EdgeID: 7, InstallationID: strings.Repeat("b", 32)}
+	_, err := cp.SaveAgentApplication(ctx, "", input)
+	require.Error(t, err, "same installation ID with the wrong kind must not bind")
+	require.Zero(t, r.saved)
+	input.Kind = "claude"
+	app, err := cp.SaveAgentApplication(ctx, "", input)
+	require.NoError(t, err)
+	access := AgentAccessInput{Name: "Claude access", Kind: "claude", EdgeID: 7, InstallationID: input.InstallationID, Project: "/project"}
+	_, err = cp.SaveAgentAccess(ctx, "", access)
+	require.Error(t, err, "Claude access requires a registered application")
+	access.ApplicationID = app.ID
+	row, err := cp.SaveAgentAccess(ctx, "", access)
+	require.NoError(t, err)
+	require.Equal(t, "claude", row.Kind)
+	require.Equal(t, app.ID, row.ApplicationID)
+	_, err = cp.SaveAgentAccess(context.WithValue(ctx, "user_id", uint(3)), "", access)
+	require.Error(t, err)
+	access.Kind = "codex"
+	_, err = cp.SaveAgentAccess(ctx, "", access)
+	require.Error(t, err)
+	require.Equal(t, 2, r.saved)
+}
+
 func (f *installationAgentFrontier) EdgeAgent(ctx context.Context, id uint64, req proto.EdgeAgentRPCRequest) (proto.EdgeAgentResult, error) {
 	result, err := f.agentFrontier.EdgeAgent(ctx, id, req)
 	result.Installations = []proto.AgentInstallation{{ID: strings.Repeat("b", 32), Kind: "codex"}}

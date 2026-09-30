@@ -17,6 +17,9 @@ type AgentApplicationInput struct {
 	EdgeID         uint64 `json:"edge_id"`
 	InstallationID string `json:"installation_id"`
 }
+
+func supportedAgentKind(kind string) bool { return kind == "codex" || kind == "claude" }
+
 type AgentApplicationList struct {
 	Items []model.AgentApplication `json:"items"`
 	Total int64                    `json:"total"`
@@ -62,7 +65,7 @@ func (cp *controlPlane) SaveAgentApplication(ctx context.Context, id string, inp
 	create := id == ""
 	var row *model.AgentApplication
 	if create {
-		if input.Kind != "codex" || len(input.InstallationID) != 32 {
+		if !supportedAgentKind(input.Kind) || len(input.InstallationID) != 32 {
 			return nil, badRequest("INVALID_APPLICATION", "Invalid application")
 		}
 		result, err := cp.edgeAgentLive(ctx, proto.EdgeAgentRequest{Action: "discover", EdgeID: input.EdgeID})

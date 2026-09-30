@@ -16,9 +16,10 @@ import (
 )
 
 type pendingApproval struct {
-	view    proto.AgentApproval
-	request rpc.Message
-	turn    string
+	nativeID string
+	view     proto.AgentApproval
+	request  rpc.Message
+	turn     string
 }
 
 // Only complete, inspectable command/file requests can be approved remotely.
@@ -118,7 +119,8 @@ func (s *session) permissionSnapshotLocked() ([]proto.AgentApproval, bool, strin
 
 func (s *session) managePermissions(ctx context.Context, req proto.EdgeAgentRequest) proto.EdgeAgentResult {
 	capable, ok := s.agent.(agentruntime.PermissionSession)
-	if !ok || s.access == "" {
+	native, nativeOK := s.agent.(agentruntime.InteractionSession)
+	if (!ok && (!nativeOK || req.Action == "permissions")) || s.access == "" {
 		return result("upgrade_required")
 	}
 	s.mu.Lock()
@@ -153,7 +155,11 @@ func (s *session) managePermissions(ctx context.Context, req proto.EdgeAgentRequ
 		s.changedLocked()
 		s.mu.Unlock()
 		var err error
-		if req.Decision == "accept" {
+		if pending.nativeID != "" && nativeOK {
+			err = native.Decide(ctx, pending.turn, pending.nativeID, req.Decision == "accept")
+		} else if !ok {
+			err = agentruntime.ErrUnavailable
+		} else if req.Decision == "accept" {
 			if pending.view.Kind == "fileChange" {
 				fileCapable, ok := s.agent.(agentruntime.FileApprovalSession)
 				if !ok {
@@ -165,7 +171,11 @@ func (s *session) managePermissions(ctx context.Context, req proto.EdgeAgentRequ
 				err = capable.ApproveCommand(ctx, pending.request)
 			}
 		} else {
-			err = s.agent.RejectRequest(ctx, pending.request)
+			if legacy, ok := s.agent.(agentruntime.RPCSession); ok {
+				err = legacy.RejectRequest(ctx, pending.request)
+			} else {
+				err = agentruntime.ErrUnavailable
+			}
 		}
 		if err != nil {
 			s.stop("unavailable")

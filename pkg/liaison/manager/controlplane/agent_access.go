@@ -39,7 +39,7 @@ func (cp *controlPlane) AgentAccesses(ctx context.Context, page, size int, filte
 	if page < 1 || page > 10000 || size < 1 || size > 100 {
 		return AgentAccessList{}, badRequest("INVALID_PAGE", "Invalid page")
 	}
-	if len(filters) > 0 && (len(filters[0].Name) > 120 || (filters[0].Kind != "" && filters[0].Kind != "codex")) {
+	if len(filters) > 0 && (len(filters[0].Name) > 120 || (filters[0].Kind != "" && !supportedAgentKind(filters[0].Kind))) {
 		return AgentAccessList{}, badRequest("INVALID_FILTER", "Invalid filter")
 	}
 	items, total, err := cp.repo.ListAgentAccesses(ctx, actor, page, size, filters...)
@@ -52,6 +52,10 @@ func (cp *controlPlane) SaveAgentAccess(ctx context.Context, id string, input Ag
 	}
 	input.Name = strings.TrimSpace(input.Name)
 	input.Project = strings.TrimSpace(input.Project)
+	// 旧 Codex 访问仍兼容直接绑定；新增类型必须由已验证安装的应用派生。
+	if input.Kind == "claude" && input.ApplicationID == "" {
+		return nil, badRequest("APPLICATION_REQUIRED", "Select a registered Agent application")
+	}
 	if input.ApplicationID != "" {
 		if len(input.ApplicationID) != 32 {
 			return nil, badRequest("INVALID_APPLICATION", "Invalid application")
@@ -65,7 +69,7 @@ func (cp *controlPlane) SaveAgentAccess(ctx context.Context, id string, input Ag
 		}
 		input.EdgeID, input.Kind, input.InstallationID = app.EdgeID, app.Kind, app.InstallationID
 	}
-	if input.Kind != "codex" || input.Name == "" || len(input.Name) > 120 || len(input.InstallationID) != 32 || input.Project == "" || len(input.Project) > 4096 || strings.ContainsRune(input.Project, 0) || (id != "" && len(id) != 32) {
+	if !supportedAgentKind(input.Kind) || input.Name == "" || len(input.Name) > 120 || len(input.InstallationID) != 32 || input.Project == "" || len(input.Project) > 4096 || strings.ContainsRune(input.Project, 0) || (id != "" && len(id) != 32) {
 		return nil, badRequest("INVALID_AGENT_ACCESS", "Invalid Agent access")
 	}
 	if !cp.ownsAgentConnector(actor, input.EdgeID) {
