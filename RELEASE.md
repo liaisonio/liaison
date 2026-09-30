@@ -24,7 +24,7 @@ Liaison uses one repository and two release tag families:
    git push origin v1.6.0
    ```
 
-4. GitHub Actions runs `Server Release` and uploads:
+4. GitHub Actions runs `Release` and uploads:
 
    ```text
    liaison-1.6.0-linux-amd64.tar.gz           # default Docker bundle
@@ -36,7 +36,10 @@ The platform package already contains CLI edge packages for Linux, macOS, and Wi
 
 The release workflow also runs the version sync in its checkout, so the README files embedded in the release tarball always match the tag.
 
-The same workflow can also be started manually from GitHub Actions with a version input, but tag-based release is the normal path.
+The workflow is tag-triggered. `vX.Y.Z-rc.N` uses the same packaging pipeline
+and is automatically marked as a GitHub prerelease. Put version-specific
+upgrade instructions and known limits in `docs/releases/<tag>.md`, and include
+that document in the published release description.
 
 ## Desktop Release
 

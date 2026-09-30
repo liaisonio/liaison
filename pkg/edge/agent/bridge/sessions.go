@@ -48,7 +48,15 @@ func (b *Bridge) listSessions(owner, access string) proto.EdgeAgentResult {
 	for _, s := range list {
 		s.mu.Lock()
 		title := s.displayTitleLocked()
-		out.Sessions = append(out.Sessions, proto.AgentSessionSummary{SessionID: s.id, ThreadID: s.thread, Title: title, Project: s.project, UpdatedAt: s.updated.UTC().Format(time.RFC3339Nano), Running: s.running, Closed: s.closed, Status: s.status})
+		attention := ""
+		if !s.closed && len(s.approvals) > 0 {
+			attention = "approval"
+		} else if !s.closed && len(s.inputs) > 0 {
+			attention = "input"
+		} else if s.status == "turn_failed" {
+			attention = "failed"
+		}
+		out.Sessions = append(out.Sessions, proto.AgentSessionSummary{ReplyToken: proto.AgentReplyToken(s.window, s.messages), Attention: attention, SessionID: s.id, ThreadID: s.thread, Title: title, Project: s.project, UpdatedAt: s.updated.UTC().Format(time.RFC3339Nano), Running: s.running, Closed: s.closed, Status: s.status})
 		s.mu.Unlock()
 	}
 	sort.Slice(out.Sessions, func(i, j int) bool { return out.Sessions[i].UpdatedAt > out.Sessions[j].UpdatedAt })

@@ -55,6 +55,38 @@ func TestManagedSessionExpiration(t *testing.T) {
 	require.True(t, forget)
 }
 
+func TestSessionListAttentionAndReplyTokens(t *testing.T) {
+	b, _, req := setup(t)
+	req.AccessID = strings.Repeat("a", 32)
+	started := call(b, "alice", req)
+	b.mu.Lock()
+	s := b.sessions[started.SessionID]
+	b.mu.Unlock()
+	require.NotNil(t, s)
+	s.mu.Lock()
+	s.running = true
+	s.approvals = []pendingApproval{{}}
+	s.messages = []proto.EdgeAgentMessage{{Role: "assistant", Text: "reply"}}
+	s.mu.Unlock()
+	list := proto.EdgeAgentRequest{Action: "sessions", AccessID: req.AccessID}
+	first := call(b, "alice", list).Sessions[0]
+	require.Equal(t, "approval", first.Attention)
+	require.NotEmpty(t, first.ReplyToken)
+	s.mu.Lock()
+	s.approvals = nil
+	s.inputs = []pendingInput{{}}
+	s.mu.Unlock()
+	next := call(b, "alice", list).Sessions[0]
+	require.Equal(t, "input", next.Attention)
+	require.Equal(t, first.ReplyToken, next.ReplyToken)
+	s.mu.Lock()
+	s.inputs = nil
+	s.status = "turn_failed"
+	s.mu.Unlock()
+	require.Equal(t, "failed", call(b, "alice", list).Sessions[0].Attention)
+	require.Empty(t, call(b, "bob", list).Sessions)
+}
+
 func TestHistorySnapshotDoesNotRenewIdleLease(t *testing.T) {
 	b, _, req := setup(t)
 	req.AccessID = strings.Repeat("a", 32)

@@ -142,12 +142,22 @@ jobs:
             > SHA256SUMS
           cat SHA256SUMS
 
+      - name: Select version-specific release notes
+        id: notes
+        shell: bash
+        run: |
+          notes="docs/releases/${{ needs.metadata.outputs.tag }}.md"
+          if [ -f "$notes" ]; then
+            echo "path=$notes" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.metadata.outputs.tag }}
           name: Liaison ${{ needs.metadata.outputs.tag }}
           generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.path }}
           prerelease: ${{ needs.metadata.outputs.prerelease == 'true' }}
           files: |
             liaison-${{ needs.metadata.outputs.version }}-linux-amd64.tar.gz

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { clearAgentDrafts } from './agentDraft';
 
 export type InitialState = {
   currentUser?: API.CurrentUser;
@@ -20,7 +21,7 @@ export const useSession = create<SessionStore>((set) => ({
   initialState: {},
   setToken: (token) => {
     if (token) localStorage.setItem('token', token);
-    else localStorage.removeItem('token');
+    else {localStorage.removeItem('token');clearAgentDrafts();}
     set({ token });
   },
   setInitialState: async (next) => {
@@ -30,10 +31,10 @@ export const useSession = create<SessionStore>((set) => ({
     }));
   },
   clear: () => {
+    clearAgentDrafts();
     localStorage.removeItem('token');
     set({ token: null, initialState: {} });
   },
 }));
 
 export const getToken = () => useSession.getState().token;
-

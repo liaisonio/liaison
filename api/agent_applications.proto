@@ -1,0 +1,27 @@
+syntax = "proto3";
+package liaison.agent_applications;
+option go_package = "github.com/liaisonio/liaison/api/agent_applications;agent_applications";
+// Handwritten JSON transport, like edge_agent.proto. No generated service.
+// GET /api/v1/agent-applications?page=1&page_size=20&edge_id=...
+// POST /api/v1/agent-applications registers a discovered, owned installation.
+// PUT /api/v1/agent-applications/{id} renames only; identity is immutable.
+// DELETE /api/v1/agent-applications/{id} rejects referenced applications (409).
+// Actor comes from authentication, never from the input.
+message AgentApplicationInput {
+ string name = 1;
+ string kind = 2;
+ uint64 edge_id = 3;
+ string installation_id = 4;
+}
+message AgentApplication {
+ string id = 1;
+ string name = 2;
+ string kind = 3;
+ uint64 edge_id = 4;
+ string installation_id = 5;
+ int64 access_count = 6;
+}
+message AgentApplicationList { repeated AgentApplication items = 1; int64 total = 2; }
+// Additive field for the existing handwritten AgentAccessInput JSON contract.
+// application_id resolves the installation on the server. Supplied legacy
+// kind/edge_id/installation_id fields must match, not override, that association.

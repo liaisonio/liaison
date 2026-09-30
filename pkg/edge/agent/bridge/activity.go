@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"github.com/liaisonio/liaison/pkg/proto"
+	"net/url"
 	"strings"
 	"unicode"
 )
@@ -14,7 +15,7 @@ func (s *session) recordActivityLocked(id, kind, status string, duration int64, 
 		return
 	}
 	switch kind {
-	case "commandExecution", "fileChange", "webSearch", "mcpToolCall", "dynamicToolCall", "reasoning", "contextCompaction", "userInput", "turnDiff":
+	case "commandExecution", "fileChange", "webSearch", "mcpToolCall", "dynamicToolCall", "reasoning", "contextCompaction", "userInput", "turnDiff", "turnPlan", "plan", "imageView", "enteredReviewMode", "exitedReviewMode":
 	default:
 		return
 	}
@@ -70,6 +71,18 @@ const maxActivityDetails = 96 << 10
 const maxActivityText = 16 << 10
 
 type nativeActivity struct {
+	Text   string `json:"text"`
+	Query  string `json:"query"`
+	Tool   string `json:"tool"`
+	Server string `json:"server"`
+	Path   string `json:"path"`
+	Action struct {
+		Type    string   `json:"type"`
+		Query   string   `json:"query"`
+		Queries []string `json:"queries"`
+		URL     string   `json:"url"`
+		Pattern string   `json:"pattern"`
+	} `json:"action"`
 	ID         string  `json:"id"`
 	Type       string  `json:"type"`
 	Status     string  `json:"status"`
@@ -93,7 +106,10 @@ func activityKey(id string) string {
 	return hex.EncodeToString(sum[:16])
 }
 func activitySize(a proto.AgentActivity) int {
-	n := len(a.Command) + len(a.Directory) + len(a.Output)
+	n := len(a.Command) + len(a.Directory) + len(a.Output) + len(a.Label)
+	for _, step := range a.Plan {
+		n += len(step.Step) + len(step.Status)
+	}
 	for _, c := range a.Changes {
 		n += len(c.Path) + len(c.Diff) + len(c.MovePath)
 	}
@@ -165,11 +181,43 @@ func (s *session) recordActivityDetailsLocked(item nativeActivity) {
 	if i < 0 {
 		return
 	}
-	if item.Type != "commandExecution" && item.Type != "fileChange" {
-		return
-	}
 	a := s.activities[i]
 	budget := s.activityBudgetLocked(i)
+	if item.Type != "commandExecution" && item.Type != "fileChange" {
+		// Metadata only: never forward tool arguments/results, raw reasoning,
+		// external image data, or provider errors into display history.
+		label := ""
+		switch item.Type {
+		case "webSearch":
+			label = item.Query
+			if label == "" {
+				label = item.Action.Query
+			}
+			if label == "" {
+				label = strings.Join(item.Action.Queries, " · ")
+			}
+			if label == "" {
+				if parsed, err := url.Parse(item.Action.URL); err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") {
+					parsed.User = nil
+					parsed.RawQuery = ""
+					parsed.Fragment = ""
+					label = parsed.String()
+				}
+			}
+		case "mcpToolCall", "dynamicToolCall":
+			label = strings.Trim(item.Server+" / "+item.Tool, " / ")
+		case "imageView":
+			label = item.Path
+		case "plan":
+			a.Output = boundedActivityText(item.Text, &budget, &a.Truncated)
+		default:
+			return
+		}
+		a.Label = boundedActivityText(label, &budget, &a.Truncated)
+		s.activities[i] = a
+		s.changedLocked()
+		return
+	}
 	a.Truncated = false
 	a.Command = boundedActivityText(item.Command, &budget, &a.Truncated)
 	a.Directory = boundedActivityText(item.Cwd, &budget, &a.Truncated)
@@ -186,6 +234,7 @@ func (s *session) recordActivityDetailsLocked(item nativeActivity) {
 			break
 		}
 		if change.Kind.Type != "add" && change.Kind.Type != "delete" && change.Kind.Type != "update" {
+			a.Truncated = true
 			continue
 		}
 		c := proto.AgentFileChange{Kind: change.Kind.Type}
@@ -193,6 +242,41 @@ func (s *session) recordActivityDetailsLocked(item nativeActivity) {
 		c.MovePath = boundedActivityText(change.Kind.MovePath, &budget, &a.Truncated)
 		c.Diff = boundedActivityText(change.Diff, &budget, &a.Truncated)
 		a.Changes = append(a.Changes, c)
+	}
+	s.activities[i] = a
+	s.changedLocked()
+}
+
+func (s *session) recordPlanLocked(turn, explanation string, steps []proto.AgentPlanStep) {
+	if s.access == "" {
+		return
+	}
+	id := "turn-plan:" + turn
+	s.recordActivityLocked(id, "turnPlan", "", 0, false)
+	i := s.activityIndexLocked(id)
+	if i < 0 {
+		return
+	}
+	a := s.activities[i]
+	budget := min(maxActivityText, s.activityBudgetLocked(i))
+	a.Truncated = false
+	a.Output = boundedActivityText(explanation, &budget, &a.Truncated)
+	a.Plan = nil
+	a.Status = "completed"
+	for _, step := range steps {
+		if len(a.Plan) >= 32 || budget < 16 {
+			a.Truncated = true
+			break
+		}
+		if step.Status != "pending" && step.Status != "inProgress" && step.Status != "completed" {
+			continue
+		}
+		budget -= len(step.Status)
+		step.Step = boundedActivityText(step.Step, &budget, &a.Truncated)
+		a.Plan = append(a.Plan, step)
+		if step.Status != "completed" {
+			a.Status = "running"
+		}
 	}
 	s.activities[i] = a
 	s.changedLocked()

@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
@@ -95,6 +96,16 @@ func (cp *controlPlane) edgeAgentLiveEnvelope(ctx context.Context, req proto.Edg
 	if req.EdgeID == 0 || !req.Valid() {
 		return proto.EdgeAgentResult{}, badRequest("INVALID_AGENT_REQUEST", "Invalid agent request")
 	}
+	if strings.HasPrefix(req.Action, "file_") || len(req.Attachments) > 0 {
+		if err := cp.authorizeFeature(ctx, iam.FeatureFilesRead); err != nil {
+			return proto.EdgeAgentResult{}, err
+		}
+		if req.Action == "file_begin" || req.Action == "file_write" || req.Action == "file_commit" || len(req.Attachments) > 0 {
+			if err := cp.authorizeFeature(ctx, iam.FeatureFilesUpload); err != nil {
+				return proto.EdgeAgentResult{}, err
+			}
+		}
+	}
 	projectRoot := ""
 	if req.AccessID != "" {
 		entry, err := cp.repo.GetAgentAccess(ctx, actor, req.AccessID)
@@ -136,9 +147,18 @@ func (cp *controlPlane) edgeAgentLiveEnvelope(ctx context.Context, req proto.Edg
 		fallback.Status = "upgrade_required"
 		return fallback, nil
 	}
+	if reply.FilesAvailable {
+		reply.FilesAvailable = cp.authorizeFeature(ctx, iam.FeatureFilesRead) == nil
+		reply.FilesUploadAvailable = reply.FilesAvailable && cp.authorizeFeature(ctx, iam.FeatureFilesUpload) == nil
+	}
 	// A watch may wait for 15 seconds. Recheck ownership after the wait before
 	// returning newly produced data, including entry deletion/reassignment.
-	if req.Action == "watch" {
+	if req.Action == "watch" || strings.HasPrefix(req.Action, "file_") {
+		if strings.HasPrefix(req.Action, "file_") {
+			if err := cp.authorizeFeature(ctx, iam.FeatureFilesRead); err != nil {
+				return proto.EdgeAgentResult{}, err
+			}
+		}
 		if _, err := cp.agentActor(ctx); err != nil {
 			return proto.EdgeAgentResult{}, err
 		}
@@ -157,7 +177,7 @@ func (cp *controlPlane) edgeAgentLiveEnvelope(ctx context.Context, req proto.Edg
 	default:
 		return fallback, nil
 	}
-	if req.Action == "answer" || req.Action == "approve" || req.Action == "permissions" || req.Action == "start" || req.Action == "resume" || req.Action == "send" || req.Action == "stop" || req.Action == "interrupt" || req.Action == "model" || req.Action == "rename" || req.Action == "delete" || req.Action == "discard" {
+	if req.Action == "file_begin" || req.Action == "file_commit" || (req.Action == "file_read" && req.File.TransferID == "") || req.Action == "answer" || req.Action == "approve" || req.Action == "permissions" || req.Action == "start" || req.Action == "resume" || req.Action == "send" || req.Action == "stop" || req.Action == "interrupt" || req.Action == "model" || req.Action == "rename" || req.Action == "delete" || req.Action == "discard" {
 		// No prompt, output, path or credential is written to management logs.
 		if err := cp.RecordManagementAudit(ctx, &ManagementAudit{UserID: actor, Module: "agent", Action: req.Action, Resource: "connector/" + strconv.FormatUint(req.EdgeID, 10), Method: "POST", Success: reply.Status == "ok" || reply.Status == "session_closed", StatusCode: 200}); err != nil {
 			klog.Warning("agent management audit could not be recorded")

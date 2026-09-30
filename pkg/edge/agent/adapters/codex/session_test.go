@@ -32,7 +32,8 @@ func TestLocalHandshake(t *testing.T) {
 		timeout = 90 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	// Archive and close the owned server before canceling its lifetime context.
+	t.Cleanup(cancel)
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -45,12 +46,27 @@ func TestLocalHandshake(t *testing.T) {
 		t.Fatal(err)
 	}
 	inputTest := os.Getenv("LIAISON_TEST_CODEX_INPUT") == "1"
+	approvalTest := os.Getenv("LIAISON_TEST_CODEX_APPROVAL")
+	if approvalTest != "" && (inputTest || os.Getenv("LIAISON_TEST_CODEX_WRITE") == "1" || (approvalTest != "accept" && approvalTest != "decline")) {
+		t.Fatal("approval mode must be accept or decline and cannot be combined with input/write modes")
+	}
+	startedAt := time.Now()
 	session, err := start(ctx, result.Installations[0], project, inputTest)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("owned app-server startup and initialization: %s", time.Since(startedAt))
+	cleanupSession := session
+	threadToArchive := ""
 	t.Cleanup(func() {
-		if err := session.Close(); err != nil {
+		if threadToArchive != "" {
+			cleanupCtx, stop := context.WithTimeout(context.Background(), 5*time.Second)
+			defer stop()
+			if _, err := cleanupSession.client.Call(cleanupCtx, "thread/archive", map[string]string{"threadId": threadToArchive}); err != nil {
+				t.Error("could not archive owned smoke thread during cleanup")
+			}
+		}
+		if err := cleanupSession.Close(); err != nil {
 			t.Error(err)
 		}
 	})
@@ -92,6 +108,10 @@ func TestLocalHandshake(t *testing.T) {
 			t.Fatal("unknown skill accepted")
 		}
 		prompt := "Reply with exactly READY. Do not call tools, read files, run commands, access the network, or change anything."
+		if approvalTest != "" {
+			prompt = "Test the approval interaction. Invoke exec_command once with command /usr/bin/touch approval-marker in the current working directory, sandbox_permissions require_escalated, and justification 'Allow creating the isolated test marker?'. The sandbox is read-only, so request approval before writing. Do not use apply_patch, run other commands, read files, access the network, or change anything else. If approval is denied, do not retry or use an alternative tool. Then reply READY."
+			skillID = ""
+		}
 		if os.Getenv("LIAISON_TEST_CODEX_WRITE") == "1" {
 			if err := session.SetPermissionMode("workspace-write"); err != nil {
 				t.Fatal(err)
@@ -99,6 +119,7 @@ func TestLocalHandshake(t *testing.T) {
 			prompt = "Create liaison-ready.txt in the current working directory with exactly READY as its content. Do not read or change any other files, do not access the network. Then reply READY."
 			skillID = ""
 		}
+		turnStartedAt := time.Now()
 		if inputTest {
 			_, err = session.client.Call(ctx, "turn/start", map[string]any{"threadId": thread.ID, "approvalPolicy": "never", "sandboxPolicy": map[string]string{"type": "readOnly"}, "collaborationMode": map[string]any{"mode": "plan", "settings": map[string]any{"model": thread.Model, "reasoning_effort": "low"}}, "input": []map[string]string{{"type": "text", "text": "Do not read files or run tools other than request_user_input. Use request_user_input to ask one question: choose a theme, Light or Dark. Wait for the answer, then reply READY and the selected theme. Do not change any files."}}})
 		} else {
@@ -107,9 +128,13 @@ func TestLocalHandshake(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Logf("native turn acknowledgement: %s", time.Since(turnStartedAt))
+		// Empty native threads may have no persisted rollout to archive yet.
+		threadToArchive = thread.ID
 		completed := false
 		gotText := false
 		answered := false
+		approvalHandled := false
 		for !completed {
 			select {
 			case event, ok := <-session.Events():
@@ -130,11 +155,39 @@ func TestLocalHandshake(t *testing.T) {
 							t.Fatal(err)
 						}
 						answered = true
+					} else if approvalTest != "" && event.Method == "item/commandExecution/requestApproval" {
+						var params struct {
+							Command string `json:"command"`
+							Cwd     string `json:"cwd"`
+						}
+						if err := json.Unmarshal(event.Params, &params); err != nil {
+							t.Fatal("invalid approval payload")
+						}
+						// Never approve arbitrary generated shell text in a smoke test.
+						safe := params.Cwd == project && (params.Command == "/usr/bin/touch approval-marker" || params.Command == "/bin/bash -lc '/usr/bin/touch approval-marker'" || params.Command == "/bin/zsh -lc '/usr/bin/touch approval-marker'")
+						if !safe || approvalHandled {
+							if err := session.RejectRequest(ctx, event); err != nil {
+								t.Fatal("could not decline unexpected command")
+							}
+							t.Fatal("unexpected approval command or repeated request was declined")
+						}
+						if approvalTest == "accept" {
+							err = session.ApproveCommand(ctx, event)
+						} else {
+							err = session.RejectRequest(ctx, event)
+						}
+						if err != nil {
+							t.Fatal("approval response failed")
+						}
+						approvalHandled = true
 					} else if err := session.RejectRequest(ctx, event); err != nil {
 						t.Fatal(err)
 					}
 				}
 				if event.Method == "item/agentMessage/delta" {
+					if !gotText {
+						t.Logf("native first assistant text: %s", time.Since(turnStartedAt))
+					}
 					gotText = true
 				}
 				if event.Method == "turn/completed" {
@@ -158,8 +211,22 @@ func TestLocalHandshake(t *testing.T) {
 		if !gotText {
 			t.Fatal("no streamed assistant text")
 		}
+		t.Logf("native turn completion: %s", time.Since(turnStartedAt))
 		if inputTest && !answered {
 			t.Fatal("native request_user_input was not observed")
+		}
+		if approvalTest != "" {
+			if !approvalHandled {
+				t.Fatal("native command approval was not observed")
+			}
+			_, markerErr := os.Stat(filepath.Join(project, "approval-marker"))
+			if approvalTest == "accept" && markerErr != nil {
+				t.Fatal("approved marker was not created")
+			}
+			if approvalTest == "decline" && !os.IsNotExist(markerErr) {
+				t.Fatal("declined marker must not exist")
+			}
+			t.Logf("native command approval %s and turn continuation verified", approvalTest)
 		}
 		if inputTest {
 			t.Log("real native question, answer and turn continuation verified in plan mode")
@@ -170,7 +237,7 @@ func TestLocalHandshake(t *testing.T) {
 				t.Fatalf("workspace write not verified: %v", err)
 			}
 			t.Log("workspace write verified in isolated temporary project")
-		} else {
+		} else if approvalTest == "" {
 			t.Log("read-only turn completed with streamed assistant output")
 		}
 	} else {
@@ -188,11 +255,7 @@ func TestLocalHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if err := resumed.Close(); err != nil {
-			t.Error(err)
-		}
-	})
+	cleanupSession = resumed
 	reopened, err := resumed.ResumeThread(ctx, thread.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -203,5 +266,6 @@ func TestLocalHandshake(t *testing.T) {
 	if _, err := resumed.client.Call(ctx, "thread/archive", map[string]string{"threadId": thread.ID}); err != nil {
 		t.Fatal("cleanup persisted smoke thread:", err)
 	}
+	threadToArchive = ""
 	t.Log("persistent native thread resumed after owned app-server restart")
 }

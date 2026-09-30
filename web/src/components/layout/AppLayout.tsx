@@ -91,6 +91,10 @@ export function AppLayout() {
   };
   const isAIAccessPage = /^\/ai\/\d+\/?$/.test(location.pathname);
   const isEdgeAgentPage = location.pathname === '/access/agents';
+  // Resolve this before profile, permissions, and access details load. Waiting
+  // for the session workspace to mount exposes the product shell on reload.
+  const agentParams = new URLSearchParams(location.search);
+  const isAgentFullPage = isEdgeAgentPage && Boolean(agentParams.get('access')) && agentParams.get('view') === 'full';
   const page = location.pathname.startsWith('/webs3/') ? { title: 'WebS3', description: '' } : location.pathname.startsWith('/websftp/') ? { title: 'Web SFTP', description: '' } : isAIAccessPage ? { title: tr('OpenAI 协议', 'OpenAI protocol'), description: '' } : location.pathname.startsWith('/webdata/')
     ? {
         title: tr('数据访问', 'Data access'),
@@ -167,7 +171,7 @@ export function AppLayout() {
   }, [page?.title, location.pathname, tr]);
 
   return (
-    <div className={`liaison-app-frame${isHome ? ' is-home' : ''}${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}`}>
+    <div className={`liaison-app-frame${isHome ? ' is-home' : ''}${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}${isAgentFullPage ? ' is-agent-full-page' : ''}`}>
       <header className="liaison-global-header">
         <div className={`liaison-global-left${sidebarCollapsed ? ' is-collapsed' : ''}`}>
           <Link to="/" className="liaison-brand-link" aria-label="Liaison">

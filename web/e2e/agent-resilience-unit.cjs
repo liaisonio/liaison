@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),ts=require('typescript');
+require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,filename);
+const draft=require('../src/store/agentDraft.ts');
+global.sessionStorage={getItem(key){return this[key]??null;},setItem(key,value){this[key]=value;},removeItem(key){delete this[key];}};
+const a=draft.agentDraftKey(1,'access','one'),b=draft.agentDraftKey(2,'access','one'),c=draft.agentDraftKey(1,'other','one'),d=draft.agentDraftKey(1,'access','two');
+assert.equal(new Set([a,b,c,d]).size,4);
+assert.equal(draft.agentDraftKey(undefined,'access','one'),'');
+assert.equal(draft.writeAgentDraft('', 'not stored'),false);
+assert(draft.writeAgentDraft(a,'draft text'));
+assert.equal(draft.readAgentDraft(a),'draft text');assert.equal(draft.readAgentDraft(b),'');
+draft.writeAgentDraft(d,'second');draft.writeAgentDraft(a,'');assert.equal(draft.readAgentDraft(a),'');assert.equal(draft.readAgentDraft(d),'second');
+sessionStorage.setItem('unrelated','keep');draft.clearAgentDrafts();assert.equal(draft.readAgentDraft(d),'');assert.equal(sessionStorage.getItem('unrelated'),'keep');
+sessionStorage.getItem=()=>{throw Error('blocked');};sessionStorage.setItem=()=>{throw Error('full');};
+assert.equal(draft.readAgentDraft(a),'');assert.equal(draft.writeAgentDraft(a,'draft'),false);
+const {TurnTimingTracker}=require('../src/pages/EdgeAgent/turnTiming.ts');
+const base={session_id:'one',window:1,messages:[{role:'assistant',text:'old answer'}]};
+const timing=new TurnTimingTracker(base,100);
+timing.observe({...base,running:false},120);assert.equal(timing.value.finishedMs,undefined,'old snapshot cannot end pending send');
+timing.requestFinished(150,true);assert.equal(timing.value.requestMs,50);
+timing.observe({...base,running:true},160);assert.equal(timing.value.firstReplyMs,undefined,'old answers are not new reply text');
+timing.observe({...base,session_id:'two',running:false},170);assert.equal(timing.value.finishedMs,undefined);
+timing.observe({...base,window:2,running:true,messages:[]},180);assert.equal(timing.value.firstReplyMs,undefined);
+timing.observe({...base,window:2,running:true},190);assert.equal(timing.value.firstReplyMs,90,'a new window may repeat the same text');
+timing.observe({...base,window:2,running:false},250);assert.equal(timing.value.finishedMs,150);
+timing.observe({...base,window:2,running:false},350);assert.equal(timing.value.finishedMs,150,'end observation is stable');
+const failure=new TurnTimingTracker(base,100);failure.requestFinished(180,false);failure.observe({...base,running:false},220);assert.equal(failure.value.finishedMs,undefined);assert.equal(failure.value.state,'unconfirmed');
+for(const value of [0,25,100]){const t=new TurnTimingTracker(base,100);t.requestFinished(200,true,value);assert.equal(t.value.serviceMs,value);}
+for(const value of [-1,NaN,Infinity,undefined]){const t=new TurnTimingTracker(base,100);t.requestFinished(200,true,value);assert.equal(t.value.serviceMs,undefined);}
+const rejected=new TurnTimingTracker(base,100);rejected.requestFinished(200,false,25);assert.equal(rejected.value.serviceMs,undefined);
+console.log('PASS draft scopes, deletion, logout, disabled storage; timing baselines, windows, completion, unconfirmed sends');

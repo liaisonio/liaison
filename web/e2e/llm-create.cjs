@@ -28,7 +28,7 @@ const assert=require('node:assert/strict');
   const fill=async()=>{await newMode().click();await page.getByLabel(zh?'应用地址':'Application address',{exact:false}).fill('http://127.0.0.1:8000/v1');};
   const probe=()=>page.getByRole('button',{name:zh?'检测连接并获取模型':'Check connection & fetch models'}).click();
   await visit();await open();
-  assert(await page.getByRole('dialog').getByLabel(zh?'访问协议':'Protocol',{exact:true}).isVisible());
+  assert(await page.getByRole('dialog').getByLabel(zh?'访问类型':'Access type',{exact:true}).isVisible());
   assert(await page.getByRole('dialog').getByLabel(zh?'访问名称':'Access name',{exact:true}).isVisible());
   assert(await page.getByRole('dialog').getByRole('button',{name:zh?'创建访问':'Create access',exact:true}).isDisabled());
   await page.screenshot({path:`/tmp/llm-fields-${locale}-${theme}.png`});

@@ -1,17 +1,37 @@
-import {useEffect,useId,useRef,useState,type RefObject} from 'react';
+import {Fragment,useEffect,useId,useRef,useState,type RefObject} from 'react';
 import {useI18n} from '@/i18n';
 import type {AgentSkill} from '@/services/edgeAgent';
 
-export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,onStatus,onNew,forcedOpen=false,onClose}:{text:string;setText:(s:string)=>void;input:RefObject<HTMLTextAreaElement>;skills:AgentSkill[];available:boolean;disabled:boolean;onSkill:(s:AgentSkill)=>void;onStatus:()=>void;onNew:()=>void;forcedOpen?:boolean;onClose?:()=>void}){
+export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,onStatus,onNew,forcedOpen=false,onClose,nativeCommands=false}:{text:string;setText:(s:string)=>void;input:RefObject<HTMLTextAreaElement>;skills:AgentSkill[];available:boolean;disabled:boolean;onSkill:(s:AgentSkill)=>void;onStatus:()=>void;onNew:()=>void;forcedOpen?:boolean;onClose?:()=>void;nativeCommands?:boolean}){
   const {tr}=useI18n();const [index,setIndex]=useState(0),[dismissed,setDismissed]=useState(false);
-  const id=useId(),list=useRef<HTMLDivElement>(null);
+  const id=useId(),list=useRef<HTMLDivElement>(null),panel=useRef<HTMLElement>(null);
   const query=!forcedOpen&&text.startsWith('/')?text.slice(1).toLowerCase():'';
   const open=(forcedOpen||/^\/[^\s/]*$/.test(text))&&!disabled&&!dismissed;
-  const commands=[{id:'status',name:'/status',description:tr('查看会话信息','View session details'),run:onStatus},{id:'new',name:'/new',description:tr('在当前项目新建会话','Start a new conversation in this project'),run:onNew}];
-  const options=[...commands,...skills.map(s=>({id:s.id,name:s.name,description:s.description,run:()=>onSkill(s)}))].filter(o=>`${o.name} ${o.description}`.toLowerCase().includes(query));
-  function choose(i:number){const selected=options[i];if(!selected)return;selected.run();if(!forcedOpen)setText('');onClose?.();input.current?.focus();}
-  useEffect(()=>{setIndex(0);setDismissed(false);},[text,forcedOpen]);
-  useEffect(()=>{if(open)list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({block:'nearest'});},[index,open]);
+  const commands=[{id:'status',name:'/status',description:tr('查看会话信息','View session details'),run:onStatus},{id:'new',name:'/new',description:tr('选择项目目录并新建会话','Choose a project folder and start a conversation'),run:onNew}];
+  const options=[...commands.map(c=>({...c,source:'liaison'})),...skills.map(s=>({id:s.id,name:s.name,description:s.description,source:'native',run:()=>onSkill(s)}))].filter(o=>`${o.name} ${o.description}`.toLowerCase().includes(query));
+  function choose(i:number){const selected=options[i];if(!selected)return;setDismissed(true);if(!forcedOpen)setText('');onClose?.();input.current?.focus({preventScroll:true});selected.run();}
+  useEffect(()=>{setIndex(0);setDismissed(false);},[text]);
+  useEffect(()=>{if(forcedOpen){setIndex(0);setDismissed(false);}},[forcedOpen]);
+  useEffect(()=>{
+    const el=input.current;if(!open||!el)return;
+    const inside=(target:EventTarget|null)=>target instanceof Node&&(target===el||Boolean(panel.current?.contains(target)));
+    const dismiss=()=>{setDismissed(true);onClose?.();};
+    const outside=(event:Event)=>{if(!inside(event.target))dismiss();};
+    const blur=(event:FocusEvent)=>{if(!inside(event.relatedTarget))dismiss();};
+    document.addEventListener('pointerdown',outside,true);
+    document.addEventListener('focusin',outside);
+    el.addEventListener('blur',blur);
+    window.addEventListener('blur',dismiss);
+    return()=>{document.removeEventListener('pointerdown',outside,true);document.removeEventListener('focusin',outside);el.removeEventListener('blur',blur);window.removeEventListener('blur',dismiss);};
+  },[open,onClose,input]);
+  useEffect(()=>{
+    if(!open)return;
+    const container=list.current,item=container?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if(!container||!item)return;
+    const bounds=container.getBoundingClientRect(),row=item.getBoundingClientRect();
+    if(row.top<bounds.top)container.scrollTop+=row.top-bounds.top;
+    else if(row.bottom>bounds.bottom)container.scrollTop+=row.bottom-bounds.bottom;
+  },[index,open]);
   useEffect(()=>{
     const el=input.current;if(!el)return;
     if(open){el.setAttribute('aria-controls',id);el.setAttribute('aria-activedescendant',`${id}-${index}`);el.setAttribute('aria-haspopup','listbox');}
@@ -30,11 +50,15 @@ export function SlashMenu({text,setText,input,skills,available,disabled,onSkill,
     el.addEventListener('keydown',handle,true);return()=>el.removeEventListener('keydown',handle,true);
   },[open,index,text,skills,forcedOpen]);
   if(!open)return null;
-  return <section className="edge-agent-slash" aria-label={tr('命令与技能','Commands and skills')}>
+  return <section ref={panel} className="edge-agent-slash" aria-label={tr('命令与技能','Commands and skills')}>
     <div className="edge-agent-slash-title">{tr('命令与技能','Commands and skills')}</div>
-    <div id={id} ref={list} role="listbox" aria-label={tr('选择命令或技能','Choose a command or skill')}>{options.map((o,i)=><button id={`${id}-${i}`} tabIndex={-1} type="button" role="option" aria-selected={i===index} className={i===index?'is-active':''} key={o.id} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(i)}><strong>{o.name}</strong><span title={o.description}>{o.description}</span></button>)}</div>
+    <div id={id} ref={list} role="listbox" aria-label={tr('选择命令或技能','Choose a command or skill')}>{options.map((o,i)=><Fragment key={`${o.source}:${o.id}`}>
+      {nativeCommands&&(i===0||o.source!==options[i-1].source)&&<div role="presentation" className="edge-agent-slash-group">{o.source==='liaison'?tr('Liaison 快捷操作','Liaison shortcuts'):tr('Claude Code 原生命令与技能','Claude Code native commands and skills')}</div>}
+      <button id={`${id}-${i}`} tabIndex={-1} type="button" role="option" aria-selected={i===index} className={i===index?'is-active':''} onMouseDown={e=>e.preventDefault()} onClick={()=>choose(i)}><strong>{o.name}</strong><span title={o.description}>{o.description}</span></button>
+    </Fragment>)}</div>
     {!options.length&&<p>{tr('没有匹配的命令或技能。','No matching commands or skills.')}</p>}
-    {!available&&<p>{tr('当前 Codex 未提供技能列表。','Skills are unavailable from this Codex instance.')}</p>}
-    {available&&!skills.length&&<p>{tr('当前项目没有可用技能。','No skills available for this project.')}</p>}
+    {!available&&<p>{nativeCommands?tr('当前实例未提供原生命令列表。','This instance did not provide a native command list.'):tr('当前 Agent 未提供技能列表。','Skills are unavailable from this Agent instance.')}</p>}
+    {available&&!skills.length&&<p>{nativeCommands?tr('当前实例没有加载原生命令或技能。','This instance has no loaded native commands or skills.'):tr('当前项目没有可用技能。','No skills available for this project.')}</p>}
+    {nativeCommands&&available&&skills.length>0&&<p>{tr('仅显示当前实例已加载的条目。选中后输入请求并发送。','Only entries loaded by this instance are listed. Select one, enter a request, then send.')}</p>}
   </section>;
 }

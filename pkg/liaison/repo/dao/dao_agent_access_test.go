@@ -21,7 +21,7 @@ func TestAgentAccessMigrationAndOwnerIsolation(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(string(up)).Error)
 	require.NoError(t, db.Exec(string(up)).Error)
-	require.NoError(t, db.AutoMigrate(&model.AgentAccess{}, &model.EdgeAgentHistory{}, &model.EdgeAgentHistoryPage{}))
+	require.NoError(t, db.AutoMigrate(&model.AgentApplication{}, &model.AgentAccess{}, &model.EdgeAgentHistory{}, &model.EdgeAgentHistoryPage{}))
 	d := &dao{db: db}
 	ctx := context.Background()
 	r := &model.AgentAccess{ID: "entry", OwnerID: 1, EdgeID: 7, Name: "Project", Kind: "codex", InstallationID: "installed", Project: "/project"}

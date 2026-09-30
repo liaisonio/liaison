@@ -16,11 +16,16 @@ import (
 type Dao interface {
 	ListAgentAccesses(context.Context, uint, int, int, ...model.AgentAccessFilter) ([]model.AgentAccess, int64, error)
 	GetAgentAccess(context.Context, uint, string) (*model.AgentAccess, error)
+	GetAgentApplication(context.Context, uint, string) (*model.AgentApplication, error)
+	ListAgentApplications(context.Context, uint, uint64, int, int) ([]model.AgentApplication, int64, error)
+	SaveAgentApplication(context.Context, *model.AgentApplication, bool) error
+	DeleteAgentApplication(context.Context, uint, string) error
 	SaveAgentAccess(context.Context, *model.AgentAccess, bool) error
 	DeleteAgentAccess(context.Context, uint, string) error
 	SaveEdgeAgentHistory(context.Context, *model.EdgeAgentHistory) error
 	SaveEdgeAgentHistoryPage(context.Context, *model.EdgeAgentHistoryPage) error
 	PreviousEdgeAgentHistoryPage(context.Context, *model.EdgeAgentHistory, uint64) (*model.EdgeAgentHistoryPage, error)
+	ListEdgeAgentHistoryPages(context.Context, *model.EdgeAgentHistory, uint64, int, int) ([]model.EdgeAgentHistoryPage, error)
 	GetEdgeAgentHistory(context.Context, *model.EdgeAgentHistory) (*model.EdgeAgentHistory, error)
 	ListEdgeAgentHistories(context.Context, *model.EdgeAgentHistory, int) ([]model.EdgeAgentHistory, int64, error)
 	MutateEdgeAgentHistory(context.Context, *model.EdgeAgentHistory, bool) error
@@ -340,6 +345,7 @@ func (d *dao) initDB() error {
 		&model.AgentSession{},
 		&model.AgentModelSetting{},
 		&model.AgentAccess{},
+		&model.AgentApplication{},
 		&model.EdgeAgentHistory{},
 		&model.EdgeAgentHistoryPage{},
 		&model.AgentAttachment{},
@@ -352,6 +358,9 @@ func (d *dao) initDB() error {
 		return err
 	}
 	if err := d.backfillProxyAccessProtocols(); err != nil {
+		return err
+	}
+	if err := d.backfillAgentApplications(); err != nil {
 		return err
 	}
 	if err := d.backfillWebSSHAuditProtocols(); err != nil {

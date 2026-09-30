@@ -9,6 +9,7 @@ import (
 )
 
 type AgentAccessInput struct {
+	ApplicationID  string `json:"application_id"`
 	Name           string `json:"name"`
 	Kind           string `json:"kind"`
 	EdgeID         uint64 `json:"edge_id"`
@@ -38,7 +39,7 @@ func (cp *controlPlane) AgentAccesses(ctx context.Context, page, size int, filte
 	if page < 1 || page > 10000 || size < 1 || size > 100 {
 		return AgentAccessList{}, badRequest("INVALID_PAGE", "Invalid page")
 	}
-	if len(filters) > 0 && (len(filters[0].Name) > 120 || (filters[0].Kind != "" && filters[0].Kind != "codex")) {
+	if len(filters) > 0 && (len(filters[0].Name) > 120 || (filters[0].Kind != "" && !supportedAgentKind(filters[0].Kind))) {
 		return AgentAccessList{}, badRequest("INVALID_FILTER", "Invalid filter")
 	}
 	items, total, err := cp.repo.ListAgentAccesses(ctx, actor, page, size, filters...)
@@ -51,7 +52,24 @@ func (cp *controlPlane) SaveAgentAccess(ctx context.Context, id string, input Ag
 	}
 	input.Name = strings.TrimSpace(input.Name)
 	input.Project = strings.TrimSpace(input.Project)
-	if input.Kind != "codex" || input.Name == "" || len(input.Name) > 120 || len(input.InstallationID) != 32 || input.Project == "" || len(input.Project) > 4096 || strings.ContainsRune(input.Project, 0) || (id != "" && len(id) != 32) {
+	// 旧 Codex 访问仍兼容直接绑定；新增类型必须由已验证安装的应用派生。
+	if input.Kind == "claude" && input.ApplicationID == "" {
+		return nil, badRequest("APPLICATION_REQUIRED", "Select a registered Agent application")
+	}
+	if input.ApplicationID != "" {
+		if len(input.ApplicationID) != 32 {
+			return nil, badRequest("INVALID_APPLICATION", "Invalid application")
+		}
+		app, err := cp.repo.GetAgentApplication(ctx, actor, input.ApplicationID)
+		if err != nil {
+			return nil, mapRecordNotFound(err, "APPLICATION_NOT_FOUND", "Application unavailable")
+		}
+		if (input.EdgeID != 0 && input.EdgeID != app.EdgeID) || (input.Kind != "" && input.Kind != app.Kind) || (input.InstallationID != "" && input.InstallationID != app.InstallationID) {
+			return nil, badRequest("APPLICATION_MISMATCH", "Application does not match access")
+		}
+		input.EdgeID, input.Kind, input.InstallationID = app.EdgeID, app.Kind, app.InstallationID
+	}
+	if !supportedAgentKind(input.Kind) || input.Name == "" || len(input.Name) > 120 || len(input.InstallationID) != 32 || input.Project == "" || len(input.Project) > 4096 || strings.ContainsRune(input.Project, 0) || (id != "" && len(id) != 32) {
 		return nil, badRequest("INVALID_AGENT_ACCESS", "Invalid Agent access")
 	}
 	if !cp.ownsAgentConnector(actor, input.EdgeID) {
@@ -72,7 +90,7 @@ func (cp *controlPlane) SaveAgentAccess(ctx context.Context, id string, input Ag
 			return nil, mapRecordNotFound(err, "ACCESS_NOT_FOUND", "Access unavailable")
 		}
 	}
-	row := &model.AgentAccess{ID: id, OwnerID: actor, Name: input.Name, Kind: input.Kind, EdgeID: input.EdgeID, InstallationID: input.InstallationID, Project: input.Project}
+	row := &model.AgentAccess{ApplicationID: input.ApplicationID, ID: id, OwnerID: actor, Name: input.Name, Kind: input.Kind, EdgeID: input.EdgeID, InstallationID: input.InstallationID, Project: input.Project}
 	if err := cp.repo.SaveAgentAccess(ctx, row, create); err != nil {
 		return nil, mapRecordNotFound(err, "ACCESS_NOT_FOUND", "Access unavailable")
 	}

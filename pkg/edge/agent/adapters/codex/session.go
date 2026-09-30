@@ -246,6 +246,16 @@ func (s *Session) SendSkill(ctx context.Context, threadID, text, skillID string)
 	return s.send(ctx, threadID, text, skillID)
 }
 func (s *Session) send(ctx context.Context, threadID, text, skillID string, selectedModel ...string) (string, error) {
+	model := ""
+	if len(selectedModel) > 0 {
+		model = selectedModel[0]
+	}
+	return s.sendAttachments(ctx, threadID, text, skillID, model, nil)
+}
+func (s *Session) SendAttachments(ctx context.Context, threadID, text, skillID, model string, attachments []agentruntime.Attachment) (string, error) {
+	return s.sendAttachments(ctx, threadID, text, skillID, model, attachments)
+}
+func (s *Session) sendAttachments(ctx context.Context, threadID, text, skillID, model string, attachments []agentruntime.Attachment) (string, error) {
 	s.mu.Lock()
 	_, owned := s.threads[threadID]
 	skill, known := s.skills[skillID]
@@ -258,6 +268,11 @@ func (s *Session) send(ctx context.Context, threadID, text, skillID string, sele
 		return "", errors.New("invalid agent message")
 	}
 	inputs := []map[string]string{{"type": "text", "text": text}}
+	for _, a := range attachments {
+		if a.ImagePath != "" {
+			inputs = append(inputs, map[string]string{"type": "localImage", "path": a.ImagePath})
+		}
+	}
 	if skillID != "" {
 		if !known {
 			return "", errors.New("skill unavailable")
@@ -270,8 +285,8 @@ func (s *Session) send(ctx context.Context, threadID, text, skillID string, sele
 	if mode == "workspace-write" {
 		params["sandboxPolicy"] = map[string]any{"type": "workspaceWrite", "writableRoots": []string{s.directory}, "networkAccess": false, "excludeTmpdirEnvVar": true, "excludeSlashTmp": true}
 	}
-	if len(selectedModel) > 0 && selectedModel[0] != "" {
-		params["model"] = selectedModel[0]
+	if model != "" {
+		params["model"] = model
 	}
 	data, err := s.client.Call(ctx, "turn/start", params)
 	if err != nil {
@@ -319,6 +334,13 @@ func (s *Session) ApproveCommand(ctx context.Context, message rpc.Message) error
 }
 
 // Unsupported permission requests fail closed rather than broadening access.
+func (s *Session) ApproveFileChange(ctx context.Context, message rpc.Message) error {
+	if len(message.ID) == 0 || message.Method != "item/fileChange/requestApproval" {
+		return errors.New("unsupported approval")
+	}
+	return s.client.Respond(ctx, message.ID, map[string]string{"decision": "accept"})
+}
+
 func (s *Session) AnswerInput(ctx context.Context, message rpc.Message, answers map[string][]string) error {
 	if len(message.ID) == 0 || message.Method != "item/tool/requestUserInput" {
 		return errors.New("unsupported input request")

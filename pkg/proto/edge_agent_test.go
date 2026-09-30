@@ -13,6 +13,10 @@ func TestEdgeAgentDirectoryAndWatchValidation(t *testing.T) {
 		valid bool
 	}{
 		{"home directory", EdgeAgentRequest{Action: "directories"}, true},
+		{"batch history", EdgeAgentRequest{Action: "transcript", AccessID: id, SessionID: id, HistoryBefore: "30", HistoryLimit: "20"}, true},
+		{"zero history limit", EdgeAgentRequest{Action: "transcript", AccessID: id, SessionID: id, HistoryBefore: "30", HistoryLimit: "0"}, false},
+		{"oversized history limit", EdgeAgentRequest{Action: "transcript", AccessID: id, SessionID: id, HistoryBefore: "30", HistoryLimit: "21"}, false},
+		{"history limit on poll", EdgeAgentRequest{Action: "poll", SessionID: id, HistoryLimit: "20"}, false},
 		{"sessions scoped to access", EdgeAgentRequest{Action: "sessions", AccessID: id}, true},
 		{"sessions requires access", EdgeAgentRequest{Action: "sessions"}, false},
 		{"sessions rejects cursor", EdgeAgentRequest{Action: "sessions", AccessID: id, Cursor: "1"}, false},

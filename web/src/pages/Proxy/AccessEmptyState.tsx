@@ -1,4 +1,4 @@
-import {ArrowRight, Bot, Cable, Database, FolderOpen, Globe2, Layers, Monitor, Search, Terminal} from 'lucide-react';
+import {Bot, Cable, Database, FolderOpen, Globe2, Layers, Monitor, Search, Terminal} from 'lucide-react';
 import type {ReactNode} from 'react';
 import {Button} from '@/components/ui';
 import {useI18n} from '@/i18n';
@@ -8,7 +8,7 @@ export function EmptyAccessLayout({icon,title,description,children,className=''}
   return <div className={`liaison-access-empty ${className}`}><span className="liaison-access-empty-icon" aria-hidden>{icon}</span><div className="liaison-access-empty-title">{title}</div><p>{description}</p>{children}</div>;
 }
 
-export default function AccessEmptyState({category,onCreate,onReset,actionLabel}:{category?:string;onCreate?:()=>void;onReset?:()=>void;actionLabel?:string}) {
+export default function AccessEmptyState({category,onCreate,filtered=false,title,actionLabel}:{category?:string;onCreate?:()=>void;filtered?:boolean;title?:string;actionLabel?:string}) {
   const {tr}=useI18n();
   const types:Record<string,{icon:typeof Globe2;title:string;description:string}>={
     web:{icon:Globe2,title:tr('接入 Web 应用','Connect a web application'),description:tr('通过连接器连接网站，在浏览器中安全访问。','Reach your website securely through a connector.')},
@@ -21,8 +21,8 @@ export default function AccessEmptyState({category,onCreate,onReset,actionLabel}
     agent:{icon:Bot,title:tr('接入设备上的 Agent','Connect an Agent on your device'),description:tr('通过连接器使用设备上已安装的 Agent，创建和继续会话。','Use an Agent already installed on your device through a connector to start and resume conversations.')},
   };
   const content=types[category||'']||{icon:Globe2,title:tr('创建第一个访问','Create your first access'),description:tr('通过连接器连接应用或模型服务，创建安全访问入口。','Connect to an application or model service through a connector to create a secure access endpoint.')};
-  const Icon=onReset?Search:content.icon;
-  return <EmptyAccessLayout icon={<Icon size={20}/>} title={<h3>{onReset?tr('暂无匹配访问','No matching access'):content.title}</h3>} description={onReset?tr('试试其他筛选条件，或重置筛选。','Try different filters or reset them.'):content.description}>
-    {onReset?<Button onClick={onReset}>{tr('重置筛选','Reset filters')}</Button>:onCreate&&<Button variant="primary" onClick={onCreate}>{actionLabel||tr('新建访问','Create access')}<ArrowRight size={14}/></Button>}
+  const Icon=filtered?Search:content.icon;
+  return <EmptyAccessLayout icon={<Icon size={20}/>} title={<h3>{filtered?tr('暂无匹配访问','No matching access'):title||content.title}</h3>} description={filtered?tr('可调整筛选条件或新建访问。','Adjust the filters or create an access.'):content.description}>
+    {onCreate&&<Button variant="primary" onClick={onCreate}>{actionLabel||tr('新建访问','Create access')}</Button>}
   </EmptyAccessLayout>;
 }
