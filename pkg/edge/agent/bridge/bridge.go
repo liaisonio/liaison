@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/liaisonio/liaison/pkg/edge/agent/adapters/claude"
 	"github.com/liaisonio/liaison/pkg/edge/agent/adapters/codex"
 	"github.com/liaisonio/liaison/pkg/edge/agent/discovery"
 	agentruntime "github.com/liaisonio/liaison/pkg/edge/agent/runtime"
@@ -27,10 +28,13 @@ const maxOutput = 256 << 10
 
 type discoverFunc func(context.Context) (discovery.Result, discovery.Environment, error)
 type Bridge struct {
+	filesMu     sync.Mutex
+	files       map[string]*fileTransfer
 	ctx         context.Context
 	cancel      context.CancelFunc
 	registry    *agentruntime.Registry
 	adapter     agentruntime.Adapter
+	adapters    map[string]agentruntime.Adapter
 	discover    discoverFunc
 	mu          sync.Mutex
 	sessions    map[string]*session
@@ -42,6 +46,8 @@ type Bridge struct {
 	done        chan struct{}
 }
 type session struct {
+	timing                        proto.AgentTurnTiming
+	imageInputs                   []string
 	window                        uint64
 	truncated                     bool
 	version                       string
@@ -83,11 +89,32 @@ func localDiscovery(ctx context.Context) (discovery.Result, discovery.Environmen
 	if err != nil {
 		return discovery.Result{}, env, err
 	}
-	result, err := discovery.Find(ctx, platform, env, codex.Adapter{}, "")
-	return result, env, err
+	found, err := discovery.Find(ctx, platform, env, codex.Adapter{}, "")
+	if err != nil {
+		return found, env, err
+	}
+	other, err := discovery.Find(ctx, platform, env, claude.Adapter{}, "")
+	if err != nil {
+		return found, env, err
+	}
+	found.Installations = append(found.Installations, other.Installations...)
+	found.Truncated = found.Truncated || other.Truncated
+	return found, env, nil
 }
 func New(ctx context.Context, bindingPath string) (*Bridge, error) {
-	return newBridge(ctx, codex.Adapter{}, localDiscovery, bindingPath)
+	b, err := newBridge(ctx, codex.Adapter{}, localDiscovery, bindingPath)
+	if err != nil {
+		return nil, err
+	}
+	b.adapters = map[string]agentruntime.Adapter{"claude": claude.Adapter{}}
+	return b, nil
+}
+
+func (b *Bridge) adapterFor(kind string) agentruntime.Adapter {
+	if b.adapter != nil && b.adapter.Kind() == kind {
+		return b.adapter
+	}
+	return b.adapters[kind]
 }
 func newBridge(ctx context.Context, adapter agentruntime.Adapter, discover discoverFunc, bindingPath string) (*Bridge, error) {
 	if !filepath.IsAbs(bindingPath) {
@@ -159,6 +186,9 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	req := input.Request
+	if strings.HasPrefix(req.Action, "file_") {
+		return b.handleFiles(ctx, input)
+	}
 	if req.Action == "sessions" {
 		return b.listSessions(input.ActorID, req.AccessID)
 	}
@@ -302,6 +332,21 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 	}
 	switch req.Action {
 	case "send":
+		if len(req.Attachments) > 0 {
+			if _, ok := s.agent.(agentruntime.AttachmentSession); !ok {
+				return result("upgrade_required")
+			}
+		}
+		attached, attachmentInputs, imageInputs, attachmentErr := b.prepareAttachments(ctx, s, req.Attachments)
+		if attachmentErr != nil {
+			return result("invalid_request")
+		}
+		keepImages := false
+		defer func() {
+			if !keepImages {
+				removeImageInputs(imageInputs)
+			}
+		}()
 		var skillAgent agentruntime.SkillSession
 		if req.SkillID != "" {
 			var ok bool
@@ -317,7 +362,7 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 				return result("invalid_request")
 			}
 		}
-		if strings.TrimSpace(req.Text) == "" {
+		if strings.TrimSpace(req.Text) == "" && len(attached) == 0 {
 			return result("invalid_request")
 		}
 		s.mu.Lock()
@@ -339,19 +384,27 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 			s.bytes = 0
 			s.truncated = false
 		}
-		s.messages = append(s.messages, proto.EdgeAgentMessage{Role: "user", Text: req.Text}, proto.EdgeAgentMessage{Role: "assistant"})
+		previousImages := s.imageInputs
+		s.imageInputs = imageInputs
+		keepImages = true
+		s.messages = append(s.messages, proto.EdgeAgentMessage{Role: "user", Text: req.Text, Attachments: attached}, proto.EdgeAgentMessage{Role: "assistant"})
 		s.bytes += len(req.Text)
 		s.boundDisplayLocked()
 		s.running = true
 		s.status = "ok"
 		s.turn = ""
 		s.turnStarted = time.Now()
+		s.timing = proto.AgentTurnTiming{}
+		started := s.turnStarted
 		s.changedLocked()
 		selectedModel := s.selectedModel
 		s.mu.Unlock()
+		removeImageInputs(previousImages)
 		var turn string
 		var err error
-		if capable, ok := s.agent.(agentruntime.ModelSession); ok && selectedModel != "" {
+		if len(attached) > 0 {
+			turn, err = s.agent.(agentruntime.AttachmentSession).SendAttachments(ctx, s.thread, attachmentPrompt(req.Text, attachmentInputs), req.SkillID, selectedModel, attachmentInputs)
+		} else if capable, ok := s.agent.(agentruntime.ModelSession); ok && selectedModel != "" {
 			turn, err = capable.SendModel(ctx, s.thread, req.Text, req.SkillID, selectedModel)
 		} else if skillAgent != nil {
 			turn, err = skillAgent.SendSkill(ctx, s.thread, req.Text, req.SkillID)
@@ -363,6 +416,9 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 			return s.snapshot()
 		}
 		s.mu.Lock()
+		if s.turnStarted.Equal(started) {
+			s.recordTurnTimingLocked(&s.timing.DispatchMS)
+		}
 		if s.running {
 			s.turn = turn
 			s.changedLocked()
@@ -451,7 +507,7 @@ func (b *Bridge) resume(ctx context.Context, input proto.EdgeAgentRPCRequest, fo
 		return result("resume_unavailable")
 	}
 	scope := agentruntime.Scope{Owner: input.ActorID, Access: "edge-agent-preview", Project: project}
-	runtimeID, err := b.registry.Open(ctx, scope, b.adapter, installation)
+	runtimeID, err := b.registry.Open(ctx, scope, b.adapterFor(installation.Agent), installation)
 	if err != nil {
 		return result("launch_failed")
 	}
@@ -459,7 +515,7 @@ func (b *Bridge) resume(ctx context.Context, input proto.EdgeAgentRPCRequest, fo
 	if err != nil {
 		return result("launch_failed")
 	}
-	ready, err := agent.CheckAuthentication(ctx)
+	ready, err := checkAuthentication(ctx, agent)
 	if err != nil || !ready {
 		if closeErr := agent.Close(); closeErr != nil {
 			return result("unavailable")
@@ -547,7 +603,7 @@ func (b *Bridge) start(ctx context.Context, owner, project, accessProject string
 	}
 	defer func() { b.mu.Lock(); b.starting--; b.mu.Unlock() }()
 	scope := agentruntime.Scope{Owner: owner, Access: "edge-agent-preview", Project: project}
-	id, err := b.registry.Open(ctx, scope, b.adapter, i)
+	id, err := b.registry.Open(ctx, scope, b.adapterFor(i.Agent), i)
 	if err != nil {
 		return result("launch_failed")
 	}
@@ -555,7 +611,7 @@ func (b *Bridge) start(ctx context.Context, owner, project, accessProject string
 	if err != nil {
 		return result("launch_failed")
 	}
-	ready, err := agent.CheckAuthentication(ctx)
+	ready, err := checkAuthentication(ctx, agent)
 	if err != nil || !ready {
 		if closeErr := agent.Close(); closeErr != nil {
 			return result("unavailable")
@@ -612,10 +668,12 @@ func (s *session) snapshot() proto.EdgeAgentResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	approvals, permissions, mode := s.permissionSnapshotLocked()
-	return boundedSnapshot(proto.EdgeAgentResult{Window: s.window, HistoryWindowing: s.access != "", Truncated: s.truncated, InputRequests: s.inputSnapshotLocked(), Approvals: approvals, PermissionsAvailable: permissions, PermissionMode: mode, Version: 1, Status: s.status, SessionID: s.id, ThreadID: s.thread, AgentVersion: s.version, Model: s.model, Project: s.project, StartedAt: s.created.UTC().Format(time.RFC3339), Skills: append([]proto.AgentSkill{}, s.skills...), SkillsAvailable: s.skillsAvailable, Running: s.running, Closed: s.closed, Messages: append([]proto.EdgeAgentMessage{}, s.messages...), Revision: s.revision, Activities: append([]proto.AgentActivity{}, s.activities...), Title: s.displayTitleLocked(), SessionManagement: true, ModelsAvailable: s.modelsAvailable, Models: append([]proto.AgentModel{}, s.models...)})
+	return boundedSnapshot(proto.EdgeAgentResult{TurnTiming: s.turnTimingLocked(), FilesAvailable: s.access != "", Window: s.window, HistoryWindowing: s.access != "", Truncated: s.truncated, InputRequests: s.inputSnapshotLocked(), Approvals: approvals, PermissionsAvailable: permissions, PermissionMode: mode, Version: 1, Status: s.status, SessionID: s.id, ThreadID: s.thread, AgentVersion: s.version, Model: s.model, Project: s.project, StartedAt: s.created.UTC().Format(time.RFC3339), Skills: append([]proto.AgentSkill{}, s.skills...), SkillsAvailable: s.skillsAvailable, Running: s.running, Closed: s.closed, Messages: append([]proto.EdgeAgentMessage{}, s.messages...), Revision: s.revision, Activities: append([]proto.AgentActivity{}, s.activities...), Title: s.displayTitleLocked(), SessionManagement: true, ModelsAvailable: s.modelsAvailable, Models: append([]proto.AgentModel{}, s.models...)})
 }
 func (s *session) stop(status string) {
 	s.mu.Lock()
+	images := s.imageInputs
+	s.imageInputs = nil
 	already := s.closed
 	s.closed = true
 	s.running = false
@@ -639,6 +697,7 @@ func (s *session) stop(status string) {
 			s.mu.Unlock()
 		}
 	}
+	removeImageInputs(images)
 }
 func (b *Bridge) consume(s *session) {
 	defer func() {
@@ -646,12 +705,21 @@ func (b *Bridge) consume(s *session) {
 			s.stop("unavailable")
 		}
 	}()
+	if capable, ok := s.agent.(agentruntime.UpdateSession); ok {
+		b.consumeUpdates(s, capable.Updates())
+		return
+	}
+	legacy, ok := s.agent.(agentruntime.RPCSession)
+	if !ok {
+		s.stop("unavailable")
+		return
+	}
 	for {
 		select {
 		case <-b.ctx.Done():
 			s.stop("session_closed")
 			return
-		case event, ok := <-s.agent.Events():
+		case event, ok := <-legacy.Events():
 			if !ok {
 				s.stop("session_closed")
 				return
@@ -664,7 +732,7 @@ func (b *Bridge) consume(s *session) {
 					continue
 				}
 				ctx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
-				err := s.agent.RejectRequest(ctx, event)
+				err := legacy.RejectRequest(ctx, event)
 				cancel()
 				if err != nil {
 					s.stop("approval_declined")
@@ -677,15 +745,17 @@ func (b *Bridge) consume(s *session) {
 				continue
 			}
 			var p struct {
-				ThreadID   string          `json:"threadId"`
-				TurnID     string          `json:"turnId"`
-				Delta      string          `json:"delta"`
-				ItemID     string          `json:"itemId"`
-				ThreadName string          `json:"threadName"`
-				Item       nativeActivity  `json:"item"`
-				Diff       string          `json:"diff"`
-				RequestID  json.RawMessage `json:"requestId"`
-				Turn       struct {
+				ThreadID    string                `json:"threadId"`
+				TurnID      string                `json:"turnId"`
+				Delta       string                `json:"delta"`
+				ItemID      string                `json:"itemId"`
+				ThreadName  string                `json:"threadName"`
+				Item        nativeActivity        `json:"item"`
+				Diff        string                `json:"diff"`
+				Explanation string                `json:"explanation"`
+				Plan        []proto.AgentPlanStep `json:"plan"`
+				RequestID   json.RawMessage       `json:"requestId"`
+				Turn        struct {
 					ID     string `json:"id"`
 					Status string `json:"status"`
 				} `json:"turn"`
@@ -708,6 +778,9 @@ func (b *Bridge) consume(s *session) {
 				}
 			case "item/agentMessage/delta":
 				if s.running && len(s.messages) > 0 && (s.turn == "" || p.TurnID == s.turn) {
+					if p.Delta != "" {
+						s.recordTurnTimingLocked(&s.timing.FirstReplyMS)
+					}
 					last := len(s.messages) - 1
 					if p.ItemID != "" && s.messages[last].ItemID != "" && s.messages[last].ItemID != p.ItemID {
 						s.messages = append(s.messages, proto.EdgeAgentMessage{Role: "assistant"})
@@ -734,8 +807,17 @@ func (b *Bridge) consume(s *session) {
 					s.recordActivityLocked(id, "turnDiff", "", 0, false)
 					s.recordActivityOutputLocked(id, p.Diff, false)
 				}
+			case "item/plan/delta":
+				if s.running && (s.turn == "" || p.TurnID == s.turn) {
+					s.recordActivityOutputLocked(p.ItemID, p.Delta, true)
+				}
+			case "turn/plan/updated":
+				if s.running && p.TurnID != "" && (s.turn == "" || p.TurnID == s.turn) {
+					s.recordPlanLocked(p.TurnID, p.Explanation, p.Plan)
+				}
 			case "turn/completed":
 				if s.running && (s.turn == "" || s.turn == p.Turn.ID) {
+					s.recordTurnTimingLocked(&s.timing.FinishedMS)
 					s.running = false
 					s.approvals = nil
 					s.inputs = nil
@@ -756,6 +838,7 @@ func (b *Bridge) consume(s *session) {
 }
 func (b *Bridge) reap() {
 	defer close(b.done)
+	defer b.expireFiles(time.Now(), true)
 	defer func() {
 		if recover() != nil {
 			b.cancel()
@@ -768,6 +851,7 @@ func (b *Bridge) reap() {
 		case <-b.ctx.Done():
 			return
 		case now := <-ticker.C:
+			b.expireFiles(now, false)
 			b.mu.Lock()
 			list := make([]*session, 0, len(b.sessions))
 			for _, s := range b.sessions {

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -61,6 +62,7 @@ func (cp *controlPlane) historySnapshot(r *model.EdgeAgentHistory) (proto.EdgeAg
 		out.Title = string(title)
 	}
 	out.HistoryPersistent = true
+	out.ReplyToken = proto.AgentReplyToken(out.Window, out.Messages)
 	out.SessionManagement = true
 	return out, nil
 }
@@ -179,7 +181,7 @@ func (cp *controlPlane) EdgeAgent(ctx context.Context, req proto.EdgeAgentReques
 		if saved == nil {
 			return proto.EdgeAgentResult{Version: 1, Status: "not_found"}, nil
 		}
-		return cp.previousTranscript(ctx, scope, req.HistoryBefore)
+		return cp.previousTranscript(ctx, scope, req.HistoryBefore, req.HistoryLimit)
 	}
 	if req.Action == "send" {
 		currentReq := proto.EdgeAgentRequest{Action: "snapshot", EdgeID: req.EdgeID, AccessID: req.AccessID, SessionID: req.SessionID}
@@ -237,6 +239,7 @@ func (cp *controlPlane) EdgeAgent(ctx context.Context, req proto.EdgeAgentReques
 			}
 		}
 		reply.HistoryPersistent = true
+		reply.ReplyToken = proto.AgentReplyToken(reply.Window, reply.Messages)
 		if saved != nil && len(saved.TitleOverride) > 0 {
 			title, e := cp.openHistory(saved.TitleOverride, historyAAD(saved)+"/title")
 			if e != nil {
@@ -264,6 +267,7 @@ func (cp *controlPlane) auditHistoryMutation(ctx context.Context, scope *model.E
 func (cp *controlPlane) historyList(ctx context.Context, req proto.EdgeAgentRequest, scope *model.EdgeAgentHistory) (proto.EdgeAgentResult, error) {
 	liveReq := req
 	liveReq.HistoryPage = ""
+	liveReq.HistorySearch = ""
 	live, err := cp.edgeAgentLive(ctx, liveReq)
 	if err != nil {
 		return proto.EdgeAgentResult{}, err
@@ -277,6 +281,7 @@ func (cp *controlPlane) historyList(ctx context.Context, req proto.EdgeAgentRequ
 			fetch := req
 			fetch.Action = "snapshot"
 			fetch.HistoryPage = ""
+			fetch.HistorySearch = ""
 			fetch.SessionID = s.SessionID
 			out, err := cp.edgeAgentLive(ctx, fetch)
 			if err != nil {
@@ -298,25 +303,96 @@ func (cp *controlPlane) historyList(ctx context.Context, req proto.EdgeAgentRequ
 	if req.HistoryPage != "" {
 		page, _ = strconv.Atoi(req.HistoryPage)
 	}
-	rows, total, err := cp.repo.ListEdgeAgentHistories(ctx, scope, page)
+	rows, total, err := cp.searchAgentHistories(ctx, scope, page, req.HistorySearch)
 	if err != nil {
 		return proto.EdgeAgentResult{}, err
 	}
+	if _, err = cp.historyScope(ctx, req); err != nil {
+		return proto.EdgeAgentResult{}, err
+	}
 	out := proto.EdgeAgentResult{Version: 1, Status: "ok", HistoryPersistent: true, HistoryTotal: total, SessionsAvailable: true, SessionManagement: true, Sessions: []proto.AgentSessionSummary{}}
+	out.HistorySearchAvailable = true
+	for _, current := range live.Sessions {
+		if current.Attention != "" {
+			key := *scope
+			key.SessionID = current.SessionID
+			stored, err := cp.repo.GetEdgeAgentHistory(ctx, &key)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				continue
+			}
+			if err != nil {
+				return proto.EdgeAgentResult{}, err
+			}
+			if stored.Deleted {
+				continue
+			}
+			snapshot, err := cp.historySnapshot(stored)
+			if err != nil {
+				return proto.EdgeAgentResult{}, err
+			}
+			current.Title = snapshot.Title
+			out.AttentionSessions = append(out.AttentionSessions, current)
+		}
+	}
 	for _, row := range rows {
 		s, err := cp.historySnapshot(&row)
 		if err != nil {
 			return proto.EdgeAgentResult{}, err
 		}
 		item := proto.AgentSessionSummary{SessionID: row.SessionID, ThreadID: s.ThreadID, Title: s.Title, Project: s.Project, UpdatedAt: row.UpdatedAt.UTC().Format(time.RFC3339Nano), Closed: true, Status: "session_closed"}
+		item.ReplyToken = s.ReplyToken
 		if current, ok := visible[row.SessionID]; ok {
 			item.Closed = current.Closed
 			item.Running = current.Running
 			item.Status = current.Status
+			item.Attention = current.Attention
+			if current.ReplyToken != "" {
+				item.ReplyToken = current.ReplyToken
+			}
 		}
 		out.Sessions = append(out.Sessions, item)
 	}
 	return out, nil
+}
+
+func (cp *controlPlane) searchAgentHistories(ctx context.Context, scope *model.EdgeAgentHistory, page int, query string) ([]model.EdgeAgentHistory, int64, error) {
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return cp.repo.ListEdgeAgentHistories(ctx, scope, page)
+	}
+	// Titles and paths remain encrypted at rest. Scan scoped batches, retaining
+	// only the requested result page; cancellation never returns partial totals.
+	rows := []model.EdgeAgentHistory{}
+	var matched int64
+	for batch := 1; ; batch++ {
+		if err := ctx.Err(); err != nil {
+			return nil, 0, err
+		}
+		chunk, total, err := cp.repo.ListEdgeAgentHistories(ctx, scope, batch)
+		if err != nil {
+			return nil, 0, err
+		}
+		for _, row := range chunk {
+			if err := ctx.Err(); err != nil {
+				return nil, 0, err
+			}
+			snapshot, err := cp.historySnapshot(&row)
+			if err != nil {
+				return nil, 0, err
+			}
+			if !strings.Contains(strings.ToLower(snapshot.Title), query) && !strings.Contains(strings.ToLower(snapshot.Project), query) {
+				continue
+			}
+			if matched >= int64((page-1)*50) && len(rows) < 50 {
+				rows = append(rows, row)
+			}
+			matched++
+		}
+		if int64(batch*50) >= total || len(chunk) == 0 {
+			break
+		}
+	}
+	return rows, matched, nil
 }
 
 // Lifecycle-owned synchronization continues when every browser is closed.

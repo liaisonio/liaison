@@ -127,6 +127,8 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	srv.HandleFunc("/api/v1/edge-agents", web.handleEdgeAgentHTTP)
 	srv.HandleFunc("/api/v1/edge-agents/connectors", web.handleEdgeAgentHTTP)
 	srv.HandleFunc("/api/v1/agent-accesses", web.handleAgentAccessHTTP)
+	srv.HandleFunc("/api/v1/agent-applications", web.handleAgentApplicationHTTP)
+	srv.HandlePrefix("/api/v1/agent-applications/", http.HandlerFunc(web.handleAgentApplicationHTTP))
 	srv.HandlePrefix("/api/v1/agent-accesses/", http.HandlerFunc(web.handleAgentAccessHTTP))
 	srv.HandleFunc("/api/v1/edges/{id}/installation", web.handleEdgeInstallationHTTP)
 	srv.HandleFunc("/api/v1/edges/{id}/uninstall", web.handleEdgeUninstallHTTP)

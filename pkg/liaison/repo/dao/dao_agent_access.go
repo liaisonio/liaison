@@ -24,26 +24,42 @@ func (d *dao) ListAgentAccesses(ctx context.Context, owner uint, page, size int,
 		return nil, 0, err
 	}
 	counts := d.getDB().Model(&model.EdgeAgentHistory{}).Select("COUNT(*)").Where("owner_id = agent_accesses.owner_id AND access_id = agent_accesses.id AND edge_id = agent_accesses.edge_id AND deleted = ?", false)
-	err := q.Select("agent_accesses.*, (?) AS session_count", counts).Order("created_at DESC, id DESC").Offset((page - 1) * size).Limit(size).Find(&rows).Error
+	names := d.getDB().Model(&model.AgentApplication{}).Select("name").Where("id = agent_accesses.application_id AND owner_id = agent_accesses.owner_id AND edge_id = agent_accesses.edge_id")
+	err := q.Select("agent_accesses.*, (?) AS session_count, (?) AS application_name", counts, names).Order("created_at DESC, id DESC").Offset((page - 1) * size).Limit(size).Find(&rows).Error
 	return rows, total, err
 }
 func (d *dao) GetAgentAccess(ctx context.Context, owner uint, id string) (*model.AgentAccess, error) {
 	var row model.AgentAccess
 	err := d.getDB().WithContext(ctx).Where("owner_id = ? AND id = ?", owner, id).First(&row).Error
+	if err == nil && row.ApplicationID != "" {
+		var app model.AgentApplication
+		err = d.getDB().WithContext(ctx).Where("id = ? AND owner_id = ? AND edge_id = ? AND kind = ? AND installation_id = ?", row.ApplicationID, owner, row.EdgeID, row.Kind, row.InstallationID).First(&app).Error
+	}
 	return &row, err
 }
 func (d *dao) SaveAgentAccess(ctx context.Context, row *model.AgentAccess, create bool) error {
-	if create {
-		return d.getDB().WithContext(ctx).Create(row).Error
-	}
-	result := d.getDB().WithContext(ctx).Model(&model.AgentAccess{}).Where("owner_id = ? AND id = ?", row.OwnerID, row.ID).Updates(map[string]any{"name": row.Name, "kind": row.Kind, "edge_id": row.EdgeID, "installation_id": row.InstallationID, "project": row.Project})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return d.getDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if !create {
+			var existing model.AgentAccess
+			if err := tx.Where("owner_id = ? AND id = ?", row.OwnerID, row.ID).First(&existing).Error; err != nil {
+				return err
+			}
+		}
+		if err := bindAgentApplication(tx, row); err != nil {
+			return err
+		}
+		if create {
+			return tx.Create(row).Error
+		}
+		result := tx.Model(&model.AgentAccess{}).Where("owner_id = ? AND id = ?", row.OwnerID, row.ID).Updates(map[string]any{"application_id": row.ApplicationID, "name": row.Name, "kind": row.Kind, "edge_id": row.EdgeID, "installation_id": row.InstallationID, "project": row.Project})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
 }
 func (d *dao) DeleteAgentAccess(ctx context.Context, owner uint, id string) error {
 	return d.getDB().WithContext(ctx).Transaction(func(tx *gorm.DB) error {

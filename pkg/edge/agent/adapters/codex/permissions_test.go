@@ -74,3 +74,34 @@ func TestInputAnswerPreservesNativeRequestID(t *testing.T) {
 		t.Fatal("input answer not delivered")
 	}
 }
+
+func TestFileApprovalPreservesNativeRequestID(t *testing.T) {
+	client, server := net.Pipe()
+	c := rpc.New(client, client)
+	defer c.Close()
+	defer server.Close()
+	received := make(chan json.RawMessage, 1)
+	go func() {
+		var raw json.RawMessage
+		if json.NewDecoder(server).Decode(&raw) == nil {
+			received <- raw
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	s := &Session{client: c}
+	require.Error(t, s.ApproveFileChange(ctx, rpc.Message{ID: json.RawMessage(`1`), Method: "item/permissions/requestApproval"}))
+	require.NoError(t, s.ApproveFileChange(ctx, rpc.Message{ID: json.RawMessage(`"file-1"`), Method: "item/fileChange/requestApproval"}))
+	select {
+	case raw := <-received:
+		var response struct {
+			ID     string          `json:"id"`
+			Result json.RawMessage `json:"result"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &response))
+		require.Equal(t, "file-1", response.ID)
+		require.JSONEq(t, `{"decision":"accept"}`, string(response.Result))
+	case <-ctx.Done():
+		t.Fatal("approval not delivered")
+	}
+}

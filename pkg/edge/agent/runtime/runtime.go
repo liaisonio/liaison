@@ -23,6 +23,12 @@ type Thread struct {
 }
 type Model struct{ ID, Name string }
 
+// Attachment paths are prepared by the trusted Edge file service, not the browser.
+type Attachment struct{ Path, ImagePath string }
+type AttachmentSession interface {
+	SendAttachments(context.Context, string, string, string, string, []Attachment) (string, error)
+}
+
 // Optional native catalog and per-turn model selection. Never writes local configuration.
 type ModelSession interface {
 	Models(context.Context) ([]Model, error)
@@ -43,20 +49,39 @@ type SkillSession interface {
 }
 
 type Session interface {
-	CheckAuthentication(context.Context) (bool, error)
 	NewThread(context.Context) (Thread, error)
 	Send(context.Context, string, string) (string, error)
 	Interrupt(context.Context, string, string) error
-	RejectRequest(context.Context, rpc.Message) error
-	Events() <-chan rpc.Message
 	Done() <-chan struct{}
 	Close() error
+}
+
+// AuthenticationSession provides a native preflight when supported. Without
+// this capability authentication is checked by the provider on the first turn;
+// a successful process launch must not be represented as verified credentials.
+type AuthenticationSession interface {
+	CheckAuthentication(context.Context) (bool, error)
+}
+
+// RPCSession preserves the existing Codex transport during adapter migration.
+type RPCSession interface {
+	Events() <-chan rpc.Message
+	RejectRequest(context.Context, rpc.Message) error
+}
+
+type UpdateSession interface {
+	Updates() <-chan Update
 }
 
 // PermissionSession never accepts arbitrary JSON-RPC from remote clients.
 type PermissionSession interface {
 	SetPermissionMode(string) error
 	ApproveCommand(context.Context, rpc.Message) error
+}
+
+// FileApprovalSession accepts only a reviewed single request, never a root grant.
+type FileApprovalSession interface {
+	ApproveFileChange(context.Context, rpc.Message) error
 }
 
 type InputSession interface {

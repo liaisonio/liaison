@@ -20,6 +20,8 @@ const assert=require('node:assert/strict');
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(`${process.env.E2E_UI_URL}/e2e/product-polish.html?app`);
   const zh=locale==='zh-CN';await page.getByRole('button',{name:zh?'新建应用':'Create application',exact:true}).click();
+  await page.getByRole('combobox',{name:zh?'应用分类':'Application category'}).selectOption('network');
+  await page.getByRole('button',{name:zh?'下一步':'Next',exact:true}).click();
   const form=page.locator('#create-application');const button=()=>form.getByRole('button',{name:zh?'测试连接':'Test connection',exact:true});
   assert(await button().isDisabled());await form.locator('select').nth(1).selectOption('7');
   await form.locator('input[list]').fill('127.0.0.1');await button().click();

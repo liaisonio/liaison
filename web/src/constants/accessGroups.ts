@@ -7,11 +7,11 @@ export const ACCESS_GROUPS = [
   {value:'web',label:'Web',types:['http']},
   {value:'llm',label:'LLM',types:[...LLM_PROTOCOL_OPTIONS.map(p=>p.value),'aiapi']},
   {value:'ssh',label:'SSH/SFTP',types:['webssh','websftp','ssh']},
+  {value:'tcp',label:'TCP',types:['tcp']},
   {value:'database',label:'Database',types:['webmysql','webmariadb','webdoris','webstarrocks','webtidb','webpostgresql','websqlserver','weboracle','webdameng','webmongodb','webclickhouse','webelasticsearch','webopensearch']},
   {value:'cache',label:'Cache',types:['webredis','webmemcached']},
   {value:'desktop',label:'Desktop',types:['webrdp','webvnc']},
   {value:'storage',label:'Storage',types:['webs3','websmb']},
-  {value:'tcp',label:'TCP',types:['tcp']},
 ];
 export function accessGroup(search:URLSearchParams) {
   // Preserve bookmarks made before Redis moved from Database to Cache.

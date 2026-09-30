@@ -44,9 +44,9 @@
 下载自带所有镜像的 Docker 离线包，解压后运行安装脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.14.1/liaison-1.14.1-linux-amd64.tar.gz
-tar -xzf liaison-1.14.1-linux-amd64.tar.gz
-cd liaison-1.14.1-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.15.0-rc.1/liaison-1.15.0-rc.1-linux-amd64.tar.gz
+tar -xzf liaison-1.15.0-rc.1-linux-amd64.tar.gz
+cd liaison-1.15.0-rc.1-linux-amd64
 ./install.sh
 ```
 
