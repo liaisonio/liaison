@@ -18,7 +18,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.getByRole('button',{name:tr('新建应用','Create application'),exact:true}).click();
   await page.getByRole('textbox',{name:tr('应用名称','Application name')}).fill('Mac Codex');
   await page.getByRole('button',{name:tr('发现已安装的 Agent','Discover installed Agents')}).click();
-  await page.getByRole('combobox',{name:tr('Codex 安装','Codex installation')}).waitFor();
+  await page.getByRole('combobox',{name:tr('Agent 安装','Agent installation')}).waitFor();
   await page.screenshot({path:`/tmp/agent-app-registration-${locale}-${dark}-${width}.png`,fullPage:true});
   await page.getByRole('button',{name:tr('保存','Save'),exact:true}).click();
   await page.getByRole('cell',{name:'Mac Codex',exact:true}).waitFor();assert.equal(discoveries,1);
