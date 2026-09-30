@@ -46,7 +46,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
      if(body.session_id)snapshot=sessions.get(body.session_id);
      if(body.action==='sessions')data={version:1,status:'ok',sessions_available:true,session_management:true,sessions:[...sessions.values()].map(s=>({session_id:s.session_id,thread_id:s.thread_id,title:s.title||s.messages[0]?.text||s.project.split('/').pop(),project:s.project,running:s.running,closed:s.closed,status:s.status,updated_at:'2026-09-21T03:00:00Z'}))};
      else if(body.action==='discover')data={version:1,status:'ok',installations:[{id:'a'.repeat(32),path:'/opt/homebrew/bin/codex',kind:'codex'}],default_project:'/Users/local/project'};
-     else if(body.action==='directories'){const dir=body.directory||'/Users/local';data={version:1,status:dir==='/outside'?'invalid_request':'ok',directory:dir,parent_directory:'/Users/local',directory_roots:['/Users/local'],directories:dir.endsWith('/src')?[]:[{name:'src',path:'/Users/local/project/src'},{name:'项目文档',path:'/Users/local/project/docs'}]};}
+     else if(body.action==='directories'){const dir=body.directory||'/Users/local';data={version:1,status:dir==='/outside'?'invalid_request':'ok',directory:dir,parent_directory:dir.endsWith('/src')?'/Users/local/project':'/Users/local',directory_roots:['/Users/local'],directories:dir.endsWith('/src')?[]:[{name:'src',path:'/Users/local/project/src'},{name:'项目文档',path:'/Users/local/project/docs'}]};}
      else if(body.action==='start'){starts++;data=snapshot={version:1,status:'ok',revision:1,session_id:String(starts).padStart(32,'b'),thread_id:'thread-'+starts,model:'configured-model',project:body.working_directory||body.project,started_at:'2026-09-21T03:00:00Z',skills_available:true,skills:[{id:'c'.repeat(32),name:'review-code',description:'Review the current project'}],running:false,closed:false,messages:[]};}
      else if(body.action==='resume'){data=snapshot={...snapshot,status:'ok',revision:snapshot.revision+1,running:false,closed:false,archived:false};}
      else if(body.action==='transcript'){const pages=[...transcripts.values()].filter(p=>p.session_id===body.session_id&&(p.window||0)<Number(body.history_before)).sort((a,b)=>(b.window||0)-(a.window||0)).slice(0,Number(body.history_limit||1));data={version:1,status:'ok',session_id:body.session_id,history_pages:pages,history_before:pages.at(-1)?.window?String(pages.at(-1).window):''};}
@@ -500,7 +500,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.getByRole('button',{name:zh?'刷新会话':'Refresh sessions'}).click();
    const groups=page.locator('.edge-agent-project-group');
    assert.equal(await groups.count(),2,'Group sessions by their full project directory');
-   const group=groups.filter({has:page.locator('.edge-agent-group-path',{hasText:'/Users/local/project/src'})});
+   const group=groups.filter({has:page.getByRole('button',{name:`${zh?'新建会话':'New conversation'} · /Users/local/project/src`,exact:true})});
    const collapse=group.locator('.edge-agent-project-group-heading button').first();
    await collapse.click();
    assert.equal(await group.locator('.edge-agent-session-item').count(),0);
@@ -536,7 +536,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.locator('.edge-agent-session-item').click();
    await page.getByRole('button',{name:zh?'切换模型':'Switch model',exact:true}).waitFor();
    // Replacing a new empty conversation removes only that conversation.
-   await page.locator('.edge-agent-session-actions').getByRole('button',{name:zh?'新建会话':'New conversation',exact:true}).click();
+   if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();
+   await page.getByRole('button',{name:`${zh?'新建会话':'New conversation'} · /Users/local/project`,exact:true}).click();
+   await page.getByRole('dialog').getByRole('button',{name:zh?'在此目录新建':'Create in this folder',exact:true}).click();
    await page.getByText(zh?'从这个项目开始':'Start with this project',{exact:true}).waitFor();
    const emptyID=String(starts).padStart(32,'b');
    await page.getByRole('button',{name:zh?'选择工作目录':'Choose working directory',exact:true}).click();
@@ -560,7 +562,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.getByRole('button',{name:zh?'去访问':'Open',exact:true}).click();
    await page.getByTitle(zh?'连接器离线，暂时无法恢复。':'The connector is offline. Resume is temporarily unavailable.',{exact:true}).waitFor();
    await page.getByRole('heading',{name:'Project',exact:true}).last().waitFor();
-   assert(await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).isDisabled());
+   assert.equal(await page.getByRole('textbox',{name:zh?'消息':'Message',exact:true}).count(),0,'Archived offline history has no composer');
+   assert.equal(await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).count(),0);
    assert.equal(starts,4,'Offline history must not launch a new process');
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
    await page.screenshot({path:`/tmp/agent-history-${locale}-${dark}-${width}.png`,fullPage:true});
@@ -570,7 +573,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.getByRole('textbox',{name:zh?'消息':'Message',exact:true}).waitFor();
    revoked=true;
    await page.getByRole('alert').filter({hasText:zh?'会话访问权限已失效':'Session access is no longer available'}).waitFor();
-   assert(await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).isDisabled());
+   assert.equal(await page.getByRole('textbox',{name:zh?'消息':'Message',exact:true}).count(),0,'Revoked sessions remove the composer');
+   assert.equal(await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).count(),0);
    assert.deepEqual(errors,[]);await page.close();
   }
   console.log(process.env.E2E_FILES_ONLY==='1'?'PASS 8 locale/theme/viewport combinations; uploads, native-image attachment UI, paste, drag/drop, cancellation, permission failures, byte-exact download, attachment-only send':process.env.E2E_FOOTNOTE_ONLY==='1'?'PASS 8 locale/theme/viewport combinations; history info in details, clean footnote, responsive keyboard hint':'PASS 8 locale/theme/viewport combinations; discovery, chat, safe Markdown, permission revocation, overflow');

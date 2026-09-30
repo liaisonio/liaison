@@ -24,7 +24,7 @@ Liaison uses one repository and two release tag families:
    git push origin v1.6.0
    ```
 
-4. GitHub Actions runs `Server Release` and uploads:
+4. GitHub Actions runs `Release` and uploads:
 
    ```text
    liaison-1.6.0-linux-amd64.tar.gz           # default Docker bundle
