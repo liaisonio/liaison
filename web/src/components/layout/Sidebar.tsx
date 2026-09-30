@@ -17,7 +17,7 @@ import {
   Settings,
   Users,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 
 type NavItem = {
@@ -138,8 +138,8 @@ export function Sidebar() {
                     <span>{tr('全部访问', 'All access')}</span>
                   </Link>
                   {ACCESS_GROUPS.map((type) => (
+                    <Fragment key={type.value}>
                     <Link
-                      key={type.value}
                       to={`/proxy?category=${type.value}`}
                       className={`liaison-nav-child${
                         location.pathname === '/proxy' &&
@@ -150,8 +150,9 @@ export function Sidebar() {
                     >
                       <span>{type.label}</span>
                     </Link>
+                    {type.value === 'llm' && accessAI && <Link to="/access/agents" className={`liaison-nav-child${location.pathname === '/access/agents' ? ' is-active' : ''}`}><span>Agent</span></Link>}
+                    </Fragment>
                   ))}
-                  {accessAI && <Link to="/access/agents" className={`liaison-nav-child${location.pathname === '/access/agents' ? ' is-active' : ''}`}><span>Agent</span></Link>}
                 </div>
               )}
             </div>

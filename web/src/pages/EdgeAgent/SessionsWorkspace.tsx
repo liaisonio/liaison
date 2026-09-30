@@ -1,7 +1,8 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {Link,useSearchParams} from 'react-router-dom';
-import {ChevronRight,Folder,LoaderCircle,Maximize2,Minimize2,PanelLeft,PanelLeftClose,Plus,RefreshCw,X, CircleAlert, CircleHelp} from 'lucide-react';
-import {OpenAIIcon} from '@/components/AgentWorkspace/ProviderIcon';
+import {ChevronRight,Folder,LoaderCircle,Maximize2,Minimize2,PanelLeft,PanelLeftClose,Plus,RefreshCw,X, CircleHelp} from 'lucide-react';
+import ProtocolIcon from '@/components/icons/ProtocolIcon';
+import {agentLabel} from './providers';
 import {Button,Notice,Modal,DangerConfirm,Field,Input} from '@/components/ui';
 import ActionMenu from '@/components/ui/ActionMenu';
 import {useI18n} from '@/i18n';
@@ -20,7 +21,7 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
  const {tr}=useI18n(),[params,setParams]=useSearchParams();
  const resize=useSessionResize();
  const [items,setItems]=useState<AgentSessionSummary[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[denied,setDenied]=useState(false);
- const [search,setSearch]=useState(''),[query,setQuery]=useState(''),[attention,setAttention]=useState<AgentSessionSummary[]>([]);
+ const [search,setSearch]=useState(''),[query,setQuery]=useState('');
  const unread=useUnreadSessions(access.id);
  const owner=useSession(s=>s.initialState.currentUser?.id);
  const [newDirectory,setNewDirectory]=useState<string>();
@@ -32,6 +33,11 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
  const [persistent,setPersistent]=useState(false),[page,setPage]=useState(1),[total,setTotal]=useState(0);
  const [management,setManagement]=useState(false),[operation,setOperation]=useState<{kind:'rename'|'delete';row:AgentSessionSummary}>(),[title,setTitle]=useState(''),[saving,setSaving]=useState(false),[operationError,setOperationError]=useState('');
  const [open,setOpen]=useState(()=>window.innerWidth>=1000),[refresh,setRefresh]=useState(0);
+ useEffect(()=>{
+  const narrow=window.matchMedia('(max-width: 999px)');
+  const adapt=()=>{if(narrow.matches)setOpen(false);};
+  narrow.addEventListener('change',adapt);return()=>narrow.removeEventListener('change',adapt);
+ },[]);
  // Keep the view in the URL so reloads restore it without affecting other tabs.
  const expanded=params.get('view')==='full';
  const setExpanded=useCallback((value:boolean|((previous:boolean)=>boolean))=>{
@@ -72,13 +78,13 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
     if(abort.signal.aborted)return;
     if(data.status!=='ok'||!data.sessions_available)throw new Error('unavailable');
     if(query&&searchResults&&!data.history_search_available){setItems([]);setTotal(0);setError(tr('当前服务端不支持全历史搜索，请升级后使用。','This server does not support history search. Upgrade to use it.'));return;}
-    const rows=data.sessions||[];setAttention(data.attention_sessions||[]);unread.observe(rows);
+    const rows=data.sessions||[];unread.observe(rows);
     if(!searchResults&&query){setError('');setItems(previous=>previous.map(row=>{const live=rows.find(s=>s.session_id===row.session_id);return live?{...row,reply_token:live.reply_token,attention:live.attention,running:live.running,closed:live.closed,status:live.status}:row;}));return;}
     if(query)lastSearch=Date.now();
     setItems(rows);setError('');setManagement(Boolean(data.session_management));
     setPersistent(Boolean(data.history_persistent));setTotal(data.history_total||rows.length);
     if(!initialized.current){initialized.current=true;const first=rows.find(r=>r.session_id===requested.current)||rows.find(r=>!r.closed)||rows[0];const id=requested.current||first?.session_id;setSelection({key:0,id});setCurrent(id||'');}
-   }catch(e){if(abort.signal.aborted)return;setAttention([]);if(query&&searchResults)setItems([]);if(e instanceof RequestError&&[401,403,404].includes(e.response?.status||0)){setDenied(true);setItems([]);setSelection(undefined);}
+   }catch(e){if(abort.signal.aborted)return;if(query&&searchResults)setItems([]);if(e instanceof RequestError&&[401,403,404].includes(e.response?.status||0)){setDenied(true);setItems([]);setSelection(undefined);}
     setError(tr('无法加载会话列表，请检查连接器版本、连接状态与访问权限。','Cannot load sessions. Check the connector version, connection and access permissions.'));
    }finally{if(!abort.signal.aborted){setLoading(false);timer=setTimeout(()=>void load(!query||Date.now()-lastSearch>=30000),5000);}}
   };void load();return()=>{abort.abort();clearTimeout(timer);};
@@ -106,14 +112,13 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
   finally{setSaving(false);}
  }
  return <div ref={pageRoot} className={`edge-agent-sessions-page${expanded?' is-page-expanded':''}`}>
-  <div className="edge-agent-toolbar"><nav className="edge-agent-breadcrumb" aria-label={tr('面包屑','Breadcrumb')}><Link to="/access/agents">Agent</Link><ChevronRight size={12}/><span className="edge-agent-kind"><OpenAIIcon size={14}/>Codex</span><ChevronRight size={12}/><span title={access.name}>{access.name}</span></nav><div className="edge-agent-view-actions"><Button aria-expanded={open} aria-controls="agent-session-list" onClick={()=>setOpen(v=>!v)}>{open?<PanelLeftClose size={15}/>:<PanelLeft size={15}/>} {open?tr('收起会话列表','Hide conversations'):tr('显示会话列表','Show conversations')}</Button><Button data-page-expand aria-pressed={expanded} title={expanded?tr('退出全页面 · Esc','Exit full page · Esc'):tr('全页面展开','Expand to full page')} onClick={()=>setExpanded(v=>!v)}>{expanded?<Minimize2 size={15}/>:<Maximize2 size={15}/>} {expanded?tr('退出全页面','Exit full page'):tr('全页面展开','Expand to full page')}</Button></div></div>
+  <div className="edge-agent-toolbar"><nav className="edge-agent-breadcrumb" aria-label={tr('面包屑','Breadcrumb')}><Link to="/access/agents">Agent</Link><ChevronRight size={12}/><span className="edge-agent-kind"><ProtocolIcon protocol={access.kind}/>{agentLabel(access.kind)}</span><ChevronRight size={12}/><span title={access.name}>{access.name}</span></nav><div className="edge-agent-view-actions"><Button aria-expanded={open} aria-controls="agent-session-list" onClick={()=>setOpen(v=>!v)}>{open?<PanelLeftClose size={15}/>:<PanelLeft size={15}/>} {open?tr('收起会话列表','Hide conversations'):tr('显示会话列表','Show conversations')}</Button><Button data-page-expand aria-pressed={expanded} title={expanded?tr('退出全页面 · Esc','Exit full page · Esc'):tr('全页面展开','Expand to full page')} onClick={()=>setExpanded(v=>!v)}>{expanded?<Minimize2 size={15}/>:<Maximize2 size={15}/>} {expanded?tr('退出全页面','Exit full page'):tr('全页面展开','Expand to full page')}</Button></div></div>
   {error&&<Notice tone="danger">{error}<Button onClick={()=>setRefresh(v=>v+1)}>{tr('重试','Retry')}</Button></Notice>}
   <div ref={resize.layout} style={resize.style} className={`edge-agent-session-layout ${open?'is-open':''} ${resize.dragging?'is-resizing':''}`}>
    {open&&<aside id="agent-session-list" className="edge-agent-session-list" aria-label={tr('会话列表','Session list')}>
     <header><strong>{tr('会话','Sessions')}</strong><Button variant="ghost" aria-label={tr('刷新会话','Refresh sessions')} onClick={()=>setRefresh(v=>v+1)}><RefreshCw size={14}/></Button></header>
     <Button disabled={loading||denied||!initialized.current} onClick={()=>requestNew()}><Plus size={14}/>{tr('新建会话','New conversation')}</Button>
     <Input type="search" maxLength={100} value={search} aria-label={tr('搜索全部会话','Search all conversations')} placeholder={tr('搜索会话或项目','Search conversations or projects')} onChange={e=>setSearch(e.target.value)}/>
-    {!!attention.length&&<div className="edge-agent-attention" aria-label={tr('待处理会话','Conversations needing attention')}>{attention.map(s=><Button key={s.session_id} variant="ghost" title={`${s.title} · ${attentionLabel(s)}`} onClick={()=>choose(s.session_id)}><CircleAlert size={13}/><span>{s.title||tr('新会话','New conversation')}</span><small>{attentionLabel(s)}</small></Button>)}</div>}
     <div className="edge-agent-session-items">
      {loading||search.trim()!==query?<p role="status">{tr('正在加载…','Loading…')}</p>:!items.length?<p>{query?tr('没有匹配的会话','No matching conversations'):tr('暂无会话','No sessions yet')}</p>:null}
      {[...groups].map(([path,rows],index)=>{const expanded=!!query||!collapsed.has(path),name=path.split(/[\\/]/).filter(Boolean).pop()||path;const visible=query||showAll.has(path)?rows:rows.filter((s,i)=>i<8||s.session_id===current);return <section key={path} className="edge-agent-project-group">
@@ -129,7 +134,7 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
   {newDirectory!==undefined&&!denied&&<DirectoryBrowser creating edge={access.edge_id} accessID={access.id} current={newDirectory} onClose={()=>setNewDirectory(undefined)} onSelect={path=>{setNewDirectory(undefined);choose(undefined,path);}}/>}
   <Modal open={Boolean(operation)} title={operation?.kind==='rename'?tr('重命名会话','Rename conversation'):tr('删除会话','Delete conversation')} onClose={()=>{if(!saving)setOperation(undefined);}} footer={<><Button disabled={saving} onClick={()=>setOperation(undefined)}>{tr('取消','Cancel')}</Button><Button variant={operation?.kind==='delete'?'danger':'primary'} loading={saving} disabled={saving||(operation?.kind==='rename'&&!title.trim())} onClick={()=>void manage()}>{operation?.kind==='delete'?tr('删除','Delete'):tr('保存','Save')}</Button></>}>
    {operationError&&<Notice tone="danger">{operationError}</Notice>}
-   {operation?.kind==='rename'?<Field label={tr('会话名称','Conversation name')}><Input value={title} maxLength={120} onChange={e=>setTitle(e.target.value)}/></Field>:<DangerConfirm title={operation?.row.title||tr('新会话','New conversation')} description={tr('将结束本次实例并删除 Liaison 中的会话记录，无法恢复。不会删除项目文件或 Codex 桌面端的其他会话。','Ends this instance and permanently removes its Liaison conversation. Project files and other Codex desktop conversations are unaffected.')}/>}
+   {operation?.kind==='rename'?<Field label={tr('会话名称','Conversation name')}><Input value={title} maxLength={120} onChange={e=>setTitle(e.target.value)}/></Field>:<DangerConfirm title={operation?.row.title||tr('新会话','New conversation')} description={tr('将结束本次实例并删除 Liaison 中的会话记录，无法恢复。不会删除项目文件或 Agent 本机的其他会话。','Ends this instance and permanently removes its Liaison conversation. Project files and other native Agent conversations are unaffected.')}/>}
   </Modal>
  </div>;
 }

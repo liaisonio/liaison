@@ -9,17 +9,17 @@ import {FileAttachments} from './Files';
 import {FileLinkContext} from '@/components/AgentWorkspace/FileLinkContext';
 import {CodePreview} from './CodePreview';
 
-const Round=memo(function Round({snapshot,live=false}:{snapshot:AgentSnapshot;live?:boolean}){
+const Round=memo(function Round({snapshot,live=false,provider}:{snapshot:AgentSnapshot;live?:boolean;provider:string}){
  const {tr}=useI18n();
  const running=live&&snapshot.running;
  return <>
   {snapshot.truncated&&<Notice>{tr('本轮内容较长，仅显示部分记录；不会因此中断任务。','This round is long; some display content is omitted. The task is not interrupted.')}</Notice>}
-{snapshot.messages?.map((m,index)=><article key={index} className={`agent-message ${m.role==='user'?'is-user':''}${m.role==='assistant'&&running&&index===snapshot.messages!.length-1?' is-streaming':''}`}><span className="edge-agent-codex-label">{m.role==='user'?tr('你','You'):'Codex'}</span>{!!m.attachments?.length&&<FileAttachments files={m.attachments}/>}<MessageContent text={m.text||(m.role==='assistant'&&running&&!snapshot.activities?.some(a=>a.message_index===index)?tr('正在准备回复…','Preparing a response…'):'')}/><Activity activeTurn={running} items={snapshot.activities?.filter(a=>a.message_index===index)||[]}/></article>)}
+{snapshot.messages?.map((m,index)=><article key={index} className={`agent-message ${m.role==='user'?'is-user':''}${m.role==='assistant'&&running&&index===snapshot.messages!.length-1?' is-streaming':''}`}><span className="edge-agent-codex-label">{m.role==='user'?tr('你','You'):provider}</span>{!!m.attachments?.length&&<FileAttachments files={m.attachments}/>}<MessageContent text={m.text||(m.role==='assistant'&&running&&!snapshot.activities?.some(a=>a.message_index===index)?tr('正在准备回复…','Preparing a response…'):'')}/><Activity awaitingCommands={snapshot.approvals?.map(a=>a.command).filter(Boolean)} activeTurn={running} items={snapshot.activities?.filter(a=>a.message_index===index)||[]}/></article>)}
  </>;
 });
 
 // Mounted per session: delayed responses cannot append another session's history.
-export function Transcript({session,edge,accessID,children}:{session:AgentSnapshot;edge:number;accessID:string;children:ReactNode}){
+export function Transcript({session,edge,accessID,children,provider='Codex'}:{provider?:string;session:AgentSnapshot;edge:number;accessID:string;children:ReactNode}){
  const {tr}=useI18n();
  const [preview,setPreview]=useState<string>();
  const openFile=useCallback((href:string)=>setPreview(href),[]);
@@ -75,10 +75,10 @@ export function Transcript({session,edge,accessID,children}:{session:AgentSnapsh
    </nav>}
    {pages.filter(p=>(p.window||0)<window).map((p,index)=><Fragment key={p.window||0}>
     {index>0&&(p.window||0)>(pages[index-1].window||0)+1&&<div className="edge-agent-history-nav"><Button variant="ghost" disabled={loading} onClick={()=>void load(String(p.window))}>{tr('加载中间记录','Load missing messages')}</Button></div>}
-    <Round snapshot={p}/>
+    <Round provider={provider} snapshot={p}/>
    </Fragment>)}
    {!session.messages?.length&&!pages.length&&children}
-   <Round key={window} snapshot={session} live/>
+   <Round provider={provider} key={window} snapshot={session} live/>
   </div>
   {away&&!session.approvals?.length&&!session.input_requests?.length&&<Button className="edge-agent-jump" aria-label={tr('回到最新消息','Jump to latest')} onClick={()=>{stick.current=true;setAway(false);container.current?.scrollTo({top:container.current.scrollHeight,behavior:'smooth'});}}><ArrowDown size={15}/></Button>}
   {preview!==undefined&&session.session_id&&<CodePreview key={preview} href={preview} project={session.project||''} edge={edge} access={accessID} session={session.session_id} available={Boolean(session.files_available)} onClose={()=>setPreview(undefined)}/>}

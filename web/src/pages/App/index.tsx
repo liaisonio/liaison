@@ -211,7 +211,7 @@ const NetworkApplications = ({includeAgents=false}:{includeAgents?:boolean}) => 
       const app=row.app;
       switch(column.key){
         case 'name':return app.name;
-        case 'type':return <span className="liaison-inline-name"><ProtocolIcon protocol={app.kind}/><StatusPill tone="info">{app.kind==='codex'?'Codex':app.kind}</StatusPill></span>;
+        case 'type':return <span className="liaison-inline-name"><ProtocolIcon protocol={app.kind}/><StatusPill tone="info">{app.kind==='codex'?'Codex':app.kind==='claude'?'Claude Code':app.kind}</StatusPill></span>;
         case 'device':return agents.connectors.find(c=>c.id===app.edge_id)?.device||'—';
         case 'proxy':return app.access_count;
         case 'created':return app.created_at?new Date(app.created_at).toLocaleString():'—';

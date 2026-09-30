@@ -46,7 +46,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
      if(body.session_id)snapshot=sessions.get(body.session_id);
      if(body.action==='sessions')data={version:1,status:'ok',sessions_available:true,session_management:true,sessions:[...sessions.values()].map(s=>({session_id:s.session_id,thread_id:s.thread_id,title:s.title||s.messages[0]?.text||s.project.split('/').pop(),project:s.project,running:s.running,closed:s.closed,status:s.status,updated_at:'2026-09-21T03:00:00Z'}))};
      else if(body.action==='discover')data={version:1,status:'ok',installations:[{id:'a'.repeat(32),path:'/opt/homebrew/bin/codex',kind:'codex'}],default_project:'/Users/local/project'};
-     else if(body.action==='directories'){const dir=body.directory||'/Users/local';data={version:1,status:dir==='/outside'?'invalid_request':'ok',directory:dir,parent_directory:'/Users/local',directory_roots:['/Users/local'],directories:dir.endsWith('/src')?[]:[{name:'src',path:'/Users/local/project/src'}]};}
+     else if(body.action==='directories'){const dir=body.directory||'/Users/local';data={version:1,status:dir==='/outside'?'invalid_request':'ok',directory:dir,parent_directory:'/Users/local',directory_roots:['/Users/local'],directories:dir.endsWith('/src')?[]:[{name:'src',path:'/Users/local/project/src'},{name:'项目文档',path:'/Users/local/project/docs'}]};}
      else if(body.action==='start'){starts++;data=snapshot={version:1,status:'ok',revision:1,session_id:String(starts).padStart(32,'b'),thread_id:'thread-'+starts,model:'configured-model',project:body.working_directory||body.project,started_at:'2026-09-21T03:00:00Z',skills_available:true,skills:[{id:'c'.repeat(32),name:'review-code',description:'Review the current project'}],running:false,closed:false,messages:[]};}
      else if(body.action==='resume'){data=snapshot={...snapshot,status:'ok',revision:snapshot.revision+1,running:false,closed:false,archived:false};}
      else if(body.action==='transcript'){const pages=[...transcripts.values()].filter(p=>p.session_id===body.session_id&&(p.window||0)<Number(body.history_before)).sort((a,b)=>(b.window||0)-(a.window||0)).slice(0,Number(body.history_limit||1));data={version:1,status:'ok',session_id:body.session_id,history_pages:pages,history_before:pages.at(-1)?.window?String(pages.at(-1).window):''};}
@@ -115,17 +115,38 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.screenshot({path:`/tmp/agent-list-${locale}-${dark}-${width}.png`,fullPage:true});
    await page.reload();
    await page.getByRole('button',{name:zh?'去访问':'Open',exact:true}).click();
-   await page.getByRole('button',{name:zh?'会话详情':'Session details',exact:true}).click();
+   await page.getByRole('button',{name:zh?'选择项目目录':'Choose project folder',exact:true}).click();
+   const folderSearch=page.getByRole('textbox',{name:zh?'定位文件夹':'Find folder',exact:true});
+   await page.getByRole('button',{name:'src',exact:true}).waitFor();
+   await page.getByRole('button',{name:'src',exact:true}).focus();
+   await page.keyboard.press('s');
+   assert.equal(await folderSearch.inputValue(),'s');
+   await folderSearch.fill('文档');
+   await page.locator('.edge-agent-directory-list button.is-located').getByText('项目文档',{exact:true}).waitFor();
+   await folderSearch.fill('missing-folder');
+   await page.getByText(zh?'没有匹配的文件夹。':'No matching folders.',{exact:true}).waitFor();
+   await folderSearch.fill('SR');
+   await page.locator('.edge-agent-directory-list button.is-located').getByText('src',{exact:true}).waitFor();
+   await page.screenshot({path:`/tmp/agent-folder-${locale}-${dark}-${width}.png`});
+   await folderSearch.press('Enter');
+   await page.waitForFunction(()=>document.querySelector('.edge-agent-directory-path input')?.value.endsWith('/src'));
+   await page.getByRole('button',{name:zh?'上一级':'Parent folder',exact:true}).click();
+   await page.getByRole('dialog').getByRole('button',{name:zh?'在此目录新建':'Create in this folder',exact:true}).click();
+   await page.getByRole('button',{name:zh?'更多会话操作':'More conversation actions',exact:true}).click();
+   await page.getByRole('menuitem',{name:zh?'会话详情':'Session details',exact:true}).click();
    await page.getByText('thread-1',{exact:true}).waitFor();
    await page.getByRole('dialog').getByText(zh?'历史保存在服务端，不自动过期。空闲时仅结束运行实例。':'History is stored on the server without automatic expiration. Idle instances may stop.',{exact:true}).waitFor();
    await page.getByRole('dialog').getByRole('button',{name:zh?'关闭':'Close',exact:true}).last().click();
    assert.equal(await page.locator('.edge-agent-session-list footer').count(),0);
    assert.equal(await page.locator('.edge-agent-project .edge-agent-codex-label').count(),0);
    assert.equal(await page.locator('.edge-agent-breadcrumb .edge-agent-kind').innerText(),'Codex');
-   assert.equal(await page.locator('.edge-agent-breadcrumb .edge-agent-kind svg').count(),1);
+   assert.equal(await page.locator('.edge-agent-breadcrumb .edge-agent-kind svg').count(),0);
    if(process.env.E2E_SCROLL_ONLY==='1'){
     snapshot={...snapshot,revision:(snapshot.revision||0)+1,running:false,messages:[{role:'user',text:'Scroll check'},{role:'assistant',text:Array.from({length:60},(_,i)=>`Paragraph ${i}. Read this historical message.`).join('\n\n')}]};sessions.set(snapshot.session_id,snapshot);
     await page.getByText('Paragraph 59. Read this historical message.',{exact:true}).waitFor();
+    assert.equal(await page.locator('.edge-agent-messages .agent-markdown p').last().evaluate(el=>getComputedStyle(el).fontSize),'13px');
+    assert.equal(await page.locator('.edge-agent-messages .agent-markdown p').last().evaluate(el=>getComputedStyle(el).lineHeight),'22.75px');
+    assert(await page.locator('.edge-agent-workspace > header').evaluate(el=>el.getBoundingClientRect().height<90),'Compact workspace header');
     const messages=page.locator('.edge-agent-messages'),input=page.getByRole('textbox',{name:zh?'消息':'Message',exact:true});
     const position=()=>page.evaluate(()=>{const e=document.querySelector('.edge-agent-messages');return {top:e.scrollTop,height:e.clientHeight,outer:Array.from(document.querySelectorAll('body,main,.edge-agent-sessions-page,.edge-agent-session-layout,.edge-agent-session-main,.edge-agent-workspace')).map(n=>({name:n.className||n.tagName,top:n.scrollTop,y:n.getBoundingClientRect().y}))};});
     await messages.evaluate(e=>{e.scrollTop=700;});await page.waitForTimeout(200);const before=await position();
@@ -133,21 +154,31 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     await input.fill('Line one\nLine two\nLine three\nLine four\nLine five');await page.waitForTimeout(200);assert.equal((await position()).top,before.top);
     await input.fill('/');await page.waitForTimeout(200);assert.equal((await position()).top,before.top);
     await input.fill('');
-    for(const decision of ['accept','decline','escape']){
+    for(const decision of ['accept','decline']){
      const prior=await position();
-     snapshot={...snapshot,revision:snapshot.revision+1,running:true,approvals:[{id:'f'.repeat(32),reason:'Inspect the project environment',command:'pwd',directory:'/project'}]};sessions.set(snapshot.session_id,snapshot);
-     const dialog=page.getByRole('dialog');await dialog.waitFor();
-     assert.equal(await dialog.evaluate(e=>e.contains(document.activeElement)),true,'Focus stays inside the approval');
-     for(let i=0;i<7;i++){await page.keyboard.press('Tab');assert(await dialog.evaluate(e=>e.contains(document.activeElement)),'Tab is trapped inside the approval');}
-     await dialog.locator('.liaison-modal-mask').click({position:{x:2,y:2}});assert.equal(await dialog.count(),1,'Backdrop never authorizes or dismisses');
-     assert.deepEqual(await position(),prior,'Approval does not resize or scroll the transcript');
-     await page.screenshot({path:`/tmp/agent-approval-dialog-${locale}-${dark}-${width}.png`});
-     if(decision==='escape')await page.keyboard.press('Escape');
-     else await dialog.getByRole('button',{name:decision==='accept'?(zh?'确认':'Confirm'):(zh?'取消':'Cancel'),exact:true}).click();
+     const approval=decision==='accept'?{id:'f'.repeat(32),reason:'Inspect the project environment',command:'pwd',directory:'/project'}:{id:'f'.repeat(32),kind:'fileChange',reason:'Review the proposed change',directory:'/project',changes:[{path:'notes.txt',kind:'update',diff:'@@ -1 +1 @@\n-old\n+new'}]};
+     snapshot={...snapshot,revision:snapshot.revision+1,running:true,approvals:[approval],activities:decision==='accept'?[{id:'pending-command',kind:'commandExecution',status:'running',message_index:1,command:'pwd',duration_ms:0}]:[]};sessions.set(snapshot.session_id,snapshot);
+     const dialog=page.locator('.edge-agent-workspace .edge-agent-approval');await dialog.waitFor();
+     if(decision==='accept'){
+      const details=page.locator('.edge-agent-activity li > details');
+      assert(!(await details.evaluate(el=>el.open)),'Awaiting approval does not expand duplicate command details');
+      assert((await details.locator('summary').innerText()).includes(zh?'等待确认':'Awaiting approval'));
+     }
+     assert.equal(await page.getByRole('dialog').count(),0,'Approval is an inline card without a modal');
+     assert(await input.evaluate(e=>e===document.activeElement),'Approval does not steal focus');
+     assert.equal((await position()).top,prior.top,'Approval preserves the historical reading position');
+     await input.click();assert.equal(await dialog.count(),1,'Clicking outside does not decide');
+     await page.keyboard.press('Escape');assert.equal(await dialog.count(),1,'Escape never rejects the request');
+     if(decision==='decline'){await dialog.locator('summary').click();await dialog.locator('.edge-agent-diff-line.added').waitFor();}
+     await page.screenshot({path:`/tmp/agent-approval-card-${locale}-${dark}-${width}.png`});
+     await dialog.getByRole('button',{name:decision==='accept'?(zh?'确认':'Confirm'):(zh?'取消':'Cancel'),exact:true}).click();
      await dialog.waitFor({state:'detached'});
      assert.equal(actions.filter(a=>a.action==='approve').at(-1).decision,decision==='accept'?'accept':'decline');
-     assert.deepEqual(await position(),prior,'Closing approval preserves the transcript');
+     assert.equal((await position()).top,prior.top,'Closing approval preserves the transcript');
+     await input.focus();
     }
+    snapshot={...snapshot,revision:snapshot.revision+1,running:false,closed:true,status:'session_closed'};sessions.set(snapshot.session_id,snapshot);
+    await page.locator('.edge-agent-composer').waitFor({state:'detached'});
     await page.screenshot({path:`/tmp/agent-scroll-${locale}-${dark}-${width}.png`,fullPage:true});await page.close();continue;
    }
    if(process.env.E2E_HISTORY_HEADER_ONLY==='1'){
@@ -234,7 +265,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.getByRole('button',{name:originalList?(zh?'收起会话列表':'Hide conversations'):(zh?'显示会话列表':'Show conversations'),exact:true}).click();
    assert.equal(await page.locator('.edge-agent-session-list').isVisible(),!originalList);
    await page.getByRole('button',{name:!originalList?(zh?'收起会话列表':'Hide conversations'):(zh?'显示会话列表':'Show conversations'),exact:true}).click();
-   await page.getByRole('button',{name:zh?'会话详情':'Session details',exact:true}).click();
+   await page.getByRole('button',{name:zh?'更多会话操作':'More conversation actions',exact:true}).click();
+   await page.getByRole('menuitem',{name:zh?'会话详情':'Session details',exact:true}).click();
    await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');
    await page.getByRole('dialog').waitFor({state:'hidden'});
    assert(await root.evaluate(el=>el.classList.contains('is-page-expanded')),'Closing a dialog must not exit full page');
@@ -324,10 +356,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.getByRole('button',{name:zh?'工作区写入':'Workspace write',exact:true}).waitFor();
    await page.getByRole('textbox',{name:zh?'消息':'Message',exact:true}).fill('__approval_test__');
    await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).click();
-   await page.getByRole('dialog').getByRole('button',{name:zh?'确认':'Confirm',exact:true}).waitFor();
+   await page.locator('.edge-agent-approval').getByRole('button',{name:zh?'确认':'Confirm',exact:true}).waitFor();
    await page.screenshot({path:`/tmp/agent-approval-${locale}-${dark}-${width}.png`,fullPage:true});
-   await page.getByRole('dialog').getByRole('button',{name:zh?'确认':'Confirm',exact:true}).click();
-   await page.getByRole('dialog').waitFor({state:'detached'});
+   await page.locator('.edge-agent-approval').getByRole('button',{name:zh?'确认':'Confirm',exact:true}).click();
+   await page.locator('.edge-agent-approval').waitFor({state:'detached'});
    await page.getByRole('textbox',{name:zh?'消息':'Message',exact:true}).fill('__input_test__');
    await page.getByRole('button',{name:zh?'发送':'Send',exact:true}).click();
    const inputForm=page.getByRole('form',{name:zh?'回答问题':'Answer questions'});

@@ -18,7 +18,7 @@ export function InputRequest({request,disabled,onAnswer,onCancel}:{request:Agent
     <span><strong>{option.label}</strong>{option.description&&<small>{option.description}</small>}</span>
    </label>)}
    {q.is_other&&Boolean(q.options?.length)&&<label className={`edge-agent-input-option ${selected[q.id]==='custom'?'is-selected':''}`}><input type="radio" name={`${request.id}-${q.id}`} checked={selected[q.id]==='custom'} onChange={()=>setSelected(v=>({...v,[q.id]:'custom'}))}/><span>{tr('其他回答','Other answer')}</span></label>}
-   {(!q.options?.length||selected[q.id]==='custom')&&<Field label={tr('你的回答','Your answer')} hint={q.is_secret?tr('回答会传给 Codex，不会写入 Liaison 历史。','Sent to Codex, not stored in Liaison history.'):undefined}><Input type={q.is_secret?'password':'text'} autoComplete="off" maxLength={4096} value={custom[q.id]||''} onChange={e=>setCustom(v=>({...v,[q.id]:e.target.value}))}/></Field>}
+   {(!q.options?.length||selected[q.id]==='custom')&&<Field label={tr('你的回答','Your answer')} hint={q.is_secret?tr('回答会传给 Agent，不会写入 Liaison 历史。','Sent to Agent, not stored in Liaison history.'):undefined}><Input type={q.is_secret?'password':'text'} autoComplete="off" maxLength={4096} value={custom[q.id]||''} onChange={e=>setCustom(v=>({...v,[q.id]:e.target.value}))}/></Field>}
   </fieldset>)}
   <div className="edge-agent-input-actions">{onCancel&&<Button type="button" disabled={disabled} onClick={onCancel}>{tr('停止本轮','Stop turn')}</Button>}<Button type="submit" variant="primary" disabled={disabled||!complete} loading={disabled}>{tr('提交回答','Submit answers')}</Button></div>
  </form>;
