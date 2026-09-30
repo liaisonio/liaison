@@ -16,7 +16,7 @@ export function useTurnTiming(){
   return {
     timing,
     begin(session:AgentSnapshot){tracker.current=new TurnTimingTracker(session,performance.now());tracker.current.value.background=document.visibilityState!=='visible';setTiming({...tracker.current.value});},
-    response(confirmed:boolean){tracker.current?.requestFinished(performance.now(),confirmed);if(tracker.current)setTiming({...tracker.current.value});},
+    response(confirmed:boolean,serviceMs?:number){tracker.current?.requestFinished(performance.now(),confirmed,serviceMs);if(tracker.current)setTiming({...tracker.current.value});},
     observe(session:AgentSnapshot){
       if(!tracker.current)return;
       tracker.current.observe(session,performance.now());

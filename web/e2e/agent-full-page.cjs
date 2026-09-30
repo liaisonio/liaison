@@ -11,7 +11,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
  try {
   for(const locale of ['zh-CN','en-US'])for(const theme of ['light','dark'])for(const width of [1280,390]){
    const page=await browser.newPage({viewport:{width,height:900},ignoreHTTPSErrors:process.env.E2E_IGNORE_HTTPS_ERRORS==='1'});
-   let failAccess=false,deny=false,replyVersion=1,needsApproval=true,emptyHistory=false;const errors=[],starts=[];
+   let failAccess=false,deny=false,replyVersion=1,needsApproval=true,emptyHistory=false,connectorOnline=true;const errors=[],starts=[];
    page.on('pageerror',()=>errors.push('browser error'));
    await page.addInitScript(({locale,theme})=>{
     localStorage.setItem('token','synthetic-layout-test');
@@ -35,7 +35,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
     else if(path.startsWith('/api/v1/agent-accesses/')){
      await delay(450);if(failAccess)return route.fulfill({status:503,json:{code:503,message:'Unavailable'}});data=access;
     }else if(path==='/api/v1/agent-accesses')data={items:[],total:0};
-    else if(path==='/api/v1/edge-agents/connectors')data=[{id:1,name:'Test connector',device:'Test device',online:true}];
+    else if(path==='/api/v1/edge-agents/connectors')data=[{id:1,name:'Test connector',device:'Test device',online:connectorOnline}];
     else if(path==='/api/v1/edge-agents'){
      const {action,history_search,session_id}=route.request().postDataJSON();
      if(process.env.E2E_NEW_DIRECTORY==='1'&&action==='directories'){
@@ -85,6 +85,19 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
     assert.equal(starts.length,1);assert.equal(starts[0].working_directory,'/workspace/another-project');
     emptyHistory=true;await page.goto(`${origin}/access/agents?access=${access.id}&view=full`);await delay(2200);
     assert.equal(starts.length,1,'an empty history must not auto-create a session');
+    const welcome=page.locator('.edge-agent-welcome');await welcome.waitFor();
+    const chooseProject=welcome.getByRole('button',{name:locale==='zh-CN'?'选择项目目录':'Choose project folder',exact:true});
+    assert(await chooseProject.isEnabled());
+    assert.equal(await welcome.locator('.edge-agent-welcome-project').getAttribute('title'),access.project);
+    await chooseProject.focus();
+    await page.screenshot({path:`/tmp/agent-empty-${locale}-${theme}-${width}.png`});
+    assert(await welcome.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+    await chooseProject.click();await page.getByRole('dialog').waitFor();
+    await page.getByRole('dialog').getByRole('button',{name:locale==='zh-CN'?'取消':'Cancel',exact:true}).click();
+    assert.equal(starts.length,1,'canceling the empty-state picker must not create a session');
+    connectorOnline=false;await page.reload();await welcome.waitFor();
+    assert(await chooseProject.isDisabled());
+    assert((await welcome.textContent()).includes(locale==='zh-CN'?'恢复在线':'connector is online'));
     assert.deepEqual(errors,[]);console.log('PASS choose directory before creation, cancel and empty history',locale,theme,width);await page.close();continue;
    }
    await hidden();
@@ -122,7 +135,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
     const search=page.getByRole('searchbox',{name:locale==='zh-CN'?'搜索全部会话':'Search all conversations'});
     await search.fill('archive');await page.getByText('Older matching conversation',{exact:true}).waitFor();
     assert.equal(await page.locator('.edge-agent-session-item').count(),1);
-    assert(await page.locator('.edge-agent-attention').isVisible(),'attention remains visible outside search results');
+    assert.equal(await page.locator('.edge-agent-attention').count(),0,'No duplicate attention list above project conversations');
     await search.fill('');await page.getByText('Conversation 7',{exact:true}).waitFor();
     assert.equal(await page.locator('.edge-agent-unread').count(),0);
     replyVersion=2;

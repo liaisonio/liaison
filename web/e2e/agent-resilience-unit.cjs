@@ -25,4 +25,7 @@ timing.observe({...base,window:2,running:true},190);assert.equal(timing.value.fi
 timing.observe({...base,window:2,running:false},250);assert.equal(timing.value.finishedMs,150);
 timing.observe({...base,window:2,running:false},350);assert.equal(timing.value.finishedMs,150,'end observation is stable');
 const failure=new TurnTimingTracker(base,100);failure.requestFinished(180,false);failure.observe({...base,running:false},220);assert.equal(failure.value.finishedMs,undefined);assert.equal(failure.value.state,'unconfirmed');
+for(const value of [0,25,100]){const t=new TurnTimingTracker(base,100);t.requestFinished(200,true,value);assert.equal(t.value.serviceMs,value);}
+for(const value of [-1,NaN,Infinity,undefined]){const t=new TurnTimingTracker(base,100);t.requestFinished(200,true,value);assert.equal(t.value.serviceMs,undefined);}
+const rejected=new TurnTimingTracker(base,100);rejected.requestFinished(200,false,25);assert.equal(rejected.value.serviceMs,undefined);
 console.log('PASS draft scopes, deletion, logout, disabled storage; timing baselines, windows, completion, unconfirmed sends');

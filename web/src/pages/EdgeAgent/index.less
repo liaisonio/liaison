@@ -34,10 +34,6 @@
 .edge-agent-session-list header strong {font-size:13px;font-weight:680;flex:1;}
 .edge-agent-session-items {flex:1;min-height:0;overflow:auto;}
 .edge-agent-unread {width:6px;height:6px;flex-shrink:0;border-radius:50%;background:rgb(var(--accent));}
-.edge-agent-attention {max-height:144px;overflow:auto;border-bottom:1px solid rgb(var(--line));padding-bottom:8px;}
-.edge-agent-attention .liaison-button {width:100%;justify-content:flex-start;font-size:12px;gap:6px;}
-.edge-agent-attention span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left;}
-.edge-agent-attention small {color:rgb(var(--muted));font-size:11px;}
 .edge-agent-session-items h3 {font-size:12px;font-weight:500;color:rgb(var(--muted));margin:16px 8px 8px;}
 .edge-agent-session-items section:first-child h3 {margin-top:0;}
 .edge-agent-project-group {margin-bottom:16px;}
@@ -99,6 +95,7 @@
 .edge-agent-composer .edge-agent-slash { position:absolute; z-index:10; inset:auto 0 calc(100% + 8px); display:block; border:1px solid rgb(var(--line)); border-radius:var(--surface-radius); overflow:hidden; background:rgb(var(--surface)); box-shadow:0 12px 32px rgb(var(--ink) / .1); }
 .edge-agent-composer .edge-agent-slash { right:auto; width:min(460px,100%); }
 .edge-agent-slash-title { padding:8px 12px; color:rgb(var(--muted)); font-size:12px; border-bottom:1px solid rgb(var(--line)); }
+.edge-agent-slash-group { padding:6px 12px; color:rgb(var(--muted)); font-size:12px; background:rgb(var(--panel)); }
 .edge-agent-slash [role=listbox] { max-height:min(260px,35dvh); overflow:auto; overscroll-behavior:contain; }
 .edge-agent-slash button { display:flex; flex-direction:column; gap:4px; width:100%; padding:10px 12px; border:0; text-align:left; background:transparent; cursor:pointer; }
 .edge-agent-slash button.is-active,.edge-agent-slash button:hover { background:rgb(var(--accent) / .1); }
@@ -148,11 +145,26 @@
 .edge-agent-empty p { margin: 0; font-size: 12px; }
 .edge-agent-empty { padding:20px 0; }
 .edge-agent-empty-icon { display:grid; place-items:center; width:44px; height:44px; border-radius:var(--surface-radius); background:rgb(var(--panel)); color:rgb(var(--ink)); margin-bottom:4px; }
+.edge-agent-welcome {display:flex;flex:1;flex-direction:column;min-height:0;min-width:0;overflow:auto;padding:20px;}
+.edge-agent-welcome-context {display:flex;align-items:center;gap:8px;color:rgb(var(--muted));font-size:12px;}
+.edge-agent-welcome-context > span:first-child {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.edge-agent-welcome .edge-agent-empty {max-width:100%;padding:40px 0;gap:16px;}
+.edge-agent-welcome .edge-agent-empty p {max-width:42ch;overflow-wrap:anywhere;}
+.edge-agent-welcome-project {display:flex;align-items:center;gap:6px;max-width:100%;overflow-wrap:anywhere;font-size:12px;}
+.edge-agent-welcome-project svg {flex-shrink:0;}
 .edge-agent-starters { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:14px; }
 .edge-agent-starters .liaison-button { color:rgb(var(--muted)); }
 .edge-agent-composer { position:relative; container-type:inline-size; container-name:edge-composer; flex-shrink:0; width:calc(100% - 48px); max-width:880px; margin: 0 auto 16px; padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--surface-radius); background: rgb(var(--panel)); }
 .edge-agent-composer:focus-within { border-color: rgb(var(--accent)); box-shadow: 0 0 0 3px rgb(var(--accent) / .1); }
 .edge-agent-composer textarea { display:block; width: 100%; min-height:52px; max-height:160px; resize:none; padding:0; border: 0; outline: 0; background: transparent; color: rgb(var(--ink)); font-size: 13px; line-height:1.75; }
+.edge-agent-composer.is-awaiting-approval { padding-block:10px; }
+.edge-agent-composer.is-awaiting-approval textarea { min-height:28px; height:28px; }
+@media(max-width: 650px) {
+ .edge-agent-workspace > header { flex-wrap:nowrap; padding:12px; }
+ .edge-agent-workspace > header > .edge-agent-session-actions { gap:4px; }
+ .edge-agent-project > div > span { display:none; }
+ .edge-agent-messages { padding-inline:16px; }
+}
 .edge-agent-composer > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .edge-agent-composer > div > span { color: rgb(var(--muted)); font-size: 12px; }
 .edge-agent-composer .edge-agent-composer-tools { margin-top:12px; flex-wrap:nowrap; gap:8px; }
@@ -172,12 +184,19 @@
 .edge-agent-composer .edge-agent-selected-skill { display:inline-flex; gap:6px; padding:2px 4px 2px 10px; border:1px solid rgb(var(--line)); border-radius:var(--control-radius); background:rgb(var(--surface)); max-width:100%; }
 .edge-agent-selected-skill span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .edge-agent-jump { position:absolute; bottom:190px; right:28px; z-index:2; box-shadow:0 2px 8px rgb(var(--ink) / .08); }
-.edge-agent-directory-browser { display:grid; gap:16px; }
+.edge-agent-directory-browser { display:grid; gap:10px; }
+.edge-agent-recent-projects { display:grid;gap:6px;min-width:0; }
+.edge-agent-recent-projects > span { color:rgb(var(--muted));font-size:12px; }
+.edge-agent-recent-projects > div { display:flex;gap:6px;flex-wrap:wrap; }
+.edge-agent-recent-projects .liaison-button { min-width:0;max-width:100%;gap:6px;padding:6px 10px;border:1px solid rgb(var(--line)); }
+.edge-agent-recent-projects .liaison-button span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.edge-agent-recent-projects svg { flex-shrink:0; }
 .edge-agent-directory-path { display:flex; gap:8px; min-width:0; }
 .edge-agent-directory-path .liaison-input { flex:1; min-width:0; }
 .edge-agent-directory-roots { display:flex; gap:8px; flex-wrap:wrap; }
 .edge-agent-directory-list { min-height:160px; max-height:32dvh; overflow:auto; border:1px solid rgb(var(--line)); border-radius:var(--control-radius); }
-.edge-agent-directory-list > .liaison-button { width:100%; justify-content:flex-start; border-radius:0; padding:12px; }
+.edge-agent-directory-list > .liaison-button { width:100%; justify-content:flex-start; border-radius:0; padding:7px 10px; min-height:34px; }
+.edge-agent-directory-list > .liaison-button.is-located { background:rgb(var(--accent) / .12); color:rgb(var(--ink)); box-shadow:inset 2px 0 rgb(var(--accent)); }
 .edge-agent-directory-list > .liaison-button span { flex:1; text-align:left; overflow:hidden; text-overflow:ellipsis; }
 .edge-agent-directory-list p { padding:16px; color:rgb(var(--muted)); }
 .edge-agent-switch-path { display:block; margin-top:16px; overflow-wrap:anywhere; }
@@ -196,16 +215,13 @@
 @keyframes edge-agent-spin { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce){ .edge-agent-spinner { animation:none; } }
 @media(max-width:640px){
-  .edge-agent-workspace > header .edge-agent-session-actions {display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);width:100%;gap:8px;}
-  .edge-agent-session-actions > :first-child {justify-self:start;}
-  .edge-agent-session-actions > :nth-child(2) {justify-self:end;}
+  .edge-agent-workspace > header .edge-agent-session-actions {display:flex;width:auto;gap:4px;}
   .edge-agent-details { grid-template-columns:minmax(0,1fr); }
   .edge-agent-fields { grid-template-columns: 1fr; }
   .edge-agent-toolbar { align-items: flex-start; }
   .edge-agent-setup { padding: 16px; }
-  .edge-agent-workspace > header,.edge-agent-messages { padding: 16px; }
-  .edge-agent-workspace > header { align-items:flex-start; }
-  .edge-agent-workspace > header > div:first-child { flex-basis:100%; }
+  .edge-agent-workspace > header { padding:12px; align-items:center; }
+  .edge-agent-workspace > header > div:first-child { flex-basis:0; }
   .edge-agent-session-actions { margin-left:auto; }
   .edge-agent-composer { width:calc(100% - 32px); margin: 0 auto 12px; padding:12px; }
   .edge-agent-starters { flex-direction:column; width:100%; }
@@ -216,17 +232,24 @@
 }
 .edge-agent-history-pager { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:12px; font-size:12px; color:rgb(var(--muted)); }
 .edge-agent-approval {
-    .edge-agent-approval-reason { color: rgb(var(--ink)); font-size: 13px; margin: 0 0 12px; overflow-wrap: anywhere; }
-    .edge-agent-approval-note { color: rgb(var(--muted)); font-size: 12px; margin: 0 0 16px; }
-    details { border-top: 1px solid rgb(var(--line)); padding-top: 12px; }
+    flex-shrink: 0; width: calc(100% - 48px); max-width: 640px; box-sizing: border-box; margin: 0 auto 12px max(24px, calc((100% - 880px) / 2)); padding: 12px; border: 1px solid rgb(var(--accent) / .35); border-radius: var(--surface-radius); background: rgb(var(--panel)); min-width: 0;
+    .edge-agent-approval-title { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 8px; }
+    .edge-agent-approval-title svg { color: rgb(var(--accent)); flex-shrink: 0; }
+    .edge-agent-approval-title span { margin-left: auto; color: rgb(var(--muted)); font-size: 12px; }
+    .edge-agent-approval-body { max-height: min(160px, 22dvh); overflow: auto; }
+    .edge-agent-approval-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .edge-agent-approval-actions > span { flex: 1; color: rgb(var(--muted)); font-size: 12px; }
+    .edge-agent-approval-reason { color: rgb(var(--ink)); font-size: 13px; margin: 0 0 8px; overflow-wrap: anywhere; }
+    details { border-top: 1px solid rgb(var(--line)); padding-top: 4px; }
     summary { cursor: pointer; color: rgb(var(--muted)); font-size: 12px; padding: 4px 0; }
     summary:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
     details > code { display: block; margin-top: 12px; }
     code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
-    pre { max-height: 200px; overflow: auto; padding: 12px; border-radius: var(--control-radius); background: rgb(var(--canvas)); }
+    pre { max-height: 120px; overflow: auto; margin: 8px 0; padding: 8px; border-radius: var(--control-radius); background: rgb(var(--canvas)); }
     .edge-agent-approval-change { margin-top: 12px; min-width: 0; }
 }
 .edge-agent-permission .liaison-action-menu-trigger { width: auto; padding: 0 4px; font-size: 12px; }
+@media(max-width:650px) { .edge-agent-approval { width:calc(100% - 32px); margin-left:16px; } }
 .edge-agent-file-row { display: flex; gap: 8px; min-width: 0; }
 .edge-agent-file-row > button:first-child { flex: 1; min-width: 0; justify-content: flex-start; }
 .edge-agent-file-row > button:first-child > span { overflow: hidden; text-overflow: ellipsis; }

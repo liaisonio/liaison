@@ -31,7 +31,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
      else if(req.action==='send'){
       sendCount++;await delay(sendDelay);
       if(failSend)return route.fulfill({status:503,json:{code:503}});
-      const previous=snapshots.get(req.session_id);data={...previous,messages:[...previous.messages,{role:'user',text:req.text},{role:'assistant',text:'Finished.'}]};snapshots.set(req.session_id,data);
+      const previous=snapshots.get(req.session_id);data={...previous,request_service_ms:100,turn_timing:{dispatch_ms:5,first_reply_ms:60,finished_ms:80},messages:[...previous.messages,{role:'user',text:req.text},{role:'assistant',text:'Finished.'}]};snapshots.set(req.session_id,data);
      }else throw Error('Unexpected mutation '+req.action);
     }
     await route.fulfill({json:{code:200,data}});
@@ -51,9 +51,11 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
    await page.getByRole('alert').waitFor();assert.equal(await input().inputValue(),'Draft A');
    failSend=false;await page.getByRole('button',{name:locale==='zh-CN'?'发送':'Send',exact:true}).click();await waitFor(async()=>await input().inputValue()==='');
    assert.equal(await page.evaluate(()=>Object.keys(sessionStorage).filter(k=>k.startsWith('liaison:agent-draft:')&&k.endsWith('c'.repeat(32))).length),0);
-   await page.getByRole('button',{name:locale==='zh-CN'?'会话详情':'Session details',exact:true}).click();
-   const timing=page.locator('.edge-agent-timing');await timing.waitFor();assert.equal(await timing.locator('code').count(),3);assert(!(await timing.innerText()).includes('—'));
+   await page.getByRole('button',{name:locale==='zh-CN'?'更多会话操作':'More conversation actions',exact:true}).click();
+   await page.getByRole('menuitem',{name:locale==='zh-CN'?'会话详情':'Session details',exact:true}).click();
+   const timing=page.locator('.edge-agent-timing').first();await timing.waitFor();assert.equal(await timing.locator('code').count(),4);assert(!(await timing.innerText()).includes('—'));assert.equal(await page.locator('.edge-agent-timing').nth(1).locator('code').count(),3);
    assert(await page.getByRole('dialog').evaluate(el=>el.scrollWidth<=el.clientWidth+1));await timing.scrollIntoViewIfNeeded();await page.screenshot({path:`/tmp/agent-timing-${locale}-${theme}-${width}.png`});
+   await page.locator('.edge-agent-timing').nth(1).scrollIntoViewIfNeeded();await page.screenshot({path:`/tmp/agent-edge-timing-${locale}-${theme}-${width}.png`});
    await page.getByRole('dialog').getByRole('button',{name:locale==='zh-CN'?'关闭':'Close',exact:true}).last().click();
    if(width===1280){
     await input().fill('Delayed draft');sendDelay=1200;const before=sendCount;

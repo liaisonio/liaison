@@ -1,6 +1,6 @@
 import type {AgentSnapshot} from '@/services/edgeAgent';
 
-export type TurnTiming={requestMs?:number;firstReplyMs?:number;finishedMs?:number;state:'waiting'|'running'|'completed'|'unconfirmed';background:boolean};
+export type TurnTiming={requestMs?:number;serviceMs?:number;firstReplyMs?:number;finishedMs?:number;state:'waiting'|'running'|'completed'|'unconfirmed';background:boolean};
 
 // All timestamps come from the same browser's monotonic clock. These are not
 // provider latency metrics and must never be labelled as network or model time.
@@ -10,8 +10,9 @@ export class TurnTimingTracker {
   constructor(private readonly baselineSession:Pick<AgentSnapshot,'session_id'|'window'|'messages'>,private readonly started:number){
     this.baseline=(baselineSession.messages||[]).filter(m=>m.role==='assistant').map(m=>m.text);
   }
-  requestFinished(now:number,confirmed:boolean){
+  requestFinished(now:number,confirmed:boolean,serviceMs?:number){
     this.value.requestMs=Math.max(0,now-this.started);
+    if(confirmed&&serviceMs!==undefined&&Number.isFinite(serviceMs)&&serviceMs>=0)this.value.serviceMs=serviceMs;
     this.value.state=confirmed?'running':'unconfirmed';
   }
   observe(snapshot:AgentSnapshot,now:number){
