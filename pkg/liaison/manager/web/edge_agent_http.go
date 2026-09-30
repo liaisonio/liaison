@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"time"
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
@@ -18,12 +19,13 @@ type edgeAgentService interface {
 	EdgeAgent(context.Context, proto.EdgeAgentRequest) (proto.EdgeAgentResult, error)
 }
 
-// handleEdgeAgentHTTP provides temporary, owner-only local Agent sessions.
+// handleEdgeAgentHTTP provides owner-scoped Agent operations and persistent history.
 // @Summary Use the existing Agent on an owned connector
 // @Router /api/v1/edge-agents [post]
 // @Router /api/v1/edge-agents/connectors [get]
 // @Success 200 {object} proto.EdgeAgentResult
 func (web *web) handleEdgeAgentHTTP(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
 	w.Header().Set("Cache-Control", "no-store")
 	list := r.URL.Path == "/api/v1/edge-agents/connectors"
 	want := http.MethodPost
@@ -62,7 +64,13 @@ func (web *web) handleEdgeAgentHTTP(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, 400, map[string]any{"code": 400, "message": "invalid agent request"})
 			return
 		}
-		data, err = svc.EdgeAgent(ctx, req)
+		var snapshot proto.EdgeAgentResult
+		snapshot, err = svc.EdgeAgent(ctx, req)
+		if req.Action == "send" && err == nil {
+			elapsed := time.Since(started).Milliseconds()
+			snapshot.RequestServiceMS = &elapsed
+		}
+		data = snapshot
 	}
 	if err != nil {
 		code := 500

@@ -122,6 +122,14 @@ message EdgeAgentResult {
   int64 file_offset = 43;
   bool file_done = 44;
   bool files_upload_available = 45;
+  AgentTurnTiming turn_timing = 46; // Edge-local monotonic durations, not pure model/network latency.
+  optional int64 request_service_ms = 47; // send response only: Manager handler elapsed time, before JSON encoding.
+}
+// Last locally started turn only. Missing values mean not observed; zero is valid.
+message AgentTurnTiming {
+  optional int64 dispatch_ms = 1; // Native send/control round trip from Edge.
+  optional int64 first_reply_ms = 2; // Edge turn start to first non-empty assistant text.
+  optional int64 finished_ms = 3; // Includes tools and approval waits.
 }
 message Approval { string id = 1; string command = 2; string directory = 3; string reason = 4; string kind = 5; repeated FileChange changes = 6; }
 message AgentModel { string id = 1; string name = 2; }

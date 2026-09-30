@@ -13,6 +13,7 @@ import (
 )
 
 type pendingInput struct {
+	nativeID   string
 	view       proto.AgentInputRequest
 	request    rpc.Message
 	turn, item string
@@ -111,7 +112,8 @@ func (s *session) inputSnapshotLocked() []proto.AgentInputRequest {
 
 func (s *session) answerInput(ctx context.Context, req proto.EdgeAgentRequest) proto.EdgeAgentResult {
 	capable, ok := s.agent.(agentruntime.InputSession)
-	if !ok || s.access == "" {
+	native, nativeOK := s.agent.(agentruntime.InteractionSession)
+	if (!ok && !nativeOK) || s.access == "" {
 		return result("upgrade_required")
 	}
 	s.mu.Lock()
@@ -124,6 +126,14 @@ func (s *session) answerInput(ctx context.Context, req proto.EdgeAgentRequest) p
 			return result("invalid_request")
 		}
 		answers := map[string][]string{}
+		seen := map[string]bool{}
+		for _, a := range req.Answers {
+			if seen[a.QuestionID] || len(a.Answers) != 1 || strings.TrimSpace(a.Answers[0]) == "" || len(a.Answers[0]) > 4096 {
+				s.mu.Unlock()
+				return result("invalid_request")
+			}
+			seen[a.QuestionID] = true
+		}
 		for _, q := range input.view.Questions {
 			for _, a := range req.Answers {
 				if a.QuestionID != q.ID {
@@ -150,7 +160,15 @@ func (s *session) answerInput(ctx context.Context, req proto.EdgeAgentRequest) p
 		s.recordActivityOutputLocked(input.item, inputSummary(input.view, answers), false)
 		s.changedLocked()
 		s.mu.Unlock()
-		if err := capable.AnswerInput(ctx, input.request, answers); err != nil {
+		var err error
+		if input.nativeID != "" && nativeOK {
+			err = native.Answer(ctx, input.turn, input.nativeID, answers)
+		} else if ok {
+			err = capable.AnswerInput(ctx, input.request, answers)
+		} else {
+			err = agentruntime.ErrUnavailable
+		}
+		if err != nil {
 			s.stop("unavailable")
 		}
 		return s.snapshot()

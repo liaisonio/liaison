@@ -68,4 +68,20 @@ func TestNativeBindingSurvivesBridgeRestart(t *testing.T) {
 
 	foreign := second.Handle(context.Background(), proto.EdgeAgentRPCRequest{Version: 1, ActorID: "bob", ProjectRoot: dir, Request: request, Resume: seed})
 	require.Equal(t, "resume_unavailable", foreign.Status)
+	foreignAccess := request
+	foreignAccess.AccessID = strings.Repeat("b", 32)
+	denied := second.Handle(context.Background(), proto.EdgeAgentRPCRequest{Version: 1, ActorID: "alice", ProjectRoot: dir, Request: foreignAccess, Resume: seed})
+	require.Equal(t, "resume_unavailable", denied.Status)
+	// 停止只结束运行实例，不移除 owner/access/project 的持久绑定。
+	stopped := second.Handle(context.Background(), proto.EdgeAgentRPCRequest{Version: 1, ActorID: "alice", Request: proto.EdgeAgentRequest{Action: "stop", AccessID: access, SessionID: started.SessionID}})
+	require.True(t, stopped.Closed)
+	wrongProject := second.Handle(context.Background(), proto.EdgeAgentRPCRequest{Version: 1, ActorID: "alice", ProjectRoot: t.TempDir(), Request: request, Resume: seed})
+	require.Equal(t, "resume_unavailable", wrongProject.Status)
+	stored, err := loadBindings(store)
+	require.NoError(t, err)
+	require.Contains(t, stored, bindingKey("alice", access, started.SessionID))
+	// 安装身份包含 provider，另一种 Agent 不能复用相同可执行路径的绑定。
+	changed := installation
+	changed.Agent = "another-agent"
+	require.NotEqual(t, installationID(installation), installationID(changed))
 }
