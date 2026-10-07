@@ -120,6 +120,7 @@ func (cp *controlPlane) CreateProxy(ctx context.Context, req *v1.CreateProxyRequ
 func (cp *controlPlane) ListProxies(ctx context.Context, req *v1.ListProxiesRequest) (*v1.ListProxiesResponse, error) {
 	// list proxies
 	query := dao.ListProxiesQuery{
+		AccessProtocols: req.AccessProtocols,
 		Query: dao.Query{
 			Page:     int(req.Page),
 			PageSize: int(req.PageSize),

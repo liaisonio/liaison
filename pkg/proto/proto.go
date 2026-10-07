@@ -95,9 +95,10 @@ type ScanApplicationTaskResult struct {
 }
 
 type Dst struct {
-	Addr          string `json:"addr"`
-	ApplicationID uint   `json:"application_id,omitempty"` // 应用ID（用于流量统计）
-	ProxyID       uint   `json:"proxy_id,omitempty"`       // 代理ID（用于流量统计）
+	WebIDE        *WebIDEStream `json:"webide,omitempty"`
+	Addr          string        `json:"addr"`
+	ApplicationID uint          `json:"application_id,omitempty"` // 应用ID（用于流量统计）
+	ProxyID       uint          `json:"proxy_id,omitempty"`       // 代理ID（用于流量统计）
 }
 
 type PullTaskScanApplicationRequest struct {

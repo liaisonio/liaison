@@ -26,6 +26,7 @@ const WebData = lazy(() => import('@/pages/WebData'));
 const WebS3 = lazy(() => import('@/pages/WebS3'));
 const AIGateway = lazy(() => import('@/pages/AIGateway'));
 const EdgeAgent = lazy(() => import('@/pages/EdgeAgent'));
+const WebIDE = lazy(() => import('@/pages/WebIDE'));
 const AccessEntry = lazy(() => import('@/pages/Proxy/AccessEntry'));
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/proxy" element={<Proxy />} />
             <Route path="/access/agents" element={<FeatureGate code="ai.access.use"><EdgeAgent /></FeatureGate>} />
+            <Route path="/access/webide" element={<WebIDE />} />
             <Route path="/ai/:proxyId" element={<AIGateway />} />
             <Route path="/ai/applications/:applicationId" element={<AIGateway />} />
             <Route path="/resource/device" element={<Device />} />

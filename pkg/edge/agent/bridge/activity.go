@@ -6,6 +6,7 @@ import (
 	"github.com/liaisonio/liaison/pkg/proto"
 	"net/url"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -43,6 +44,7 @@ func (s *session) recordActivityLocked(id, kind, status string, duration int64, 
 			}
 			s.activities[i].Status = state
 			s.activities[i].DurationMS = duration
+			s.diagnostics.activity(key, kind, completed, time.Now())
 			s.changedLocked()
 			return
 		}
@@ -64,6 +66,7 @@ func (s *session) recordActivityLocked(id, kind, status string, duration int64, 
 		index = 0
 	}
 	s.activities = append(s.activities, proto.AgentActivity{ID: key, Kind: kind, Status: state, DurationMS: duration, MessageIndex: index})
+	s.diagnostics.activity(key, kind, completed, time.Now())
 	s.changedLocked()
 }
 

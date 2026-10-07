@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jumboframes/armorigo/log"
 	"github.com/liaisonio/liaison/pkg/edge/frontierbound"
@@ -19,11 +20,19 @@ type Proxy interface{}
 
 type proxy struct {
 	frontierBound frontierbound.FrontierBound
+	webIDE        WebIDEDialer
 }
 
-func NewProxy(frontierBound frontierbound.FrontierBound) (Proxy, error) {
+type WebIDEDialer interface {
+	Dial(context.Context, string, string, string) (net.Conn, error)
+}
+
+func NewProxy(frontierBound frontierbound.FrontierBound, ide ...WebIDEDialer) (Proxy, error) {
 	proxy := &proxy{
 		frontierBound: frontierBound,
+	}
+	if len(ide) == 1 {
+		proxy.webIDE = ide[0]
 	}
 
 	proxy.frontierBound.RegisterStreamHandler(proxy.proxy)
@@ -32,6 +41,7 @@ func NewProxy(frontierBound frontierbound.FrontierBound) (Proxy, error) {
 }
 
 func (p *proxy) proxy(ctx context.Context, stream geminio.Stream) {
+	defer stream.Close()
 	// 读取前4个字节获取meta长度
 	lengthBuf := make([]byte, 4)
 	_, err := io.ReadFull(stream, lengthBuf)
@@ -40,6 +50,9 @@ func (p *proxy) proxy(ctx context.Context, stream geminio.Stream) {
 		return
 	}
 	length := binary.BigEndian.Uint32(lengthBuf)
+	if length == 0 || length > 16<<10 {
+		return
+	}
 	dataBuf := make([]byte, length)
 	_, err = io.ReadFull(stream, dataBuf)
 	if err != nil {
@@ -53,7 +66,15 @@ func (p *proxy) proxy(ctx context.Context, stream geminio.Stream) {
 		return
 	}
 
-	conn, err := net.Dial("tcp", dst.Addr)
+	var conn net.Conn
+	if dst.WebIDE != nil {
+		if p.webIDE == nil || dst.Addr != "" {
+			return
+		}
+		conn, err = p.webIDE.Dial(ctx, dst.WebIDE.OwnerID, dst.WebIDE.AccessID, dst.WebIDE.InstanceID)
+	} else {
+		conn, err = (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, "tcp", dst.Addr)
+	}
 	if err != nil {
 		log.Errorf("proxy stream dial err: %s", err)
 		return

@@ -9,8 +9,16 @@ import (
 
 func requestTimeoutFilter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// IDE HTTP streams and upgraded terminal connections live until the
+		// client disconnects or the gateway revokes their instance grant.
+		if strings.HasPrefix(r.URL.Path, "/ide/") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		timeout := time.Second
 		switch {
+		case strings.HasPrefix(r.URL.Path, "/api/v1/webide/"):
+			timeout = 30 * time.Second
 		case strings.HasPrefix(r.URL.Path, "/api/v1/edge-agents"):
 			timeout = 25 * time.Second
 		case r.URL.Path == "/api/v1/applications/probe":

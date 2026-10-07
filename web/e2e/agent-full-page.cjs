@@ -11,7 +11,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
  try {
   for(const locale of ['zh-CN','en-US'])for(const theme of ['light','dark'])for(const width of [1280,390]){
    const page=await browser.newPage({viewport:{width,height:900},ignoreHTTPSErrors:process.env.E2E_IGNORE_HTTPS_ERRORS==='1'});
-   let failAccess=false,deny=false,replyVersion=1,needsApproval=true,emptyHistory=false,connectorOnline=true;const errors=[],starts=[];
+   let failAccess=false,deny=false,replyVersion=1,needsApproval=true,emptyHistory=false,connectorOnline=true,activeConversation=false;const errors=[],starts=[];
    page.on('pageerror',()=>errors.push('browser error'));
    await page.addInitScript(({locale,theme})=>{
     localStorage.setItem('token','synthetic-layout-test');
@@ -49,7 +49,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
      assert(['sessions','poll','transcript'].includes(action),'layout tests must not start or modify a session');
      const rows=[{...session,reply_token:'main',updated_at:'2026-01-01T00:00:00Z'},...Array.from({length:11},(_,i)=>({...session,session_id:String(i).padStart(32,'d'),reply_token:`reply-${replyVersion}`,attention:i===0&&needsApproval?'approval':undefined,title:`Conversation ${i+1}`,running:i===0,updated_at:'2026-01-01T00:00:00Z'}))];
      const matches=emptyHistory?[]:history_search?[{...rows[1],title:'Older matching conversation',project:'/workspace/archive'}]:rows;
-     data=action==='sessions'?{version:1,status:'ok',history_search_available:true,history_total:matches.length,attention_sessions:rows.filter(s=>s.attention),sessions_available:true,session_management:true,sessions:matches}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:{...session,session_id:session_id||session.session_id,reply_token:session_id&&session_id!==session.session_id?`reply-${replyVersion}`:'main'};
+     data=action==='sessions'?{version:1,status:'ok',history_search_available:true,history_total:matches.length,attention_sessions:rows.filter(s=>s.attention),sessions_available:true,session_management:true,sessions:matches}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:{...session,closed:!activeConversation,session_id:session_id||session.session_id,reply_token:session_id&&session_id!==session.session_id?`reply-${replyVersion}`:'main'};
     }
     await route.fulfill({json:{code:200,data}});
    });
@@ -169,16 +169,23 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    const responsive=async()=>{
     const sizes=await page.locator('.edge-agent-messages').evaluate(el=>{
      const css=getComputedStyle(el),message=el.querySelector('.agent-message:not(.is-user)');
-     const rect=message.getBoundingClientRect(),panel=el.getBoundingClientRect(),composer=document.querySelector('.edge-agent-composer').getBoundingClientRect();
-     return {available:el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight),message:rect.width,center:Math.abs(rect.x+rect.width/2-panel.x-panel.width/2),composerCenter:Math.abs(composer.x+composer.width/2-rect.x-rect.width/2),composerWidth:composer.width,overflow:el.scrollWidth-el.clientWidth,pageOverflow:document.documentElement.scrollWidth-innerWidth};
+     const rect=message.getBoundingClientRect(),panel=el.getBoundingClientRect(),composer=document.querySelector('.edge-agent-composer')?.getBoundingClientRect();
+     return {available:el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight),message:rect.width,center:Math.abs(rect.x+rect.width/2-panel.x-panel.width/2),composerCenter:composer?Math.abs(composer.x+composer.width/2-rect.x-rect.width/2):null,composerWidth:composer?.width??null,overflow:el.scrollWidth-el.clientWidth,pageOverflow:document.documentElement.scrollWidth-innerWidth};
     });
     assert(Math.abs(sizes.message-sizes.available)<2,JSON.stringify(sizes));
-    assert(sizes.message<=881&&sizes.composerWidth<=881,'reading column must stay bounded on wide screens');
-    assert(sizes.center<2&&sizes.composerCenter<2,'messages and composer must share a centered reading column');
+    assert.equal(sizes.composerWidth!==null,activeConversation,'Only active conversations show a composer');
+    assert(sizes.message<=881,'reading column must stay bounded on wide screens');
+    assert(sizes.center<2,'messages must share a centered reading column');
+    if(activeConversation){
+     assert(sizes.composerWidth<=881,'composer must stay bounded on wide screens');
+     assert(sizes.composerCenter<2,'messages and composer must share a centered reading column');
+    }
     assert(sizes.overflow<=1&&sizes.pageOverflow<=1,'conversation must not overflow horizontally');
     return sizes.message;
    };
    await responsive();
+   activeConversation=true;await page.reload();await page.getByText('Layout ready.',{exact:true}).waitFor();
+   await page.locator('.edge-agent-composer').waitFor();await responsive();await hidden();
    if(width===1280){
     await page.setViewportSize({width:1920,height:900});
     const wide=await responsive();

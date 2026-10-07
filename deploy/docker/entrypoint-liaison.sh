@@ -75,11 +75,20 @@ fi
 
 # ---- Generate TLS cert ----------------------------------------------------
 if [ ! -f "$CERTS_DIR/server.crt" ] || [ ! -f "$CERTS_DIR/server.key" ]; then
+    # Browsers and Go verify SANs, not the legacy Common Name. Reuse this
+    # console certificate for IDE ingress; never replace operator certificates.
+    case "$LIAISON_PUBLIC_HOST" in
+        ''|*[!a-zA-Z0-9.:-]*) echo '[entrypoint] invalid public certificate host' >&2; exit 1 ;;
+        *:*) CERT_SAN="IP:${LIAISON_PUBLIC_HOST}" ;;
+        *[!0-9.]*) CERT_SAN="DNS:${LIAISON_PUBLIC_HOST}" ;;
+        *) CERT_SAN="IP:${LIAISON_PUBLIC_HOST}" ;;
+    esac
     echo "[entrypoint] generating self-signed TLS cert for CN=$LIAISON_PUBLIC_HOST"
     openssl req -x509 -newkey rsa:4096 \
         -keyout "$CERTS_DIR/server.key" \
         -out "$CERTS_DIR/server.crt" \
         -days 3650 -nodes \
+        -addext "subjectAltName=${CERT_SAN}" \
         -subj "/C=CN/ST=Beijing/L=Beijing/O=Liaison/OU=IT/CN=${LIAISON_PUBLIC_HOST}" \
         2>/dev/null
     chmod 600 "$CERTS_DIR/server.key"

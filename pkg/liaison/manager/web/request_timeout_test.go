@@ -10,10 +10,16 @@ import (
 )
 
 func TestAgentDeadlineAndClientCancellation(t *testing.T) {
+	requestTimeoutFilter(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		if _, ok := r.Context().Deadline(); ok {
+			t.Fatal("IDE terminal connection must not inherit the ordinary API timeout")
+		}
+	})).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/ide/instance/", nil))
 	for _, tc := range []struct {
 		path    string
 		minimum time.Duration
 	}{
+		{"/api/v1/webide/accesses/a/runtime", 25 * time.Second},
 		{"/api/v1/applications/probe", 7 * time.Second},
 		{"/api/v1/agent/sessions/s/turns", 4 * time.Minute},
 		{"/api/v1/settings/model/test", 20 * time.Second},

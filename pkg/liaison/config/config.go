@@ -50,6 +50,7 @@ type Agent struct {
 }
 
 type Manager struct {
+	WebIDE           WebIDE        `yaml:"webide,omitempty" json:"webide"`
 	WebDomain        string        `yaml:"web_domain,omitempty" json:"web_domain"`
 	Listen           config.Listen `yaml:"listen,omitempty" json:"listen"`
 	DB               string        `yaml:"db,omitempty" json:"db"`
@@ -66,6 +67,15 @@ type Manager struct {
 	GuacdBridgeAddr  string        `yaml:"guacd_bridge_addr,omitempty" json:"guacd_bridge_addr"`   // manager 本地临时桥接监听地址
 	GuacdBridgeHost  string        `yaml:"guacd_bridge_host,omitempty" json:"guacd_bridge_host"`   // guacd 回连 manager 临时桥接端口时使用的主机名
 	Agent            Agent         `yaml:"agent,omitempty" json:"agent"`
+}
+
+// SharedOrigin is opt-in for trusted private installations. A path isolates
+// routing and runtime grants, not browser storage or same-origin scripts.
+type WebIDE struct {
+	SharedOrigin bool `yaml:"shared_origin,omitempty" json:"shared_origin"`
+	Enabled      bool `yaml:"enabled,omitempty" json:"enabled"`
+	PortStart    int  `yaml:"port_start,omitempty" json:"port_start"`
+	PortEnd      int  `yaml:"port_end,omitempty" json:"port_end"`
 }
 
 type Frontier struct {

@@ -66,6 +66,7 @@ func (web *web) handleEdgeAgentHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		var snapshot proto.EdgeAgentResult
 		snapshot, err = svc.EdgeAgent(ctx, req)
+		recordAgentRequest(req, snapshot, err, time.Since(started))
 		if req.Action == "send" && err == nil {
 			elapsed := time.Since(started).Milliseconds()
 			snapshot.RequestServiceMS = &elapsed

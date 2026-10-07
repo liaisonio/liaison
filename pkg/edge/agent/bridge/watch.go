@@ -9,6 +9,7 @@ import (
 // Caller holds s.mu. Closing and replacing broadcasts without dropping changes.
 func (s *session) changedLocked() {
 	s.updated = time.Now()
+	s.observeDiagnosticsLocked(s.updated)
 	s.revision++
 	if s.changed != nil {
 		close(s.changed)
