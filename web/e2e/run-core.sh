@@ -18,6 +18,7 @@ if [[ "${E2E_EXTERNAL_SERVER:-0}" != 1 ]]; then
   curl -fsS "$E2E_UI_URL/e2e/session-model.html" >/dev/null
 fi
 node e2e/agent-resilience-unit.cjs
-for test in models-ui session-model terminal-completion shell-agent-ui product-polish llm-empty application-probe llm-create access-application-flow access-password access-save-open access-empty access-navigation edge-agent agent-claude agent-resilience agent-files agent-transcript agent-applications code-preview application-tabs mermaid; do
+node e2e/webssh-heartbeat.cjs
+for test in models-ui session-model terminal-completion shell-agent-ui agent-session-isolation product-polish llm-empty application-probe llm-create access-application-flow access-password access-save-open access-empty access-navigation edge-agent agent-full-page agent-claude agent-resilience agent-files agent-transcript agent-applications code-preview application-tabs mermaid; do
   node "e2e/$test.cjs"
 done

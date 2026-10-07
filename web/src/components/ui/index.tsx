@@ -1,4 +1,5 @@
 import { useI18n } from '@/i18n';
+import { createPortal } from 'react-dom';
 import {
   ArrowRight,
   CalendarDays,
@@ -278,10 +279,30 @@ export function Modal({
   closeOnMask?: boolean;
   className?: string;
 }) {
+  const root = useRef<HTMLDivElement>(null);
+  const [fullscreenHost, setFullscreenHost] = useState<Element | null>(() => document.fullscreenElement);
+  useEffect(() => {
+    const update = () => setFullscreenHost(document.fullscreenElement);
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
+  const host = fullscreenHost || document.querySelector('.edge-agent-sessions-page.is-page-expanded') || document.body;
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = requestAnimationFrame(() => {
+      root.current?.querySelector<HTMLElement>('input:not([disabled]), textarea:not([disabled]), select:not([disabled]), section button:not([disabled])')?.focus({ preventScroll: true });
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (previous?.isConnected && !previous.closest('[inert]')) previous.focus({ preventScroll: true });
+    };
+  }, [open, host]);
   useEffect(() => {
     if (!open) return;
     const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      const dialogs = document.querySelectorAll('.liaison-modal-root');
+      if (event.key === 'Escape' && !event.defaultPrevented && dialogs[dialogs.length - 1] === root.current) onClose();
     };
     document.addEventListener('keydown', close);
     const previousOverflow = document.body.style.overflow;
@@ -293,8 +314,17 @@ export function Modal({
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
-    <div className="liaison-modal-root" role="dialog" aria-modal="true">
+  return createPortal(
+    <div ref={root} className="liaison-modal-root" role="dialog" aria-modal="true"
+      onMouseDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}
+      onKeyDown={event => {
+        if (!root.current?.contains(event.target as Node)) return;
+        if (event.key !== 'Tab') return;
+        const controls = Array.from(root.current?.querySelectorAll<HTMLElement>('section button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex="0"]') || []).filter(node => node.getClientRects().length > 0);
+        const first = controls[0], last = controls[controls.length - 1];
+        if (first && event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (last && !event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }}>
       <button
         type="button"
         className="liaison-modal-mask"
@@ -311,7 +341,7 @@ export function Modal({
         <div className="liaison-modal-body">{children}</div>
         {footer ? <footer>{footer}</footer> : null}
       </section>
-    </div>
+    </div>, host
   );
 }
 

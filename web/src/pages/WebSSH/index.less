@@ -1,3 +1,10 @@
+// Restrict this face to CJK so iOS does not resolve these glyphs through SF Mono.
+@font-face {
+  font-family: 'Liaison Terminal CJK';
+  src: local('PingFangSC-Regular'), local('PingFang SC'), local('Microsoft YaHei'), local('Noto Sans CJK SC');
+  unicode-range: U+2E80-9FFF, U+F900-FAFF, U+FF00-FFEF, U+20000-2FFFF;
+  font-display: swap;
+}
 .webssh-workspace {
   display: flex;
   flex-direction: column;
@@ -845,3 +852,132 @@ body.webssh-page-active .liaison-page-body {
 .webssh-shell .terminal-assistant-meta { flex-wrap: wrap; }
 .webssh-shell .terminal-assistant-meta select { max-width: 100%; border: 1px solid rgb(var(--line)); border-radius: 6px; background: rgb(var(--panel)); color: rgb(var(--ink)); font: inherit; font-size: 11px; padding: 5px 8px; }
 .webssh-shell .terminal-assistant-meta small { flex-basis: 100%; margin-left: 0; display: block; }
+
+// Compact layouts share the console tokens and controls; only geometry changes.
+.webssh-workspace.is-mobile {
+  height: var(--terminal-mobile-height, calc(100dvh - 116px));
+  min-height: 0;
+  gap: 0;
+  > .webssh-shell { order: 1; min-height: 0; max-height: none; border: 0; border-radius: 0; }
+  .webssh-terminal-screen { inset: 6px 8px; }
+  .terminal-assistant { max-height: 40%; overflow-y: auto; }
+  > .webssh-mobile-keys { order: 2; }
+  > .webssh-mobile-notice { order: 3; }
+}
+// Mobile chrome lives in a single bottom dock, leaving the top to terminal output.
+.webssh-mobile-session-bar {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0; order: 3;
+  padding: 6px 8px max(6px, var(--ssh-native-bottom, env(safe-area-inset-bottom)));
+  background: rgb(var(--surface)); border-top: 1px solid rgb(var(--line) / .65);
+  > .liaison-button, > .liaison-action-menu-trigger { flex-shrink: 0; min-width: 44px; height: 44px; padding-inline: 8px; }
+}
+.webssh-session-pill {
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; height: 44px;
+  padding: 0 12px; border: 1px solid rgb(var(--line) / .6); border-radius: var(--control-radius);
+  background: rgb(var(--panel)); color: rgb(var(--ink)); font: inherit; cursor: pointer;
+  strong { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  i { width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: rgb(var(--muted)); }
+  i.is-connected { background: rgb(var(--accent)); }
+  &:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+}
+.webssh-workspace.is-mobile {
+  > .webssh-mobile-keys { display: none; }
+  &.is-input-active {
+    > .webssh-mobile-session-bar { display: none; }
+    > .webssh-mobile-keys { display: flex; }
+  }
+}
+.webssh-mobile-keys {
+  display: flex; flex: 0 0 auto; gap: 4px; align-items: center; min-width: 0;
+  padding: 5px 4px; border-top: 1px solid rgb(var(--line)); background: rgb(var(--surface));
+  .liaison-button { flex: 0 0 auto; min-width: 40px; min-height: 40px; padding-inline: 9px; touch-action: manipulation; }
+  .liaison-button[aria-pressed=true] { color: rgb(var(--accent-ink)); border-color: rgb(var(--accent)); background: rgb(var(--accent)); }
+}
+.webssh-key-scroll { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding: 2px; }
+.webssh-key-scroll::-webkit-scrollbar { display: none; }
+.webssh-key-tools { display: flex; flex-shrink: 0; align-items: center; border-left: 1px solid rgb(var(--line)); }
+.webssh-key-tools .liaison-action-menu-trigger { height: 44px; width: 44px; }
+.webssh-keyboard-toggle { border-right-color: rgb(var(--line)) !important; border-radius: 0 !important; }
+.webssh-mobile-notice { padding: 4px 12px; font-size: 12px; color: rgb(var(--muted)); background: rgb(var(--surface)); }
+.webssh-paste-input { resize: vertical; min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.webssh-credential-target { display: grid; gap: 4px; margin-bottom: 16px; }
+.webssh-credential-target strong { font-size: 13px; font-weight: 680; overflow-wrap: anywhere; }
+.webssh-credential-target code { color: rgb(var(--muted)); font-size: 12px; overflow-wrap: anywhere; }
+html[data-liaison-embedded] .liaison-page-body:has(.webssh-workspace.is-mobile) { padding: 0; overflow: hidden; }
+@media (max-width: 850px), (pointer: coarse) and (max-height: 600px) {
+  .webssh-mobile-sheet .liaison-input { font-size: 16px; }
+  .webssh-workspace.is-mobile .liaison-access-context { min-width: 0; }
+  .agent-workspace-root:not(.is-docked) .agent-workspace { max-height: calc(100dvh - 12px); }
+  .liaison-modal-root:has(.webssh-mobile-sheet) {
+    top: var(--ssh-viewport-top, 0px); bottom: auto; height: var(--ssh-viewport-height, 100dvh);
+    align-items: end; padding: 0;
+  }
+  .webssh-mobile-sheet {
+    width: 100% !important; max-width: 100%; max-height: 100%; border-radius: var(--dialog-radius) var(--dialog-radius) 0 0;
+    > header { padding: 12px 20px; }
+    > header h2 { font-size: 13px; }
+    > header h2::before { display: none; }
+    .liaison-modal-body { padding: 16px 20px; overflow-y: auto !important; }
+    > footer { padding: 12px 20px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid rgb(var(--line)); }
+    > footer > .liaison-button { flex: 1; min-height: 40px; }
+    .webssh-credential-actions { display: flex; width: 100%; margin: 0; }
+    .webssh-credential-actions > button { min-height: 40px; flex: 1; }
+  }
+}
+@media (max-width: 600px) {
+  .webssh-workspace.is-mobile .webssh-files-list {
+    table { width: 100%; min-width: 0; table-layout: fixed; }
+    th:first-child, td:first-child { width: 72%; }
+    th:nth-child(n + 3), td:nth-child(n + 3) { display: none; }
+    th:nth-child(2), td:nth-child(2) { text-align: right; white-space: nowrap; }
+    .webssh-file-name { max-width: 100%; }
+  }
+}
+
+.webssh-mobile-keys { padding: 4px 8px; }
+.webssh-key-scroll { flex: 1 1 auto; }
+html[data-liaison-embedded] .webssh-mobile-sheet > footer { padding-bottom: max(10px, var(--ssh-native-bottom, 0px)); }
+html[data-liaison-embedded] .webssh-mobile-keys { padding-bottom: max(4px, var(--ssh-native-bottom, 0px)); }
+
+.webssh-mobile-keys .liaison-button { min-height: 44px; font-size: 12px; font-weight: 500; box-shadow: none; }
+.webssh-key-scroll .liaison-button { border-color: transparent; background: rgb(var(--panel)); }
+.webssh-key-scroll .liaison-button:nth-child(4) { margin-left: 6px; }
+.webssh-key-scroll .liaison-button:active { background: rgb(var(--accent) / .12); }
+.webssh-key-scroll .liaison-button[aria-pressed=true] { border-color: rgb(var(--accent)); background: rgb(var(--accent)); }
+.webssh-appearance-settings { display: grid; gap: 20px; }
+.webssh-font-value { margin-left: auto; color: rgb(var(--muted)); font-variant-numeric: tabular-nums; }
+.webssh-font-range { width: 100%; padding: 0; border: 0; accent-color: rgb(var(--accent)); box-shadow: none; }
+.webssh-font-preview { margin: 0; padding: 16px; overflow: auto; line-height: 1.15; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); background: rgb(var(--panel)); color: rgb(var(--ink)); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+@media (max-width: 850px), (pointer: coarse) and (max-height: 600px) {
+  .webssh-credential-modal {
+    .liaison-input { font-size: 16px; font-weight: 400; letter-spacing: 0; }
+    .liaison-input::placeholder { font-size: 14px; color: rgb(var(--muted)); opacity: .8; }
+    .liaison-field-label { font-weight: 500; }
+    .webssh-credential-target { margin-bottom: 20px; gap: 3px; }
+    .webssh-credential-target strong { font-weight: 600; }
+    .webssh-credential-target code { font-size: 11px; }
+    .liaison-checkbox { font-size: 12px; min-height: 36px; }
+    > header { padding-block: 14px; }
+    > footer { padding-top: 10px; padding-bottom: 10px; }
+  }
+}
+
+.webssh-touch-menu button { min-height: 44px; touch-action: manipulation; }
+
+.webssh-shell, .webssh-terminal, .webssh-terminal:fullscreen,
+.webssh-terminal:-webkit-full-screen { background: rgb(var(--surface)); }
+.webssh-font-preview { font-family: 'Liaison Terminal CJK', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.webssh-connecting-state, .webssh-terminal-empty {
+  background: rgb(var(--surface)); color: rgb(var(--ink));
+}
+.webssh-terminal-empty p, .webssh-connecting-state p { color: rgb(var(--muted)); }
+.webssh-terminal-empty .webssh-terminal-mark, .webssh-session-finished-icon,
+.webssh-session-end-actions .liaison-button {
+  background: rgb(var(--panel)); color: rgb(var(--ink)); border-color: rgb(var(--line));
+}
+.webssh-session-duration b { color: rgb(var(--ink)); }
+.webssh-terminal-empty .liaison-button-primary {
+  background: rgb(var(--accent)); color: rgb(var(--accent-ink)); border-color: rgb(var(--accent));
+}
+.webssh-loading { background: rgb(var(--surface) / .88); }

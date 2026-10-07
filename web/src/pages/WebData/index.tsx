@@ -8,7 +8,7 @@ import {Modal as CredentialModal,Field as CredentialField,Input as CredentialInp
 import { AuditLogIcon } from '@/components/icons/AuditLogIcon';
 import AgentWorkspace from '@/components/AgentWorkspace';
 import {syncDataContext, type DataWorkspaceContext} from '@/services/dataContext';
-import { connectionReference, useSessionPath, SessionPathNotice } from '@/components/SessionReference/useSessionPath';
+import { connectionReference, useSessionPath } from '@/components/SessionReference/useSessionPath';
 import DataAssistance from '@/components/DataAssistance';
 import { useFeature } from '@/store/permissions';
 import {
@@ -359,7 +359,7 @@ const WebDataPage: React.FC = () => {
       const redisDB = target?.credentials?.find((item) => item.id === credentialId)?.redis_db ?? 0;
       const source = target?.protocol === 'redis'
         ? buildRedisMetadataView(metadata, redisDB)
-        : metadata;
+        : metadata.flatMap((node) => node.type === 'root' ? node.children || [] : [node]);
       return filterMetadataNodes(source, treeSearch);
     },
     [credentialId, metadata, target?.credentials, target?.protocol, treeSearch],
@@ -781,6 +781,9 @@ const WebDataPage: React.FC = () => {
     if (!params) return;
     try {
       const res = await getWebDataMetadata(session.token, params);
+      if (res.code !== 200 || !res.data) {
+        throw new Error(tr('加载字段失败，请重试', 'Could not load fields. Please retry.'));
+      }
       if (res.code === 200 && res.data) {
         setMetadata((nodes) =>
           replaceMetadataChildren(nodes, source.key, res.data?.nodes || []),
@@ -2935,8 +2938,7 @@ const WebDataPage: React.FC = () => {
         <CredentialField label={tr('密码','Password')} hint={tr('仅用于本次连接，不保存密码。','Used for this connection only. The password is not saved.')}><CredentialInput autoFocus type="password" autoComplete="off" value={temporaryPassword} onChange={e=>setTemporaryPassword(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!connecting&&promptCredential)void connectCredentialSession(promptCredential,temporaryPassword);}}/></CredentialField>
         {connectionError&&<Alert type="error" message={tr('连接失败，请检查密码和服务状态。','Connection failed. Check the password and service status.')}/>}</div>
       </CredentialModal>
-      <SessionPathNotice show={!!sessionPath.connectionId && !session} href={sessionPath.reconnectURL} />
-      <div className={`webdata-shell${connected ? ' is-connected' : ''}`}>
+      <div className={`webdata-shell${connected ? ' is-connected' : isConnectionDetail ? ' is-disconnected' : ''}`}>
         <div className="webdata-header">
           <div className="webdata-header-main">
             <AccessContext name={target?.proxy_name || tr('数据控制台','Data console')} protocol={accessTypeLabel(webAccessType)} target={target?`${target.target_host}:${target.target_port}`:undefined}/>
@@ -3056,10 +3058,10 @@ const WebDataPage: React.FC = () => {
                         </strong>
                         {tr('对象', 'Objects')}
                       </span>
-                      <span>
+                      {metadataSummary.columns > 0 && <span>
                         <strong>{metadataSummary.columns}</strong>
-                        {tr('字段', 'Fields')}
-                      </span>
+                        {tr('已加载字段', 'Loaded fields')}
+                      </span>}
                     </>
         )}
       </div>
@@ -3070,7 +3072,7 @@ const WebDataPage: React.FC = () => {
                         key={treeSearch ? `search-${treeSearch}` : 'objects'}
                         treeData={treeData}
                         defaultExpandAll={Boolean(treeSearch)}
-                        defaultExpandedKeys={treeData.map((node) => node.key)}
+                        defaultExpandedKeys={treeData.length === 1 ? [treeData[0].key] : []}
                         blockNode
                         selectedKeys={selectedNode ? [selectedNode.key] : []}
                         loadData={loadMetadataChildren}
@@ -3342,20 +3344,23 @@ const WebDataPage: React.FC = () => {
             </main>
           </div>
         ) : (
-          <div className="webdata-console-loading" data-testid="webdata-connection-state">
-            {connecting ? <Spin /> : <div className="webdata-connection-status">
-              <Text strong>{connectionError ? tr('连接失败', 'Connection failed') : tr('未连接', 'Not connected')}</Text>
-              <Text type="secondary">{connectionError || tr('当前会话未连接，请重新连接。', 'This session is not connected. Connect again to continue.')}</Text>
-              <Space>
+          <div className="webdata-connection-status" data-testid="webdata-connection-state" role="status" aria-busy={connecting}>
+              <div className="webdata-connection-status-copy">
+                <Text strong>{connecting ? tr('正在连接…', 'Connecting…') : connectionError ? tr('连接失败', 'Connection failed') : tr('连接已断开', 'Disconnected')}</Text>
+                <Text type="secondary">{connecting ? tr('正在建立数据库连接。', 'Establishing the database connection.') : connectionError || tr('重新连接后可继续查询。', 'Reconnect to continue querying.')}</Text>
+                {!connecting && sessionPath.agentSessionId && <Text type="secondary">{tr('历史对话仍可查看。', 'Chat history is still available.')}</Text>}
+              </div>
+              <Space wrap>
+                {connecting ? <Spin /> : <>
                 <Button type="primary" onClick={() => {
                   const credential = target?.credentials?.find(item => item.id === credentialId);
                   if (!credential?.id) { history.replace(connectionListPath); return; }
                   if (sessionPath.connectionId) history.replace(connectionDetailPath(credential.id));
                   void connectCredentialSession(credential);
                 }}>{tr('重新连接', 'Reconnect')}</Button>
-                <Button onClick={() => history.push(connectionListPath)}>{tr('返回访问', 'Back to access')}</Button>
+                <Button onClick={() => history.push(connectionListPath)}>{tr('选择连接', 'Choose connection')}</Button>
+                </>}
               </Space>
-            </div>}
           </div>
         )}
         {canAudit && renderAuditDrawer()}

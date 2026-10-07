@@ -268,6 +268,7 @@ message ListProxiesRequest {
     int32 page = 1 [json_name = "page"];
     int32 page_size = 2 [json_name = "page_size"];
     string name = 3 [json_name = "name"];  // 代理名称
+    repeated string access_protocols = 4 [json_name = "access_protocols"]; // Optional protocol allowlist; empty returns all visible accesses.
 }
 
 message ListProxiesResponse {

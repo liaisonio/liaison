@@ -798,11 +798,18 @@ fi
 echo -e "${YELLOW}${MSG_GENERATING_CERTS}${NC}"
 if command -v openssl >/dev/null 2>&1; then
     if [[ ! -f "$CERTS_DIR/server.crt" ]] || [[ ! -f "$CERTS_DIR/server.key" ]]; then
+        case "$PUBLIC_ADDR" in
+            ''|*[!a-zA-Z0-9.:-]*) echo 'Invalid public certificate host' >&2; exit 1 ;;
+            *:*) CERT_SAN="IP:${PUBLIC_ADDR}" ;;
+            *[!0-9.]*) CERT_SAN="DNS:${PUBLIC_ADDR}" ;;
+            *) CERT_SAN="IP:${PUBLIC_ADDR}" ;;
+        esac
         openssl req -x509 -newkey rsa:4096 \
             -keyout "$CERTS_DIR/server.key" \
             -out "$CERTS_DIR/server.crt" \
             -days 365 \
             -nodes \
+            -addext "subjectAltName=${CERT_SAN}" \
             -subj "/C=CN/ST=Beijing/L=Beijing/O=Liaison/OU=IT/CN=localhost" \
             2>/dev/null
         chmod 600 "$CERTS_DIR/server.key"

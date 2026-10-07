@@ -50,6 +50,7 @@ type AgentWorkspaceProps = {
   protocol: string;
   onClose: () => void;
   docked?: boolean;
+  forceOverlay?: boolean;
   dockBreakpoint?: number;
 };
 
@@ -73,7 +74,7 @@ export default function AgentWorkspace(props: AgentWorkspaceProps) {
   return allowed ? <AgentWorkspaceContent {...props} /> : null;
 }
 
-function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docked = false, dockBreakpoint = 850, managementSessionId, initialBusy = false, accessSessionId, connectionId, accessId, connectionAvailable = true, onSessionReady, initialModelSelection, recoveredDraft, beforeSend, contextLabel, contextDescription, appendDraft, onDraftAppended, onPreviewCode }: AgentWorkspaceProps) {
+function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docked = false, forceOverlay = false, dockBreakpoint = 850, managementSessionId, initialBusy = false, accessSessionId, connectionId, accessId, connectionAvailable = true, onSessionReady, initialModelSelection, recoveredDraft, beforeSend, contextLabel, contextDescription, appendDraft, onDraftAppended, onPreviewCode }: AgentWorkspaceProps) {
   const { tr } = useI18n();
   const location = useLocation();
   const [incomingDraft, setIncomingDraft] = useState<AccessDraft>();
@@ -90,7 +91,7 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, [dockBreakpoint]);
-  const embedded = docked && !compact;
+  const embedded = docked && !compact && !forceOverlay;
   const riskLabels = [tr('只读', 'Read only'), tr('低风险', 'Low'), tr('需确认', 'Approval'), tr('高风险', 'High'), tr('高危', 'Critical')];
   const [detail, setDetail] = useState<API.AgentSessionDetail>();
   const [modelSelection,setModelSelection]=useState<AgentModelSelection|undefined>(initialModelSelection);
@@ -474,5 +475,5 @@ function AgentWorkspaceContent({ open, handleId, title, protocol, onClose, docke
       </aside>
     </div>
   );
-  return docked && compact ? createPortal(workspace, document.body) : workspace;
+  return (docked && compact) || forceOverlay ? createPortal(workspace, document.body) : workspace;
 }

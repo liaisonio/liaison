@@ -32,7 +32,9 @@ const (
 	webSSHDefaultColumns = 120
 	webSSHDefaultRows    = 32
 	webSSHMaxMessageSize = 128 * 1024
-	webSSHHeartbeatTTL   = 75 * time.Second
+	// Heartbeats keep an idle terminal alive; this bounds missing client traffic,
+	// not time since the user's last command. Keep in sync with WebSSH/heartbeat.ts.
+	webSSHHeartbeatTTL   = 10 * time.Minute
 	webSSHWSBufferSize   = 32 * 1024
 	webSSHOutputReadSize = 32 * 1024
 	webSSHOutputBatchMax = 64 * 1024
@@ -451,10 +453,14 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	_ = writer.write(webSSHServerMessage{Type: "status", Status: "connecting"})
 	digest := sha256.Sum256([]byte(webSession.token))
 	log.Infof("webssh session starting: connection_id=conn_%x proxy_id=%d user_id=%d", digest[:12], webSession.proxyID, webSession.userID)
-	defer log.Infof("webssh session ended: connection_id=conn_%x proxy_id=%d", digest[:12], webSession.proxyID)
 	connectStarted := time.Now()
+	disconnect := webSSHDisconnect{reason: "setup_failed"}
+	defer func() {
+		log.Infof("webssh session ended: connection_id=conn_%x proxy_id=%d reason=%s close_code=%d success=%t elapsed_ms=%d", digest[:12], webSession.proxyID, disconnect.reason, disconnect.code, disconnect.success, time.Since(connectStarted).Milliseconds())
+	}()
 	targetConn, target, err := web.controlPlane.OpenWebSSHStream(ctx, webSession.proxyID)
 	if err != nil {
+		disconnect.reason = "stream_open_failed"
 		log.Debugf("webssh stream open failed: proxy_id=%d err=%v", webSession.proxyID, err)
 		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "open_session", webSession.username, "", false, time.Since(connectStarted).Milliseconds(), err.Error())
 		_ = writer.write(webSSHServerMessage{Type: "error", Message: err.Error()})
@@ -481,6 +487,7 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	password = ""
 	if err != nil {
 		webSession.zero()
+		disconnect.reason = "ssh_handshake_failed"
 		log.Debugf("webssh ssh handshake failed: proxy_id=%d err=%v", webSession.proxyID, err)
 		message := webSSHConnectionError(err)
 		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "open_session", webSession.username, "", false, time.Since(connectStarted).Milliseconds(), message)
@@ -567,7 +574,11 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 			return
 		}
 		closeAudited = true
-		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "close_session", webSession.username, "", true, time.Since(sessionStarted).Milliseconds(), "")
+		reason := ""
+		if !disconnect.success {
+			reason = disconnect.reason
+		}
+		web.recordWebSSHAudit(target, webSession.userID, clientIP, clientIPSource, "close_session", webSession.username, "", disconnect.success, time.Since(sessionStarted).Milliseconds(), reason)
 	}
 	defer auditClose()
 
@@ -611,17 +622,17 @@ func (web *web) runWebSSH(ctx context.Context, writer *webSSHWSWriter, wsConn *w
 	for {
 		select {
 		case <-ctx.Done():
-			log.Debugf("webssh session closing: proxy_id=%d reason=context err=%v", webSession.proxyID, ctx.Err())
+			disconnect = classifyWebSSHDisconnect("context", ctx.Err())
 			_ = terminalSession.Close()
 			close(done)
 			return
 		case err := <-waitDone:
-			log.Debugf("webssh session closing: proxy_id=%d reason=ssh_wait err=%v", webSession.proxyID, err)
+			disconnect = classifyWebSSHDisconnect("ssh", err)
 			_ = writer.write(webSSHServerMessage{Type: "status", Status: "closed"})
 			close(done)
 			return
 		case err := <-clientErrors:
-			log.Debugf("webssh session closing: proxy_id=%d reason=websocket err=%v", webSession.proxyID, err)
+			disconnect = classifyWebSSHDisconnect("websocket", err)
 			_ = terminalSession.Close()
 			close(done)
 			return
@@ -834,7 +845,8 @@ func webSSHSanitizeAuditCommand(command string) string {
 	return command
 }
 
-func refreshWebSSHReadDeadline(conn *websocket.Conn) {
+func refreshWebSSHReadDeadline(conn interface{ SetReadDeadline(time.Time) error }) {
+	// A closed connection is handled by the read loop; deadline setup is best effort.
 	_ = conn.SetReadDeadline(time.Now().Add(webSSHHeartbeatTTL))
 }
 
@@ -892,13 +904,16 @@ func (web *web) copyWebSSHOutput(writer *webSSHWSWriter, reader io.Reader, done 
 		}
 		flushTimerC = flushTimer.C
 	}
-	flush := func() bool {
+	flush := func(final bool) bool {
 		stopFlushTimer()
 		if len(pending) == 0 {
 			return true
 		}
-		data := string(pending)
-		pending = pending[:0]
+		data, rest := webSSHDecodeOutput(pending, final)
+		pending = append(pending[:0], rest...)
+		if data == "" {
+			return true
+		}
 		if observe != nil {
 			observe(data)
 		}
@@ -912,23 +927,23 @@ func (web *web) copyWebSSHOutput(writer *webSSHWSWriter, reader io.Reader, done 
 	for {
 		select {
 		case <-done:
-			flush()
+			flush(true)
 			return
 		case chunk, ok := <-chunks:
 			if !ok {
-				flush()
+				flush(true)
 				return
 			}
 			pending = append(pending, chunk...)
 			if len(pending) >= webSSHOutputBatchMax {
-				if !flush() {
+				if !flush(false) {
 					return
 				}
 			} else if flushTimerC == nil {
 				startFlushTimer()
 			}
 		case <-flushTimerC:
-			if !flush() {
+			if !flush(false) {
 				return
 			}
 		}

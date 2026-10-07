@@ -1,0 +1,132 @@
+.webide-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.webide-actions > span {
+  color: rgb(var(--muted));
+  font-size: 12px;
+}
+.webide-form {
+  display: grid;
+  gap: 20px;
+}
+.webide-select-row { display: flex; gap: 8px; min-width: 0; }
+.webide-select-row select { flex: 1; min-width: 0; }
+.webide-diagnostic { color: rgb(var(--muted)); font-size: 12px; overflow-wrap: anywhere; }
+.webide-diagnostic code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.webide-actions a { color: rgb(var(--accent)); }
+.webide-installation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  position: relative;
+}
+.webide-installation > select { flex: 1; min-width: 0; }
+.webide-installation-info {
+  display: inline-flex;
+  padding: 4px;
+  color: rgb(var(--muted));
+  cursor: help;
+  border-radius: var(--control-radius);
+}
+.webide-installation-info:focus-visible { outline: 2px solid rgb(var(--accent)); }
+.webide-installation-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  max-width: 100%;
+  z-index: 2;
+  padding: 8px 12px;
+  border: 1px solid rgb(var(--line));
+  border-radius: var(--control-radius);
+  background: rgb(var(--panel));
+  color: rgb(var(--ink));
+  overflow-wrap: anywhere;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.webide-installation-info:hover .webide-installation-tooltip,
+.webide-installation-info:focus .webide-installation-tooltip { display: block; }
+.webide-workspace-body {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+}
+.webide-path {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+.webide-path input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.webide-directory {
+  display: grid;
+  gap: 12px;
+}
+.webide-directory select {
+  height: auto;
+  min-height: 180px;
+  width: 100%;
+}
+.webide-directory .webide-actions > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .webide-path {
+    flex-wrap: wrap;
+  }
+  .webide-path input {
+    flex-basis: 100%;
+  }
+}
+.webide-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: rgb(var(--muted));
+  font-size: 12px;
+}
+.webide-breadcrumb > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.webide-breadcrumb a {
+  color: inherit;
+  text-decoration: none;
+}
+.webide-breadcrumb a:hover {
+  color: rgb(var(--accent));
+}
+.webide-directory select {
+  background-image: none;
+}
+.webide-list-label {
+  display: inline-block;
+  max-width: 180px;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.webide-list-label:focus-visible { outline: 2px solid rgb(var(--accent)); }
+.webide-list-connector { display: inline-flex; align-items: center; gap: 8px; }
+.webide-list-muted { color: rgb(var(--muted)); font-size: 12px; }
+.webide-delete-options { display: grid; gap: 12px; margin-top: 20px; border: 0; padding: 0; min-width: 0; }
+.webide-delete-options legend { margin-bottom: 12px; font-size: 13px; }
+.webide-delete-options label { display: flex; gap: 12px; padding: 16px; border: 1px solid rgb(var(--line)); border-radius: var(--control-radius); cursor: pointer; }
+.webide-delete-options label:has(input:checked) { border-color: rgb(var(--accent)); background: rgb(var(--accent) / .06); }
+.webide-delete-options input { margin-top: 3px; flex-shrink: 0; accent-color: rgb(var(--accent)); }
+.webide-delete-options input:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 3px; }
+.webide-delete-options strong { display: block; font-size: 13px; font-weight: 600; }
+.webide-delete-options small { display: block; margin-top: 8px; font-size: 12px; line-height: 1.6; color: rgb(var(--muted)); }

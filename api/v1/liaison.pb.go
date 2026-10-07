@@ -2410,12 +2410,13 @@ func (x *Proxies) GetProxies() []*Proxy {
 
 // 列举代理请求
 type ListProxiesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,proto3" json:"page_size,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"` // 代理名称
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Page            int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize        int32                  `protobuf:"varint,2,opt,name=page_size,proto3" json:"page_size,omitempty"`
+	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`                         // 代理名称
+	AccessProtocols []string               `protobuf:"bytes,4,rep,name=access_protocols,proto3" json:"access_protocols,omitempty"` // Optional protocol allowlist; empty returns all visible accesses.
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListProxiesRequest) Reset() {
@@ -2467,6 +2468,13 @@ func (x *ListProxiesRequest) GetName() string {
 		return x.Name
 	}
 	return ""
+}
+
+func (x *ListProxiesRequest) GetAccessProtocols() []string {
+	if x != nil {
+		return x.AccessProtocols
+	}
+	return nil
 }
 
 type ListProxiesResponse struct {
@@ -4424,11 +4432,12 @@ const file_liaison_proto_rawDesc = "" +
 	"\x0fhttp_entry_mode\x18\x0e \x01(\tR\x0fhttp_entry_mode\"A\n" +
 	"\aProxies\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12 \n" +
-	"\aproxies\x18\x02 \x03(\v2\x06.ProxyR\aproxies\"Z\n" +
+	"\aproxies\x18\x02 \x03(\v2\x06.ProxyR\aproxies\"\x86\x01\n" +
 	"\x12ListProxiesRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1c\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\tpage_size\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\"a\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12*\n" +
+	"\x10access_protocols\x18\x04 \x03(\tR\x10access_protocols\"a\n" +
 	"\x13ListProxiesResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
