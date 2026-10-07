@@ -8,6 +8,19 @@ import (
 	"strings"
 )
 
+// Check before creating any installation files. Enabling linger is an explicit
+// administrator decision; the installer must not elevate or change it silently.
+func requireUserLinger(ctx context.Context, id Identity, run Command) error {
+	data, err := run(ctx, "/usr/bin/loginctl", "show-user", strconv.Itoa(id.UID), "--property=Linger", "--value")
+	if err != nil {
+		return fmt.Errorf("cannot verify persistent user services (Linger): %w", err)
+	}
+	if strings.TrimSpace(string(data)) != "yes" {
+		return fmt.Errorf("persistent user services require Linger=yes; ask an administrator to run loginctl enable-linger %d, then retry; no installation files written", id.UID)
+	}
+	return nil
+}
+
 // systemd --user may disable process inspection even for its own user. Exempt
 // only the service manager or its direct PAM helper in the manager's init.scope,
 // proven through system service metadata and a root-owned systemd executable.

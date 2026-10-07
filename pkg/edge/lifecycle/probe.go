@@ -191,6 +191,9 @@ func checkShared(ctx context.Context, id Identity, plan Plan, run Command) error
 				if privateUser && os.IsPermission(err) && verifiedUserManager(ctx, id, entry.Name(), run, os.ReadFile, validateSystemProgram) {
 					continue
 				}
+				if privateUser && os.IsPermission(err) {
+					return fmt.Errorf("cannot verify exclusive use of this user installation: a protected process is unreadable; close other login sessions and retry from the persistent user service, or ask an administrator to inspect it: %w", err)
+				}
 				return fmt.Errorf("inspect process executable: %w", err)
 			}
 			if path == plan.Executable {
