@@ -9,8 +9,12 @@ export function ProjectPath({path,name}:{path:string;name:string}){
  const [position,setPosition]=useState<{left:number;top:number}>(),[open,setOpen]=useState(false);
  const {state,copy}=useCopyText(path);
  function show(){const rect=button.current?.getBoundingClientRect();if(rect)setPosition({left:Math.max(8,Math.min(rect.left,window.innerWidth-328)),top:rect.bottom+6});}
- useEffect(()=>{const close=()=>setPosition(undefined);window.addEventListener('scroll',close,true);window.addEventListener('resize',close);return()=>{window.removeEventListener('scroll',close,true);window.removeEventListener('resize',close);};},[]);
- return <div className="edge-agent-project-path"><button ref={button} type="button" className="edge-agent-project-name" aria-label={`${name} · ${tr('查看项目路径','View project path')}`} aria-describedby={position?id:undefined} onMouseEnter={show} onMouseLeave={()=>setPosition(undefined)} onFocus={show} onBlur={()=>setPosition(undefined)} onKeyDown={e=>{if(e.key==='Escape'){setPosition(undefined);e.stopPropagation();}}} onClick={()=>{setPosition(undefined);setOpen(true);}}>{name}</button>
+ useEffect(()=>{
+  const update=()=>{if(!open&&document.activeElement===button.current)show();else setPosition(undefined);};
+  window.addEventListener('scroll',update,true);window.addEventListener('resize',update);
+  return()=>{window.removeEventListener('scroll',update,true);window.removeEventListener('resize',update);};
+ },[open]);
+ return <div className="edge-agent-project-path"><button ref={button} type="button" className="edge-agent-project-name" aria-label={`${name} · ${tr('查看项目路径','View project path')}`} aria-describedby={position?id:undefined} onMouseEnter={show} onMouseLeave={()=>{if(document.activeElement!==button.current)setPosition(undefined);}} onFocus={show} onBlur={()=>setPosition(undefined)} onKeyDown={e=>{if(e.key==='Escape'){setPosition(undefined);e.stopPropagation();}}} onClick={()=>{setPosition(undefined);setOpen(true);}}>{name}</button>
  {position&&!open&&createPortal(<div id={id} role="tooltip" className="edge-agent-path-tooltip" style={position}>{path}</div>,document.body)}
  <Modal open={open} title={tr('项目路径','Project path')} onClose={()=>{setOpen(false);button.current?.focus({preventScroll:true});}} footer={<Button onClick={()=>void copy()}>{state==='copied'?tr('已复制','Copied'):tr('复制路径','Copy path')}</Button>}>
   <code className="edge-agent-path-value">{path}</code>

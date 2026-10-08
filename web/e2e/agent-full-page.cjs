@@ -128,6 +128,9 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'显示会话列表':'Show conversations',exact:true}).click();
    const project=page.locator('.edge-agent-project-name');
    await project.focus();await page.getByRole('tooltip').waitFor();assert.equal(await page.getByRole('tooltip').textContent(),access.project);
+   await page.evaluate(()=>window.dispatchEvent(new Event('scroll')));
+   await page.mouse.move(0,0);
+   assert.equal(await page.getByRole('tooltip').textContent(),access.project,'focused project keeps its path visible after scrolling or pointer departure');
    await project.click();await page.getByRole('dialog').waitFor();
    assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)),'path dialog takes focus immediately');
    for(const key of ['Tab','Tab','Tab','Shift+Tab','Shift+Tab','Shift+Tab']){
