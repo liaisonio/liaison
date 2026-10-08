@@ -15,6 +15,7 @@ import {
   ReactNode,
   SelectHTMLAttributes,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -287,14 +288,12 @@ export function Modal({
     return () => document.removeEventListener('fullscreenchange', update);
   }, []);
   const host = fullscreenHost || document.querySelector('.edge-agent-sessions-page.is-page-expanded') || document.body;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const frame = requestAnimationFrame(() => {
-      root.current?.querySelector<HTMLElement>('input:not([disabled]), textarea:not([disabled]), select:not([disabled]), section button:not([disabled])')?.focus({ preventScroll: true });
-    });
+    // The portal must own focus before it is painted or receives the first Tab.
+    root.current?.querySelector<HTMLElement>('input:not([disabled]), textarea:not([disabled]), select:not([disabled]), section button:not([disabled])')?.focus({ preventScroll: true });
     return () => {
-      cancelAnimationFrame(frame);
       if (previous?.isConnected && !previous.closest('[inert]')) previous.focus({ preventScroll: true });
     };
   }, [open, host]);
@@ -328,6 +327,7 @@ export function Modal({
       <button
         type="button"
         className="liaison-modal-mask"
+        tabIndex={-1}
         aria-label="Close dialog"
         onClick={closeOnMask ? onClose : undefined}
       />

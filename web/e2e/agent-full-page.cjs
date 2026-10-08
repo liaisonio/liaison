@@ -74,9 +74,13 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
      await dialog.getByRole('button',{name:locale==='zh-CN'?'取消':'Cancel',exact:true}).click();
      assert(new URL(page.url()).searchParams.get('session')===session.session_id,'cancel preserves selected session');
     }
-    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'收起会话列表':'Hide conversations',exact:true}).click();
-    await page.locator('.edge-agent-session-actions').getByRole('button',{name:label,exact:true}).click();
-    const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'another-project'}).click();
+    await page.locator('.edge-agent-session-list').getByRole('button',{name:label,exact:true}).click();
+    const dialog=page.getByRole('dialog');
+    await dialog.getByRole('button',{name:'another-project'}).waitFor();
+    const folderSearch=dialog.getByRole('textbox',{name:locale==='zh-CN'?'定位文件夹':'Find folder'});
+    await folderSearch.fill('another');
+    assert(await folderSearch.evaluate(el=>el===document.activeElement),'folder picker accepts input in full-page mode');
+    await dialog.getByRole('button',{name:'another-project'}).click();
     await page.waitForFunction(()=>document.querySelector('.edge-agent-directory-path input')?.value==='/workspace/another-project'&&!document.querySelector('.edge-agent-directory-list[aria-busy="true"]'));
     await page.screenshot({path:`/tmp/agent-new-directory-${locale}-${theme}-${width}.png`});
     assert(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
@@ -125,12 +129,20 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    const project=page.locator('.edge-agent-project-name');
    await project.focus();await page.getByRole('tooltip').waitFor();assert.equal(await page.getByRole('tooltip').textContent(),access.project);
    await project.click();await page.getByRole('dialog').waitFor();
-   await page.keyboard.press('Tab');
-   assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)),'path dialog keeps keyboard focus');
+   assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)),'path dialog takes focus immediately');
+   for(const key of ['Tab','Tab','Tab','Shift+Tab','Shift+Tab','Shift+Tab']){
+    await page.keyboard.press(key);
+    assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)&&!document.activeElement.classList.contains('liaison-modal-mask')),'path dialog keeps keyboard focus on controls');
+   }
    await page.screenshot({path:`/tmp/agent-path-${locale}-${theme}-${width}.png`});
    await page.getByRole('button',{name:locale==='zh-CN'?'复制路径':'Copy path',exact:true}).click();
    assert.equal(await page.evaluate(()=>window.copiedCode),access.project);
    await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+   assert(await project.evaluate(el=>el===document.activeElement),'closing restores project focus');
+   await project.press('Enter');await page.getByRole('dialog').waitFor();
+   await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
+   assert(await project.evaluate(el=>el===document.activeElement),'Escape restores project focus');
+   assert.equal(new URL(page.url()).searchParams.get('view'),'full','Escape closes only the dialog');
    if(process.env.E2E_MULTI_SESSION==='1'){
     const search=page.getByRole('searchbox',{name:locale==='zh-CN'?'搜索全部会话':'Search all conversations'});
     await search.fill('archive');await page.getByText('Older matching conversation',{exact:true}).waitFor();
