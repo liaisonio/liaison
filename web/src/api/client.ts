@@ -10,6 +10,7 @@ type RequestOptions = {
   signal?: AbortSignal;
   skipErrorHandler?: boolean;
   preserveLoginOnUnauthorized?: boolean;
+  onResponse?: (response: Response) => void;
 };
 
 export class RequestError extends Error {
@@ -70,6 +71,7 @@ export async function request<T>(
   }
 
   const contentType = response.headers.get('content-type') || '';
+  options.onResponse?.(response);
   const payload = contentType.includes('application/json')
     ? await response.json().catch(() => null)
     : await response.text().catch(() => null);

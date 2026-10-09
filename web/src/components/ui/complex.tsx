@@ -202,7 +202,10 @@ export function Tree({
   selectedKeys = [],
   defaultExpandAll = false,
   defaultExpandedKeys = [],
+  loadData,
 }: any) {
+  const pendingKeys = useRef(new Set<string>());
+  const [loadingKeys, setLoadingKeys] = useState(new Set<string>());
   const allExpandableKeys = useMemo(() => {
     const keys: string[] = [];
     const walk = (nodes: any[]) => nodes.forEach((node) => {
@@ -229,17 +232,34 @@ export function Tree({
     }
   }, [defaultExpandAll, defaultExpandedKeys, allExpandableKeys]);
 
-  const toggle = (key: string) => setExpandedKeys((current) => {
-    const next = new Set(current);
-    next.has(key) ? next.delete(key) : next.add(key);
-    return next;
-  });
+  const toggle = async (node: any) => {
+    const key = String(node.key);
+    if (pendingKeys.current.has(key)) return;
+    if (!expandedKeys.has(key) && loadData && node.isLeaf === false && !node.children?.length) {
+      pendingKeys.current.add(key);
+      setLoadingKeys(new Set(pendingKeys.current));
+      try {
+        await loadData(node);
+      } catch {
+        // The caller reports the error. Leave the node collapsed so it can retry.
+        return;
+      } finally {
+        pendingKeys.current.delete(key);
+        setLoadingKeys(new Set(pendingKeys.current));
+      }
+    }
+    setExpandedKeys((current) => {
+      const next = new Set(current);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
   const selected = new Set(selectedKeys.map(String));
   const render = (nodes: any[]) => (
     <ul>
       {nodes.map((node) => {
         const key = String(node.key);
-        const expandable = Boolean(node.children?.length);
+        const expandable = Boolean(node.children?.length || (loadData && node.isLeaf === false));
         const expanded = expandedKeys.has(key);
         return (
           <li key={key}>
@@ -250,9 +270,11 @@ export function Tree({
                   className="liaison-tree-toggle"
                   aria-label={expanded ? 'Collapse' : 'Expand'}
                   aria-expanded={expanded}
-                  onClick={() => toggle(key)}
+                  aria-busy={loadingKeys.has(key) || undefined}
+                  disabled={loadingKeys.has(key)}
+                  onClick={() => void toggle(node)}
                 >
-                  {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                  {loadingKeys.has(key) ? <span className="ui-spinner" /> : expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                 </button>
               ) : <span className="liaison-tree-toggle-placeholder" />}
               <button
@@ -263,7 +285,7 @@ export function Tree({
                 {node.title}
               </button>
             </div>
-            {expandable && expanded ? render(node.children) : null}
+            {expandable && expanded ? render(node.children || []) : null}
           </li>
         );
       })}

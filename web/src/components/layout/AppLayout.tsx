@@ -91,6 +91,7 @@ export function AppLayout() {
   };
   const isAIAccessPage = /^\/ai\/\d+\/?$/.test(location.pathname);
   const isEdgeAgentPage = location.pathname === '/access/agents';
+  const isWebIDEPage = location.pathname === '/access/webide';
   // Resolve this before profile, permissions, and access details load. Waiting
   // for the session workspace to mount exposes the product shell on reload.
   const agentParams = new URLSearchParams(location.search);
@@ -100,13 +101,13 @@ export function AppLayout() {
         title: tr('数据访问', 'Data access'),
         description: tr('数据库连接与查询控制台', 'Database connection and query console'),
       }
-    : isEdgeAgentPage ? {title:tr('访问','Access'),description:tr('统一管理应用入口与访问策略','Manage application entry points and access policies')} : pages[location.pathname];
+    : (isEdgeAgentPage || isWebIDEPage) ? {title:tr('访问','Access'),description:tr('统一管理应用入口与访问策略','Manage application entry points and access policies')} : pages[location.pathname];
   const webDataRoute = location.pathname.match(
     /^\/webdata\/(\d+)(?:\/connections\/(\d+))?(?:\/sessions\/[^/]+(?:\/agent\/[^/]+)?)?$/,
   );
   const isWebSFTPPage = /^\/websftp\/\d+\/?$/.test(location.pathname);
-  const isWebDataPage = Boolean(webDataRoute) || isAIAccessPage || (isEdgeAgentPage && new URLSearchParams(location.search).has('access')) || isWebSFTPPage || location.pathname.startsWith('/webs3/') || location.pathname.startsWith('/websmb/');
-  const accessFallback=isAIAccessPage?'/proxy?category=llm':isWebSFTPPage?'/proxy?access_type=websftp':'/proxy';
+  const isWebDataPage = Boolean(webDataRoute) || isAIAccessPage || ((isEdgeAgentPage || isWebIDEPage) && new URLSearchParams(location.search).has('access')) || isWebSFTPPage || location.pathname.startsWith('/webs3/') || location.pathname.startsWith('/websmb/');
+  const accessFallback=isWebIDEPage?'/access/webide':isAIAccessPage?'/proxy?category=llm':isWebSFTPPage?'/proxy?access_type=websftp':'/proxy';
   const backToSource=useAccessBack(accessFallback);
 
   const fetchUserInfo = useCallback(async () => {

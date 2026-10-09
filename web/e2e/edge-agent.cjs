@@ -556,7 +556,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    await page.getByRole('button',{name:zh?'刷新会话':'Refresh sessions'}).click();
    await page.locator('.edge-agent-session-item').filter({hasText:'project'}).click();
    await page.getByRole('heading',{name:'Project',exact:true}).last().waitFor();
-   snapshot={...snapshot,closed:true,running:false,status:'session_closed'};sessions.set(snapshot.session_id,snapshot);
+   // A delayed watch of the other session may replace the shared response
+   // pointer. Close the selected fixture by ID, not whichever request ran last.
+   const historyID='1'.padStart(32,'b');
+   assert(sessions.get(historyID)?.messages.length,'Archived fixture must have history');
+   snapshot={...sessions.get(historyID),closed:true,running:false,status:'session_closed'};sessions.set(historyID,snapshot);
    offline=true;
    await page.goto((process.env.E2E_UI_URL||'http://127.0.0.1:5298')+'/e2e/edge-agent.html');
    await page.getByRole('button',{name:zh?'去访问':'Open',exact:true}).click();

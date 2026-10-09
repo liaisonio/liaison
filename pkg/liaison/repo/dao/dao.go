@@ -14,6 +14,14 @@ import (
 
 // Dao 接口定义
 type Dao interface {
+	WebIDEApplications(context.Context, uint, int, int) ([]model.WebIDEApplication, int64, error)
+	GetWebIDEApplication(context.Context, uint, string) (*model.WebIDEApplication, error)
+	SaveWebIDEApplication(context.Context, *model.WebIDEApplication, bool) error
+	DeleteWebIDEApplication(context.Context, uint, string) error
+	WebIDEAccesses(context.Context, uint, int, int, ...string) ([]model.WebIDEAccess, int64, error)
+	GetWebIDEAccess(context.Context, uint, string) (*model.WebIDEAccess, error)
+	SaveWebIDEAccess(context.Context, *model.WebIDEAccess, bool) error
+	DeleteWebIDEAccess(context.Context, uint, string) error
 	ListAgentAccesses(context.Context, uint, int, int, ...model.AgentAccessFilter) ([]model.AgentAccess, int64, error)
 	GetAgentAccess(context.Context, uint, string) (*model.AgentAccess, error)
 	GetAgentApplication(context.Context, uint, string) (*model.AgentApplication, error)
@@ -346,6 +354,8 @@ func (d *dao) initDB() error {
 		&model.AgentModelSetting{},
 		&model.AgentAccess{},
 		&model.AgentApplication{},
+		&model.WebIDEApplication{},
+		&model.WebIDEAccess{},
 		&model.EdgeAgentHistory{},
 		&model.EdgeAgentHistoryPage{},
 		&model.AgentAttachment{},

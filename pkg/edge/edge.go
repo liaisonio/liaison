@@ -18,6 +18,7 @@ import (
 	"github.com/liaisonio/liaison/pkg/edge/proxy"
 	"github.com/liaisonio/liaison/pkg/edge/reporter"
 	"github.com/liaisonio/liaison/pkg/edge/scanner"
+	"github.com/liaisonio/liaison/pkg/edge/webide"
 	"github.com/liaisonio/liaison/pkg/utils"
 	"k8s.io/klog/v2"
 )
@@ -69,7 +70,25 @@ func NewEdge() (*Edge, error) {
 		}
 	}
 
-	_, err = proxy.NewProxy(frontierBound)
+	// IDE instances survive connector reconnects/shutdown. Their private state
+	// is separate from Agent bindings and connector lifecycle metadata.
+	var ide *webide.Service
+	if configPath, pathErr := filepath.Abs(config.ConfigFile()); pathErr == nil {
+		var ideErr error
+		ide, ideErr = webide.New(filepath.Join(filepath.Dir(configPath), "webide"))
+		if ideErr == nil {
+			ideErr = ide.Register(frontierBound)
+		}
+		if ideErr != nil {
+			log.Warnf("WebIDE capability unavailable")
+			ide = nil
+		}
+	}
+	var ideDialer proxy.WebIDEDialer
+	if ide != nil {
+		ideDialer = ide
+	}
+	_, err = proxy.NewProxy(frontierBound, ideDialer)
 	if err != nil {
 		log.Errorf("init proxy error: %v", err)
 		return nil, err

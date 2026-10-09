@@ -12,6 +12,17 @@ func (s *session) recordTurnTimingLocked(value **int64) {
 	}
 	ms := max(int64(0), time.Since(s.turnStarted).Milliseconds())
 	*value = &ms
+	if d := s.diagnostics; d != nil && !d.finished {
+		switch value {
+		case &s.timing.FirstReplyMS:
+			d.progress(time.Now())
+			d.record.FirstReplyMS = &ms
+			d.publish("agent_first_reply", time.Now())
+		case &s.timing.DispatchMS:
+			d.record.DispatchMS = &ms
+			d.publish("agent_dispatched", time.Now())
+		}
+	}
 }
 
 func (s *session) turnTimingLocked() *proto.AgentTurnTiming {

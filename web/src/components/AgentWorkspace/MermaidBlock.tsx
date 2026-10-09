@@ -1,5 +1,4 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {createPortal} from 'react-dom';
 import {Check, Copy, Maximize} from 'lucide-react';
 import {Button, Modal, Select} from '@/components/ui';
 import {useI18n} from '@/i18n';
@@ -16,16 +15,8 @@ export function MermaidBlock({text,enlarged=false,onClose}:{text:string;enlarged
   const [document,setDocument]=useState(''), [status,setStatus]=useState<'loading'|'ready'|'error'>('loading'), [height,setHeight]=useState(220);
   const [theme,setTheme]=useState(themeSignature),[expanded,setExpanded]=useState(false),[zoom,setZoom]=useState<number|null>(null),[percent,setPercent]=useState(100);
   const options=useRef({zoom,onClose});options.current={zoom,onClose};
-  const trigger=useRef<HTMLButtonElement>(null),dialog=useRef<HTMLDivElement>(null);
+  const trigger=useRef<HTMLButtonElement>(null);
   const close=useCallback(()=>{setExpanded(false);requestAnimationFrame(()=>trigger.current?.focus());},[]);
-  useEffect(()=>{
-    if(!expanded)return;
-    const host=dialog.current,first=host?.querySelector<HTMLButtonElement>('.liaison-modal > header button');
-    first?.focus();
-    const containFocus=(event:FocusEvent)=>{if(host&&!host.contains(event.target as Node))first?.focus();};
-    window.document.addEventListener('focusin',containFocus);
-    return ()=>window.document.removeEventListener('focusin',containFocus);
-  },[expanded]);
   useEffect(()=>{frame.current?.contentWindow?.postMessage({type:'liaison-mermaid-scale',zoom,enlarged},'*');},[zoom,enlarged]);
   useEffect(()=>{
     const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){setVisible(true);observer.disconnect();}},{rootMargin:'200px'});
@@ -87,6 +78,6 @@ export function MermaidBlock({text,enlarged=false,onClose}:{text:string;enlarged
       {status==='error'&&<div className="agent-mermaid-notice" role="status">{tr('暂时无法绘制，可查看源码。','Unable to render. You can view the source.')}</div>}
       {document&&<iframe ref={frame} title={tr('Mermaid 图表','Mermaid diagram')} sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={document} style={{height:enlarged?'100%':height,visibility:status==='ready'?'visible':'hidden'}}/>}
     </div>
-    {expanded&&createPortal(<div ref={dialog}><Modal open title={tr('Mermaid 图表','Mermaid diagram')} width={1200} className="is-mermaid-viewer" onClose={close}><MermaidBlock text={text} enlarged onClose={close}/></Modal></div>,window.document.body)}
+    {expanded&&<Modal open title={tr('Mermaid 图表','Mermaid diagram')} width={1200} className="is-mermaid-viewer" onClose={close}><MermaidBlock text={text} enlarged onClose={close}/></Modal>}
   </div>;
 }
