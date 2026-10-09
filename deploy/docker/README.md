@@ -45,7 +45,7 @@ docker compose logs liaison | grep -A5 "first-run credentials"
 ============================================================
   Liaison first-run credentials (shown ONCE, save them now)
   Email:    default@liaison.com
-  Password: AbCd1234EfGh5678
+  Password: <generated-on-first-start>
   URL:      https://your-public-ip:443
 ============================================================
 ```

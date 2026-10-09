@@ -4,9 +4,34 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/liaisonio/liaison/pkg/liaison/config"
 )
+
+type webSSHDeadlineRecorder struct {
+	deadline time.Time
+}
+
+func (c *webSSHDeadlineRecorder) SetReadDeadline(deadline time.Time) error {
+	c.deadline = deadline
+	return nil
+}
+
+func TestWebSSHHeartbeatRefreshAllowsTenMinutesWithoutUserInput(t *testing.T) {
+	conn := &webSSHDeadlineRecorder{}
+	// Every received message, including a ping without terminal input, refreshes
+	// the deadline. It must not remain tied to connection age or the last command.
+	for i := 0; i < 2; i++ {
+		conn.deadline = time.Now().Add(-time.Minute)
+		before := time.Now()
+		refreshWebSSHReadDeadline(conn)
+		after := time.Now()
+		if conn.deadline.Before(before.Add(10*time.Minute)) || conn.deadline.After(after.Add(10*time.Minute)) {
+			t.Fatalf("deadline = %v, want ten minutes from this heartbeat", conn.deadline)
+		}
+	}
+}
 
 func TestValidateWebSSHSessionCredentials(t *testing.T) {
 	tests := []struct {

@@ -46,6 +46,7 @@ type Bridge struct {
 	done        chan struct{}
 }
 type session struct {
+	diagnostics                   *turnDiagnostics
 	timing                        proto.AgentTurnTiming
 	imageInputs                   []string
 	window                        uint64
@@ -395,6 +396,7 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 		s.turn = ""
 		s.turnStarted = time.Now()
 		s.timing = proto.AgentTurnTiming{}
+		s.diagnostics = newTurnDiagnostics(s.id, s.window, s.turnStarted, writeTurnDiagnostic)
 		started := s.turnStarted
 		s.changedLocked()
 		selectedModel := s.selectedModel
@@ -427,6 +429,9 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 	case "interrupt":
 		s.mu.Lock()
 		turn, running := s.turn, s.running
+		if running && s.diagnostics != nil && !s.diagnostics.finished {
+			s.diagnostics.record.InterruptRequested = true
+		}
 		s.mu.Unlock()
 		if running && turn != "" {
 			if err := s.agent.Interrupt(ctx, s.thread, turn); err != nil {

@@ -28,7 +28,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await page.getByRole('combobox',{name:tr('应用分类','Application category')}).selectOption('agent');
   await page.getByRole('button',{name:tr('下一步','Next'),exact:true}).click();await page.getByRole('button',{name:tr('发现已安装的 Agent','Discover installed Agents')}).waitFor();
   await page.getByRole('button',{name:tr('取消','Cancel'),exact:true}).click();
-  const category=async name=>{const button=page.getByRole('button',{name,exact:true});if(!await button.isVisible())await page.getByRole('button',{name:tr('更多协议','More protocols'),exact:true}).click();await page.getByRole('button',{name,exact:true}).click();};
+  const category=async name=>{
+   const button=page.getByRole('button',{name,exact:true});
+   if(await button.isVisible()){await button.click();return;}
+   await page.getByRole('button',{name:tr('更多协议','More protocols'),exact:true}).click();
+   await page.getByRole('menuitem',{name,exact:true}).click();
+  };
   await category(tr('网络应用','Network applications'));
   await page.getByRole('cell',{name:'Internal SSH',exact:true}).waitFor();assert.equal(await page.getByRole('cell',{name:'Local Codex',exact:true}).count(),0);
   await category('Agent');await page.getByRole('cell',{name:'Local Codex',exact:true}).waitFor();assert.equal(await page.getByRole('cell',{name:'Internal SSH',exact:true}).count(),0);

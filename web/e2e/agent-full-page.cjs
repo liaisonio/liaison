@@ -11,7 +11,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
  try {
   for(const locale of ['zh-CN','en-US'])for(const theme of ['light','dark'])for(const width of [1280,390]){
    const page=await browser.newPage({viewport:{width,height:900},ignoreHTTPSErrors:process.env.E2E_IGNORE_HTTPS_ERRORS==='1'});
-   let failAccess=false,deny=false,replyVersion=1,needsApproval=true,emptyHistory=false,connectorOnline=true;const errors=[],starts=[];
+   let failAccess=false,deny=false,replyVersion=1,needsApproval=true,emptyHistory=false,connectorOnline=true,activeConversation=false;const errors=[],starts=[];
    page.on('pageerror',()=>errors.push('browser error'));
    await page.addInitScript(({locale,theme})=>{
     localStorage.setItem('token','synthetic-layout-test');
@@ -49,7 +49,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
      assert(['sessions','poll','transcript'].includes(action),'layout tests must not start or modify a session');
      const rows=[{...session,reply_token:'main',updated_at:'2026-01-01T00:00:00Z'},...Array.from({length:11},(_,i)=>({...session,session_id:String(i).padStart(32,'d'),reply_token:`reply-${replyVersion}`,attention:i===0&&needsApproval?'approval':undefined,title:`Conversation ${i+1}`,running:i===0,updated_at:'2026-01-01T00:00:00Z'}))];
      const matches=emptyHistory?[]:history_search?[{...rows[1],title:'Older matching conversation',project:'/workspace/archive'}]:rows;
-     data=action==='sessions'?{version:1,status:'ok',history_search_available:true,history_total:matches.length,attention_sessions:rows.filter(s=>s.attention),sessions_available:true,session_management:true,sessions:matches}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:{...session,session_id:session_id||session.session_id,reply_token:session_id&&session_id!==session.session_id?`reply-${replyVersion}`:'main'};
+     data=action==='sessions'?{version:1,status:'ok',history_search_available:true,history_total:matches.length,attention_sessions:rows.filter(s=>s.attention),sessions_available:true,session_management:true,sessions:matches}:action==='transcript'?{version:1,status:'ok',history_pages:[]}:{...session,closed:!activeConversation,session_id:session_id||session.session_id,reply_token:session_id&&session_id!==session.session_id?`reply-${replyVersion}`:'main'};
     }
     await route.fulfill({json:{code:200,data}});
    });
@@ -74,9 +74,13 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
      await dialog.getByRole('button',{name:locale==='zh-CN'?'取消':'Cancel',exact:true}).click();
      assert(new URL(page.url()).searchParams.get('session')===session.session_id,'cancel preserves selected session');
     }
-    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'收起会话列表':'Hide conversations',exact:true}).click();
-    await page.locator('.edge-agent-session-actions').getByRole('button',{name:label,exact:true}).click();
-    const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'another-project'}).click();
+    await page.locator('.edge-agent-session-list').getByRole('button',{name:label,exact:true}).click();
+    const dialog=page.getByRole('dialog');
+    await dialog.getByRole('button',{name:'another-project'}).waitFor();
+    const folderSearch=dialog.getByRole('textbox',{name:locale==='zh-CN'?'定位文件夹':'Find folder'});
+    await folderSearch.fill('another');
+    assert(await folderSearch.evaluate(el=>el===document.activeElement),'folder picker accepts input in full-page mode');
+    await dialog.getByRole('button',{name:'another-project'}).click();
     await page.waitForFunction(()=>document.querySelector('.edge-agent-directory-path input')?.value==='/workspace/another-project'&&!document.querySelector('.edge-agent-directory-list[aria-busy="true"]'));
     await page.screenshot({path:`/tmp/agent-new-directory-${locale}-${theme}-${width}.png`});
     assert(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
@@ -124,13 +128,24 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    if(width===390)await page.getByRole('button',{name:locale==='zh-CN'?'显示会话列表':'Show conversations',exact:true}).click();
    const project=page.locator('.edge-agent-project-name');
    await project.focus();await page.getByRole('tooltip').waitFor();assert.equal(await page.getByRole('tooltip').textContent(),access.project);
+   await page.evaluate(()=>window.dispatchEvent(new Event('scroll')));
+   await page.mouse.move(0,0);
+   assert.equal(await page.getByRole('tooltip').textContent(),access.project,'focused project keeps its path visible after scrolling or pointer departure');
    await project.click();await page.getByRole('dialog').waitFor();
-   await page.keyboard.press('Tab');
-   assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)),'path dialog keeps keyboard focus');
+   assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)),'path dialog takes focus immediately');
+   for(const key of ['Tab','Tab','Tab','Shift+Tab','Shift+Tab','Shift+Tab']){
+    await page.keyboard.press(key);
+    assert(await page.getByRole('dialog').evaluate(el=>el.contains(document.activeElement)&&!document.activeElement.classList.contains('liaison-modal-mask')),'path dialog keeps keyboard focus on controls');
+   }
    await page.screenshot({path:`/tmp/agent-path-${locale}-${theme}-${width}.png`});
    await page.getByRole('button',{name:locale==='zh-CN'?'复制路径':'Copy path',exact:true}).click();
    assert.equal(await page.evaluate(()=>window.copiedCode),access.project);
    await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+   assert(await project.evaluate(el=>el===document.activeElement),'closing restores project focus');
+   await project.press('Enter');await page.getByRole('dialog').waitFor();
+   await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
+   assert(await project.evaluate(el=>el===document.activeElement),'Escape restores project focus');
+   assert.equal(new URL(page.url()).searchParams.get('view'),'full','Escape closes only the dialog');
    if(process.env.E2E_MULTI_SESSION==='1'){
     const search=page.getByRole('searchbox',{name:locale==='zh-CN'?'搜索全部会话':'Search all conversations'});
     await search.fill('archive');await page.getByText('Older matching conversation',{exact:true}).waitFor();
@@ -169,16 +184,23 @@ const delay = ms => new Promise(resolve => setTimeout(resolve,ms));
    const responsive=async()=>{
     const sizes=await page.locator('.edge-agent-messages').evaluate(el=>{
      const css=getComputedStyle(el),message=el.querySelector('.agent-message:not(.is-user)');
-     const rect=message.getBoundingClientRect(),panel=el.getBoundingClientRect(),composer=document.querySelector('.edge-agent-composer').getBoundingClientRect();
-     return {available:el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight),message:rect.width,center:Math.abs(rect.x+rect.width/2-panel.x-panel.width/2),composerCenter:Math.abs(composer.x+composer.width/2-rect.x-rect.width/2),composerWidth:composer.width,overflow:el.scrollWidth-el.clientWidth,pageOverflow:document.documentElement.scrollWidth-innerWidth};
+     const rect=message.getBoundingClientRect(),panel=el.getBoundingClientRect(),composer=document.querySelector('.edge-agent-composer')?.getBoundingClientRect();
+     return {available:el.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight),message:rect.width,center:Math.abs(rect.x+rect.width/2-panel.x-panel.width/2),composerCenter:composer?Math.abs(composer.x+composer.width/2-rect.x-rect.width/2):null,composerWidth:composer?.width??null,overflow:el.scrollWidth-el.clientWidth,pageOverflow:document.documentElement.scrollWidth-innerWidth};
     });
     assert(Math.abs(sizes.message-sizes.available)<2,JSON.stringify(sizes));
-    assert(sizes.message<=881&&sizes.composerWidth<=881,'reading column must stay bounded on wide screens');
-    assert(sizes.center<2&&sizes.composerCenter<2,'messages and composer must share a centered reading column');
+    assert.equal(sizes.composerWidth!==null,activeConversation,'Only active conversations show a composer');
+    assert(sizes.message<=881,'reading column must stay bounded on wide screens');
+    assert(sizes.center<2,'messages must share a centered reading column');
+    if(activeConversation){
+     assert(sizes.composerWidth<=881,'composer must stay bounded on wide screens');
+     assert(sizes.composerCenter<2,'messages and composer must share a centered reading column');
+    }
     assert(sizes.overflow<=1&&sizes.pageOverflow<=1,'conversation must not overflow horizontally');
     return sizes.message;
    };
    await responsive();
+   activeConversation=true;await page.reload();await page.getByText('Layout ready.',{exact:true}).waitFor();
+   await page.locator('.edge-agent-composer').waitFor();await responsive();await hidden();
    if(width===1280){
     await page.setViewportSize({width:1920,height:900});
     const wide=await responsive();

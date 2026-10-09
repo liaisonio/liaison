@@ -26,6 +26,9 @@ func testInstaller(t *testing.T) (installer, Identity, string, *[]string) {
 	i.validateDir = func(string, int) error { return nil }
 	i.run = func(_ context.Context, name string, args ...string) ([]byte, error) {
 		calls = append(calls, name+" "+strings.Join(args, " "))
+		if name == "/usr/bin/loginctl" {
+			return []byte("yes\n"), nil
+		}
 		if strings.Contains(strings.Join(args, " "), "--property=MainPID") {
 			return []byte("0"), nil
 		}
@@ -81,7 +84,7 @@ func TestInstallNewIsolated(t *testing.T) {
 			}
 			if platform == "linux" {
 				for _, call := range *calls {
-					if !strings.Contains(call, "systemctl --user ") {
+					if !strings.Contains(call, "systemctl --user ") && !strings.HasPrefix(call, "/usr/bin/loginctl show-user 501 ") {
 						t.Fatalf("not user-scoped: %s", call)
 					}
 				}
@@ -125,6 +128,9 @@ func TestInstallStopFailureRetainsFiles(t *testing.T) {
 		return errors.New("startup failed")
 	}
 	i.run = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		if len(args) > 0 && args[0] == "show-user" {
+			return []byte("yes"), nil
+		}
 		if strings.Contains(strings.Join(args, " "), "disable") {
 			return nil, errors.New("stop failed")
 		}

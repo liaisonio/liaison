@@ -326,6 +326,11 @@ func (i installer) installNew(ctx context.Context, id Identity, source string, c
 	if err != nil {
 		return Plan{}, fmt.Errorf("service manager is unavailable for this installation identity: %w", err)
 	}
+	if plan.Kind == "systemd-user" {
+		if err := requireUserLinger(ctx, id, i.run); err != nil {
+			return Plan{}, err
+		}
+	}
 	base := installationBase(plan)
 	registry := filepath.Dir(base)
 	if err = i.ensureDirectory(registry, id.UID); err != nil {

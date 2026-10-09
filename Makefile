@@ -93,7 +93,7 @@ endif
 # ============================================================================
 # Docker build variables and functions
 # ============================================================================
-DOCKER_IMAGE = golang:1.26.8
+DOCKER_IMAGE = golang:1.26.9
 DOCKER_VOLUME = -v "$(shell pwd):/build"
 DOCKER_WORKDIR = -w /build
 DOCKER_BASE = docker run --rm $(DOCKER_VOLUME) $(DOCKER_WORKDIR)

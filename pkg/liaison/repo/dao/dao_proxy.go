@@ -18,6 +18,9 @@ func (d *dao) CountProxies(query *ListProxiesQuery) (int64, error) {
 	var count int64
 	db := d.getDB()
 	if query != nil {
+		if len(query.AccessProtocols) > 0 {
+			db = db.Where("access_protocol IN ?", query.AccessProtocols)
+		}
 		if query.Name != "" {
 			db = db.Where("name LIKE ?", "%"+query.Name+"%")
 		}
@@ -38,6 +41,9 @@ func (d *dao) CountProxies(query *ListProxiesQuery) (int64, error) {
 
 func (d *dao) ListProxies(query *ListProxiesQuery) ([]*model.Proxy, error) {
 	db := d.getDB()
+	if len(query.AccessProtocols) > 0 {
+		db = db.Where("access_protocol IN ?", query.AccessProtocols)
+	}
 	// page & page_size
 	if query.Page > 0 && query.PageSize > 0 {
 		db = db.Offset((query.Page - 1) * query.PageSize).Limit(query.PageSize)

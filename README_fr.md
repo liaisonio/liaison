@@ -69,9 +69,9 @@ Installez le paquet tar.gz du serveur, puis installez un connecteur.
 **1. Télécharger**
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.0-rc.1/liaison-1.15.0-rc.1-linux-amd64.tar.gz
-tar -xzf liaison-1.15.0-rc.1-linux-amd64.tar.gz
-cd liaison-1.15.0-rc.1-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.15.0-rc.2/liaison-1.15.0-rc.2-linux-amd64.tar.gz
+tar -xzf liaison-1.15.0-rc.2-linux-amd64.tar.gz
+cd liaison-1.15.0-rc.2-linux-amd64
 ```
 
 **2. Exécuter le script d'installation**

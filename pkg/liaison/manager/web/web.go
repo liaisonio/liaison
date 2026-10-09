@@ -50,6 +50,7 @@ type web struct {
 	aiGateway       *controlplane.AIService
 	aiSlots         chan struct{}
 	httpEntries     *httpEntries
+	ideGateway      *webIDEGateway
 	guacdAddr       string
 	guacdBridgeAddr string
 	guacdBridgeHost string
@@ -124,6 +125,13 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 	srv := kratoshttp.NewServer(opts...)
 	v1.RegisterLiaisonServiceHTTPServer(srv, web)
 	srv.HandleFunc("/api/v1/applications/probe", web.handleApplicationProbeHTTP)
+	if conf.Manager.WebIDE.Enabled {
+		web.ideGateway = newWebIDEGateway(web, conf)
+		if conf.Manager.WebIDE.SharedOrigin {
+			srv.HandlePrefix("/ide/", web.ideGateway)
+		}
+	}
+	srv.HandlePrefix("/api/v1/webide/", http.HandlerFunc(web.handleWebIDEHTTP))
 	srv.HandleFunc("/api/v1/edge-agents", web.handleEdgeAgentHTTP)
 	srv.HandleFunc("/api/v1/edge-agents/connectors", web.handleEdgeAgentHTTP)
 	srv.HandleFunc("/api/v1/agent-accesses", web.handleAgentAccessHTTP)
@@ -337,10 +345,14 @@ func (web *web) Serve() error {
 }
 
 func (web *web) Close() error {
+	var ideErr error
+	if web.ideGateway != nil {
+		ideErr = web.ideGateway.Close()
+	}
 	if web.files != nil {
 		web.files.close()
 	}
-	return web.app.Stop()
+	return errors.Join(ideErr, web.app.Stop())
 }
 
 func deriveWebSSHCredentialKey(conf *config.Configuration) []byte {

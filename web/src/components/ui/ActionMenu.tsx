@@ -16,6 +16,7 @@ export default function ActionMenu({
   icon,
   disabled = false,
   placement = 'bottom',
+  menuClassName,
 }: {
   label: string;
   items: ActionMenuItem[];
@@ -23,6 +24,7 @@ export default function ActionMenu({
   icon?: ReactNode;
   disabled?: boolean;
   placement?: 'top' | 'bottom';
+  menuClassName?: string;
 }) {
   const trigger = useRef<HTMLButtonElement>(null),
     menu = useRef<HTMLDivElement>(null);
@@ -89,7 +91,7 @@ export default function ActionMenu({
       {position &&
         createPortal(
           <div
-            className="liaison-action-menu"
+            className={['liaison-action-menu', menuClassName].filter(Boolean).join(' ')}
             role="menu"
             aria-label={label}
             ref={menu}

@@ -203,7 +203,7 @@ export const renderNodeTitle = (node: API.WebDataMetadataNode) => {
   }`;
   return (
     <Tooltip title={label}>
-      <span className="webdata-tree-title"><Icon size={13} />{label}</span>
+      <span className="webdata-tree-title"><Icon size={13} /><span>{label}</span></span>
     </Tooltip>
   );
 };

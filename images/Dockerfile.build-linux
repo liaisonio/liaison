@@ -1,5 +1,5 @@
 # Dockerfile for building Linux binaries
-FROM golang:1.26.8-alpine AS builder
+FROM golang:1.26.9-alpine AS builder
 
 # Install build dependencies for CGO
 RUN apk add --no-cache gcc musl-dev sqlite-dev
