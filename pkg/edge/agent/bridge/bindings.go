@@ -82,6 +82,10 @@ func saveBindings(path string, bindings map[string]nativeBinding) error {
 	if err != nil {
 		return err
 	}
+	return writePrivateStore(path, raw)
+}
+
+func writePrivateStore(path string, raw []byte) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err

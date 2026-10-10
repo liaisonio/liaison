@@ -51,7 +51,7 @@ curl -fsSL https://your-server/install.sh | bash -s -- \
 - Linux 普通用户：位于 `~/.local/share/liaison/edges/<id>/`，使用 `systemctl --user`。需要可用的用户服务会话；不自动配置 linger。
 - macOS：位于 `~/Library/Application Support/liaison/edges/<id>/`，使用独立 LaunchAgent；在对应登录用户下执行，不使用 sudo。
 
-安装、升级仅确认服务进程启动，不代表已成功连接 Manager。升级保留配置和服务文件，启动失败尝试回滚；如果提示恢复文件或锁存在，请先检查，不要盲目重试。远程卸载默认允许，且受本地归属预检约束。详见 [生命周期实现状态](../../docs/edge-lifecycle.md)。
+安装、升级仅确认服务进程启动，不代表已成功连接 Manager。升级保留配置和服务文件，启动失败尝试回滚；如果提示恢复文件或锁存在，请先检查，不要盲目重试。远程卸载默认允许，且受本地归属预检约束。
 
 正常执行安装命令即可支持控制台卸载，无需额外参数。卸载仍要求管理员权限、名称确认及本机归属预检通过。需要禁止远程卸载时，可在本实例配置中显式设置 `allow_remote_uninstall: false` 并重启；升级会保留该设置。
 

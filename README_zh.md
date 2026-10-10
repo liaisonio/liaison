@@ -112,25 +112,17 @@ LLM 上游支持 **OpenAI-compatible**、**Anthropic Messages** 和 **Ollama**�
 
 查看表结构、执行 SQL，让会话 Agent 查询并解释结果，需要审批的操作先确认。
 
-![通过 Liaison 使用 MySQL](docs/assets/readme/web-mysql-dark.png)
-
 ### Web MongoDB
 
 无需本地客户端即可浏览集合，让会话 Agent 执行已批准的查询并解释文档。
-
-![通过 Liaison 使用 MongoDB](docs/assets/readme/web-mongodb-dark.png)
 
 ### Web VNC
 
 通过受管的浏览器会话访问私有 VNC 桌面。
 
-![在 Liaison 中访问 VNC 桌面](docs/assets/readme/web-vnc-dark.png)
-
 ### Web RDP
 
 使用同一套访问流程连接 RDP 桌面。
-
-![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp-dark-v2.png)
 
 ## 文档
 

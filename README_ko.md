@@ -157,7 +157,6 @@ Liaison 은 Frontier 가 모든 커넥터를 관리하는 중앙 집중식 아�
 
 | 기능 | 스크린샷 |
 |:---:|:---:|
-| 기기 관리 | ![Device](docs/pages/device_en.png) |
 | 애플리케이션 관리 | ![Application](docs/pages/application_en.png) |
 | 프록시 설정 | ![Proxy](docs/pages/proxy_en.png) |
 | 커넥터 관리 | ![Edge](docs/pages/edge_en.png) |
@@ -166,7 +165,6 @@ Liaison 은 Frontier 가 모든 커넥터를 관리하는 중앙 집중식 아�
 
 ## 문서
 
-- [비즈니스 플로우](./docs/biz_sequence.md)
 - [API](./docs/swagger/)
 
 ---

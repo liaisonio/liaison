@@ -9,10 +9,11 @@ import { useI18n } from '@/i18n';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { history, useSearchParams } from '@/lib/runtime';
 import { createApplication, createProxy, deleteApplication, getApplicationList, getEdgeList, getProxyList, updateApplication } from '@/services/api';
-import { Link2, Plus } from 'lucide-react';
+import { Link2, Plus, X } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LLMConnection, {type LLMConnectionHandle} from '@/pages/Proxy/LLMConnection';
 import '@/pages/Proxy/connection.less';
+import {InitialConnectionFields,emptyConnection,saveInitialConnection,loadAccessConnection,directAccessPath,supportsInitialConnection} from '@/pages/Proxy/connection';
 import WebEntryModeField, {useWebEntryMode} from '@/components/WebEntryModeField';
 import ApplicationProbe from './ApplicationProbe';
 import AgentApplications, {type AgentApplicationListView} from '@/pages/EdgeAgent/Applications';
@@ -67,6 +68,10 @@ const NetworkApplications = ({includeAgents=false}:{includeAgents?:boolean}) => 
   const [form, setForm] = useState(emptyApplication);
   const [editName, setEditName] = useState('');
   const [accessName, setAccessName] = useState('');
+  const [accessConnection,setAccessConnection]=useState(emptyConnection);
+  const [createdAccess,setCreatedAccess]=useState<API.Proxy>();
+  const [accessError,setAccessError]=useState('');
+  const closeAccess=()=>{if(saving)return;setAccessRow(undefined);setAccessConnection(emptyConnection());setCreatedAccess(undefined);setAccessError('');};
   const [accessMode, setAccessMode] = useState<AccessType>('tcp');
   const [publicPort, setPublicPort] = useState('');
   const webEntry = useWebEntryMode();
@@ -74,6 +79,12 @@ const NetworkApplications = ({includeAgents=false}:{includeAgents?:boolean}) => 
   const [suggestedAccessName, setSuggestedAccessName] = useState(defaultAccessName);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; text: string }>();
+
+  useEffect(() => {
+    if (notice?.tone !== 'success') return;
+    const timer = window.setTimeout(() => setNotice(current => current === notice ? undefined : current), 3000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   useEffect(() => {
     setFilters((value) => ({ ...value, application_type: routeType }));
@@ -165,6 +176,7 @@ const NetworkApplications = ({includeAgents=false}:{includeAgents?:boolean}) => 
   };
   const openAccess = (row: API.Application) => {
     if(isLLMApplicationType(row.application_type)){history.push(`/proxy?category=llm&new_application=${encodeURIComponent(row.id)}`);return;}
+    setAccessConnection(emptyConnection());setCreatedAccess(undefined);setAccessError('');
     webEntry.setMode('path'); setSuggestedAccessName(defaultAccessName()); setAccessRow(row); setAccessName(''); setAccessMode(accessTypesForApplication(row.application_type)[0].value); setPublicPort('');
   };
   const openCreate = () => { setSuggestedApplicationName(defaultApplicationName()); setForm(emptyApplication()); setCreateOpen(true); };
@@ -176,16 +188,23 @@ const NetworkApplications = ({includeAgents=false}:{includeAgents?:boolean}) => 
     catch{setModelError(true);}finally{setSaving(false);}
   };
   const createAccess = async (event: FormEvent) => {
-    event.preventDefault(); if (!accessRow) return;
-    const accessProtocol = accessProtocolForType(accessMode);
+    event.preventDefault(); if (!accessRow||saving) return;
     const expose = !isWebAccessType(accessMode) && (accessMode !== 'http' || webEntry.mode === 'port');
-    setSaving(true);
+    setSaving(true);setAccessError('');
     try {
-      const response = await createProxy({ name: accessName.trim() || suggestedAccessName, application_id: accessRow.id, access_protocol: accessProtocol, http_entry_mode: accessMode === 'http' ? webEntry.mode : undefined, expose_public_port: expose, port: expose && publicPort ? Number(publicPort) : undefined });
-      if (response.code !== 200) throw new Error(response.message);
-      setAccessRow(undefined); window.dispatchEvent(new CustomEvent(ACCESS_TYPES_CHANGED_EVENT)); history.push(`/proxy?access_type=${accessMode}`);
-    } catch (error: any) { setNotice({ tone: 'danger', text: error?.message || tr('创建访问失败', 'Failed to create access') }); }
-    finally { setSaving(false); }
+      let access=createdAccess;
+      if(!access){
+        const response=await createProxy({name:accessName.trim()||suggestedAccessName,application_id:accessRow.id,access_protocol:accessProtocolForType(accessMode),http_entry_mode:accessMode==='http'?webEntry.mode:undefined,expose_public_port:expose,port:expose&&publicPort?Number(publicPort):undefined});
+        if(response.code!==200||!response.data)throw Error('create');
+        access=response.data;setCreatedAccess(access);
+      }
+      if(accessMode!=='webssh')await saveInitialConnection(access.id,accessMode,access.name,accessConnection);
+      if(supportsInitialConnection(accessMode))setAccessConnection(await loadAccessConnection(access.id,accessMode));
+      const path=supportsInitialConnection(accessMode)?await directAccessPath(access.id,accessMode):`/proxy?access_type=${accessMode}`;
+      setAccessRow(undefined);setCreatedAccess(undefined);setAccessConnection(emptyConnection());
+      window.dispatchEvent(new CustomEvent(ACCESS_TYPES_CHANGED_EVENT));history.push(path);
+    }catch{setAccessError(tr('未能完成创建或连接配置，请重试。已创建的访问会复用，不会重复创建。','Could not finish creating or configuring access. Retry reuses any access already created.'));}
+    finally{setSaving(false);}
   };
 
   const columns: Column<API.Application>[] = [
@@ -257,13 +276,13 @@ const NetworkApplications = ({includeAgents=false}:{includeAgents?:boolean}) => 
       {modelError&&<Notice tone="danger">{tr('保存失败，请等待模型列举完成或检查配置后重试。','Could not save. Wait for discovery to finish or check settings and retry.')}</Notice>}
     </Modal>
     {applicationId&&<Notice>{tr('正在查看所选应用','Showing the selected application')} <Button onClick={()=>history.push('/resource/app')}>{tr('全部应用','All applications')}</Button></Notice>}
-    {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
+    {notice ? <Notice tone={notice.tone}><div className="liaison-app-feedback" role={notice.tone === 'danger' ? 'alert' : 'status'}><span>{notice.text}</span><Button variant="ghost" aria-label={tr('关闭提示', 'Dismiss notification')} onClick={() => setNotice(undefined)}><X size={14}/></Button></div></Notice> : null}
     <div className="liaison-filter-bar"><label className="liaison-compound"><span>{tr('应用名称', 'Application')}</span><input value={filters.name} onChange={(event) => { setFilters((value) => ({ ...value, name: event.target.value })); setPage(1); }} placeholder={tr('输入应用名称', 'Application name')} /></label><label className="liaison-compound"><span>{tr('应用类型', 'Application type')}</span><select value={filters.application_type} onChange={(event) => { setFilters((value) => ({ ...value, application_type: event.target.value })); setPage(1); }}><option value="">{tr('全部', 'All')}</option>{includeAgents&&<><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="webide">IDE</option></>}{availableApplicationTypes().map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label className="liaison-compound"><span>{tr('所在设备', 'Device')}</span><input value={filters.device_name} onChange={(event) => { setFilters((value) => ({ ...value, device_name: event.target.value })); setPage(1); }} placeholder={tr('输入设备名称', 'Device name')} /></label><label className="liaison-compound"><span>{tr('目标地址', 'Target')}</span><input value={filters.target} onChange={(event) => { setFilters((value) => ({ ...value, target: event.target.value })); setPage(1); }} placeholder={tr('IP 或端口', 'IP or port')} /></label><div className="liaison-filter-actions"><Button onClick={() => { setFilters({ name: '', application_type: routeType, device_name: '', target: '' }); setPage(1); }}>{tr('重置', 'Reset')}</Button></div></div>
     {includeAgents?<AgentApplications renderList={renderCombinedList}/>:<section className="liaison-list-panel liaison-application-list"><header className="liaison-list-header"><h2>{tr('应用列表', 'Applications')}</h2><Button variant="primary" onClick={openCreate}><Plus size={14} />{tr('新建应用', 'Create application')}</Button></header><DataTable columns={columns} rows={visibleRows} rowKey={(row) => row.id} loading={loading} emptyText={tr('暂无应用', 'No applications')} /><Pager page={page} pageSize={pageSize} total={filteredRows.length} onPageChange={setPage} /></section>}
     <Modal open={createOpen} title={tr('新建应用', 'Create application')} onClose={closeCreate} width={480} footer={<><Button onClick={closeCreate}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-application" disabled={saving}>{tr('确定', 'Create')}</Button></>}><form id="create-application" className="liaison-form-grid liaison-application-form" onSubmit={create}><Field label={tr('应用名称', 'Application name')}><Input value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} placeholder={suggestedApplicationName} /></Field><Field label={tr('应用类型', 'Application type')}><Select value={form.application_type} onChange={(event) => setForm((value) => ({ ...value, application_type: event.target.value }))}>{availableApplicationTypes().map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></Field><div className="is-full"><Field label={tr('连接器', 'Connector')} required hint={tr('应用通过该连接器访问所在局域网', 'The application uses this connector to reach its LAN')}><Select value={form.edge_id} onChange={(event) => setForm((value) => ({ ...value, edge_id: event.target.value, ip: '' }))}><option value="">{tr('选择连接器', 'Select connector')}</option>{edges.map((edge) => <option key={edge.id} value={edge.id}>{edge.name}{edge.device?.name ? ` (${edge.device.name})` : ''}</option>)}</Select></Field></div><Field label={tr('IP 地址', 'IP address')} required><Input list="application-ip-options" value={form.ip} onChange={(event) => setForm((value) => ({ ...value, ip: event.target.value }))} placeholder="192.168.1.100" /><datalist id="application-ip-options">{availableIPs.map((ip) => <option key={ip} value={ip} />)}</datalist></Field><Field label={tr('端口', 'Port')}><Input type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm((value) => ({ ...value, port: event.target.value }))} placeholder="443" /></Field><div className="is-full">{createOpen && <ApplicationProbe key={`${form.edge_id}:${form.ip}:${form.port}:${form.application_type}`} edgeId={form.edge_id} host={form.ip} port={form.port} disabled={saving}/>}</div></form></Modal>
     <Modal open={!!editRow} title={tr('编辑应用', 'Edit application')} onClose={() => setEditRow(undefined)} width={460} footer={<><Button onClick={() => setEditRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="edit-application">{tr('确定', 'Save')}</Button></>}><form id="edit-application" onSubmit={update}><Field label={tr('应用名称', 'Application name')} required><Input value={editName} onChange={(event) => setEditName(event.target.value)} /></Field>{editRow && <ApplicationProbe key={editRow.id} applicationId={editRow.id} disabled={saving}/>}</form></Modal>
     <Modal open={!!deleteRow} title={tr('删除应用', 'Delete application')} onClose={() => setDeleteRow(undefined)} width={430} footer={<><Button onClick={() => setDeleteRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="danger" onClick={() => void remove()}>{tr('删除', 'Delete')}</Button></>}><DangerConfirm title={tr(`删除“${deleteRow?.name || ''}”？`, `Delete “${deleteRow?.name || ''}”?`)} description={tr('关联该应用的访问将一并移除，此操作无法撤销。', 'Access entries linked to this application will also be removed. This cannot be undone.')} /></Modal>
-    <Modal open={!!accessRow} title={tr('为应用创建访问', 'Create application access')} onClose={() => setAccessRow(undefined)} width={520} footer={<><Button onClick={() => setAccessRow(undefined)}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-access" disabled={saving}><Link2 size={14} />{tr('创建', 'Create')}</Button></>}><form id="create-access" className="liaison-access-form is-application-access" onSubmit={createAccess}><div className="is-full"><Field label={tr('访问名称', 'Access name')}><Input value={accessName} onChange={(event) => setAccessName(event.target.value)} placeholder={suggestedAccessName} /></Field></div><Field label={tr('访问类型', 'Access type')}><div className="liaison-choice-row">{accessRow ? accessTypesForApplication(accessRow.application_type).map((mode) => <button key={mode.value} type="button" className={accessMode === mode.value ? 'is-active' : ''} onClick={() => { setAccessMode(mode.value); setPublicPort(''); }}>{mode.label}</button>) : null}</div></Field>{accessMode === 'http' && <div className="is-full"><WebEntryModeField {...webEntry}/></div>}{!isWebAccessType(accessMode) && (accessMode !== 'http' || webEntry.mode === 'port') ? <div className="liaison-access-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty to assign automatically')}><Input type="number" min={1} max={65535} value={publicPort} onChange={(event) => setPublicPort(event.target.value)} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}</form></Modal>
+    <Modal open={!!accessRow} title={tr('为应用创建访问', 'Create application access')} onClose={closeAccess} closeOnMask={!saving} width={520} footer={<><Button disabled={saving} onClick={closeAccess}>{tr('取消', 'Cancel')}</Button><Button variant="primary" type="submit" form="create-access" disabled={saving}><Link2 size={14} />{supportsInitialConnection(accessMode)?tr('创建并访问','Create and open'):tr('创建', 'Create')}</Button></>}><form id="create-access" className="liaison-access-form is-application-access" onSubmit={createAccess}><div className="is-full"><Field label={tr('访问名称', 'Access name')}><Input disabled={saving||!!createdAccess} value={accessName} onChange={(event) => setAccessName(event.target.value)} placeholder={suggestedAccessName} /></Field></div><div className="liaison-field is-full"><span className="liaison-field-label">{tr('访问类型', 'Access type')}</span><div className="liaison-choice-row" role="group" aria-label={tr('访问类型', 'Access type')}>{accessRow ? accessTypesForApplication(accessRow.application_type).map((mode) => <button key={mode.value} disabled={saving||!!createdAccess} type="button" className={accessMode === mode.value ? 'is-active' : ''} onClick={() => { setAccessMode(mode.value); setPublicPort('');setAccessConnection(emptyConnection());setAccessError(''); }}>{mode.label}</button>) : null}</div></div>{accessMode === 'http' && <div className="is-full"><WebEntryModeField {...webEntry}/></div>}{!isWebAccessType(accessMode) && (accessMode !== 'http' || webEntry.mode === 'port') ? <div className="liaison-access-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty to assign automatically')}><Input type="number" min={1} max={65535} value={publicPort} onChange={(event) => setPublicPort(event.target.value)} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}{(accessMode!=='webssh')&&<InitialConnectionFields type={accessMode} value={accessConnection} onChange={setAccessConnection} disabled={saving}/>}{accessError&&<div className="is-full"><Notice tone="danger">{accessError}</Notice></div>}</form></Modal>
   </div>;
 };
 
