@@ -938,6 +938,13 @@ if systemctl is-active --quiet "$SERVICE_NAME"; then
             set -e  # Re-enable exit on error
             
             if [[ $PASSWORD_EXIT_CODE -eq 0 ]]; then
+                # The schema bootstrap started before the first user existed.
+                # Restart so IAM initializes membership and the admin binding.
+                systemctl restart "$SERVICE_NAME"
+                if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+                    echo "Service failed to restart after administrator creation" >&2
+                    exit 1
+                fi
                 echo -e "${GREEN}${MSG_USER_CREATED_SUCCESS}${NC}"
             else
                 echo -e "${YELLOW}${MSG_WARNING_PASSWORD_FAILED}${NC}"

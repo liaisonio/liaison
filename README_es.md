@@ -157,7 +157,6 @@ Liaison usa una arquitectura centralizada con Frontier gestionando todos los con
 
 | Función | Captura |
 |:---:|:---:|
-| Gestión de dispositivos | ![Device](docs/pages/device_en.png) |
 | Gestión de aplicaciones | ![Application](docs/pages/application_en.png) |
 | Configuración de proxy | ![Proxy](docs/pages/proxy_en.png) |
 | Gestión de conectores | ![Edge](docs/pages/edge_en.png) |
@@ -166,7 +165,6 @@ Liaison usa una arquitectura centralizada con Frontier gestionando todos los con
 
 ## Documentación
 
-- [Flujo de negocio](./docs/biz_sequence.md)
 - [API](./docs/swagger/)
 
 ---

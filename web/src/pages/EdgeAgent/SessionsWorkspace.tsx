@@ -81,11 +81,12 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
     const rows=data.sessions||[];unread.observe(rows);
     if(!searchResults&&query){setError('');setItems(previous=>previous.map(row=>{const live=rows.find(s=>s.session_id===row.session_id);return live?{...row,reply_token:live.reply_token,attention:live.attention,running:live.running,closed:live.closed,status:live.status}:row;}));return;}
     if(query)lastSearch=Date.now();
-    setItems(rows);setError('');setManagement(Boolean(data.session_management));
+    setItems(rows);setError('');setDenied(false);setManagement(Boolean(data.session_management));
     setPersistent(Boolean(data.history_persistent));setTotal(data.history_total||rows.length);
     if(!initialized.current){initialized.current=true;const first=rows.find(r=>r.session_id===requested.current)||rows.find(r=>!r.closed)||rows[0];const id=requested.current||first?.session_id;setSelection({key:0,id});setCurrent(id||'');}
    }catch(e){if(abort.signal.aborted)return;if(query&&searchResults)setItems([]);if(e instanceof RequestError&&[401,403,404].includes(e.response?.status||0)){setDenied(true);setItems([]);setSelection(undefined);}
-    setError(tr('无法加载会话列表，请检查连接器版本、连接状态与访问权限。','Cannot load sessions. Check the connector version, connection and access permissions.'));
+    const status=e instanceof RequestError?e.response?.status:undefined;
+    setError(status===404?tr('此访问已不存在。请返回访问列表，选择其他访问。','This access no longer exists. Return to the access list and choose another.'):status===403?tr('你暂无权限打开此访问，请联系管理员。','You do not have permission to open this access. Contact your administrator.'):tr('暂时无法加载会话，请检查连接后重试。','Unable to load conversations. Check your connection and retry.'));
    }finally{if(!abort.signal.aborted){setLoading(false);timer=setTimeout(()=>void load(!query||Date.now()-lastSearch>=30000),5000);}}
   };void load();return()=>{abort.abort();clearTimeout(timer);};
  },[access.id,access.edge_id,refresh,page,query]);
@@ -111,9 +112,9 @@ export default function SessionsWorkspace({access}:{access:AgentAccess}){
   }catch{setOperationError(tr('操作未完成，请刷新状态后重试。','Operation did not complete. Refresh the status and retry.'));}
   finally{setSaving(false);}
  }
- return <div ref={pageRoot} className={`edge-agent-sessions-page${expanded?' is-page-expanded':''}`}>
+ return <div ref={pageRoot} data-session-state={loading?'loading':error?'error':selection?'ready':'empty'} className={`edge-agent-sessions-page${expanded?' is-page-expanded':''}`}>
   <div className="edge-agent-toolbar"><nav className="edge-agent-breadcrumb" aria-label={tr('面包屑','Breadcrumb')}><Link to="/access/agents">Agent</Link><ChevronRight size={12}/><span className="edge-agent-kind"><ProtocolIcon protocol={access.kind}/>{agentLabel(access.kind)}</span><ChevronRight size={12}/><span title={access.name}>{access.name}</span></nav><div className="edge-agent-view-actions"><Button aria-expanded={open} aria-controls="agent-session-list" onClick={()=>setOpen(v=>!v)}>{open?<PanelLeftClose size={15}/>:<PanelLeft size={15}/>} {open?tr('收起会话列表','Hide conversations'):tr('显示会话列表','Show conversations')}</Button><Button data-page-expand aria-pressed={expanded} title={expanded?tr('退出全页面 · Esc','Exit full page · Esc'):tr('全页面展开','Expand to full page')} onClick={()=>setExpanded(v=>!v)}>{expanded?<Minimize2 size={15}/>:<Maximize2 size={15}/>} {expanded?tr('退出全页面','Exit full page'):tr('全页面展开','Expand to full page')}</Button></div></div>
-  {error&&<Notice tone="danger">{error}<Button onClick={()=>setRefresh(v=>v+1)}>{tr('重试','Retry')}</Button></Notice>}
+  {error&&<div role="alert"><Notice tone="danger">{error} {denied?<Link className="liaison-table-link" to="/access/agents">{tr('返回访问','Back to access')}</Link>:<Button disabled={loading} onClick={()=>setRefresh(v=>v+1)}>{tr('重试','Retry')}</Button>}</Notice></div>}
   <div ref={resize.layout} style={resize.style} className={`edge-agent-session-layout ${open?'is-open':''} ${resize.dragging?'is-resizing':''}`}>
    {open&&<aside id="agent-session-list" className="edge-agent-session-list" aria-label={tr('会话列表','Session list')}>
     <header><strong>{tr('会话','Sessions')}</strong><Button variant="ghost" aria-label={tr('刷新会话','Refresh sessions')} onClick={()=>setRefresh(v=>v+1)}><RefreshCw size={14}/></Button></header>

@@ -48,6 +48,10 @@ func TestNativeBindingSurvivesBridgeRestart(t *testing.T) {
 	require.Equal(t, "ok", reopenedLive.Status)
 	require.False(t, reopenedLive.Closed)
 	require.NoError(t, first.Close())
+	// 同一启动路径升级软链接目标后，旧 session 的安装绑定仍可恢复。
+	previousInstallationID := installationID(installation)
+	installation.ResolvedPath = "/installed/versions/v2/agent"
+	require.NotEqual(t, previousInstallationID, installationID(installation))
 
 	second, err := newBridge(context.Background(), factoryAdapter{latest: &latest}, discover, store)
 	require.NoError(t, err)

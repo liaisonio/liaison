@@ -157,7 +157,6 @@ Liaison nutzt eine zentralisierte Architektur, bei der Frontier alle Konnektoren
 
 | Feature | Screenshot |
 |:---:|:---:|
-| Geräteverwaltung | ![Device](docs/pages/device_en.png) |
 | Anwendungsverwaltung | ![Application](docs/pages/application_en.png) |
 | Proxy-Konfiguration | ![Proxy](docs/pages/proxy_en.png) |
 | Konnektor-Verwaltung | ![Edge](docs/pages/edge_en.png) |
@@ -166,7 +165,6 @@ Liaison nutzt eine zentralisierte Architektur, bei der Frontier alle Konnektoren
 
 ## Dokumentation
 
-- [Business Flow](./docs/biz_sequence.md)
 - [API](./docs/swagger/)
 
 ---

@@ -24,8 +24,6 @@ import (
 // @title Liaison Swagger API
 // @version 1.0
 // @description Liaison Swagger API
-// @contact.name Austin Zhai
-// @contact.email singchia@163.com
 // @license.name GNU AGPLv3
 // @license.url https://www.gnu.org/licenses/agpl-3.0.html
 type Web interface {
