@@ -140,6 +140,8 @@ LLM 上游支持 **OpenAI-compatible**、**Anthropic Messages** 和 **Ollama**�
 
 使用微信扫码加入 Liaison 开发者社区。
 
+本期群二维码有效期至 2026 年 10 月 18 日前；如已过期，请通过 [社区讨论](https://github.com/liaisonio/liaison/discussions) 联系我们获取新二维码。
+
 </div>
 
 ## 贡献
