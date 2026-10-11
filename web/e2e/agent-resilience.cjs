@@ -68,10 +68,10 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));
    changed=true;await page.evaluate(()=>{const old=Date.now;Date.now=()=>old()+31000;});
    await waitFor(async()=>searches>=2);await waitFor(async()=>await page.locator('.edge-agent-session-item .is-running').count()===10);
    // Fast status refresh errors must disappear after recovery without clearing search results.
-   requestFailure=true;await page.getByRole('button',{name:locale==='zh-CN'?'刷新会话':'Refresh sessions',exact:true}).click();await page.getByText(locale==='zh-CN'?'无法加载会话列表，请检查连接器版本、连接状态与访问权限。':'Cannot load sessions. Check the connector version, connection and access permissions.').waitFor();
+   requestFailure=true;await page.getByRole('button',{name:locale==='zh-CN'?'刷新会话':'Refresh sessions',exact:true}).click();await page.getByRole('alert').getByText(locale==='zh-CN'?'暂时无法加载会话，请检查连接后重试。':'Unable to load conversations. Check your connection and retry.').waitFor();
    requestFailure=false;await page.getByRole('button',{name:locale==='zh-CN'?'刷新会话':'Refresh sessions',exact:true}).click();await page.getByText('Archived 9',{exact:true}).waitFor();
    if(width===1280&&locale==='zh-CN'&&theme==='light'){
-    const notice=page.locator('.edge-agent-sessions-page > .liaison-notice');
+    const notice=page.locator('.edge-agent-sessions-page > [role="alert"]');
     requestFailure=true;await notice.waitFor();requestFailure=false;await notice.waitFor({state:'hidden'});
     assert.equal(await page.locator('.edge-agent-session-item').count(),10,'fast status failure/recovery preserves search rows');
    }
