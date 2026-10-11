@@ -40,6 +40,8 @@ const assert = require('node:assert/strict');
       await page.setViewportSize({ width: 1440, height: 1000 });
       await page.goto(base + '/e2e/brand-lockup.html');
       await page.locator('.liaison-wordmark').waitFor();
+      assert.equal(await page.locator('a[href="/resource/device"] .lucide-server').count(), 1);
+      assert.equal(await page.locator('a[href="/resource/app"] .lucide-layers').count(), 1);
       assert(await page.locator('.liaison-brand-mark').isVisible());
       assert.equal(await page.locator('.liaison-brand-copy small').innerText(), 'ZERO TRUST AI ACCESS');
       assert.equal(await page.locator('.liaison-wordmark path').count(), 1);
