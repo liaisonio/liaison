@@ -6,7 +6,7 @@ import { useUi } from '@/store/ui';
 import { useFeature } from '@/store/permissions';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Boxes,
+  Server,
   Cable,
   ChevronDown,
   ChevronLeft,
@@ -42,7 +42,7 @@ export function Sidebar() {
     { to: '/', label: tr('首页', 'Home'), icon: House, end: true },
     { to: '/dashboard', label: tr('仪表盘', 'Dashboard'), icon: Gauge },
     { to: '/connector', label: tr('连接器', 'Connectors'), icon: Cable },
-    { to: '/resource/device', label: tr('设备', 'Devices'), icon: Boxes },
+    { to: '/resource/device', label: tr('设备', 'Devices'), icon: Server },
   ];
   const lowerNav: NavItem[] = [
     { to: '/users', label: tr('用户管理', 'Users'), icon: Users },

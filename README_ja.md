@@ -157,7 +157,6 @@ Liaison は Frontier ですべてのコネクターを管理する中央集権�
 
 | 機能 | スクリーンショット |
 |:---:|:---:|
-| デバイス管理 | ![Device](docs/pages/device_en.png) |
 | アプリケーション管理 | ![Application](docs/pages/application_en.png) |
 | プロキシ設定 | ![Proxy](docs/pages/proxy_en.png) |
 | コネクター管理 | ![Edge](docs/pages/edge_en.png) |
@@ -166,7 +165,6 @@ Liaison は Frontier ですべてのコネクターを管理する中央集権�
 
 ## ドキュメント
 
-- [ビジネスフロー](./docs/biz_sequence.md)
 - [API](./docs/swagger/)
 
 ---

@@ -28,22 +28,23 @@ const maxOutput = 256 << 10
 
 type discoverFunc func(context.Context) (discovery.Result, discovery.Environment, error)
 type Bridge struct {
-	filesMu     sync.Mutex
-	files       map[string]*fileTransfer
-	ctx         context.Context
-	cancel      context.CancelFunc
-	registry    *agentruntime.Registry
-	adapter     agentruntime.Adapter
-	adapters    map[string]agentruntime.Adapter
-	discover    discoverFunc
-	mu          sync.Mutex
-	sessions    map[string]*session
-	bindings    map[string]nativeBinding
-	bindingPath string
-	resuming    map[string]bool
-	starting    int
-	slots       chan struct{}
-	done        chan struct{}
+	filesMu       sync.Mutex
+	files         map[string]*fileTransfer
+	ctx           context.Context
+	cancel        context.CancelFunc
+	registry      *agentruntime.Registry
+	adapter       agentruntime.Adapter
+	adapters      map[string]agentruntime.Adapter
+	discover      discoverFunc
+	installations *installationStore
+	mu            sync.Mutex
+	sessions      map[string]*session
+	bindings      map[string]nativeBinding
+	bindingPath   string
+	resuming      map[string]bool
+	starting      int
+	slots         chan struct{}
+	done          chan struct{}
 }
 type session struct {
 	diagnostics                   *turnDiagnostics
@@ -125,6 +126,10 @@ func newBridge(ctx context.Context, adapter agentruntime.Adapter, discover disco
 	if err != nil {
 		return nil, err
 	}
+	installations, err := loadInstallationStore(bindingPath + ".installations")
+	if err != nil {
+		return nil, err
+	}
 	life, cancel := context.WithCancel(ctx)
 	r, err := agentruntime.New(life, 4)
 	if err != nil {
@@ -132,6 +137,7 @@ func newBridge(ctx context.Context, adapter agentruntime.Adapter, discover disco
 		return nil, err
 	}
 	b := &Bridge{ctx: life, cancel: cancel, registry: r, adapter: adapter, discover: discover, sessions: make(map[string]*session), bindings: bindings, bindingPath: bindingPath, resuming: make(map[string]bool), slots: make(chan struct{}, 8), done: make(chan struct{})}
+	b.installations = installations
 	go b.reap()
 	return b, nil
 }
@@ -211,19 +217,23 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 		if env.OS == "windows" || env.AccountID == "0" || strings.HasSuffix(env.AccountID, "-18") {
 			return result("unsupported_user")
 		}
+		identities, err := b.installations.resolve(ctx, found)
+		if err != nil {
+			return result("unavailable")
+		}
 		if req.Action == "discover" {
 			r := result("ok")
 			r.DefaultProject = env.Home
 			r.Truncated = found.Truncated
 			for _, i := range found.Installations {
 				if !i.Wrapper {
-					r.Installations = append(r.Installations, proto.AgentInstallation{ID: installationID(i), Kind: i.Agent, Path: i.Path, Source: i.Source})
+					r.Installations = append(r.Installations, proto.AgentInstallation{ID: identities.canonical[installationKey(i)], Kind: i.Agent, Path: i.Path, Source: i.Source})
 				}
 			}
 			return r
 		}
 		if req.Action == "resume" {
-			return b.resume(ctx, input, found)
+			return b.resume(ctx, input, identities)
 		}
 		if !filepath.IsAbs(req.Project) || strings.ContainsRune(req.Project, 0) {
 			return result("invalid_request")
@@ -240,10 +250,8 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 			}
 			project = selected
 		}
-		for _, i := range found.Installations {
-			if installationID(i) == req.InstallationID && !i.Wrapper {
-				return b.start(ctx, input.ActorID, project, accessProject, i, req.AccessID)
-			}
+		if i, ok := identities.byID[req.InstallationID]; ok {
+			return b.start(ctx, input.ActorID, project, accessProject, i, req.AccessID)
 		}
 		return result("not_found")
 	}
@@ -442,7 +450,7 @@ func (b *Bridge) Handle(ctx context.Context, input proto.EdgeAgentRPCRequest) pr
 	return s.snapshot()
 }
 
-func (b *Bridge) resume(ctx context.Context, input proto.EdgeAgentRPCRequest, found discovery.Result) proto.EdgeAgentResult {
+func (b *Bridge) resume(ctx context.Context, input proto.EdgeAgentRPCRequest, identities installationSet) proto.EdgeAgentResult {
 	req, seed := input.Request, input.Resume
 	if seed == nil || seed.SessionID != req.SessionID || len(req.AccessID) != 32 || seed.Revision == 0 || len(seed.Messages) > 96 || len(seed.Activities) > 128 {
 		return result("invalid_request")
@@ -501,14 +509,8 @@ func (b *Bridge) resume(ctx context.Context, input proto.EdgeAgentRPCRequest, fo
 	if err != nil || project != binding.Project {
 		return result("resume_unavailable")
 	}
-	var installation discovery.Installation
-	for _, item := range found.Installations {
-		if !item.Wrapper && installationID(item) == binding.InstallationID {
-			installation = item
-			break
-		}
-	}
-	if installation.Agent == "" {
+	installation, ok := identities.byID[binding.InstallationID]
+	if !ok {
 		return result("resume_unavailable")
 	}
 	scope := agentruntime.Scope{Owner: input.ActorID, Access: "edge-agent-preview", Project: project}

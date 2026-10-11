@@ -319,7 +319,7 @@ export async function directAccessPath(
     const r = await getWebSSHTarget(id);
     if (r.code !== 200) throw Error('target');
     const c = r.data?.credentials?.[0];
-    if(!c)throw new AccessConfigurationRequired();
+    if(!c)return `/webssh/${id}/session`;
     return `/webssh/${id}/connections/${c.id}`;
   }
   if (type === 'webrdp' || type === 'webvnc') {

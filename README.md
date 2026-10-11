@@ -3,9 +3,9 @@
   <img src="docs/assets/liaison-brand-rays-light.svg" width="270" height="88" alt="Liaison" />
 </picture>
 
-> **AI-native zero-trust access for local LLMs and applications.**
+> **Self-hosted access to private apps, LLMs, and AI agents.**
 
-Self-hosted, with secure API sharing, browser workspaces, and context-aware AI Agents.
+Browser workspaces, scoped API sharing, and context-aware AI assistance — with outbound-only connectors to your private services.
 
 [![CI](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
@@ -25,19 +25,21 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 
 ## Features
 
-- 🤖 **Local LLM access** — Share local models beyond your network through authenticated APIs and a browser Playground.
-- 🔑 **Controlled API sharing** — Scope keys to models, set Token quotas, revoke access, and review usage and request records.
-- ✨ **AI in your workflow** — Inspect terminal output, draft commands, and query databases with an Agent tied to your connection. Tool access follows user permissions; operations requiring approval wait for your confirmation.
-- 💬 **Ask about your resources** — Find and inspect your connectors, devices, and applications from the home Agent. Resource visibility stays scoped to the signed-in user.
-- 🔌 **Outbound-only connectors** — connect private networks without opening inbound ports on them.
-- 🔐 **Application access** — publish TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
-- 🖥️ **Browser workspaces** — WebSSH, WebSFTP, WebRDP, WebVNC, MySQL, MariaDB, PostgreSQL, SQL Server, Oracle, ClickHouse, MongoDB, Elasticsearch, OpenSearch, Redis, and Memcached.
-- 📁 **Files and objects** — Manage remote files with WebSFTP. Browse buckets, prefixes, and object metadata from S3-compatible services with WebS3 (currently read-only).
-- 🔎 **Application discovery** — scan connector devices and register discovered services from the console.
-- 👥 **Identity and access management** — organize users and resources, with Casbin-backed authorization.
-- 🛡️ **Firewall policies** — restrict TCP and HTTP access by source IP and CIDR.
-- 📋 **Logs and audit** — record management actions and supported application sessions in one place.
-- 📦 **Self-hosted deployment** — run the complete control plane on your own Linux server.
+- 🤖 **Local LLM access** — Share local models through authenticated APIs and a browser Playground.
+- 🔑 **Controlled API sharing** — Scope keys to models, set Token quotas, revoke access, and track usage.
+- 🤖 **AI agent access** — Use Codex and Claude Code on your devices from the browser, with resumable sessions, execution progress, and permission prompts.
+- 💻 **Browser IDE** — Edit projects and use terminals and extensions through code-server.
+- ✨ **AI in your workflow** — Inspect terminal output, draft commands, and query databases within user permissions, with approval where required.
+- 💬 **Ask about your resources** — Find connectors, devices, and applications within your access scope.
+- 🔌 **Outbound-only connectors** — Connect private devices without opening inbound ports on them.
+- 🔐 **Application access** — Access TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
+- 🖥️ **Browser workspaces** — Work with terminals, remote desktops, databases, and caches in your browser.
+- 📁 **Files and objects** — Manage files over SFTP and browse S3-compatible storage (read-only).
+- 🔎 **Application discovery** — Detect existing services on connector devices and register them from the console.
+- 👥 **Identity and access management** — Manage users and resources with Casbin-backed authorization.
+- 🛡️ **Firewall policies** — Restrict TCP and HTTP access by source IP or CIDR.
+- 📋 **Logs and audit** — Review management actions and supported application sessions.
+- 📦 **Self-hosted deployment** — Run the complete control plane on your own Linux server.
 
 ## Install
 
@@ -110,25 +112,17 @@ Keep internal AI tools reachable without exposing the private network.
 
 Browse schemas, run SQL, and ask the session Agent to query and explain results, with approval where required.
 
-![Using MySQL through Liaison](docs/assets/readme/web-mysql-dark.png)
-
 ### Web MongoDB
 
 Explore collections and ask the session Agent to run approved queries and explain documents, without a local client.
-
-![Using MongoDB through Liaison](docs/assets/readme/web-mongodb-dark.png)
 
 ### Web VNC
 
 Open a private VNC desktop in a managed browser session.
 
-![A VNC desktop opened in Liaison](docs/assets/readme/web-vnc-dark.png)
-
 ### Web RDP
 
 Connect to an RDP desktop from the same access workflow.
-
-![An RDP desktop opened in Liaison](docs/assets/readme/web-rdp-dark-v2.png)
 
 ## Documentation
 
