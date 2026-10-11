@@ -1,0 +1,24 @@
+.liaison-scan-list .liaison-scan-list-head,
+.liaison-scan-list .liaison-model-discovery-row {
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr) 90px;
+}
+.liaison-model-discovery-row {
+  > .liaison-table-link { white-space: nowrap; }
+  .liaison-scan-target strong, .liaison-scan-target small, code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .liaison-scan-target strong.liaison-model-service-name { font-family: inherit; }
+}
+.liaison-model-discovery-evidence {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  min-width: 0; color: rgb(var(--muted)); font-size: 12px;
+}
+.liaison-model-discovery-setup { display: grid; gap: 16px; }
+@media (max-width: 480px) {
+  .liaison-scan-list .liaison-scan-list-head { display: none; }
+  .liaison-scan-list .liaison-model-discovery-row {
+    grid-template-columns: minmax(0, 1fr) 90px;
+    .liaison-model-discovery-evidence { grid-row: 2; }
+    > .liaison-table-link { grid-column: 2; grid-row: 1 / span 2; }
+  }
+}

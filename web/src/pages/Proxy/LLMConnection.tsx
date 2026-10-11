@@ -21,12 +21,11 @@ export default forwardRef<LLMConnectionHandle,{applicationId:string;accessId?:nu
   const [loaded,setLoaded]=useState(false),[dirty,setDirty]=useState(false);
   const [probing,setProbing]=useState(false),[models,setModels]=useState<string[]>(),[probeError,setProbeError]=useState('');
   const probeRequest=useRef<AbortController>();
-  const defaultModelsSelected=useRef(false);
   const ready=loaded&&!!upstream&&!failed&&!probing&&pairs.length>0&&pairs.every(([a,b])=>a.trim()&&b.trim())&&new Set(pairs.map(([a])=>a.trim())).size===pairs.length;
   useEffect(()=>{onReady?.(ready);return()=>onReady?.(false);},[ready,onReady]);
   useEffect(()=>()=>probeRequest.current?.abort(),[]);
   useEffect(()=>{
-    let alive=true;defaultModelsSelected.current=false;probeRequest.current?.abort();setProbing(false);setModels(undefined);setProbeError('');setLoaded(false);setFailed(false);setUpstream(undefined);setDirty(false);
+    let alive=true;probeRequest.current?.abort();setProbing(false);setModels(undefined);setProbeError('');setLoaded(false);setFailed(false);setUpstream(undefined);setDirty(false);
     (async()=>{
       const u=await api<Upstream>(`/api/v1/ai/applications/${applicationId}`);
       const a=accessId?await api<Access>(`/api/v1/ai/accesses/${accessId}`):undefined;
@@ -60,10 +59,6 @@ export default forwardRef<LLMConnectionHandle,{applicationId:string;accessId?:nu
       else if(result.data.state!=='compatible')setProbeError(tr('未获得模型列表，请检查协议、接口路径，或手动填写模型。','No model list returned. Check the protocol and base path, or enter models manually.'));
       else {
         const discovered=[...new Set(result.data.models||[])];setModels(discovered);
-        if(reuseUpstream&&!accessId&&!defaultModelsSelected.current){
-          defaultModelsSelected.current=true;
-          setPairs(old=>old.some(([a,m])=>a||m)?old:discovered.length?discovered.slice(0,100).map(m=>[m,m] as [string,string]):[['','']]);
-        }
       }
     }catch{if(!controller.signal.aborted)setProbeError(tr('获取模型失败，请检查配置和权限后重试，也可手动填写。','Could not fetch models. Check settings and permissions, retry or enter models manually.'));}
     finally{if(!controller.signal.aborted)setProbing(false);}

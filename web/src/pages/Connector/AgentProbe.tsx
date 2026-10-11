@@ -6,22 +6,22 @@ import {useI18n} from '@/i18n';
 import {agentApplications,edgeAgent,saveAgentApplication,type AgentApplication,type Installation} from '@/services/edgeAgent';
 import {agentLabel} from '@/pages/EdgeAgent/providers';
 
-export default function AgentProbe({edge,revision}:{edge:number;revision:number}){
+export default function AgentProbe({edge,revision,onLoading}:{edge:number;revision:number;onLoading?:(loading:boolean)=>void}){
  const {tr}=useI18n();
  const [items,setItems]=useState<Installation[]>([]),[apps,setApps]=useState<AgentApplication[]>([]);
  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[adding,setAdding]=useState('');
  const generation=useRef(0);
  useEffect(()=>{
   const abort=new AbortController();const current=++generation.current;
-  setLoading(true);setError('');setItems([]);setApps([]);setAdding('');
+  setLoading(true);onLoading?.(true);setError('');setItems([]);setApps([]);setAdding('');
   const registered=async()=>{const result=await agentApplications(1,edge,abort.signal);let page=2;while(result.items.length<result.total){const more=await agentApplications(page++,edge,abort.signal);if(!more.items.length)break;result.items.push(...more.items);}return result.items;};
   void Promise.all([edgeAgent(edge,'discover',{},abort.signal),registered()]).then(([result,existing])=>{
    if(abort.signal.aborted||generation.current!==current)return;
    if(result.status!=='ok')throw new Error('discovery unavailable');
    setItems((result.installations||[]).filter(i=>i.kind==='codex'||i.kind==='claude'));setApps(existing);
-  }).catch(()=>{if(!abort.signal.aborted)setError(tr('Agent 探测失败，请检查连接器版本和权限后重试。','Agent discovery failed. Check the connector version and permissions, then retry.'));}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});
-  return()=>{abort.abort();generation.current++;};
- },[edge,revision]);
+  }).catch(()=>{if(!abort.signal.aborted)setError(tr('Agent 探测失败，请检查连接器版本和权限后重试。','Agent discovery failed. Check the connector version and permissions, then retry.'));}).finally(()=>{if(!abort.signal.aborted){setLoading(false);onLoading?.(false);}});
+  return()=>{abort.abort();generation.current++;onLoading?.(false);};
+ },[edge,revision,onLoading]);
  async function add(item:Installation){
   if(adding)return;const current=generation.current;setAdding(item.id);setError('');
   try{const app=await saveAgentApplication({name:agentLabel(item.kind),kind:item.kind,edge_id:edge,installation_id:item.id});if(current===generation.current)setApps(previous=>[...previous,app]);}

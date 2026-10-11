@@ -231,7 +231,8 @@ func (s *scanner) scanWithGo(ctx context.Context, task *proto.ScanApplicationTas
 	// 使用 worker pool 模式，限制 goroutine 数量
 	var mu sync.Mutex
 	timeout := 2 * time.Second
-	maxWorkers := 100 // 限制最多 100 个 worker goroutine
+	maxWorkers := 100                    // 限制最多 100 个 worker goroutine
+	modelSlots := make(chan struct{}, 8) // Bound metadata requests separately from TCP discovery.
 
 	// 启动 worker
 	for i := 0; i < maxWorkers; i++ {
@@ -273,11 +274,22 @@ func (s *scanner) scanWithGo(ctx context.Context, task *proto.ScanApplicationTas
 							}
 						}
 
+						var modelAPI *proto.ModelAPIDiscovery
+						if protocol == "http" {
+							select {
+							case modelSlots <- struct{}{}:
+							case <-ctx.Done():
+								return
+							}
+							modelAPI = discoverModelAPI(ctx, scanTask.IP, scanTask.Port)
+							<-modelSlots
+						}
 						mu.Lock()
 						result.ScannedApplications = append(result.ScannedApplications, proto.ScannedApplication{
 							IP:       scanTask.IP,
 							Port:     scanTask.Port,
 							Protocol: protocol,
+							ModelAPI: modelAPI,
 						})
 						mu.Unlock()
 					}
@@ -296,7 +308,13 @@ func (s *scanner) getPorts(port int) ([]int, error) {
 		return []int{port}, nil
 	}
 	// 返回常见端口列表（前100个）
-	return getTopPorts(100), nil
+	ports := []int{11434, 8000, 1234, 30000}
+	for _, candidate := range getTopPorts(100) {
+		if !modelPort(candidate) {
+			ports = append(ports, candidate)
+		}
+	}
+	return ports, nil
 }
 
 // getIPsFromNets 从网段列表中获取所有 IP 地址

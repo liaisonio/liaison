@@ -11,9 +11,9 @@ export function parseServiceURL(value:string, protocol:string) {
   return {host:url.hostname.toLowerCase(),port:Number(url.port||(url.protocol==='https:'?443:80)),path:url.pathname==='/'?llmBase(protocol):url.pathname.replace(/\/$/,''),tls:url.protocol==='https:'};
 }
 
-export default forwardRef<LLMDraftHandle,{edge:string;protocol:string;applications:API.Application[];disabled:boolean;onUse:(id:string)=>void;onReady?:(ready:boolean)=>void}>(function LLMApplicationDraft({edge,protocol,applications,disabled,onUse,onReady},ref){
+export default forwardRef<LLMDraftHandle,{edge:string;protocol:string;applications:API.Application[];disabled:boolean;onUse:(id:string)=>void;onReady?:(ready:boolean)=>void;initialAddress?:string;initialName?:string;autoProbe?:boolean;authenticationRequired?:boolean}>(function LLMApplicationDraft({edge,protocol,applications,disabled,onUse,onReady,initialAddress='',initialName='',autoProbe=false,authenticationRequired=false},ref){
   const {tr}=useI18n();
-  const [address,setAddress]=useState(''),[apiKey,setAPIKey]=useState(''),[appName,setAppName]=useState('');
+  const [address,setAddress]=useState(initialAddress),[apiKey,setAPIKey]=useState(''),[appName,setAppName]=useState(initialName);
   const [responses,setResponses]=useState(false);
   const [models,setModels]=useState<string[]>(),[selected,setSelected]=useState<string[]>([]),[manual,setManual]=useState('');
   const [probing,setProbing]=useState(false),[error,setError]=useState('');
@@ -30,6 +30,7 @@ export default forwardRef<LLMDraftHandle,{edge:string;protocol:string;applicatio
   const payload=()=>({edge_id:Number(edge),service_url:address.trim(),protocol:profile,api_key:apiKey});
   async function probe(){
     if(!target||!edge)return;
+    controller.current?.abort();
     const active=new AbortController();controller.current=active;setProbing(true);setError('');setModels(undefined);setSelected([]);
     try{
       const r=await request<API.Response<{state:string;models?:string[]}>>('/api/v1/ai/setup/probe',{method:'POST',data:payload(),signal:active.signal,skipErrorHandler:true});
@@ -41,6 +42,12 @@ export default forwardRef<LLMDraftHandle,{edge:string;protocol:string;applicatio
     }catch{if(!active.signal.aborted)setError(tr('检测失败，请检查权限或稍后重试。','Discovery failed. Check permissions or try again later.'));}
     finally{if(!active.signal.aborted)setProbing(false);}
   }
+  useEffect(()=>{
+    if(!autoProbe)return;
+    // Probe only on opening this draft. Editing credentials or the address requires an explicit retry.
+    const timer=window.setTimeout(()=>void probe(),0);
+    return()=>window.clearTimeout(timer);
+  },[autoProbe,edge,protocol,initialAddress]);
   useImperativeHandle(ref,()=>({async create(name,description){
     const chosen=[...new Set([...selected,...manual.split(/[\n,]/).map(v=>v.trim()).filter(Boolean)])];
     if(!target||!edge||probing||!chosen.length||chosen.length>100||existing)throw Error(tr('请填写有效地址、连接器并选择模型；已有应用请直接复用。','Enter a valid address, select a connector and models. Reuse an existing application if available.'));
@@ -55,13 +62,14 @@ export default forwardRef<LLMDraftHandle,{edge:string;protocol:string;applicatio
       <Input type="url" value={address} onChange={e=>setAddress(e.target.value)} placeholder={`http://127.0.0.1:${protocol==='ollama'?'11434':'8000'}${llmBase(protocol)}`}/>
     </Field>
     {existing&&<Notice>{tr('此目标已登记为应用：','This target is already registered: ')}{existing.name} <Button onClick={()=>onUse(String(existing.id))}>{tr('使用已有应用','Use existing application')}</Button></Notice>}
-    <div><Button onClick={()=>void probe()} loading={probing} disabled={!target||!edge||!!existing}>{tr('检测连接并获取模型','Check connection & fetch models')}</Button></div>
+    <div><Button onClick={()=>void probe()} loading={probing} disabled={probing||!target||!edge||!!existing}>{probing?tr('正在检测连接并获取模型…','Checking connection and fetching models…'):autoProbe?tr('重新检测','Check again'):tr('检测连接并获取模型','Check connection & fetch models')}</Button></div>
+    {autoProbe&&!probing&&!error&&!existing&&models===undefined&&<p role="status">{tr('检测连接后，选择要开放的模型。','Check the connection, then select models to expose.')}</p>}
     {error&&<Notice tone="danger">{error}</Notice>}
     {models!==undefined&&<div className="liaison-llm-models" role="group" aria-label={tr('可调用模型','Available models')}>
-      <p role="status">{models.length?tr('连接成功，选择要开放的模型。','Connected. Select models to expose.'):tr('连接成功，但模型列表为空，可手动填写。','Connected, but the model list is empty. Enter IDs manually.')}</p>
+      <p role="status">{models.length?(chosenModels.length?tr(`已选择 ${chosenModels.length} 个模型。`,`Selected ${chosenModels.length} models.`):tr('连接成功，请至少选择一个模型后创建。','Connected. Select at least one model to continue.')):tr('连接成功，但模型列表为空，可手动填写。','Connected, but the model list is empty. Enter IDs manually.')}</p>
       {models.map(m=><label key={m} className="liaison-checkbox"><input type="checkbox" checked={selected.includes(m)} disabled={!selected.includes(m)&&selected.length>=100} onChange={e=>setSelected(old=>e.target.checked?[...old,m]:old.filter(v=>v!==m))}/><code>{m}</code></label>)}
     </div>}
-    <details open={!!error||models?.length===0||undefined}><summary>{tr('高级设置','Advanced settings')}</summary>
+    <details open={authenticationRequired||!!error||models?.length===0||undefined}><summary>{tr('高级设置','Advanced settings')}</summary>
     <Field label={tr('上游 API 密钥（选填）','Upstream API key (optional)')} hint={tr('用于连接模型服务，不是客户端调用密钥。','Authenticates with the model service, not the client access.')}>
       <Input type="password" autoComplete="new-password" value={apiKey} onChange={e=>setAPIKey(e.target.value)}/>
     </Field>
