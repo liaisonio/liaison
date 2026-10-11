@@ -11,10 +11,14 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { HeaderQuickSettings } from './HeaderQuickSettings';
 import { HeaderUser } from './HeaderUser';
 import { Sidebar } from './Sidebar';
+import { RouteContent } from './RouteContent';
 
 export function AppLayout() {
   const location = useLocation();
   const isHome = location.pathname === '/' || location.pathname.startsWith('/agent/sessions/');
+  // Reset loading/error state between pages, but preserve live workspaces when
+  // only their session subroute or query string changes.
+  const routeFamily = isHome ? 'home' : location.pathname.split('/').slice(0, /^\/(access|resource|logs)\//.test(location.pathname) ? 3 : 2).join('/');
   const { tr } = useI18n();
   const initialState = useSession((state) => state.initialState);
   const token = useSession((state) => state.token);
@@ -220,7 +224,7 @@ export function AppLayout() {
                 {tr('正在连接控制平面…', 'Connecting to control plane…')}
               </div>
             ) : (
-              <Outlet />
+              <RouteContent key={routeFamily}><Outlet /></RouteContent>
             )}
           </div>
         </main>

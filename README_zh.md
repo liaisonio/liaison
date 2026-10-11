@@ -3,9 +3,9 @@
   <img src="docs/assets/liaison-brand-rays-light.svg" width="270" height="88" alt="Liaison" />
 </picture>
 
-> **面向本地大模型与应用的 AI 原生零信任访问。**
+> **可自托管的私有应用、大模型与 AI Agent 访问平台。**
 
-支持私有化部署、安全 API 分享、浏览器工作台与上下文感知的 AI Agent。
+通过主动出站的连接器接入私有服务，提供浏览器工作台、按权限分享的 API，以及上下文感知的 AI 辅助。
 
 [![CI](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
@@ -25,19 +25,21 @@
 
 ## 产品能力
 
-- 🤖 **本地大模型访问** — 通过需要认证的 API 和浏览器在线体验，将本地模型分享至网络之外。
-- 🔑 **可控的 API 分享** — 按模型限定密钥权限、设置 Token 配额、撤销访问，并查看用量与请求记录。
-- ✨ **工作流中的 AI** — 让与当前连接关联的 Agent 读取终端输出、辅助编写命令和查询数据库。工具遵循用户权限，需要审批的操作会等待确认。
-- 💬 **用对话查询资源** — 通过首页 Agent 查找和了解连接器、设备与应用，资源可见范围始终限定为当前登录用户。
-- 🔌 **主动出站连接器**：私有网络无需开放入站端口。
-- 🔐 **应用访问**：支持 TCP、HTTP、HTTPS、WebSocket 与 SSH，并可独立配置访问策略。
-- 🖥️ **浏览器工作台**：使用 WebSSH、WebSFTP、WebRDP、WebVNC，以及 MySQL、MariaDB、PostgreSQL、SQL Server、Oracle、ClickHouse、MongoDB、Elasticsearch、OpenSearch、Redis 和 Memcached。
-- 📁 **文件与对象浏览**：通过 WebSFTP 管理远程文件；WebS3 浏览 S3 兼容服务的 Bucket、目录前缀和对象元数据（当前为只读）。
-- 🔎 **应用发现**：扫描连接器所在设备，并在控制台中登记发现的服务。
-- 👥 **身份与权限**：管理组织、用户与资源，权限由 Casbin 统一执行。
-- 🛡️ **防火墙策略**：按来源 IP 与 CIDR 限制 TCP 和 HTTP 访问。
-- 📋 **日志与审计**：集中记录管理操作与支持审计的应用会话。
-- 📦 **私有化部署**：完整控制平面运行在自己的 Linux 服务器上。
+- 🤖 **本地大模型访问** — 通过认证 API 与浏览器在线体验分享本地模型。
+- 🔑 **可控的 API 分享** — 按模型授权密钥、设置 Token 配额、撤销访问并查看用量。
+- 🤖 **AI Agent 访问** — 在浏览器中使用设备上的 Codex 与 Claude Code，支持会话续聊、执行过程和权限确认。
+- 💻 **IDE 工作台** — 通过 code-server 在浏览器中编辑项目、使用终端与扩展。
+- ✨ **工作流中的 AI** — 在用户权限内读取终端输出、辅助编写命令和查询数据库，需要审批的操作先确认。
+- 💬 **用对话查询资源** — 查找权限范围内的连接器、设备与应用。
+- 🔌 **主动出站连接器** — 接入私有设备，无需在设备上开放入站端口。
+- 🔐 **应用访问** — 接入 TCP、HTTP、HTTPS、WebSocket 与 SSH 服务，独立配置访问策略。
+- 🖥️ **浏览器工作台** — 在浏览器中使用终端、远程桌面、数据库与缓存。
+- 📁 **文件与对象浏览** — 通过 SFTP 管理文件，浏览 S3 兼容存储（只读）。
+- 🔎 **应用发现** — 探测设备上的已有服务，并从控制台登记应用。
+- 👥 **身份与权限** — 管理用户与资源，通过 Casbin 执行授权。
+- 🛡️ **防火墙策略** — 按来源 IP 或 CIDR 限制 TCP 和 HTTP 访问。
+- 📋 **日志与审计** — 查看管理操作及支持审计的应用会话。
+- 📦 **私有化部署** — 在自己的 Linux 服务器上运行完整控制平面。
 
 ## 安装
 
@@ -110,25 +112,17 @@ LLM 上游支持 **OpenAI-compatible**、**Anthropic Messages** 和 **Ollama**�
 
 查看表结构、执行 SQL，让会话 Agent 查询并解释结果，需要审批的操作先确认。
 
-![通过 Liaison 使用 MySQL](docs/assets/readme/web-mysql-dark.png)
-
 ### Web MongoDB
 
 无需本地客户端即可浏览集合，让会话 Agent 执行已批准的查询并解释文档。
-
-![通过 Liaison 使用 MongoDB](docs/assets/readme/web-mongodb-dark.png)
 
 ### Web VNC
 
 通过受管的浏览器会话访问私有 VNC 桌面。
 
-![在 Liaison 中访问 VNC 桌面](docs/assets/readme/web-vnc-dark.png)
-
 ### Web RDP
 
 使用同一套访问流程连接 RDP 桌面。
-
-![在 Liaison 中访问 RDP 桌面](docs/assets/readme/web-rdp-dark-v2.png)
 
 ## 文档
 

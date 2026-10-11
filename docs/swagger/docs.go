@@ -9,10 +9,6 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {
-            "name": "Austin Zhai",
-            "email": "singchia@163.com"
-        },
         "license": {
             "name": "GNU AGPLv3",
             "url": "https://www.gnu.org/licenses/agpl-3.0.html"

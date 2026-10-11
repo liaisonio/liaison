@@ -30,6 +30,9 @@ const assert=require('node:assert/strict');
   await page.screenshot({path:`/tmp/access-password-list-${locale}-${theme}.png`});
   await page.getByRole('button',{name:zh?'新建访问':'Create access',exact:true}).click();
   const dialog=page.getByRole('dialog');await dialog.getByRole('combobox',{name:zh?'应用':'Application',exact:true}).selectOption('1');
+  assert.equal(await dialog.locator('input[autocomplete=username], input[type=password]').count(),0);
+  await dialog.getByRole('button',{name:zh?'取消':'Cancel',exact:true}).click();
+  await row('Saved access').getByRole('button',{name:zh?'编辑':'Edit',exact:true}).click();
   const user=dialog.locator('input[autocomplete=username]'),password=dialog.locator('input[type=password]');
   const baseline=await page.addStyleTag({content:'.liaison-initial-connection-fields { align-items: stretch; }'});
   const oldUser=await user.boundingBox(),oldPassword=await password.boundingBox();assert(Math.abs(oldUser.y-oldPassword.y)>1);
@@ -42,7 +45,7 @@ const assert=require('node:assert/strict');
   }
   const remember=dialog.getByRole('checkbox',{name:zh?'保存密码':'Save password'});
   await remember.uncheck();assert.equal(await password.count(),0);await remember.check();assert(await password.isVisible());
-  await user.fill('operator');await password.fill('fixture-only');await password.press('Tab');assert(await remember.evaluate(el=>el===document.activeElement));
+  assert.equal(await user.inputValue(),'operator');assert.equal(await user.getAttribute('readonly'),'');await password.fill('fixture-only');await password.press('Tab');assert(await remember.evaluate(el=>el===document.activeElement));
   await dialog.getByRole('button',{name:zh?'取消':'Cancel',exact:true}).click();assert.equal(writes,0);
   console.log('PASS',locale,theme,'alignment, saved states, retry, responsive, keyboard, no writes');await context.close();
  }
