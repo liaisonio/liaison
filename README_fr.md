@@ -157,7 +157,6 @@ Liaison utilise une architecture centralisée avec Frontier qui gère tous les c
 
 | Fonction | Capture |
 |:---:|:---:|
-| Gestion des équipements | ![Device](docs/pages/device_en.png) |
 | Gestion des applications | ![Application](docs/pages/application_en.png) |
 | Configuration des proxys | ![Proxy](docs/pages/proxy_en.png) |
 | Gestion des connecteurs | ![Edge](docs/pages/edge_en.png) |
@@ -166,7 +165,6 @@ Liaison utilise une architecture centralisée avec Frontier qui gère tous les c
 
 ## Documentation
 
-- [Flux métier](./docs/biz_sequence.md)
 - [API](./docs/swagger/)
 
 ---

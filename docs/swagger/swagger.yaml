@@ -439,9 +439,6 @@ definitions:
         type: string
     type: object
 info:
-  contact:
-    email: singchia@163.com
-    name: Austin Zhai
   description: Liaison Swagger API
   license:
     name: GNU AGPLv3

@@ -22,16 +22,22 @@ const assert=require('node:assert/strict');
   const page=await context.newPage(),visit=()=>page.goto(`${process.env.E2E_UI_URL}/e2e/product-polish.html?ssh`);
   const dialog=()=>page.getByRole('dialog'),open=()=>page.getByRole('button',{name:zh?'去访问':'Open',exact:true}).click();
   const fill=async()=>{await dialog().locator('input[autocomplete=username]').fill('operator');await dialog().locator('input[type=password]').fill('fixture-only');};
-  const saveOpen=()=>dialog().getByRole('button',{name:zh?'保存并访问':'Save & open',exact:true}).click();
-  await visit();await open();await fill();
-  failSave=true;await saveOpen();await dialog().getByText(zh?'连接配置保存失败，请检查后重试。':'Unable to save connection configuration. Check it and retry.').waitFor();assert.equal(await page.getByTestId('destination').count(),0);
-  failSave=false;await page.screenshot({path:`/tmp/access-save-open-${locale}-${theme}.png`});await saveOpen();
+  const edit=()=>page.getByRole('button',{name:zh?'编辑':'Edit',exact:true}).click();
+  const save=()=>dialog().getByRole('button',{name:zh?'确定':'Save',exact:true}).click();
+  // Unconfigured SSH opens the connection page without collecting credentials twice.
+  await visit();await open();await page.getByTestId('destination').waitFor();
+  assert.match(await page.getByTestId('destination').textContent(),/^\/webssh\/1\/session\?from=/);
+  assert.equal(await dialog().count(),0);assert.equal(writes.length,0);
+  await visit();await edit();await fill();
+  failSave=true;await save();await dialog().getByText(zh?'连接配置保存失败，请检查后重试。':'Unable to save connection configuration. Check it and retry.').waitFor();assert.equal(await page.getByTestId('destination').count(),0);
+  failSave=false;await page.screenshot({path:`/tmp/access-save-open-${locale}-${theme}.png`});await save();
+  await dialog().waitFor({state:'hidden'});assert.equal(await page.getByTestId('destination').count(),0);await open();
   await page.getByTestId('destination').waitFor();assert.match(await page.getByTestId('destination').textContent(),/^\/webssh\/1\/connections\/7\?from=/);assert(!(await page.getByTestId('destination').textContent()).includes('fixture-only'));
   // Explicit editing remains save-only, even after cancelling an Open flow.
-  credentials=[];await visit();await open();await dialog().getByRole('button',{name:zh?'取消':'Cancel',exact:true}).click();
+  credentials=[];await visit();await edit();await dialog().getByRole('button',{name:zh?'取消':'Cancel',exact:true}).click();
   await page.getByRole('button',{name:zh?'编辑':'Edit',exact:true}).click();await fill();await dialog().getByRole('button',{name:zh?'确定':'Save',exact:true}).click();await dialog().waitFor({state:'hidden'});assert.equal(await page.getByTestId('destination').count(),0);
   // An unsaved password still opens the connection page, which prompts on connect.
-  credentials=[];await visit();await open();await dialog().locator('input[autocomplete=username]').fill('operator');await dialog().getByRole('checkbox',{name:zh?'保存密码':'Save password'}).uncheck();await saveOpen();await page.getByTestId('destination').waitFor();assert.equal(writes.at(-1).remember_password,false);assert.equal(writes.at(-1).password,'');
+  credentials=[];await visit();await edit();await dialog().locator('input[autocomplete=username]').fill('operator');await dialog().getByRole('checkbox',{name:zh?'保存密码':'Save password'}).uncheck();await save();await dialog().waitFor({state:'hidden'});await open();await page.getByTestId('destination').waitFor();assert.equal(writes.at(-1).remember_password,false);assert.equal(writes.at(-1).password,'');
   console.log('PASS',locale,theme,'save-and-open, failure retry, cancel, edit-only, temporary password, safe URL');await context.close();
  }
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
