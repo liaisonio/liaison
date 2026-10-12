@@ -52,7 +52,7 @@ const assert=require('node:assert/strict');
   const saved=writes.filter(v=>v.path==='/api/v1/ai/setup');assert.equal(saved.length,1);assert.deepEqual(saved[0].data.models,{qwen3:'qwen3'});assert.match(saved[0].data.name,/^Access-[a-f0-9]{8}$/);assert.equal(saved[0].data.edge_id,1);
   apps=[{id:10,name:'Existing model',edge_id:1,ip:'127.0.0.1',port:8000,application_type:'openai'}];await visit();await open();assert(await page.getByRole('option',{name:'Existing model · 127.0.0.1:8000'}).count());
   await newMode().click();await fill();await page.getByRole('button',{name:zh?'使用已有应用':'Use existing application'}).click();assert.equal(await application().inputValue(),'10');
-  await page.getByRole('checkbox',{name:'qwen3',exact:true}).waitFor();assert(await page.getByRole('checkbox',{name:'qwen3',exact:true}).isChecked());
+  await page.getByRole('checkbox',{name:'qwen3',exact:true}).waitFor();assert(!(await page.getByRole('checkbox',{name:'qwen3',exact:true}).isChecked()),'reusing an application must require explicit model authorization');
   assert(!writes.some(v=>v.path==='/api/v1/ai/applications/10'));
   await newMode().click();await page.getByLabel(zh?'连接器':'Connector',{exact:true}).selectOption('2');await existingMode().click();assert.equal(await application().inputValue(),'');assert.equal(await application().locator('option[value="10"]').count(),1);
   await cancel();assert.deepEqual(errors,[]);console.log('PASS',locale,theme,'discovery, cancellation, draft retention, atomic submission, reuse, responsive');await context.close();

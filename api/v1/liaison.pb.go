@@ -2962,6 +2962,7 @@ type EdgeScanApplicationTask struct {
 	UpdatedAt     string                 `protobuf:"bytes,5,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
 	Applications  []string               `protobuf:"bytes,6,rep,name=applications,proto3" json:"applications,omitempty"`
 	Error         string                 `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
+	ModelApis     []*DiscoveredModelAPI  `protobuf:"bytes,8,rep,name=model_apis,proto3" json:"model_apis,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3045,6 +3046,106 @@ func (x *EdgeScanApplicationTask) GetError() string {
 	return ""
 }
 
+func (x *EdgeScanApplicationTask) GetModelApis() []*DiscoveredModelAPI {
+	if x != nil {
+		return x.ModelApis
+	}
+	return nil
+}
+
+// Additional discovery evidence; applications remains available for older clients.
+type DiscoveredModelAPI struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Ip              string                 `protobuf:"bytes,1,opt,name=ip,proto3" json:"ip,omitempty"`
+	Port            uint32                 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	Service         string                 `protobuf:"bytes,3,opt,name=service,proto3" json:"service,omitempty"`
+	State           string                 `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"` // verified or auth_required (candidate only)
+	Protocols       []string               `protobuf:"bytes,5,rep,name=protocols,proto3" json:"protocols,omitempty"`
+	Models          []string               `protobuf:"bytes,6,rep,name=models,proto3" json:"models,omitempty"` // bounded preview, never credentials
+	ModelsTruncated bool                   `protobuf:"varint,7,opt,name=models_truncated,proto3" json:"models_truncated,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DiscoveredModelAPI) Reset() {
+	*x = DiscoveredModelAPI{}
+	mi := &file_liaison_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveredModelAPI) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveredModelAPI) ProtoMessage() {}
+
+func (x *DiscoveredModelAPI) ProtoReflect() protoreflect.Message {
+	mi := &file_liaison_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveredModelAPI.ProtoReflect.Descriptor instead.
+func (*DiscoveredModelAPI) Descriptor() ([]byte, []int) {
+	return file_liaison_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *DiscoveredModelAPI) GetIp() string {
+	if x != nil {
+		return x.Ip
+	}
+	return ""
+}
+
+func (x *DiscoveredModelAPI) GetPort() uint32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *DiscoveredModelAPI) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *DiscoveredModelAPI) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *DiscoveredModelAPI) GetProtocols() []string {
+	if x != nil {
+		return x.Protocols
+	}
+	return nil
+}
+
+func (x *DiscoveredModelAPI) GetModels() []string {
+	if x != nil {
+		return x.Models
+	}
+	return nil
+}
+
+func (x *DiscoveredModelAPI) GetModelsTruncated() bool {
+	if x != nil {
+		return x.ModelsTruncated
+	}
+	return false
+}
+
 // 创建扫描应用任务
 type CreateEdgeScanApplicationTaskRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -3057,7 +3158,7 @@ type CreateEdgeScanApplicationTaskRequest struct {
 
 func (x *CreateEdgeScanApplicationTaskRequest) Reset() {
 	*x = CreateEdgeScanApplicationTaskRequest{}
-	mi := &file_liaison_proto_msgTypes[45]
+	mi := &file_liaison_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3069,7 +3170,7 @@ func (x *CreateEdgeScanApplicationTaskRequest) String() string {
 func (*CreateEdgeScanApplicationTaskRequest) ProtoMessage() {}
 
 func (x *CreateEdgeScanApplicationTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[45]
+	mi := &file_liaison_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3082,7 +3183,7 @@ func (x *CreateEdgeScanApplicationTaskRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use CreateEdgeScanApplicationTaskRequest.ProtoReflect.Descriptor instead.
 func (*CreateEdgeScanApplicationTaskRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{45}
+	return file_liaison_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *CreateEdgeScanApplicationTaskRequest) GetEdgeId() uint64 {
@@ -3117,7 +3218,7 @@ type CreateEdgeScanApplicationTaskResponse struct {
 
 func (x *CreateEdgeScanApplicationTaskResponse) Reset() {
 	*x = CreateEdgeScanApplicationTaskResponse{}
-	mi := &file_liaison_proto_msgTypes[46]
+	mi := &file_liaison_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3129,7 +3230,7 @@ func (x *CreateEdgeScanApplicationTaskResponse) String() string {
 func (*CreateEdgeScanApplicationTaskResponse) ProtoMessage() {}
 
 func (x *CreateEdgeScanApplicationTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[46]
+	mi := &file_liaison_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3142,7 +3243,7 @@ func (x *CreateEdgeScanApplicationTaskResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use CreateEdgeScanApplicationTaskResponse.ProtoReflect.Descriptor instead.
 func (*CreateEdgeScanApplicationTaskResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{46}
+	return file_liaison_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *CreateEdgeScanApplicationTaskResponse) GetCode() int32 {
@@ -3175,7 +3276,7 @@ type EdgeScanApplicationTaskCreated struct {
 
 func (x *EdgeScanApplicationTaskCreated) Reset() {
 	*x = EdgeScanApplicationTaskCreated{}
-	mi := &file_liaison_proto_msgTypes[47]
+	mi := &file_liaison_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3187,7 +3288,7 @@ func (x *EdgeScanApplicationTaskCreated) String() string {
 func (*EdgeScanApplicationTaskCreated) ProtoMessage() {}
 
 func (x *EdgeScanApplicationTaskCreated) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[47]
+	mi := &file_liaison_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3200,7 +3301,7 @@ func (x *EdgeScanApplicationTaskCreated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EdgeScanApplicationTaskCreated.ProtoReflect.Descriptor instead.
 func (*EdgeScanApplicationTaskCreated) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{47}
+	return file_liaison_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *EdgeScanApplicationTaskCreated) GetTaskId() uint64 {
@@ -3221,7 +3322,7 @@ type GetEdgeScanApplicationTaskRequest struct {
 
 func (x *GetEdgeScanApplicationTaskRequest) Reset() {
 	*x = GetEdgeScanApplicationTaskRequest{}
-	mi := &file_liaison_proto_msgTypes[48]
+	mi := &file_liaison_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3233,7 +3334,7 @@ func (x *GetEdgeScanApplicationTaskRequest) String() string {
 func (*GetEdgeScanApplicationTaskRequest) ProtoMessage() {}
 
 func (x *GetEdgeScanApplicationTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[48]
+	mi := &file_liaison_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3246,7 +3347,7 @@ func (x *GetEdgeScanApplicationTaskRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetEdgeScanApplicationTaskRequest.ProtoReflect.Descriptor instead.
 func (*GetEdgeScanApplicationTaskRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{48}
+	return file_liaison_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *GetEdgeScanApplicationTaskRequest) GetEdgeId() uint64 {
@@ -3274,7 +3375,7 @@ type GetEdgeScanApplicationTaskResponse struct {
 
 func (x *GetEdgeScanApplicationTaskResponse) Reset() {
 	*x = GetEdgeScanApplicationTaskResponse{}
-	mi := &file_liaison_proto_msgTypes[49]
+	mi := &file_liaison_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3286,7 +3387,7 @@ func (x *GetEdgeScanApplicationTaskResponse) String() string {
 func (*GetEdgeScanApplicationTaskResponse) ProtoMessage() {}
 
 func (x *GetEdgeScanApplicationTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[49]
+	mi := &file_liaison_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3299,7 +3400,7 @@ func (x *GetEdgeScanApplicationTaskResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetEdgeScanApplicationTaskResponse.ProtoReflect.Descriptor instead.
 func (*GetEdgeScanApplicationTaskResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{49}
+	return file_liaison_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetEdgeScanApplicationTaskResponse) GetCode() int32 {
@@ -3337,7 +3438,7 @@ type User struct {
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_liaison_proto_msgTypes[50]
+	mi := &file_liaison_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3349,7 +3450,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[50]
+	mi := &file_liaison_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3362,7 +3463,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{50}
+	return file_liaison_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *User) GetId() uint64 {
@@ -3411,7 +3512,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_liaison_proto_msgTypes[51]
+	mi := &file_liaison_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3423,7 +3524,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[51]
+	mi := &file_liaison_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3436,7 +3537,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{51}
+	return file_liaison_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *LoginRequest) GetEmail() string {
@@ -3465,7 +3566,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_liaison_proto_msgTypes[52]
+	mi := &file_liaison_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3477,7 +3578,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[52]
+	mi := &file_liaison_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3490,7 +3591,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{52}
+	return file_liaison_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *LoginResponse) GetCode() int32 {
@@ -3524,7 +3625,7 @@ type LoginData struct {
 
 func (x *LoginData) Reset() {
 	*x = LoginData{}
-	mi := &file_liaison_proto_msgTypes[53]
+	mi := &file_liaison_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3536,7 +3637,7 @@ func (x *LoginData) String() string {
 func (*LoginData) ProtoMessage() {}
 
 func (x *LoginData) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[53]
+	mi := &file_liaison_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3549,7 +3650,7 @@ func (x *LoginData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginData.ProtoReflect.Descriptor instead.
 func (*LoginData) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{53}
+	return file_liaison_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *LoginData) GetToken() string {
@@ -3575,7 +3676,7 @@ type GetProfileRequest struct {
 
 func (x *GetProfileRequest) Reset() {
 	*x = GetProfileRequest{}
-	mi := &file_liaison_proto_msgTypes[54]
+	mi := &file_liaison_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3587,7 +3688,7 @@ func (x *GetProfileRequest) String() string {
 func (*GetProfileRequest) ProtoMessage() {}
 
 func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[54]
+	mi := &file_liaison_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3600,7 +3701,7 @@ func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetProfileRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{54}
+	return file_liaison_proto_rawDescGZIP(), []int{55}
 }
 
 // 获取用户信息响应
@@ -3615,7 +3716,7 @@ type GetProfileResponse struct {
 
 func (x *GetProfileResponse) Reset() {
 	*x = GetProfileResponse{}
-	mi := &file_liaison_proto_msgTypes[55]
+	mi := &file_liaison_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3627,7 +3728,7 @@ func (x *GetProfileResponse) String() string {
 func (*GetProfileResponse) ProtoMessage() {}
 
 func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[55]
+	mi := &file_liaison_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3640,7 +3741,7 @@ func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileResponse.ProtoReflect.Descriptor instead.
 func (*GetProfileResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{55}
+	return file_liaison_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *GetProfileResponse) GetCode() int32 {
@@ -3673,7 +3774,7 @@ type LogoutRequest struct {
 
 func (x *LogoutRequest) Reset() {
 	*x = LogoutRequest{}
-	mi := &file_liaison_proto_msgTypes[56]
+	mi := &file_liaison_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3685,7 +3786,7 @@ func (x *LogoutRequest) String() string {
 func (*LogoutRequest) ProtoMessage() {}
 
 func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[56]
+	mi := &file_liaison_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3698,7 +3799,7 @@ func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
 func (*LogoutRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{56}
+	return file_liaison_proto_rawDescGZIP(), []int{57}
 }
 
 // 登出响应
@@ -3712,7 +3813,7 @@ type LogoutResponse struct {
 
 func (x *LogoutResponse) Reset() {
 	*x = LogoutResponse{}
-	mi := &file_liaison_proto_msgTypes[57]
+	mi := &file_liaison_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3724,7 +3825,7 @@ func (x *LogoutResponse) String() string {
 func (*LogoutResponse) ProtoMessage() {}
 
 func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[57]
+	mi := &file_liaison_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3737,7 +3838,7 @@ func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
 func (*LogoutResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{57}
+	return file_liaison_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *LogoutResponse) GetCode() int32 {
@@ -3765,7 +3866,7 @@ type ChangePasswordRequest struct {
 
 func (x *ChangePasswordRequest) Reset() {
 	*x = ChangePasswordRequest{}
-	mi := &file_liaison_proto_msgTypes[58]
+	mi := &file_liaison_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3777,7 +3878,7 @@ func (x *ChangePasswordRequest) String() string {
 func (*ChangePasswordRequest) ProtoMessage() {}
 
 func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[58]
+	mi := &file_liaison_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3790,7 +3891,7 @@ func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordRequest.ProtoReflect.Descriptor instead.
 func (*ChangePasswordRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{58}
+	return file_liaison_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ChangePasswordRequest) GetOldPassword() string {
@@ -3818,7 +3919,7 @@ type ChangePasswordResponse struct {
 
 func (x *ChangePasswordResponse) Reset() {
 	*x = ChangePasswordResponse{}
-	mi := &file_liaison_proto_msgTypes[59]
+	mi := &file_liaison_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3830,7 +3931,7 @@ func (x *ChangePasswordResponse) String() string {
 func (*ChangePasswordResponse) ProtoMessage() {}
 
 func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[59]
+	mi := &file_liaison_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3843,7 +3944,7 @@ func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordResponse.ProtoReflect.Descriptor instead.
 func (*ChangePasswordResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{59}
+	return file_liaison_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ChangePasswordResponse) GetCode() int32 {
@@ -3869,7 +3970,7 @@ type HealthRequest struct {
 
 func (x *HealthRequest) Reset() {
 	*x = HealthRequest{}
-	mi := &file_liaison_proto_msgTypes[60]
+	mi := &file_liaison_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3881,7 +3982,7 @@ func (x *HealthRequest) String() string {
 func (*HealthRequest) ProtoMessage() {}
 
 func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[60]
+	mi := &file_liaison_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3894,7 +3995,7 @@ func (x *HealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
 func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{60}
+	return file_liaison_proto_rawDescGZIP(), []int{61}
 }
 
 // 健康检查响应
@@ -3909,7 +4010,7 @@ type HealthResponse struct {
 
 func (x *HealthResponse) Reset() {
 	*x = HealthResponse{}
-	mi := &file_liaison_proto_msgTypes[61]
+	mi := &file_liaison_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3921,7 +4022,7 @@ func (x *HealthResponse) String() string {
 func (*HealthResponse) ProtoMessage() {}
 
 func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[61]
+	mi := &file_liaison_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3934,7 +4035,7 @@ func (x *HealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
 func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{61}
+	return file_liaison_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *HealthResponse) GetCode() int32 {
@@ -3973,7 +4074,7 @@ type TrafficMetric struct {
 
 func (x *TrafficMetric) Reset() {
 	*x = TrafficMetric{}
-	mi := &file_liaison_proto_msgTypes[62]
+	mi := &file_liaison_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3985,7 +4086,7 @@ func (x *TrafficMetric) String() string {
 func (*TrafficMetric) ProtoMessage() {}
 
 func (x *TrafficMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[62]
+	mi := &file_liaison_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3998,7 +4099,7 @@ func (x *TrafficMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrafficMetric.ProtoReflect.Descriptor instead.
 func (*TrafficMetric) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{62}
+	return file_liaison_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *TrafficMetric) GetId() uint64 {
@@ -4052,7 +4153,7 @@ type TrafficMetrics struct {
 
 func (x *TrafficMetrics) Reset() {
 	*x = TrafficMetrics{}
-	mi := &file_liaison_proto_msgTypes[63]
+	mi := &file_liaison_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4064,7 +4165,7 @@ func (x *TrafficMetrics) String() string {
 func (*TrafficMetrics) ProtoMessage() {}
 
 func (x *TrafficMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[63]
+	mi := &file_liaison_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4077,7 +4178,7 @@ func (x *TrafficMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrafficMetrics.ProtoReflect.Descriptor instead.
 func (*TrafficMetrics) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{63}
+	return file_liaison_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *TrafficMetrics) GetMetrics() []*TrafficMetric {
@@ -4100,7 +4201,7 @@ type ListTrafficMetricsRequest struct {
 
 func (x *ListTrafficMetricsRequest) Reset() {
 	*x = ListTrafficMetricsRequest{}
-	mi := &file_liaison_proto_msgTypes[64]
+	mi := &file_liaison_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4112,7 +4213,7 @@ func (x *ListTrafficMetricsRequest) String() string {
 func (*ListTrafficMetricsRequest) ProtoMessage() {}
 
 func (x *ListTrafficMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[64]
+	mi := &file_liaison_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4125,7 +4226,7 @@ func (x *ListTrafficMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTrafficMetricsRequest.ProtoReflect.Descriptor instead.
 func (*ListTrafficMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{64}
+	return file_liaison_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *ListTrafficMetricsRequest) GetApplicationIds() []uint64 {
@@ -4174,7 +4275,7 @@ type ListTrafficMetricsResponse struct {
 
 func (x *ListTrafficMetricsResponse) Reset() {
 	*x = ListTrafficMetricsResponse{}
-	mi := &file_liaison_proto_msgTypes[65]
+	mi := &file_liaison_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4186,7 +4287,7 @@ func (x *ListTrafficMetricsResponse) String() string {
 func (*ListTrafficMetricsResponse) ProtoMessage() {}
 
 func (x *ListTrafficMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_liaison_proto_msgTypes[65]
+	mi := &file_liaison_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4199,7 +4300,7 @@ func (x *ListTrafficMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTrafficMetricsResponse.ProtoReflect.Descriptor instead.
 func (*ListTrafficMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_liaison_proto_rawDescGZIP(), []int{65}
+	return file_liaison_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *ListTrafficMetricsResponse) GetCode() int32 {
@@ -4472,7 +4573,7 @@ const file_liaison_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\"C\n" +
 	"\x13DeleteProxyResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xdf\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x94\x02\n" +
 	"\x17EdgeScanApplicationTask\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x18\n" +
 	"\aedge_id\x18\x02 \x01(\x04R\aedge_id\x12 \n" +
@@ -4484,7 +4585,18 @@ const file_liaison_proto_rawDesc = "" +
 	"updated_at\x18\x05 \x01(\tR\n" +
 	"updated_at\x12\"\n" +
 	"\fapplications\x18\x06 \x03(\tR\fapplications\x12\x14\n" +
-	"\x05error\x18\a \x01(\tR\x05error\"p\n" +
+	"\x05error\x18\a \x01(\tR\x05error\x123\n" +
+	"\n" +
+	"model_apis\x18\b \x03(\v2\x13.DiscoveredModelAPIR\n" +
+	"model_apis\"\xca\x01\n" +
+	"\x12DiscoveredModelAPI\x12\x0e\n" +
+	"\x02ip\x18\x01 \x01(\tR\x02ip\x12\x12\n" +
+	"\x04port\x18\x02 \x01(\rR\x04port\x12\x18\n" +
+	"\aservice\x18\x03 \x01(\tR\aservice\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12\x1c\n" +
+	"\tprotocols\x18\x05 \x03(\tR\tprotocols\x12\x16\n" +
+	"\x06models\x18\x06 \x03(\tR\x06models\x12*\n" +
+	"\x10models_truncated\x18\a \x01(\bR\x10models_truncated\"p\n" +
 	"$CreateEdgeScanApplicationTaskRequest\x12\x18\n" +
 	"\aedge_id\x18\x01 \x01(\x04R\aedge_id\x12\x1a\n" +
 	"\bprotocol\x18\x02 \x01(\tR\bprotocol\x12\x12\n" +
@@ -4607,7 +4719,7 @@ func file_liaison_proto_rawDescGZIP() []byte {
 	return file_liaison_proto_rawDescData
 }
 
-var file_liaison_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
+var file_liaison_proto_msgTypes = make([]protoimpl.MessageInfo, 67)
 var file_liaison_proto_goTypes = []any{
 	(*Edge)(nil),                                  // 0: Edge
 	(*Edges)(nil),                                 // 1: Edges
@@ -4654,27 +4766,28 @@ var file_liaison_proto_goTypes = []any{
 	(*DeleteProxyRequest)(nil),                    // 42: DeleteProxyRequest
 	(*DeleteProxyResponse)(nil),                   // 43: DeleteProxyResponse
 	(*EdgeScanApplicationTask)(nil),               // 44: EdgeScanApplicationTask
-	(*CreateEdgeScanApplicationTaskRequest)(nil),  // 45: CreateEdgeScanApplicationTaskRequest
-	(*CreateEdgeScanApplicationTaskResponse)(nil), // 46: CreateEdgeScanApplicationTaskResponse
-	(*EdgeScanApplicationTaskCreated)(nil),        // 47: EdgeScanApplicationTaskCreated
-	(*GetEdgeScanApplicationTaskRequest)(nil),     // 48: GetEdgeScanApplicationTaskRequest
-	(*GetEdgeScanApplicationTaskResponse)(nil),    // 49: GetEdgeScanApplicationTaskResponse
-	(*User)(nil),                                  // 50: User
-	(*LoginRequest)(nil),                          // 51: LoginRequest
-	(*LoginResponse)(nil),                         // 52: LoginResponse
-	(*LoginData)(nil),                             // 53: LoginData
-	(*GetProfileRequest)(nil),                     // 54: GetProfileRequest
-	(*GetProfileResponse)(nil),                    // 55: GetProfileResponse
-	(*LogoutRequest)(nil),                         // 56: LogoutRequest
-	(*LogoutResponse)(nil),                        // 57: LogoutResponse
-	(*ChangePasswordRequest)(nil),                 // 58: ChangePasswordRequest
-	(*ChangePasswordResponse)(nil),                // 59: ChangePasswordResponse
-	(*HealthRequest)(nil),                         // 60: HealthRequest
-	(*HealthResponse)(nil),                        // 61: HealthResponse
-	(*TrafficMetric)(nil),                         // 62: TrafficMetric
-	(*TrafficMetrics)(nil),                        // 63: TrafficMetrics
-	(*ListTrafficMetricsRequest)(nil),             // 64: ListTrafficMetricsRequest
-	(*ListTrafficMetricsResponse)(nil),            // 65: ListTrafficMetricsResponse
+	(*DiscoveredModelAPI)(nil),                    // 45: DiscoveredModelAPI
+	(*CreateEdgeScanApplicationTaskRequest)(nil),  // 46: CreateEdgeScanApplicationTaskRequest
+	(*CreateEdgeScanApplicationTaskResponse)(nil), // 47: CreateEdgeScanApplicationTaskResponse
+	(*EdgeScanApplicationTaskCreated)(nil),        // 48: EdgeScanApplicationTaskCreated
+	(*GetEdgeScanApplicationTaskRequest)(nil),     // 49: GetEdgeScanApplicationTaskRequest
+	(*GetEdgeScanApplicationTaskResponse)(nil),    // 50: GetEdgeScanApplicationTaskResponse
+	(*User)(nil),                                  // 51: User
+	(*LoginRequest)(nil),                          // 52: LoginRequest
+	(*LoginResponse)(nil),                         // 53: LoginResponse
+	(*LoginData)(nil),                             // 54: LoginData
+	(*GetProfileRequest)(nil),                     // 55: GetProfileRequest
+	(*GetProfileResponse)(nil),                    // 56: GetProfileResponse
+	(*LogoutRequest)(nil),                         // 57: LogoutRequest
+	(*LogoutResponse)(nil),                        // 58: LogoutResponse
+	(*ChangePasswordRequest)(nil),                 // 59: ChangePasswordRequest
+	(*ChangePasswordResponse)(nil),                // 60: ChangePasswordResponse
+	(*HealthRequest)(nil),                         // 61: HealthRequest
+	(*HealthResponse)(nil),                        // 62: HealthResponse
+	(*TrafficMetric)(nil),                         // 63: TrafficMetric
+	(*TrafficMetrics)(nil),                        // 64: TrafficMetrics
+	(*ListTrafficMetricsRequest)(nil),             // 65: ListTrafficMetricsRequest
+	(*ListTrafficMetricsResponse)(nil),            // 66: ListTrafficMetricsResponse
 }
 var file_liaison_proto_depIdxs = []int32{
 	13, // 0: Edge.device:type_name -> Device
@@ -4699,68 +4812,69 @@ var file_liaison_proto_depIdxs = []int32{
 	35, // 19: ListProxiesResponse.data:type_name -> Proxies
 	34, // 20: CreateProxyResponse.data:type_name -> Proxy
 	34, // 21: UpdateProxyResponse.data:type_name -> Proxy
-	47, // 22: CreateEdgeScanApplicationTaskResponse.data:type_name -> EdgeScanApplicationTaskCreated
-	44, // 23: GetEdgeScanApplicationTaskResponse.data:type_name -> EdgeScanApplicationTask
-	53, // 24: LoginResponse.data:type_name -> LoginData
-	50, // 25: LoginData.user:type_name -> User
-	50, // 26: GetProfileResponse.data:type_name -> User
-	62, // 27: TrafficMetrics.metrics:type_name -> TrafficMetric
-	63, // 28: ListTrafficMetricsResponse.data:type_name -> TrafficMetrics
-	3,  // 29: LiaisonService.CreateEdge:input_type -> CreateEdgeRequest
-	5,  // 30: LiaisonService.GetEdge:input_type -> GetEdgeRequest
-	7,  // 31: LiaisonService.ListEdges:input_type -> ListEdgesRequest
-	9,  // 32: LiaisonService.UpdateEdge:input_type -> UpdateEdgeRequest
-	11, // 33: LiaisonService.DeleteEdge:input_type -> DeleteEdgeRequest
-	18, // 34: LiaisonService.ListDevices:input_type -> ListDevicesRequest
-	20, // 35: LiaisonService.UpdateDevice:input_type -> UpdateDeviceRequest
-	16, // 36: LiaisonService.GetDevice:input_type -> GetDeviceRequest
-	22, // 37: LiaisonService.DeleteDevice:input_type -> DeleteDeviceRequest
-	26, // 38: LiaisonService.CreateApplication:input_type -> CreateApplicationRequest
-	28, // 39: LiaisonService.ListApplications:input_type -> ListApplicationsRequest
-	30, // 40: LiaisonService.UpdateApplication:input_type -> UpdateApplicationRequest
-	32, // 41: LiaisonService.DeleteApplication:input_type -> DeleteApplicationRequest
-	36, // 42: LiaisonService.ListProxies:input_type -> ListProxiesRequest
-	38, // 43: LiaisonService.CreateProxy:input_type -> CreateProxyRequest
-	40, // 44: LiaisonService.UpdateProxy:input_type -> UpdateProxyRequest
-	42, // 45: LiaisonService.DeleteProxy:input_type -> DeleteProxyRequest
-	45, // 46: LiaisonService.CreateEdgeScanApplicationTask:input_type -> CreateEdgeScanApplicationTaskRequest
-	48, // 47: LiaisonService.GetEdgeScanApplicationTask:input_type -> GetEdgeScanApplicationTaskRequest
-	51, // 48: LiaisonService.Login:input_type -> LoginRequest
-	56, // 49: LiaisonService.Logout:input_type -> LogoutRequest
-	54, // 50: LiaisonService.GetProfile:input_type -> GetProfileRequest
-	58, // 51: LiaisonService.ChangePassword:input_type -> ChangePasswordRequest
-	60, // 52: LiaisonService.Health:input_type -> HealthRequest
-	64, // 53: LiaisonService.ListTrafficMetrics:input_type -> ListTrafficMetricsRequest
-	4,  // 54: LiaisonService.CreateEdge:output_type -> CreateEdgeResponse
-	6,  // 55: LiaisonService.GetEdge:output_type -> GetEdgeResponse
-	8,  // 56: LiaisonService.ListEdges:output_type -> ListEdgesResponse
-	10, // 57: LiaisonService.UpdateEdge:output_type -> UpdateEdgeResponse
-	12, // 58: LiaisonService.DeleteEdge:output_type -> DeleteEdgeResponse
-	19, // 59: LiaisonService.ListDevices:output_type -> ListDevicesResponse
-	21, // 60: LiaisonService.UpdateDevice:output_type -> UpdateDeviceResponse
-	17, // 61: LiaisonService.GetDevice:output_type -> GetDeviceResponse
-	23, // 62: LiaisonService.DeleteDevice:output_type -> DeleteDeviceResponse
-	27, // 63: LiaisonService.CreateApplication:output_type -> CreateApplicationResponse
-	29, // 64: LiaisonService.ListApplications:output_type -> ListApplicationsResponse
-	31, // 65: LiaisonService.UpdateApplication:output_type -> UpdateApplicationResponse
-	33, // 66: LiaisonService.DeleteApplication:output_type -> DeleteApplicationResponse
-	37, // 67: LiaisonService.ListProxies:output_type -> ListProxiesResponse
-	39, // 68: LiaisonService.CreateProxy:output_type -> CreateProxyResponse
-	41, // 69: LiaisonService.UpdateProxy:output_type -> UpdateProxyResponse
-	43, // 70: LiaisonService.DeleteProxy:output_type -> DeleteProxyResponse
-	46, // 71: LiaisonService.CreateEdgeScanApplicationTask:output_type -> CreateEdgeScanApplicationTaskResponse
-	49, // 72: LiaisonService.GetEdgeScanApplicationTask:output_type -> GetEdgeScanApplicationTaskResponse
-	52, // 73: LiaisonService.Login:output_type -> LoginResponse
-	57, // 74: LiaisonService.Logout:output_type -> LogoutResponse
-	55, // 75: LiaisonService.GetProfile:output_type -> GetProfileResponse
-	59, // 76: LiaisonService.ChangePassword:output_type -> ChangePasswordResponse
-	61, // 77: LiaisonService.Health:output_type -> HealthResponse
-	65, // 78: LiaisonService.ListTrafficMetrics:output_type -> ListTrafficMetricsResponse
-	54, // [54:79] is the sub-list for method output_type
-	29, // [29:54] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	45, // 22: EdgeScanApplicationTask.model_apis:type_name -> DiscoveredModelAPI
+	48, // 23: CreateEdgeScanApplicationTaskResponse.data:type_name -> EdgeScanApplicationTaskCreated
+	44, // 24: GetEdgeScanApplicationTaskResponse.data:type_name -> EdgeScanApplicationTask
+	54, // 25: LoginResponse.data:type_name -> LoginData
+	51, // 26: LoginData.user:type_name -> User
+	51, // 27: GetProfileResponse.data:type_name -> User
+	63, // 28: TrafficMetrics.metrics:type_name -> TrafficMetric
+	64, // 29: ListTrafficMetricsResponse.data:type_name -> TrafficMetrics
+	3,  // 30: LiaisonService.CreateEdge:input_type -> CreateEdgeRequest
+	5,  // 31: LiaisonService.GetEdge:input_type -> GetEdgeRequest
+	7,  // 32: LiaisonService.ListEdges:input_type -> ListEdgesRequest
+	9,  // 33: LiaisonService.UpdateEdge:input_type -> UpdateEdgeRequest
+	11, // 34: LiaisonService.DeleteEdge:input_type -> DeleteEdgeRequest
+	18, // 35: LiaisonService.ListDevices:input_type -> ListDevicesRequest
+	20, // 36: LiaisonService.UpdateDevice:input_type -> UpdateDeviceRequest
+	16, // 37: LiaisonService.GetDevice:input_type -> GetDeviceRequest
+	22, // 38: LiaisonService.DeleteDevice:input_type -> DeleteDeviceRequest
+	26, // 39: LiaisonService.CreateApplication:input_type -> CreateApplicationRequest
+	28, // 40: LiaisonService.ListApplications:input_type -> ListApplicationsRequest
+	30, // 41: LiaisonService.UpdateApplication:input_type -> UpdateApplicationRequest
+	32, // 42: LiaisonService.DeleteApplication:input_type -> DeleteApplicationRequest
+	36, // 43: LiaisonService.ListProxies:input_type -> ListProxiesRequest
+	38, // 44: LiaisonService.CreateProxy:input_type -> CreateProxyRequest
+	40, // 45: LiaisonService.UpdateProxy:input_type -> UpdateProxyRequest
+	42, // 46: LiaisonService.DeleteProxy:input_type -> DeleteProxyRequest
+	46, // 47: LiaisonService.CreateEdgeScanApplicationTask:input_type -> CreateEdgeScanApplicationTaskRequest
+	49, // 48: LiaisonService.GetEdgeScanApplicationTask:input_type -> GetEdgeScanApplicationTaskRequest
+	52, // 49: LiaisonService.Login:input_type -> LoginRequest
+	57, // 50: LiaisonService.Logout:input_type -> LogoutRequest
+	55, // 51: LiaisonService.GetProfile:input_type -> GetProfileRequest
+	59, // 52: LiaisonService.ChangePassword:input_type -> ChangePasswordRequest
+	61, // 53: LiaisonService.Health:input_type -> HealthRequest
+	65, // 54: LiaisonService.ListTrafficMetrics:input_type -> ListTrafficMetricsRequest
+	4,  // 55: LiaisonService.CreateEdge:output_type -> CreateEdgeResponse
+	6,  // 56: LiaisonService.GetEdge:output_type -> GetEdgeResponse
+	8,  // 57: LiaisonService.ListEdges:output_type -> ListEdgesResponse
+	10, // 58: LiaisonService.UpdateEdge:output_type -> UpdateEdgeResponse
+	12, // 59: LiaisonService.DeleteEdge:output_type -> DeleteEdgeResponse
+	19, // 60: LiaisonService.ListDevices:output_type -> ListDevicesResponse
+	21, // 61: LiaisonService.UpdateDevice:output_type -> UpdateDeviceResponse
+	17, // 62: LiaisonService.GetDevice:output_type -> GetDeviceResponse
+	23, // 63: LiaisonService.DeleteDevice:output_type -> DeleteDeviceResponse
+	27, // 64: LiaisonService.CreateApplication:output_type -> CreateApplicationResponse
+	29, // 65: LiaisonService.ListApplications:output_type -> ListApplicationsResponse
+	31, // 66: LiaisonService.UpdateApplication:output_type -> UpdateApplicationResponse
+	33, // 67: LiaisonService.DeleteApplication:output_type -> DeleteApplicationResponse
+	37, // 68: LiaisonService.ListProxies:output_type -> ListProxiesResponse
+	39, // 69: LiaisonService.CreateProxy:output_type -> CreateProxyResponse
+	41, // 70: LiaisonService.UpdateProxy:output_type -> UpdateProxyResponse
+	43, // 71: LiaisonService.DeleteProxy:output_type -> DeleteProxyResponse
+	47, // 72: LiaisonService.CreateEdgeScanApplicationTask:output_type -> CreateEdgeScanApplicationTaskResponse
+	50, // 73: LiaisonService.GetEdgeScanApplicationTask:output_type -> GetEdgeScanApplicationTaskResponse
+	53, // 74: LiaisonService.Login:output_type -> LoginResponse
+	58, // 75: LiaisonService.Logout:output_type -> LogoutResponse
+	56, // 76: LiaisonService.GetProfile:output_type -> GetProfileResponse
+	60, // 77: LiaisonService.ChangePassword:output_type -> ChangePasswordResponse
+	62, // 78: LiaisonService.Health:output_type -> HealthResponse
+	66, // 79: LiaisonService.ListTrafficMetrics:output_type -> ListTrafficMetricsResponse
+	55, // [55:80] is the sub-list for method output_type
+	30, // [30:55] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_liaison_proto_init() }
@@ -4777,7 +4891,7 @@ func file_liaison_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_liaison_proto_rawDesc), len(file_liaison_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   66,
+			NumMessages:   67,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

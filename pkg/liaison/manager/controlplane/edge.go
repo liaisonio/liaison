@@ -548,6 +548,7 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(ctx context.Context, req *v1.
 	}
 
 	applications := []string{}
+	modelAPIs := []*v1.DiscoveredModelAPI{}
 	for _, application := range result.ScannedApplications {
 		// 如果 protocol 是 http，直接使用 http
 		appType := application.Protocol
@@ -556,6 +557,12 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(ctx context.Context, req *v1.
 			appType = detectApplicationTypeByPort(application.Port)
 		}
 		applications = append(applications, fmt.Sprintf("%s:%d:%s", application.IP, application.Port, appType))
+		if info := application.ModelAPI; info != nil {
+			modelAPIs = append(modelAPIs, &v1.DiscoveredModelAPI{
+				Ip: application.IP, Port: uint32(application.Port), Service: info.Service,
+				State: info.State, Protocols: info.Protocols, Models: info.Models, ModelsTruncated: info.ModelsTruncated,
+			})
+		}
 	}
 
 	// 返回
@@ -569,6 +576,7 @@ func (cp *controlPlane) GetEdgeScanApplicationTask(ctx context.Context, req *v1.
 			CreatedAt:    task.CreatedAt.Format(time.DateTime),
 			UpdatedAt:    task.UpdatedAt.Format(time.DateTime),
 			Applications: applications,
+			ModelApis:    modelAPIs,
 			Error:        task.Error,
 		},
 	}, nil

@@ -82,9 +82,19 @@ type ScanApplicationTaskRequest struct {
 }
 
 type ScannedApplication struct {
-	IP       string `json:"ip"`
-	Port     int    `json:"port"`
-	Protocol string `json:"protocol"`
+	IP       string             `json:"ip"`
+	Port     int                `json:"port"`
+	Protocol string             `json:"protocol"`
+	ModelAPI *ModelAPIDiscovery `json:"model_api,omitempty"`
+}
+
+// ModelAPIDiscovery contains bounded public metadata, never authentication material.
+type ModelAPIDiscovery struct {
+	Service         string   `json:"service,omitempty"`
+	State           string   `json:"state"`
+	Protocols       []string `json:"protocols,omitempty"`
+	Models          []string `json:"models,omitempty"`
+	ModelsTruncated bool     `json:"models_truncated,omitempty"`
 }
 
 type ScanApplicationTaskResult struct {

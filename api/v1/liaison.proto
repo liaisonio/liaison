@@ -334,6 +334,18 @@ message EdgeScanApplicationTask {
     string updated_at = 5 [json_name = "updated_at"];
     repeated string applications = 6 [json_name = "applications"];
     string error = 7 [json_name = "error"];
+    repeated DiscoveredModelAPI model_apis = 8 [json_name = "model_apis"];
+}
+
+// Additional discovery evidence; applications remains available for older clients.
+message DiscoveredModelAPI {
+    string ip = 1 [json_name = "ip"];
+    uint32 port = 2 [json_name = "port"];
+    string service = 3 [json_name = "service"];
+    string state = 4 [json_name = "state"]; // verified or auth_required (candidate only)
+    repeated string protocols = 5 [json_name = "protocols"];
+    repeated string models = 6 [json_name = "models"]; // bounded preview, never credentials
+    bool models_truncated = 7 [json_name = "models_truncated"];
 }
 
 // 创建扫描应用任务

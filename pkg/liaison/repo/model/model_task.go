@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 
+	"github.com/liaisonio/liaison/pkg/proto"
 	"gorm.io/gorm"
 )
 
@@ -66,9 +67,10 @@ type TaskScanApplicationParams struct {
 }
 
 type ScannedApplication struct {
-	IP       string `json:"ip"`
-	Port     int    `json:"port"`
-	Protocol string `json:"protocol"`
+	IP       string                   `json:"ip"`
+	Port     int                      `json:"port"`
+	Protocol string                   `json:"protocol"`
+	ModelAPI *proto.ModelAPIDiscovery `json:"model_api,omitempty"`
 }
 
 type TaskScanApplicationResult struct {

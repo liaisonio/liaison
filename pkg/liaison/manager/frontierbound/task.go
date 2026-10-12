@@ -85,6 +85,7 @@ func (fb *frontierBound) reportTaskScanApplication(ctx context.Context, req gemi
 			IP:       application.IP,
 			Port:     application.Port,
 			Protocol: application.Protocol,
+			ModelAPI: application.ModelAPI,
 		})
 	}
 	result := model.TaskScanApplicationResult{

@@ -195,9 +195,20 @@ declare namespace API {
     edge_id: number;
     task_status: string;
     applications: string[];
+    model_apis?: DiscoveredModelAPI[];
     error?: string;
     created_at: string;
     updated_at: string;
+  }
+
+  interface DiscoveredModelAPI {
+    ip: string;
+    port: number;
+    service?: string;
+    state: 'verified' | 'auth_required';
+    protocols?: string[];
+    models?: string[];
+    models_truncated?: boolean;
   }
 
   interface EdgeScanTaskCreateParams {
