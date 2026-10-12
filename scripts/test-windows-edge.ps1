@@ -30,6 +30,11 @@ try {
         Assert ($text.Contains('allow_remote_uninstall: false')) 'Remote uninstall enabled before verification'
         $acl = Get-Acl -LiteralPath $conf
         Assert (-not @($acl.Access | Where-Object { $_.IdentityReference.Value -match 'Everyone|BUILTIN\\Users|Authenticated Users' }).Count) 'Broad credential access'
+        $identities = @($acl.Access | ForEach-Object { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value })
+        Assert ($identities -notcontains 'S-1-5-19') 'Shared LocalService identity can read instance credentials'
+        $identity = New-Object Security.Principal.NTAccount('NT SERVICE', ('LiaisonEdge-' + $id))
+        Assert ($identities -contains $identity.Translate([Security.Principal.SecurityIdentifier]).Value) 'Missing instance-specific read permission'
+        Assert (Test-Path (Join-Path (Split-Path $conf) 'logs\fixture.log')) 'Service cannot write logs'
     }
     Assert ($instances[0] -ne $instances[1]) 'Instances collided'
     # Missing selection must fail without stopping either instance.
