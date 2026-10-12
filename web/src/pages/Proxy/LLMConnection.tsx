@@ -95,8 +95,8 @@ export default forwardRef<LLMConnectionHandle,{applicationId:string;accessId?:nu
       {probeError&&<div className="is-full"><Notice tone="danger">{probeError}</Notice></div>}
       {models!==undefined&&<div className="is-full liaison-llm-models" role="group" aria-label={tr('发现的模型','Discovered models')}>
         {!models.length?<p>{tr('上游返回空列表。可检查服务后重试，或在访问中手动填写模型。','The upstream returned no models. Check the service and retry, or enter models manually when configuring access.')}</p>:<>
-          <p>{applicationOnly?tr('已发现的模型；在创建访问时选择要开放的模型。','Discovered models. Choose which to expose when creating access.'):reuseUpstream&&models.length===1?tr('本访问开放以下模型。','This access exposes the model below.'):tr('选择本访问开放的模型，不修改应用配置。','Choose models to expose through this access. Application settings stay unchanged.')}</p>
-          {models.map(model=>applicationOnly||(reuseUpstream&&models.length===1&&pairs.some(([,m])=>m===model))?<div key={model}><code>{model}</code></div>:<label className="liaison-checkbox" key={model}><input type="checkbox" checked={pairs.some(([,m])=>m===model)} disabled={!pairs.some(([,m])=>m===model)&&pairs.filter(([a,m])=>a||m).length>=100} onChange={e=>setPairs(old=>e.target.checked?[...old.filter(([a,m])=>a||m),[model,model]]:old.filter(([,m])=>m!==model))}/><code>{model}</code></label>)}
+          <p>{applicationOnly?tr('已发现的模型；在创建访问时选择要开放的模型。','Discovered models. Choose which to expose when creating access.'):tr('选择本访问开放的模型，不修改应用配置。','Choose models to expose through this access. Application settings stay unchanged.')}</p>
+          {models.map(model=>applicationOnly?<div key={model}><code>{model}</code></div>:<label className="liaison-checkbox" key={model}><input type="checkbox" checked={pairs.some(([,m])=>m===model)} disabled={!pairs.some(([,m])=>m===model)&&pairs.filter(([a,m])=>a||m).length>=100} onChange={e=>setPairs(old=>e.target.checked?[...old.filter(([a,m])=>a||m),[model,model]]:old.filter(([,m])=>m!==model))}/><code>{model}</code></label>)}
         </>}
       </div>}
       {!applicationOnly&&<>
