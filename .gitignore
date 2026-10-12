@@ -112,11 +112,7 @@ certs/*.crt
 /web/交付文档.md
 
 # Screenshots containing account or host-network information (local only)
-/docs/assets/readme/web-mongodb-dark.png
-/docs/assets/readme/web-mysql-dark.png
-/docs/assets/readme/web-rdp-dark-v2.png
 /docs/assets/readme/web-rdp.png
-/docs/assets/readme/web-vnc-dark.png
 /docs/assets/readme/web-vnc.png
 /docs/pages/device.png
 /docs/pages/device_en.png
