@@ -145,6 +145,10 @@ detect_os() {
 
 OS_ARCH=$(detect_os)
 echo -e "${GREEN}Detected OS/Arch: $OS_ARCH${NC}"
+if [[ "$OS_ARCH" == windows-* ]]; then
+    echo "Use install.ps1 for native Windows. Git Bash installation is no longer supported; WSL uses the Linux installer."
+    exit 1
+fi
 
 # 根据操作系统设置正确的路径
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then

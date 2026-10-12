@@ -57,14 +57,7 @@ curl -fsSL https://your-server/install.sh | bash -s -- \
 
 #### Windows
 
-**方法 1：使用 PowerShell 脚本（推荐）**
-
-```powershell
-# 下载并运行 PowerShell 脚本
-powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://your-server/install.ps1' -OutFile 'install.ps1'; .\install.ps1 -AccessKey YOUR_ACCESS_KEY -SecretKey YOUR_SECRET_KEY -ServerHttpAddr your-server:443 -ServerEdgeAddr your-server:30012"
-```
-
-或者先下载脚本，然后运行：
+独立 Edge 使用原生 Windows 服务，不依赖登录会话。以管理员身份打开 PowerShell 5.1 或更新版本；需要 x64 Windows、`curl.exe` 和 `tar.exe`。Liaison One 管理的前台 Edge 不使用此安装流程。
 
 ```powershell
 # 下载脚本
@@ -74,27 +67,32 @@ Invoke-WebRequest -Uri 'https://your-server/install.ps1' -OutFile 'install.ps1'
 .\install.ps1 -AccessKey YOUR_ACCESS_KEY -SecretKey YOUR_SECRET_KEY -ServerHttpAddr your-server:443 -ServerEdgeAddr your-server:30012
 ```
 
-**方法 2：使用批处理脚本**
+安装会新建 `LiaisonEdge-<实例 ID>` 服务及 `%ProgramFiles%\Liaison\edges\<实例 ID>` 目录，以 LocalService 运行，自动启动并配置失败重启。只有管理员和 SYSTEM 可以修改程序、配置；LocalService 可读取配置、写入日志。安装结束确认的是服务运行，仍需在平台确认连接器在线。
+
+下载和连接均验证 TLS。私有 CA 使用 `-CACert C:\path\ca.pem`，不要关闭证书验证；下载脚本本身也应使用受信任的入口。遵守组织的脚本执行、签名与应用控制策略，本脚本不会绕过它们。
+
+离线安装提供可信来源的校验值：
+
+```powershell
+.\install.ps1 -AccessKey YOUR_ACCESS_KEY -SecretKey YOUR_SECRET_KEY -ServerEdgeAddr your-server:30012 -PackagePath .\liaison-edge-windows-amd64.tar.gz -ExpectedSHA256 RELEASE_SHA256
+```
+
+`install.bat` 是同目录 `install.ps1` 的包装，使用相同 PowerShell 参数：
 
 ```cmd
-# 下载 install.bat 后直接运行
-install.bat --access-key=YOUR_ACCESS_KEY --secret-key=YOUR_SECRET_KEY --server-http-addr=your-server:443 --server-edge-addr=your-server:30012
+install.bat -AccessKey YOUR_ACCESS_KEY -SecretKey YOUR_SECRET_KEY -ServerHttpAddr your-server:443 -ServerEdgeAddr your-server:30012
 ```
 
-**方法 3：使用 Git Bash**
+精确卸载需要安装时输出的实例 ID，可先使用 `-WhatIf`：
 
-如果已安装 Git Bash，可以使用旧 Windows 安装流程。WSL 使用上面的 Linux 流程，且需要启用 systemd。
-
-```bash
-# 在 Git Bash 中运行
-curl -k -sSL https://your-server/install.sh | bash -s -- \
-  --access-key=YOUR_ACCESS_KEY \
-  --secret-key=YOUR_SECRET_KEY \
-  --server-http-addr=your-server:443 \
-  --server-edge-addr=your-server:30012
+```powershell
+.\uninstall.ps1 -InstanceId INSTANCE_ID -WhatIf
+.\uninstall.ps1 -InstanceId INSTANCE_ID
 ```
 
-**注意：** 如果在 Windows CMD 或 PowerShell 中直接运行 `install.sh`，会提示 "bash不是内部命令或外部命令"。请使用 `install.ps1` 或通过 Git Bash/WSL 运行。
+`-KeepConfig` / `-KeepLogs` 可保留诊断文件。卸载会核验服务路径与账号，不按进程名称批量终止。旧版固定目录、其他实例和 One 不会自动迁移或删除。此阶段尚不支持 Windows 原地升级及远程卸载；不要重复安装同一连接器作为升级手段。Windows ARM64 尚未验证。
+
+Git Bash 安装入口会安全退出，请改用 PowerShell。WSL 是独立 Linux 环境，使用 Linux 流程并启用 systemd，不安装 Windows 服务。
 
 ### 参数说明
 

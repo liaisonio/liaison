@@ -1,0 +1,29 @@
+name: Windows Edge compatibility
+on:
+  push:
+    branches: [main, fix/windows-edge-lifecycle]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.9'
+      - name: Build Windows Edge and test service state machine
+        shell: pwsh
+        run: |
+          $env:CGO_ENABLED = '0'
+          go build -o "${{ runner.temp }}/liaison-edge.exe" ./cmd/edge
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go test ./pkg/edge/winservice
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Native install and isolated uninstall (Windows PowerShell 5.1)
+        shell: powershell
+        run: ./scripts/test-windows-edge.ps1

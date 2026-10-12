@@ -1,139 +1,51 @@
-# Liaison Edge 卸载脚本 (Windows PowerShell)
-
+#requires -Version 5.1
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
 param(
-    [switch]$Help,
+    [ValidatePattern('^[a-f0-9]{32}$')][string]$InstanceId,
     [switch]$KeepConfig,
-    [switch]$KeepLogs
+    [switch]$KeepLogs,
+    [switch]$Help
 )
-
-$ErrorActionPreference = "Stop"
-
-function Show-Help {
-    Write-Host "Usage: uninstall.ps1 [OPTIONS]"
-    Write-Host ""
-    Write-Host "Options:"
-    Write-Host "  -Help        Show this help message"
-    Write-Host "  -KeepConfig  Keep configuration files"
-    Write-Host "  -KeepLogs    Keep log files"
-    Write-Host ""
-    Write-Host "Example:"
-    Write-Host "  .\uninstall.ps1"
-    Write-Host "  .\uninstall.ps1 -KeepConfig -KeepLogs"
-    exit 0
-}
-
-if ($Help) { Show-Help }
-
-Write-Host "Starting Liaison Edge uninstallation..." -ForegroundColor Yellow
-
-# ---------------- Paths ----------------
-$InstallDir = "C:\Program Files\Liaison"
-$BinDir     = Join-Path $InstallDir "bin"
-$ConfDir    = Join-Path $InstallDir "conf"
-$LogDir     = Join-Path $InstallDir "logs"
-$BinaryName = "liaison-edge.exe"
-$BinaryPath = Join-Path $BinDir $BinaryName
-
-# ---------------- Stop Process ----------------
-Write-Host "Stopping Edge process..." -ForegroundColor Yellow
-
-$processes = Get-Process -Name "liaison-edge" -ErrorAction SilentlyContinue
-if ($processes) {
-    foreach ($proc in $processes) {
-        try {
-            Write-Host "Stopping process: $($proc.Id)" -ForegroundColor Cyan
-            Stop-Process -Id $proc.Id -Force -ErrorAction Stop
-            Start-Sleep -Seconds 1
-        } catch {
-            Write-Host "Warning: Failed to stop process $($proc.Id): $_" -ForegroundColor Yellow
+$ErrorActionPreference = 'Stop'
+if ($Help) { Write-Output 'uninstall.ps1 -InstanceId <id> [-KeepConfig] [-KeepLogs] [-WhatIf]'; exit 0 }
+try {
+    if (-not $InstanceId) { throw 'An explicit InstanceId is required. Legacy installations are not automatically removed; no processes were stopped.' }
+    $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Open PowerShell as administrator.' }
+    $name = 'LiaisonEdge-' + $InstanceId
+    $base = Join-Path $env:ProgramFiles ('Liaison\edges\' + $InstanceId)
+    for ($path = $base; $path; $path = Split-Path -Parent $path) {
+        if ((Test-Path -LiteralPath $path) -and ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Refusing a path containing a reparse point.' }
+    }
+    $bin = Join-Path $base 'liaison-edge.exe'
+    $config = Join-Path $base 'config.yaml'
+    $expected = '"' + $bin + '" --edge-windows-service ' + $InstanceId + ' -c "' + $config + '"'
+    $service = Get-CimInstance -ClassName Win32_Service -Filter "Name='$name'"
+    if (-not $service -or $service.PathName -cne $expected -or $service.StartName -ne 'NT AUTHORITY\LocalService') { throw 'Service ownership could not be verified. Nothing was removed.' }
+    if (-not $PSCmdlet.ShouldProcess($name, 'Stop and remove this Edge instance')) { return }
+    Stop-Service -Name $name
+    (Get-Service -Name $name).WaitForStatus('Stopped', [TimeSpan]::FromSeconds(35))
+    $users = @(Get-CimInstance -ClassName Win32_Process -Filter "Name='liaison-edge.exe'" | Where-Object { $_.ExecutablePath -eq $bin })
+    if ($users.Count) { throw 'The instance executable is still in use. Files were retained.' }
+    & "$env:SystemRoot\System32\sc.exe" delete $name | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Service removal failed; files were retained.' }
+    # Delete known leaves only. Shared directories and One are never targets.
+    foreach ($leaf in @('liaison-edge.exe', 'config.yaml', 'ca.pem')) {
+        if ($KeepConfig -and $leaf -ne 'liaison-edge.exe') { continue }
+        $target = Join-Path $base $leaf
+        if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force }
+    }
+    if (-not $KeepLogs) {
+        $logs = Join-Path $base 'logs'
+        if (Test-Path -LiteralPath $logs) {
+            if ((Get-Item -LiteralPath $logs -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Log directory is a reparse point; retained.' }
+            Get-ChildItem -LiteralPath $logs -File | Where-Object { -not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint) } | Remove-Item -Force
+            if (-not @(Get-ChildItem -LiteralPath $logs -Force).Count) { Remove-Item -LiteralPath $logs }
         }
     }
-    Write-Host "Edge process stopped" -ForegroundColor Green
-} else {
-    Write-Host "No running Edge process found" -ForegroundColor Cyan
+    if (-not @(Get-ChildItem -LiteralPath $base -Force).Count) { Remove-Item -LiteralPath $base }
+    Write-Output "Removed Edge instance $InstanceId. Other instances were not modified."
+} catch {
+    Write-Error $_.Exception.Message -ErrorAction Continue
+    exit 1
 }
-
-# ---------------- Remove Binary ----------------
-Write-Host "Removing binary..." -ForegroundColor Yellow
-
-if (Test-Path $BinaryPath) {
-    try {
-        Remove-Item -Path $BinaryPath -Force -ErrorAction Stop
-        Write-Host "Binary removed: $BinaryPath" -ForegroundColor Green
-    } catch {
-        Write-Host "Error: Failed to remove binary: $_" -ForegroundColor Red
-        Write-Host "Please make sure the Edge process is stopped and you have sufficient permissions" -ForegroundColor Yellow
-        exit 1
-    }
-} else {
-    Write-Host "Binary not found: $BinaryPath" -ForegroundColor Cyan
-}
-
-# ---------------- Remove Config ----------------
-if (-not $KeepConfig) {
-    Write-Host "Removing configuration..." -ForegroundColor Yellow
-    
-    if (Test-Path $ConfDir) {
-        try {
-            Remove-Item -Path $ConfDir -Recurse -Force -ErrorAction Stop
-            Write-Host "Configuration removed: $ConfDir" -ForegroundColor Green
-        } catch {
-            Write-Host "Warning: Failed to remove configuration: $_" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "Configuration directory not found: $ConfDir" -ForegroundColor Cyan
-    }
-} else {
-    Write-Host "Keeping configuration files (as requested)" -ForegroundColor Cyan
-}
-
-# ---------------- Remove Logs ----------------
-if (-not $KeepLogs) {
-    Write-Host "Removing logs..." -ForegroundColor Yellow
-    
-    if (Test-Path $LogDir) {
-        try {
-            Remove-Item -Path $LogDir -Recurse -Force -ErrorAction Stop
-            Write-Host "Logs removed: $LogDir" -ForegroundColor Green
-        } catch {
-            Write-Host "Warning: Failed to remove logs: $_" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "Log directory not found: $LogDir" -ForegroundColor Cyan
-    }
-} else {
-    Write-Host "Keeping log files (as requested)" -ForegroundColor Cyan
-}
-
-# ---------------- Remove Bin Directory ----------------
-if (Test-Path $BinDir) {
-    $remainingFiles = Get-ChildItem -Path $BinDir -ErrorAction SilentlyContinue
-    if ($remainingFiles.Count -eq 0) {
-        try {
-            Remove-Item -Path $BinDir -Force -ErrorAction Stop
-            Write-Host "Bin directory removed: $BinDir" -ForegroundColor Green
-        } catch {
-            Write-Host "Warning: Failed to remove bin directory: $_" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "Bin directory not empty, keeping: $BinDir" -ForegroundColor Cyan
-    }
-}
-
-# ---------------- Remove Install Directory ----------------
-if (Test-Path $InstallDir) {
-    $remainingItems = Get-ChildItem -Path $InstallDir -ErrorAction SilentlyContinue
-    if ($remainingItems.Count -eq 0) {
-        try {
-            Remove-Item -Path $InstallDir -Force -ErrorAction Stop
-            Write-Host "Install directory removed: $InstallDir" -ForegroundColor Green
-        } catch {
-            Write-Host "Warning: Failed to remove install directory: $_" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "Install directory not empty, keeping: $InstallDir" -ForegroundColor Cyan
-    }
-}
-
-Write-Host ""
-Write-Host "Liaison Edge uninstallation completed!" -ForegroundColor Green

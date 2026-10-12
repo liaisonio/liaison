@@ -13,9 +13,31 @@ import (
 	agentcommand "github.com/liaisonio/liaison/pkg/edge/agent/command"
 	"github.com/liaisonio/liaison/pkg/edge/config"
 	"github.com/liaisonio/liaison/pkg/edge/lifecycle"
+	"github.com/liaisonio/liaison/pkg/edge/winservice"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == winservice.Flag {
+		name, args, err := winservice.Parse(os.Args[1:])
+		if err == nil {
+			os.Args = append([]string{os.Args[0]}, args...)
+			err = winservice.Run(name, func(context.Context) (func() error, error) {
+				if err := config.Init(); err != nil {
+					return nil, err
+				}
+				instance, err := edge.NewEdge()
+				if err != nil {
+					return nil, err
+				}
+				return instance.Close, nil
+			})
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Edge service failed:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && (os.Args[1] == "--agent-discover" || os.Args[1] == "--agent-check") {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
