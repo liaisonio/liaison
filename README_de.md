@@ -3,9 +3,9 @@
   <img src="docs/assets/liaison-brand-rays-light.svg" width="270" height="88" alt="Liaison" />
 </picture>
 
-> **KI-nativer Zero-Trust-Zugriff auf lokale LLMs und Anwendungen.**
+> **Selbst gehosteter Zugriff auf private Apps, LLMs und KI-Agenten.**
 
-Selbst gehostet, mit sicherer API-Freigabe, Browser-Arbeitsbereichen und kontextbewussten KI-Agenten.
+Browser-Arbeitsbereiche, API-Freigaben mit begrenztem Berechtigungsumfang und kontextbezogene KI-Unterstützung – über Konnektoren, die ausschließlich ausgehende Verbindungen aus dem privaten Netz aufbauen.
 
 [![CI](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
@@ -17,187 +17,149 @@ Selbst gehostet, mit sicherer API-Freigabe, Browser-Arbeitsbereichen und kontext
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](web/vite.config.ts)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)](web/tailwind.config.cjs)
 
-[简体中文](./README_zh.md) | [English](./README.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | Deutsch
+[English](./README.md) | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | Deutsch
 
-![Liaison: sicherer Zugriff auf lokale Rechenressourcen und Anwendungen. Demonstration mit Beispieldaten.](docs/assets/readme/liaison-product-demo-full-v2.gif)
+[Website](https://liaison.cloud) · [Dokumentation](https://liaison.cloud/docs/get-started/introduction) · [Funktionen](#features) · [Installation](#install) · [Zugriffsprotokolle](#supported-access-protocols) · [Agent-Modelle](#agent-model-providers) · [Produktrundgang](#product-tour)
 
-| Jellyfin (Heimfilme überall streamen) | OpenClaw (Heim-KI überall nutzen) |
-|:---:|:---:|
-| ![Jellyfin](docs/pages/jellyfin-ss.png) | ![OpenClaw](docs/pages/openclaw-ss.png) |
+![Liaison-Produktdemo mit Beispieldaten.](docs/assets/readme/liaison-product-demo-full-v2.gif)
 
-[Schnellstart](#schnellstart) • [Einführung](#einführung) • [Dokumentation](#dokumentation) • [Mitwirken](#mitwirken)
+<a id="features"></a>
 
----
+## Funktionen
 
-## Einführung
+- 🤖 **Zugriff auf lokale LLMs** — Lokale Modelle über authentifizierte APIs und einen Playground im Browser teilen.
+- 🔑 **Kontrollierte API-Freigaben** — Schlüssel auf Modelle beschränken, Token-Kontingente festlegen, Zugriff widerrufen und Nutzung verfolgen.
+- 🤖 **Zugriff auf KI-Agenten** — Codex und Claude Code auf deinen Geräten im Browser nutzen – mit fortsetzbaren Sitzungen, Ausführungsfortschritt und Berechtigungsabfragen.
+- 💻 **Browser-IDE** — Projekte mit code-server bearbeiten sowie Terminals und Erweiterungen nutzen.
+- ✨ **KI im Arbeitsablauf** — Terminalausgaben prüfen, Befehle entwerfen und Datenbanken innerhalb der Benutzerberechtigungen abfragen; erforderliche Freigaben werden vorher eingeholt.
+- 💬 **Ressourcen abfragen** — Konnektoren, Geräte und Anwendungen innerhalb deines Zugriffsbereichs finden.
+- 🔌 **Nur ausgehende Verbindungen** — Private Geräte anbinden, ohne darauf eingehende Ports zu öffnen.
+- 🔐 **Anwendungszugriff** — TCP-, HTTP-, HTTPS-, WebSocket- und SSH-Dienste mit individuellen Zugriffskontrollen nutzen.
+- 🖥️ **Browser-Arbeitsbereiche** — Terminals, Remote-Desktops, Datenbanken und Caches im Browser verwenden.
+- 📁 **Dateien und Objekte** — Dateien per SFTP verwalten und S3-kompatiblen Speicher durchsuchen (nur lesend).
+- 🔎 **Anwendungserkennung** — Vorhandene Dienste auf Konnektor-Geräten erkennen und über die Konsole registrieren.
+- 👥 **Identitäts- und Zugriffsverwaltung** — Benutzer und Ressourcen mit Casbin-basierter Autorisierung verwalten.
+- 🛡️ **Firewall-Regeln** — TCP- und HTTP-Zugriffe anhand der Quell-IP oder eines CIDR-Bereichs einschränken.
+- 📋 **Protokolle und Audit** — Verwaltungsaktionen und unterstützte Anwendungssitzungen prüfen.
+- 📦 **Selbst gehosteter Betrieb** — Die vollständige Steuerungsebene auf dem eigenen Linux-Server betreiben.
 
-Verbinden Sie private Server, Datenbanken, Desktops und Web-Apps. Arbeiten Sie mit einem KI-Agenten in SSH- und Datenbanksitzungen oder fragen Sie auf der Startseite nach verfügbaren Connectoren, Geräten und Anwendungen. Selbst gehostet, mit benutzergebundenen Werkzeugrechten.
+<a id="install"></a>
 
-- 🤖 **Zugriff auf lokale LLMs** — Teilen Sie lokale Modelle außerhalb Ihres Netzwerks über authentifizierte APIs und einen Playground im Browser.
-- 🔑 **Kontrollierte API-Freigabe** — Beschränken Sie Schlüssel auf bestimmte Modelle, legen Sie Token-Kontingente fest, widerrufen Sie Zugriffe und prüfen Sie Nutzung und Anfrageprotokolle.
-- ✨ **KI im Arbeitsablauf** — Der Agent Ihrer Verbindung hilft beim Lesen der Terminalausgabe, Entwerfen von Befehlen und Abfragen von Datenbanken. Genehmigungspflichtige Vorgänge warten auf Ihre Bestätigung.
-- 💬 **Ressourcen im Dialog** — Finden Sie Connectoren, Geräte und Anwendungen mit dem Startseiten-Agenten innerhalb Ihrer Benutzerrechte.
+## Installation
 
-Dieses Projekt adressiert:
-
-- **Zugriff auf private Netze** — Geräte und Dienste hinter NAT mit minimaler Konfiguration aus dem öffentlichen Internet erreichen
-- **Multi-Device-Management** — Geräte an verschiedenen Standorten mit Linux/macOS/Windows-Support verwalten
-- **Sichere Konnektivität** — TLS-verschlüsseltes Transport, ohne LAN- oder Heimnetz-Ports freizugeben
-- **Firewall je Entry** — Source-IP-CIDR-Whitelist auf jedem TCP- oder HTTP-Entry, wird beim Verbindungsaufbau durchgesetzt
-- **Traffic-Monitoring** — Echtzeit-Gerätestatus und Traffic-Metriken für Betrieb und Kapazitätsplanung
-- **Anwendungs-Proxy** — TCP, HTTP/HTTPS, WebSocket und weitere Protokolle
-- **API-Automatisierung** — Personal Access Tokens (PAT) für CLI/Skripte, Browser-basierter Login-Flow unter `/cli-auth`
-
-Anwendungsfälle:
-
-<div align="center">
-
-| **💼 Remote Work & Dev** | **🧑‍💻 Personal Studio** | **🏠 Heimnetz / NAS** | **🌐 Multi-DC / Multi-Region** | **⚡ Edge & Ops** |
-|:---:|:---:|:---:|:---:|:---:|
-| Büro- und Heim-Geräte verbinden — Remote-Entwicklung und -Debugging | Workstations und private Umgebungen sicher verbinden, Geräte zentral verwalten | Heim-NAS und Smart-Home-Dienste aus dem Internet erreichen | Einheitliche Konnektivität zwischen Servern und Anwendungen über Regionen und DCs | Edge-Anwendungen verbinden, per Remote Health- und Traffic-Checks überwachen |
-
-</div>
-
----
-
-## Schnellstart
-
-Installiere das tar.gz-Serverpaket und anschließend einen Konnektor.
-
-### Server installieren — tar.gz
-
-**1. Herunterladen**
+Lade das eigenständige Docker-Paket herunter, entpacke es und starte das Installationsprogramm (Docker 20.10 oder neuer mit Compose erforderlich):
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
 tar -xzf liaison-1.15.4-linux-amd64.tar.gz
 cd liaison-1.15.4-linux-amd64
-```
-
-**2. Installationsskript ausführen**
-
-```bash
 ./install.sh
 ```
 
-Öffentliche IP oder Domain werden abgefragt. Ohne Eingabe innerhalb von 30 Sekunden wird die erkannte öffentliche IP verwendet.
+Öffne nach der Installation `https://<server-address>`. Das Installationsprogramm gibt die anfänglichen Anmeldedaten aus.
 
-**3. Web-Konsole öffnen**
+<a id="supported-access-protocols"></a>
 
-Öffne `https://deine-öffentliche-ip`, um die Web-Konsole zu erreichen.
+## Unterstützte Zugriffsprotokolle
 
-> **Hinweis:** Die Standard-Admin-Zugangsdaten erscheinen in der Ausgabe von install.sh oder in der Konfiguration.
+Greife mit Liaison auf deine vorhandenen privaten Dienste zu.
 
-### Konnektor installieren
+<table>
+  <tr><th align="left">SSH / SFTP</th><td><img src="docs/assets/integrations/readme/ssh.svg" width="40" height="40" alt="SSH / WebSSH" title="SSH / WebSSH" />&nbsp;&nbsp; <img src="docs/assets/integrations/readme/sftp.svg" width="40" height="40" alt="WebSFTP" title="WebSFTP" /></td></tr>
+  <tr><th align="left">Desktop</th><td><img src="docs/assets/integrations/windows.svg" width="40" height="40" alt="WebRDP" title="WebRDP" />&nbsp;&nbsp; <img src="docs/assets/integrations/vnc.png" width="40" height="40" alt="WebVNC" title="WebVNC" /></td></tr>
+  <tr><th align="left">SQL-Datenbanken</th><td><img src="docs/assets/integrations/mysql.svg" width="40" height="40" alt="WebMySQL" title="WebMySQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/mariadb.svg" width="40" height="40" alt="WebMariaDB" title="WebMariaDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/postgresql.svg" width="40" height="40" alt="WebPostgreSQL" title="WebPostgreSQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/sqlserver.svg" width="40" height="40" alt="WebSQLServer" title="WebSQLServer" />&nbsp;&nbsp; <img src="docs/assets/integrations/oracle.svg" width="40" height="40" alt="WebOracle" title="WebOracle" />&nbsp;&nbsp; <img src="docs/assets/integrations/clickhouse.svg" width="40" height="40" alt="WebClickHouse" title="WebClickHouse" /></td></tr>
+  <tr><th align="left">Daten und Suche</th><td><img src="docs/assets/integrations/mongodb.svg" width="40" height="40" alt="WebMongoDB" title="WebMongoDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/elasticsearch.svg" width="40" height="40" alt="WebElasticsearch" title="WebElasticsearch" />&nbsp;&nbsp; <img src="docs/assets/integrations/opensearch.svg" width="40" height="40" alt="WebOpenSearch" title="WebOpenSearch" /></td></tr>
+  <tr><th align="left">Cache</th><td><img src="docs/assets/integrations/redis.svg" width="40" height="40" alt="WebRedis" title="WebRedis" />&nbsp;&nbsp; <img src="docs/assets/integrations/memcached.svg" width="40" height="40" alt="WebMemcached" title="WebMemcached" /></td></tr>
+  <tr><th align="left">Speicher</th><td><img src="docs/assets/integrations/readme/s3.svg" width="40" height="40" alt="WebS3 (S3-compatible)" title="WebS3 (S3-compatible)" /></td></tr>
+  <tr><th align="left">LLM-Upstream-Protokolle</th><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/openai-dark.svg" /><img src="docs/assets/integrations/readme/openai-light.svg" width="40" height="40" alt="OpenAI-compatible" title="OpenAI-compatible" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic Messages" title="Anthropic Messages" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/ollama-dark.svg" /><img src="docs/assets/integrations/readme/ollama-light.svg" width="40" height="40" alt="Ollama" title="Ollama" /></picture></td></tr>
+  <tr><th align="left">Web / TCP</th><td><img src="docs/assets/integrations/readme/web.svg" width="40" height="40" alt="HTTP / HTTPS / WebSocket" title="HTTP / HTTPS / WebSocket" />&nbsp;&nbsp; <img src="docs/assets/integrations/readme/tcp.svg" width="40" height="40" alt="TCP" title="TCP" /></td></tr>
+</table>
 
-Zwei Installationswege, wähle den passenden für das Zielgerät.
+LLM-Upstreams unterstützen **OpenAI-compatible**, **Anthropic Messages** und **Ollama**. Clients verwenden OpenAI-compatible-Endpunkte; für Anthropic-Upstreams stehen zusätzlich native Messages-Endpunkte bereit. Die Logos kennzeichnen vorhandene, zugängliche Dienste, nicht von Liaison mitgelieferte oder bereitgestellte Produkte. Datenbank- und Desktop-Logos stehen für Browser-Arbeitsbereiche, nicht für native Datenbank-, RDP- oder VNC-Server, die Verbindungen annehmen.
 
-#### Option A — Liaison Desktop (GUI, macOS / Windows)
+<a id="agent-model-providers"></a>
 
-Menüleisten- / Tray-App, die den Konnektor umschließt und Single-Click-Anmeldung, Statusanzeige, Pause / Fortsetzen sowie Ein-Klick-Zugriff auf das Dashboard bietet. Ideal für Laptops und Workstations.
+## Modellanbieter für den Agent
 
-<div align="center">
+Das Modell des integrierten Liaison-Agent lässt sich unabhängig vom Dienstzugriff konfigurieren.
 
-| macOS | Windows |
-|:---:|:---:|
-| <img src="docs/images/desktop-client/popup-macos.png" alt="Liaison Desktop on macOS" width="360" /> | <img src="docs/images/desktop-client/popup-windows.png" alt="Liaison Desktop on Windows" width="360" /> |
+<table>
+  <tr>
+    <th align="left">Modelle</th>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/openai-dark.svg" /><img src="docs/assets/integrations/readme/openai-light.svg" width="40" height="40" alt="OpenAI" title="OpenAI" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp; <img src="docs/assets/integrations/gemini.svg" width="40" height="40" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp; <img src="docs/assets/integrations/deepseek.svg" width="40" height="40" alt="DeepSeek" title="DeepSeek" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/zhipu-dark.svg" /><img src="docs/assets/integrations/readme/zhipu-light.svg" width="40" height="40" alt="Z.ai / GLM" title="Z.ai / GLM" /></picture>&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/kimi-dark.svg" /><img src="docs/assets/integrations/readme/kimi-light.svg" width="40" height="40" alt="Moonshot / Kimi" title="Moonshot / Kimi" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/minimax.svg" width="40" height="40" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/mimo-dark.svg" /><img src="docs/assets/integrations/readme/mimo-light.svg" width="40" height="40" alt="Xiaomi MiMo" title="Xiaomi MiMo" /></picture></td>
+  </tr>
+</table>
 
-</div>
+Acht vorkonfigurierte Anbieter sowie benutzerdefinierte OpenAI-compatible-Dienste.
 
-- **Ein-Klick-Anmeldung** — browservermittelter OAuth-Flow, PAT wird im OS-Schlüsselbund gespeichert (Keychain auf macOS, Anmeldeinformationsverwaltung auf Windows)
-- **Multi-Deployment** — Standard ist `liaison.cloud`; das Zahnrad-Symbol unten links erlaubt den Wechsel zu jedem privaten Deployment ohne Neuinstallation
-- **Heartbeat-bewusster Status** — Verbindung herstellen → Online-Übergänge spiegeln den tatsächlichen Tunnelzustand wider, nicht nur Prozess-Lebendigkeit
-- **Pause überlebt das Beenden** — Absicht auf Disk persistiert, eine pausierte Session bleibt nach Neustart pausiert
+<a id="product-tour"></a>
 
-**Download (Rolling Pre-Release, neuester Build aus `feat/desktop-client`):**
-
-| Plattform | Datei |
-|:---|:---|
-| macOS (Apple Silicon + Intel, universal) | [`Liaison_0.1.0_universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_universal.dmg) |
-| Windows (.msi-Installer) | [`Liaison_0.1.0_x64_en-US.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64_en-US.msi) |
-| Windows (.exe NSIS, mit Keychain-Bereinigung beim Deinstallieren) | [`Liaison_0.1.0_x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64-setup.exe) |
-
-> Die v0.1-Installer sind unsigniert. macOS Gatekeeper und Windows SmartScreen warnen beim ersten Start — Rechtsklick → Öffnen auf macOS, oder „Weitere Informationen" → „Trotzdem ausführen" auf Windows. WebView2 Runtime ist auf Windows erforderlich; Win10 1803+ und Win11 enthalten es.
-
-#### Option B — CLI-Installationsbefehl (Linux / headless)
-
-**Erstelle einen neuen Konnektor** in der Web-Konsole, kopiere den Installationsbefehl für deine Plattform aus der UI und führe ihn auf dem Zielgerät aus. Der Konnektor erscheint automatisch in der Konsole.
-
----
-
-## Systemanforderungen
-
-| Komponente | Anforderungen |
-|:---|:---|
-| **Server** | Linux (Ubuntu 20.04+ oder CentOS 7+ empfohlen) |
-| **Konnektor** | Linux / macOS / Windows (x86_64 und ARM64) |
-| **Browser** | Chrome 90+, Firefox 88+, Safari 14+, Edge 90+ |
-
----
-
-## Architektur
-
-<img src="./docs/diagrams/liaison.png" width="80%">
-
-Liaison nutzt eine zentralisierte Architektur, bei der Frontier alle Konnektoren verwaltet.
-
-**Komponenten**
-
-- **Liaison** — Web-UI und API, plus Applikations-Entry-Points
-- **Frontier** — Konnektor-Gateway, verwaltet Verbindungen und Traffic-Routing
-- **Edge** — Konnektor-Client auf den Zielgeräten
-
----
-
-## Feature-Showcase
+## Produktrundgang
 
 ### Zugriff auf lokale LLMs
 
-![Liaison-Konsole mit Modellzugriff, Client- und Upstream-Protokollen, Modellnamen und API-Schlüsselauthentifizierung. Beispielkonfiguration.](docs/assets/readme/local-llm-access-models-dark-v2.png)
+![Beispielkonfiguration für lokale LLM-Modelle, Protokolle und API-Schlüssel-Authentifizierung.](docs/assets/readme/local-llm-access-models-dark-v2.png)
 
-| Feature | Screenshot |
-|:---:|:---:|
-| Anwendungsverwaltung | ![Application](docs/pages/application_en.png) |
-| Proxy-Konfiguration | ![Proxy](docs/pages/proxy_en.png) |
-| Konnektor-Verwaltung | ![Edge](docs/pages/edge_en.png) |
+### Web SSH
 
----
+Arbeite in einem Browser-Terminal mit Audit-Funktion. Der Agent kann Sitzungsausgaben prüfen und beim Entwerfen von Befehlen helfen.
+
+![Web SSH in Liaison](docs/assets/readme/web-ssh-dark.png)
+
+### Private Webanwendungen
+
+Greife über Liaison auf Medienserver und andere interne Webanwendungen zu.
+
+![Jellyfin über Liaison](docs/pages/jellyfin-ss.png)
+
+### Private KI-Assistenten
+
+Nutze interne KI-Werkzeuge, ohne das private Netzwerk offenzulegen.
+
+![OpenClaw über Liaison](docs/pages/openclaw-ss.png)
+
+### Web MySQL
+
+Durchsuche Schemas, führe SQL aus und bitte den Sitzungs-Agent um Abfragen und Erläuterungen der Ergebnisse – mit Freigabe, wo erforderlich.
+
+![MySQL-Arbeitsbereich in Liaison](docs/assets/readme/web-mysql-dark.png)
+
+### Web MongoDB
+
+Durchsuche Collections und lass den Agent genehmigte Abfragen ausführen und Dokumente erklären, ohne lokalen Client.
+
+![MongoDB-Arbeitsbereich in Liaison](docs/assets/readme/web-mongodb-dark.png)
+
+### Web VNC
+
+Öffne einen privaten VNC-Desktop in einer verwalteten Browser-Sitzung.
+
+![VNC-Desktop in Liaison](docs/assets/readme/web-vnc-dark.png)
+
+### Web RDP
+
+Verbinde dich über denselben Zugriffsablauf mit einem RDP-Desktop.
+
+![RDP-Desktop in Liaison](docs/assets/readme/web-rdp-dark-v2.png)
+
+<a id="documentation"></a>
 
 ## Dokumentation
 
-- [API](./docs/swagger/)
+- [Docker-Bereitstellung](deploy/docker/README.md)
+- [API-Referenz](docs/swagger/swagger.yaml)
+- [Versionshinweise](https://github.com/liaisonio/liaison/releases)
+- [Issues](https://github.com/liaisonio/liaison/issues)
+- [Diskussionen](https://github.com/liaisonio/liaison/discussions)
 
----
+<a id="contributing"></a>
 
 ## Mitwirken
 
-Beiträge sind willkommen.
+Fehlermeldungen, Funktionsvorschläge, Verbesserungen der Dokumentation und Pull Requests sind willkommen. Starte unter [Issues](https://github.com/liaisonio/liaison/issues) oder erstelle einen [Pull Request](https://github.com/liaisonio/liaison/pulls).
 
-- [Bug melden](https://github.com/liaisonio/liaison/issues/new?template=bug_report.md)
-- [Feature vorschlagen](https://github.com/liaisonio/liaison/issues/new?template=feature_request.md)
-- [PR eröffnen](https://github.com/liaisonio/liaison/pulls)
-- [Dokumentation verbessern](https://github.com/liaisonio/liaison/issues/new?template=documentation.md)
-
-1. Repository forken
-2. Branch erstellen (`git checkout -b feature/AmazingFeature`)
-3. Committen (`git commit -m 'Add some AmazingFeature'`)
-4. Pushen (`git push origin feature/AmazingFeature`)
-5. Pull Request öffnen
-
----
+<a id="license"></a>
 
 ## Lizenz
 
-[GNU Affero General Public License v3.0](LICENSE).
-
----
-
-<div align="center">
-
-**Wenn das Projekt dir hilft, vergib bitte einen ⭐ Star!**
-
-Made with ❤️ by [Liaison Contributors](https://github.com/liaisonio/liaison/graphs/contributors)
-
-[GitHub](https://github.com/liaisonio/liaison) • [Issues](https://github.com/liaisonio/liaison/issues) • [Discussions](https://github.com/liaisonio/liaison/discussions)
-
-</div>
+Liaison steht unter der [GNU Affero General Public License v3.0](LICENSE).

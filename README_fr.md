@@ -3,9 +3,9 @@
   <img src="docs/assets/liaison-brand-rays-light.svg" width="270" height="88" alt="Liaison" />
 </picture>
 
-> **Accès zero trust natif IA aux LLM locaux et aux applications.**
+> **Accès auto-hébergé à vos applications privées, LLM et agents IA.**
 
-Auto-hébergé, avec partage sécurisé des API, espaces de travail dans le navigateur et agents IA sensibles au contexte.
+Espaces de travail dans le navigateur, partage d’API à portée limitée et assistance IA contextuelle, avec des connecteurs qui établissent uniquement des connexions sortantes depuis vos services privés.
 
 [![CI](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
@@ -17,187 +17,149 @@ Auto-hébergé, avec partage sécurisé des API, espaces de travail dans le navi
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](web/vite.config.ts)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)](web/tailwind.config.cjs)
 
-[简体中文](./README_zh.md) | [English](./README.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | Français | [Deutsch](./README_de.md)
+[English](./README.md) | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | [Español](./README_es.md) | Français | [Deutsch](./README_de.md)
 
-![Liaison : accès sécurisé aux ressources de calcul locales et aux applications. Démonstration avec des données fictives.](docs/assets/readme/liaison-product-demo-full-v2.gif)
+[Site web](https://liaison.cloud) · [Documentation](https://liaison.cloud/docs/get-started/introduction) · [Fonctionnalités](#features) · [Installation](#install) · [Protocoles d’accès](#supported-access-protocols) · [Modèles de l’Agent](#agent-model-providers) · [Présentation](#product-tour)
 
-| Jellyfin (diffuser vos films maison partout) | OpenClaw (utiliser votre IA maison partout) |
-|:---:|:---:|
-| ![Jellyfin](docs/pages/jellyfin-ss.png) | ![OpenClaw](docs/pages/openclaw-ss.png) |
+![Démonstration de Liaison avec des données d’exemple.](docs/assets/readme/liaison-product-demo-full-v2.gif)
 
-[Démarrage rapide](#démarrage-rapide) • [Introduction](#introduction) • [Documentation](#documentation) • [Contribuer](#contribuer)
+<a id="features"></a>
 
----
+## Fonctionnalités
 
-## Introduction
+- 🤖 **Accès aux LLM locaux** — Partagez des modèles locaux via des API authentifiées et un Playground dans le navigateur.
+- 🔑 **Partage d’API contrôlé** — Limitez les clés à certains modèles, définissez des quotas de tokens, révoquez l’accès et suivez l’utilisation.
+- 🤖 **Accès aux agents IA** — Utilisez Codex et Claude Code sur vos appareils depuis le navigateur, avec reprise des sessions, suivi de l’exécution et demandes d’autorisation.
+- 💻 **IDE dans le navigateur** — Modifiez vos projets et utilisez terminaux et extensions avec code-server.
+- ✨ **IA dans votre travail** — Examinez les sorties du terminal, préparez des commandes et interrogez des bases de données dans la limite des droits de l’utilisateur, avec approbation si nécessaire.
+- 💬 **Recherche de ressources** — Retrouvez les connecteurs, appareils et applications auxquels vous avez accès.
+- 🔌 **Connecteurs à connexions sortantes** — Connectez vos appareils privés sans y ouvrir de ports entrants.
+- 🔐 **Accès aux applications** — Accédez aux services TCP, HTTP, HTTPS, WebSocket et SSH avec des contrôles propres à chaque accès.
+- 🖥️ **Espaces de travail dans le navigateur** — Utilisez terminaux, bureaux distants, bases de données et caches depuis votre navigateur.
+- 📁 **Fichiers et objets** — Gérez les fichiers via SFTP et parcourez le stockage compatible S3 (en lecture seule).
+- 🔎 **Détection d’applications** — Détectez les services existants sur les appareils dotés d’un connecteur et enregistrez-les depuis la console.
+- 👥 **Gestion des identités et des accès** — Gérez utilisateurs et ressources avec une autorisation fondée sur Casbin.
+- 🛡️ **Politiques de pare-feu** — Restreignez les accès TCP et HTTP par IP source ou CIDR.
+- 📋 **Journaux et audit** — Consultez les actions d’administration et les sessions des applications prises en charge.
+- 📦 **Auto-hébergement** — Exécutez l’intégralité du plan de contrôle sur votre propre serveur Linux.
 
-Connectez serveurs, bases de données, bureaux et applications privés. Travaillez avec un Agent IA dans vos sessions SSH et de bases de données, ou consultez vos connecteurs, appareils et applications depuis l’accueil. Auto-hébergé, avec des outils soumis aux permissions utilisateur.
+<a id="install"></a>
 
-- 🤖 **Accès aux LLM locaux** — Partagez vos modèles locaux hors de votre réseau via des API authentifiées et un Playground dans le navigateur.
-- 🔑 **Partage contrôlé des API** — Limitez les clés à certains modèles, définissez des quotas de Token, révoquez les accès et consultez l’utilisation et les journaux des requêtes.
-- ✨ **L’IA dans votre travail** — L’Agent lié à la connexion aide à lire la sortie du terminal, rédiger des commandes et interroger les bases. Les opérations soumises à approbation attendent votre confirmation.
-- 💬 **Interrogez vos ressources** — Retrouvez connecteurs, appareils et applications avec l’Agent d’accueil, dans le périmètre autorisé à l’utilisateur.
+## Installation
 
-Ce projet adresse :
-
-- **Accès au réseau privé** — Atteindre les équipements et services derrière NAT depuis l'Internet public avec un minimum de configuration
-- **Gestion multi-équipements** — Administrer des équipements répartis sur plusieurs sites, avec support Linux/macOS/Windows
-- **Connectivité sécurisée** — Transport chiffré TLS sans exposer de ports sur le LAN ou le réseau domestique
-- **Pare-feu par entrée** — Liste blanche CIDR d'IP source sur chaque entrée TCP ou HTTP, appliquée à l'acceptation de la connexion
-- **Supervision du trafic** — État des équipements et métriques de trafic en temps réel, pour l'exploitation et la planification de capacité
-- **Proxy applicatif** — TCP, HTTP/HTTPS, WebSocket et d'autres protocoles
-- **Automatisation de l'API** — Personal Access Tokens (PAT) pour CLI / scripts, avec un flux de connexion via navigateur sur `/cli-auth`
-
-Cas d'usage :
-
-<div align="center">
-
-| **💼 Télétravail & Dev** | **🧑‍💻 Studio personnel** | **🏠 Réseau domestique / NAS** | **🌐 Multi-DC / multi-région** | **⚡ Edge & Ops** |
-|:---:|:---:|:---:|:---:|:---:|
-| Connecter les équipements bureau et domicile pour développement et débogage à distance | Connecter de manière sécurisée postes de travail et environnements privés avec gestion unifiée | Accéder au NAS domestique et aux services maison depuis Internet | Connectivité unifiée entre serveurs et applications de différentes régions et DC | Connecter et superviser les applications edge avec contrôles à distance |
-
-</div>
-
----
-
-## Démarrage rapide
-
-Installez le paquet tar.gz du serveur, puis installez un connecteur.
-
-### Installer le serveur — tar.gz
-
-**1. Télécharger**
+Téléchargez l’archive Docker autonome, décompressez-la et lancez l’installateur (Docker 20.10 ou ultérieur avec Compose est requis) :
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
 tar -xzf liaison-1.15.4-linux-amd64.tar.gz
 cd liaison-1.15.4-linux-amd64
-```
-
-**2. Exécuter le script d'installation**
-
-```bash
 ./install.sh
 ```
 
-L'IP publique ou le domaine vous seront demandés ; sans saisie dans les 30 secondes, l'IP publique détectée est utilisée.
+Après l’installation, ouvrez `https://<server-address>`. L’installateur affiche les identifiants de connexion initiaux.
 
-**3. Ouvrir la console Web**
+<a id="supported-access-protocols"></a>
 
-Visitez `https://votre-ip-publique` pour accéder à la console Web.
+## Protocoles d’accès pris en charge
 
-> **Astuce :** Les identifiants admin par défaut apparaissent dans la sortie de install.sh ou dans la configuration.
+Accédez à vos services privés existants via Liaison.
 
-### Installer un connecteur
+<table>
+  <tr><th align="left">SSH / SFTP</th><td><img src="docs/assets/integrations/readme/ssh.svg" width="40" height="40" alt="SSH / WebSSH" title="SSH / WebSSH" />&nbsp;&nbsp; <img src="docs/assets/integrations/readme/sftp.svg" width="40" height="40" alt="WebSFTP" title="WebSFTP" /></td></tr>
+  <tr><th align="left">Bureau</th><td><img src="docs/assets/integrations/windows.svg" width="40" height="40" alt="WebRDP" title="WebRDP" />&nbsp;&nbsp; <img src="docs/assets/integrations/vnc.png" width="40" height="40" alt="WebVNC" title="WebVNC" /></td></tr>
+  <tr><th align="left">Bases de données SQL</th><td><img src="docs/assets/integrations/mysql.svg" width="40" height="40" alt="WebMySQL" title="WebMySQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/mariadb.svg" width="40" height="40" alt="WebMariaDB" title="WebMariaDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/postgresql.svg" width="40" height="40" alt="WebPostgreSQL" title="WebPostgreSQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/sqlserver.svg" width="40" height="40" alt="WebSQLServer" title="WebSQLServer" />&nbsp;&nbsp; <img src="docs/assets/integrations/oracle.svg" width="40" height="40" alt="WebOracle" title="WebOracle" />&nbsp;&nbsp; <img src="docs/assets/integrations/clickhouse.svg" width="40" height="40" alt="WebClickHouse" title="WebClickHouse" /></td></tr>
+  <tr><th align="left">Données et recherche</th><td><img src="docs/assets/integrations/mongodb.svg" width="40" height="40" alt="WebMongoDB" title="WebMongoDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/elasticsearch.svg" width="40" height="40" alt="WebElasticsearch" title="WebElasticsearch" />&nbsp;&nbsp; <img src="docs/assets/integrations/opensearch.svg" width="40" height="40" alt="WebOpenSearch" title="WebOpenSearch" /></td></tr>
+  <tr><th align="left">Cache</th><td><img src="docs/assets/integrations/redis.svg" width="40" height="40" alt="WebRedis" title="WebRedis" />&nbsp;&nbsp; <img src="docs/assets/integrations/memcached.svg" width="40" height="40" alt="WebMemcached" title="WebMemcached" /></td></tr>
+  <tr><th align="left">Stockage</th><td><img src="docs/assets/integrations/readme/s3.svg" width="40" height="40" alt="WebS3 (S3-compatible)" title="WebS3 (S3-compatible)" /></td></tr>
+  <tr><th align="left">Protocoles LLM en amont</th><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/openai-dark.svg" /><img src="docs/assets/integrations/readme/openai-light.svg" width="40" height="40" alt="OpenAI-compatible" title="OpenAI-compatible" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic Messages" title="Anthropic Messages" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/ollama-dark.svg" /><img src="docs/assets/integrations/readme/ollama-light.svg" width="40" height="40" alt="Ollama" title="Ollama" /></picture></td></tr>
+  <tr><th align="left">Web / TCP</th><td><img src="docs/assets/integrations/readme/web.svg" width="40" height="40" alt="HTTP / HTTPS / WebSocket" title="HTTP / HTTPS / WebSocket" />&nbsp;&nbsp; <img src="docs/assets/integrations/readme/tcp.svg" width="40" height="40" alt="TCP" title="TCP" /></td></tr>
+</table>
 
-Deux chemins d'installation, choisissez celui adapté à la machine cible.
+Les services LLM en amont prennent en charge **OpenAI-compatible**, **Anthropic Messages** et **Ollama**. Les clients utilisent des endpoints OpenAI-compatible ; les services Anthropic exposent aussi des endpoints Messages natifs. Les logos désignent des services existants auxquels vous pouvez accéder, et non des produits inclus ou déployés par Liaison. Les logos de bases de données et de bureaux désignent les espaces de travail du navigateur, et non des serveurs natifs de bases de données, RDP ou VNC en écoute.
 
-#### Option A — Liaison Desktop (GUI, macOS / Windows)
+<a id="agent-model-providers"></a>
 
-Application de barre de menus / barre d'état système qui encapsule le connecteur et offre une connexion en un clic, un indicateur d'état, pause / reprise et un accès au tableau de bord en un clic. Idéal pour les ordinateurs portables et postes de travail.
+## Fournisseurs de modèles de l’Agent
 
-<div align="center">
+Configurez le modèle de l’Agent intégré à Liaison indépendamment de l’accès aux services.
 
-| macOS | Windows |
-|:---:|:---:|
-| <img src="docs/images/desktop-client/popup-macos.png" alt="Liaison Desktop on macOS" width="360" /> | <img src="docs/images/desktop-client/popup-windows.png" alt="Liaison Desktop on Windows" width="360" /> |
+<table>
+  <tr>
+    <th align="left">Modèles</th>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/openai-dark.svg" /><img src="docs/assets/integrations/readme/openai-light.svg" width="40" height="40" alt="OpenAI" title="OpenAI" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp; <img src="docs/assets/integrations/gemini.svg" width="40" height="40" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp; <img src="docs/assets/integrations/deepseek.svg" width="40" height="40" alt="DeepSeek" title="DeepSeek" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/zhipu-dark.svg" /><img src="docs/assets/integrations/readme/zhipu-light.svg" width="40" height="40" alt="Z.ai / GLM" title="Z.ai / GLM" /></picture>&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/kimi-dark.svg" /><img src="docs/assets/integrations/readme/kimi-light.svg" width="40" height="40" alt="Moonshot / Kimi" title="Moonshot / Kimi" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/minimax.svg" width="40" height="40" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/mimo-dark.svg" /><img src="docs/assets/integrations/readme/mimo-light.svg" width="40" height="40" alt="Xiaomi MiMo" title="Xiaomi MiMo" /></picture></td>
+  </tr>
+</table>
 
-</div>
+Huit fournisseurs préconfigurés, ainsi que des services OpenAI-compatible personnalisés.
 
-- **Connexion en un clic** — flux OAuth via navigateur, PAT stocké dans le trousseau du système (Keychain sur macOS, Gestionnaire d'identifiants sur Windows)
-- **Multi-déploiement** — par défaut sur `liaison.cloud` ; l'icône d'engrenage en bas à gauche permet de basculer vers n'importe quel déploiement privé sans réinstaller
-- **État sensible au heartbeat** — les transitions Connexion → En ligne reflètent l'état réel du tunnel, pas seulement la vivacité du processus
-- **Pause qui survit à la fermeture** — l'intention est persistée sur disque, une session en pause le reste après relance
+<a id="product-tour"></a>
 
-**Télécharger (pré-release roulante, dernier build de `feat/desktop-client`) :**
-
-| Plateforme | Fichier |
-|:---|:---|
-| macOS (Apple Silicon + Intel, universel) | [`Liaison_0.1.0_universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_universal.dmg) |
-| Windows (installateur .msi) | [`Liaison_0.1.0_x64_en-US.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64_en-US.msi) |
-| Windows (.exe NSIS, avec nettoyage du trousseau à la désinstallation) | [`Liaison_0.1.0_x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64-setup.exe) |
-
-> Les installateurs v0.1 ne sont pas signés. Gatekeeper macOS et Windows SmartScreen avertiront au premier lancement — clic droit → Ouvrir sur macOS, ou « Informations supplémentaires » → « Exécuter quand même » sur Windows. WebView2 Runtime est requis sur Windows ; Win10 1803+ et Win11 l'incluent.
-
-#### Option B — Commande d'installation CLI (Linux / headless)
-
-**Créez un nouveau connecteur** dans la console Web, copiez la commande d'installation correspondant à votre plateforme depuis l'interface et exécutez-la sur la machine cible. Le connecteur apparaîtra automatiquement dans la console.
-
----
-
-## Prérequis
-
-| Composant | Exigences |
-|:---|:---|
-| **Serveur** | Linux (Ubuntu 20.04+ ou CentOS 7+ recommandés) |
-| **Connecteur** | Linux / macOS / Windows (x86_64 et ARM64) |
-| **Navigateur** | Chrome 90+, Firefox 88+, Safari 14+, Edge 90+ |
-
----
-
-## Architecture
-
-<img src="./docs/diagrams/liaison.png" width="80%">
-
-Liaison utilise une architecture centralisée avec Frontier qui gère tous les connecteurs.
-
-**Composants**
-
-- **Liaison** — UI Web et API, plus les points d'entrée applicatifs
-- **Frontier** — Passerelle des connecteurs, gère les connexions et le routage du trafic
-- **Edge** — Client connecteur déployé sur les machines cibles
-
----
-
-## Fonctionnalités
+## Présentation du produit
 
 ### Accès aux LLM locaux
 
-![Console Liaison présentant l’accès aux modèles, les protocoles client et amont, les noms de modèles et l’authentification par clé API. Configuration illustrative.](docs/assets/readme/local-llm-access-models-dark-v2.png)
+![Exemple de configuration des modèles LLM locaux, des protocoles et de l’authentification par clé API.](docs/assets/readme/local-llm-access-models-dark-v2.png)
 
-| Fonction | Capture |
-|:---:|:---:|
-| Gestion des applications | ![Application](docs/pages/application_en.png) |
-| Configuration des proxys | ![Proxy](docs/pages/proxy_en.png) |
-| Gestion des connecteurs | ![Edge](docs/pages/edge_en.png) |
+### Web SSH
 
----
+Travaillez dans un terminal web avec audit et un Agent capable d’examiner les sorties de la session et de préparer des commandes.
+
+![Web SSH dans Liaison](docs/assets/readme/web-ssh-dark.png)
+
+### Applications web privées
+
+Accédez à vos serveurs multimédias et autres applications web internes via Liaison.
+
+![Jellyfin via Liaison](docs/pages/jellyfin-ss.png)
+
+### Assistants IA privés
+
+Utilisez vos outils IA internes sans exposer le réseau privé.
+
+![OpenClaw via Liaison](docs/pages/openclaw-ss.png)
+
+### Web MySQL
+
+Parcourez les schémas, exécutez du SQL et demandez à l’Agent de la session d’effectuer des requêtes et d’expliquer les résultats, avec approbation si nécessaire.
+
+![Espace de travail MySQL de Liaison](docs/assets/readme/web-mysql-dark.png)
+
+### Web MongoDB
+
+Explorez les collections et demandez à l’Agent d’exécuter des requêtes approuvées et d’expliquer les documents, sans client local.
+
+![Espace de travail MongoDB de Liaison](docs/assets/readme/web-mongodb-dark.png)
+
+### Web VNC
+
+Ouvrez un bureau VNC privé dans une session web gérée.
+
+![Bureau VNC dans Liaison](docs/assets/readme/web-vnc-dark.png)
+
+### Web RDP
+
+Connectez-vous à un bureau RDP avec le même parcours d’accès.
+
+![Bureau RDP dans Liaison](docs/assets/readme/web-rdp-dark-v2.png)
+
+<a id="documentation"></a>
 
 ## Documentation
 
-- [API](./docs/swagger/)
+- [Déploiement Docker](deploy/docker/README.md)
+- [Référence API](docs/swagger/swagger.yaml)
+- [Notes de version](https://github.com/liaisonio/liaison/releases)
+- [Tickets](https://github.com/liaisonio/liaison/issues)
+- [Discussions](https://github.com/liaisonio/liaison/discussions)
 
----
+<a id="contributing"></a>
 
 ## Contribuer
 
-Les contributions sont bienvenues.
+Les signalements de bugs, propositions de fonctionnalités, améliorations de la documentation et pull requests sont les bienvenus. Commencez par les [Issues](https://github.com/liaisonio/liaison/issues) ou ouvrez une [Pull Request](https://github.com/liaisonio/liaison/pulls).
 
-- [Signaler un bug](https://github.com/liaisonio/liaison/issues/new?template=bug_report.md)
-- [Proposer une fonctionnalité](https://github.com/liaisonio/liaison/issues/new?template=feature_request.md)
-- [Ouvrir une PR](https://github.com/liaisonio/liaison/pulls)
-- [Améliorer la doc](https://github.com/liaisonio/liaison/issues/new?template=documentation.md)
-
-1. Fork du dépôt
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit (`git commit -m 'Add some AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
-
----
+<a id="license"></a>
 
 ## Licence
 
-[GNU Affero General Public License v3.0](LICENSE).
-
----
-
-<div align="center">
-
-**Si ce projet vous aide, laissez une ⭐ Star !**
-
-Made with ❤️ by [Liaison Contributors](https://github.com/liaisonio/liaison/graphs/contributors)
-
-[GitHub](https://github.com/liaisonio/liaison) • [Issues](https://github.com/liaisonio/liaison/issues) • [Discussions](https://github.com/liaisonio/liaison/discussions)
-
-</div>
+Liaison est distribué sous la licence [GNU Affero General Public License v3.0](LICENSE).

@@ -3,9 +3,9 @@
   <img src="docs/assets/liaison-brand-rays-light.svg" width="270" height="88" alt="Liaison" />
 </picture>
 
-> **ローカル LLM とアプリケーションのための AI ネイティブなゼロトラストアクセス。**
+> **プライベートなアプリ、LLM、AI Agent にアクセスするためのセルフホスト基盤。**
 
-セルフホストで、安全な API 共有、ブラウザワークスペース、コンテキストを理解する AI Agent を利用できます。
+ブラウザワークスペース、権限を限定した API 共有、作業のコンテキストに応じた AI 支援を提供。コネクターからの発信接続でプライベートサービスにつながります。
 
 [![CI](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
@@ -17,187 +17,149 @@
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](web/vite.config.ts)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)](web/tailwind.config.cjs)
 
-[简体中文](./README_zh.md) | [English](./README.md) | 日本語 | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
+[English](./README.md) | [简体中文](./README_zh.md) | 日本語 | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
-![Liaison：ローカルの計算資源とアプリへの安全なアクセス。サンプルデータによるデモ。](docs/assets/readme/liaison-product-demo-full-v2.gif)
+[公式サイト](https://liaison.cloud) · [ドキュメント](https://liaison.cloud/docs/get-started/introduction) · [機能](#features) · [インストール](#install) · [アクセスプロトコル](#supported-access-protocols) · [Agent モデル](#agent-model-providers) · [製品紹介](#product-tour)
 
-| Jellyfin(どこからでも家の映画をストリーミング) | OpenClaw(どこからでも家の AI を利用) |
-|:---:|:---:|
-| ![Jellyfin](docs/pages/jellyfin-ss.png) | ![OpenClaw](docs/pages/openclaw-ss.png) |
+![Liaison の製品デモ。サンプルデータを使用。](docs/assets/readme/liaison-product-demo-full-v2.gif)
 
-[クイックスタート](#クイックスタート) • [概要](#概要) • [ドキュメント](#ドキュメント) • [コントリビュート](#コントリビュート)
+<a id="features"></a>
 
----
+## 機能
 
-## 概要
+- 🤖 **ローカル LLM へのアクセス** — 認証付き API とブラウザの Playground でローカルモデルを共有。
+- 🔑 **API 共有の制御** — キーごとのモデル制限、Token 上限の設定、アクセスの取り消し、使用量の確認。
+- 🤖 **AI Agent へのアクセス** — デバイス上の Codex と Claude Code をブラウザで利用。セッション再開、実行状況、権限確認に対応。
+- 💻 **ブラウザ IDE** — code-server でプロジェクトを編集し、ターミナルや拡張機能を利用。
+- ✨ **作業を支える AI** — ユーザー権限の範囲内で端末出力を確認し、コマンド作成やデータベース照会を支援。必要な操作には承認を要求。
+- 💬 **リソースを対話で確認** — アクセス権のあるコネクター、デバイス、アプリを検索。
+- 🔌 **発信接続のみのコネクター** — デバイス側で受信ポートを開けずにプライベートデバイスへ接続。
+- 🔐 **アプリケーションへのアクセス** — アクセスごとの制御で TCP、HTTP、HTTPS、WebSocket、SSH サービスを利用。
+- 🖥️ **ブラウザワークスペース** — ターミナル、リモートデスクトップ、データベース、キャッシュをブラウザで操作。
+- 📁 **ファイルとオブジェクト** — SFTP でファイルを管理し、S3 互換ストレージを閲覧（読み取り専用）。
+- 🔎 **アプリケーションの検出** — コネクターのデバイスにある既存サービスを検出し、コンソールから登録。
+- 👥 **ID とアクセス管理** — Casbin による認可でユーザーとリソースを管理。
+- 🛡️ **ファイアウォールポリシー** — 送信元 IP または CIDR で TCP と HTTP のアクセスを制限。
+- 📋 **ログと監査** — 管理操作と、対応するアプリケーションセッションを確認。
+- 📦 **セルフホスト** — 完全なコントロールプレーンを自分の Linux サーバーで実行。
 
-プライベートサーバー、データベース、デスクトップ、Web アプリに接続。SSH・データベースセッションの AI Agent と作業し、ホームの Agent からアクセス可能なコネクター、デバイス、アプリを確認できます。セルフホストに対応し、ツールはユーザー権限に従います。
+<a id="install"></a>
 
-- 🤖 **ローカル LLM へのアクセス** — 認証付き API とブラウザの Playground で、ローカルモデルをネットワーク外から利用できます。
-- 🔑 **API 共有の制御** — キーで利用できるモデルを制限し、Token 上限の設定、アクセスの取り消し、使用量とリクエスト履歴の確認ができます。
-- ✨ **作業を支える AI** — 接続に紐づく Agent が端末出力の確認、コマンド作成、データベース照会を支援。承認が必要な操作は確認を待ちます。
-- 💬 **リソースを対話で確認** — ホームの Agent からコネクター、デバイス、アプリを検索。表示範囲はログインユーザーの権限内です。
+## インストール
 
-本プロジェクトが解決する課題:
-
-- **プライベートネットワークへのアクセス** — NAT 配下のデバイスやサービスに、最小限の設定でインターネット経由から到達
-- **マルチデバイス管理** — Linux/macOS/Windows をまたいで複数拠点のデバイスを一元管理
-- **セキュアな接続** — LAN や家庭ネットワークのポートを晒さずに TLS 暗号化で通信
-- **エントリー単位のファイアウォール** — TCP / HTTP 各エントリーに送信元 IP CIDR の許可リストを設定でき、接続受け入れ段階で遮断
-- **トラフィックモニタリング** — 運用・キャパシティプランニング向けのリアルタイムなデバイス状態とトラフィック統計
-- **アプリケーションプロキシ** — TCP、HTTP/HTTPS、WebSocket などのプロトコル対応
-- **API の自動化** — CLI / スクリプト用の Personal Access Token (PAT)、`/cli-auth` でブラウザ経由のサインインフロー
-
-ユースケース:
-
-<div align="center">
-
-| **💼 リモートワーク & 開発** | **🧑‍💻 個人スタジオ** | **🏠 ホームネット / NAS** | **🌐 マルチリージョン** | **⚡ エッジ & 運用** |
-|:---:|:---:|:---:|:---:|:---:|
-| オフィスと自宅のデバイスを接続し、リモート開発・デバッグ | ワークステーションと私的な環境をセキュアに接続し、機材を統合管理 | 家庭の NAS やスマートホームをインターネットから利用 | 複数リージョン・DC をまたぐサーバーとアプリケーションの一元接続 | エッジアプリのリモート健全性確認とトラフィック監視 |
-
-</div>
-
----
-
-## クイックスタート
-
-以下の tar.gz サーバーパッケージをインストールし、その後にコネクターを導入します。
-
-### サーバー導入 — tar.gz
-
-**1. ダウンロード**
+自己完結型の Docker バンドルをダウンロード・展開し、インストーラーを実行します（Docker 20.10 以降と Compose が必要です）：
 
 ```bash
 wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
 tar -xzf liaison-1.15.4-linux-amd64.tar.gz
 cd liaison-1.15.4-linux-amd64
-```
-
-**2. インストールスクリプトを実行**
-
-```bash
 ./install.sh
 ```
 
-公開 IP またはドメインの入力が求められます。30 秒以内に入力しない場合は検出された公開 IP が自動で使用されます。
+インストール後に `https://<server-address>` を開きます。初期ログイン情報はインストーラーが出力します。
 
-**3. Web コンソールを開く**
+<a id="supported-access-protocols"></a>
 
-`https://公開IP` にアクセスして Web コンソールへ。
+## 対応アクセスプロトコル
 
-> **ヒント:** 初期管理者の認証情報は install.sh の出力、あるいは設定ファイルに記載されます。
+Liaison を通じて既存のプライベートサービスにアクセスします。
 
-### コネクター導入
+<table>
+  <tr><th align="left">SSH / SFTP</th><td><img src="docs/assets/integrations/readme/ssh.svg" width="40" height="40" alt="SSH / WebSSH" title="SSH / WebSSH" />&nbsp;&nbsp; <img src="docs/assets/integrations/readme/sftp.svg" width="40" height="40" alt="WebSFTP" title="WebSFTP" /></td></tr>
+  <tr><th align="left">デスクトップ</th><td><img src="docs/assets/integrations/windows.svg" width="40" height="40" alt="WebRDP" title="WebRDP" />&nbsp;&nbsp; <img src="docs/assets/integrations/vnc.png" width="40" height="40" alt="WebVNC" title="WebVNC" /></td></tr>
+  <tr><th align="left">SQL データベース</th><td><img src="docs/assets/integrations/mysql.svg" width="40" height="40" alt="WebMySQL" title="WebMySQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/mariadb.svg" width="40" height="40" alt="WebMariaDB" title="WebMariaDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/postgresql.svg" width="40" height="40" alt="WebPostgreSQL" title="WebPostgreSQL" />&nbsp;&nbsp; <img src="docs/assets/integrations/sqlserver.svg" width="40" height="40" alt="WebSQLServer" title="WebSQLServer" />&nbsp;&nbsp; <img src="docs/assets/integrations/oracle.svg" width="40" height="40" alt="WebOracle" title="WebOracle" />&nbsp;&nbsp; <img src="docs/assets/integrations/clickhouse.svg" width="40" height="40" alt="WebClickHouse" title="WebClickHouse" /></td></tr>
+  <tr><th align="left">データと検索</th><td><img src="docs/assets/integrations/mongodb.svg" width="40" height="40" alt="WebMongoDB" title="WebMongoDB" />&nbsp;&nbsp; <img src="docs/assets/integrations/elasticsearch.svg" width="40" height="40" alt="WebElasticsearch" title="WebElasticsearch" />&nbsp;&nbsp; <img src="docs/assets/integrations/opensearch.svg" width="40" height="40" alt="WebOpenSearch" title="WebOpenSearch" /></td></tr>
+  <tr><th align="left">キャッシュ</th><td><img src="docs/assets/integrations/redis.svg" width="40" height="40" alt="WebRedis" title="WebRedis" />&nbsp;&nbsp; <img src="docs/assets/integrations/memcached.svg" width="40" height="40" alt="WebMemcached" title="WebMemcached" /></td></tr>
+  <tr><th align="left">ストレージ</th><td><img src="docs/assets/integrations/readme/s3.svg" width="40" height="40" alt="WebS3 (S3-compatible)" title="WebS3 (S3-compatible)" /></td></tr>
+  <tr><th align="left">LLM 上流プロトコル</th><td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/openai-dark.svg" /><img src="docs/assets/integrations/readme/openai-light.svg" width="40" height="40" alt="OpenAI-compatible" title="OpenAI-compatible" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic Messages" title="Anthropic Messages" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/ollama-dark.svg" /><img src="docs/assets/integrations/readme/ollama-light.svg" width="40" height="40" alt="Ollama" title="Ollama" /></picture></td></tr>
+  <tr><th align="left">Web / TCP</th><td><img src="docs/assets/integrations/readme/web.svg" width="40" height="40" alt="HTTP / HTTPS / WebSocket" title="HTTP / HTTPS / WebSocket" />&nbsp;&nbsp; <img src="docs/assets/integrations/readme/tcp.svg" width="40" height="40" alt="TCP" title="TCP" /></td></tr>
+</table>
 
-ターゲット端末に応じて 2 つのインストール経路から選択してください。
+LLM の上流プロトコルは **OpenAI-compatible**、**Anthropic Messages**、**Ollama** に対応。クライアントは OpenAI-compatible エンドポイントを使用でき、Anthropic の上流にはネイティブの Messages エンドポイントも用意されています。ロゴはアクセス可能な既存サービスを示し、Liaison が同梱・導入する製品を意味しません。データベースとデスクトップのロゴはブラウザワークスペースを示し、ネイティブのデータベース・RDP・VNC サーバーの待受機能を意味しません。
 
-#### オプション A — Liaison Desktop (GUI、macOS / Windows)
+<a id="agent-model-providers"></a>
 
-コネクターをラップするメニューバー / トレイアプリ。ワンクリックサインイン、ステータス表示、一時停止 / 再開、ダッシュボードへのワンクリックアクセスを提供します。ノート PC やワークステーションに最適。
+## Agent のモデルプロバイダー
 
-<div align="center">
+Liaison 内蔵 Agent のモデルは、サービスへのアクセス設定とは独立して構成できます。
 
-| macOS | Windows |
-|:---:|:---:|
-| <img src="docs/images/desktop-client/popup-macos.png" alt="Liaison Desktop on macOS" width="360" /> | <img src="docs/images/desktop-client/popup-windows.png" alt="Liaison Desktop on Windows" width="360" /> |
+<table>
+  <tr>
+    <th align="left">モデル</th>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/openai-dark.svg" /><img src="docs/assets/integrations/readme/openai-light.svg" width="40" height="40" alt="OpenAI" title="OpenAI" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/anthropic.svg" width="40" height="40" alt="Anthropic / Claude" title="Anthropic / Claude" />&nbsp;&nbsp; <img src="docs/assets/integrations/gemini.svg" width="40" height="40" alt="Google Gemini" title="Google Gemini" />&nbsp;&nbsp; <img src="docs/assets/integrations/deepseek.svg" width="40" height="40" alt="DeepSeek" title="DeepSeek" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/zhipu-dark.svg" /><img src="docs/assets/integrations/readme/zhipu-light.svg" width="40" height="40" alt="Z.ai / GLM" title="Z.ai / GLM" /></picture>&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/kimi-dark.svg" /><img src="docs/assets/integrations/readme/kimi-light.svg" width="40" height="40" alt="Moonshot / Kimi" title="Moonshot / Kimi" /></picture>&nbsp;&nbsp; <img src="docs/assets/integrations/minimax.svg" width="40" height="40" alt="MiniMax" title="MiniMax" />&nbsp;&nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/integrations/readme/mimo-dark.svg" /><img src="docs/assets/integrations/readme/mimo-light.svg" width="40" height="40" alt="Xiaomi MiMo" title="Xiaomi MiMo" /></picture></td>
+  </tr>
+</table>
 
-</div>
+8 種類のプロバイダープリセットと、カスタムの OpenAI-compatible サービスに対応。
 
-- **ワンクリックサインイン** — ブラウザ仲介の OAuth フロー、PAT は OS のキーチェーン (macOS Keychain、Windows 資格情報マネージャー) に保存
-- **マルチデプロイ対応** — デフォルトは `liaison.cloud`、左下の歯車アイコンから任意のプライベートデプロイへ即座に切替可能（再インストール不要）
-- **ハートビート連動のステータス** — 接続中 → オンライン遷移は実際のトンネル状態を反映 (プロセス生存だけではない)
-- **再起動を跨いで保持される一時停止** — ユーザー意図がディスクに永続化され、再起動後も Paused のまま
+<a id="product-tour"></a>
 
-**ダウンロード (ローリングプレリリース、`feat/desktop-client` の最新ビルド)：**
-
-| プラットフォーム | ファイル |
-|:---|:---|
-| macOS (Apple Silicon + Intel ユニバーサル) | [`Liaison_0.1.0_universal.dmg`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_universal.dmg) |
-| Windows (.msi インストーラー) | [`Liaison_0.1.0_x64_en-US.msi`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64_en-US.msi) |
-| Windows (.exe NSIS、アンインストール時にキーチェーンクリーンアップ) | [`Liaison_0.1.0_x64-setup.exe`](https://github.com/liaisonio/liaison/releases/download/desktop-latest/Liaison_0.1.0_x64-setup.exe) |
-
-> v0.1 のインストーラーは未署名です。macOS Gatekeeper と Windows SmartScreen が初回起動時に警告を出します — macOS は右クリック → 開く、Windows は「詳細情報」→「実行」を選択してください。Windows には WebView2 Runtime が必要です (Win10 1803+ と Win11 にプリインストール済み)。
-
-#### オプション B — CLI インストールコマンド (Linux / ヘッドレス)
-
-Web コンソールで **コネクターを新規作成** し、UI から対象プラットフォーム用のインストールコマンドをコピーして対象デバイスで実行すると、コネクターがコンソールに自動で現れます。
-
----
-
-## 動作要件
-
-| コンポーネント | 要件 |
-|:---|:---|
-| **サーバー** | Linux(Ubuntu 20.04+ または CentOS 7+ 推奨) |
-| **コネクター** | Linux / macOS / Windows(x86_64 および ARM64) |
-| **ブラウザ** | Chrome 90+、Firefox 88+、Safari 14+、Edge 90+ |
-
----
-
-## アーキテクチャ
-
-<img src="./docs/diagrams/liaison.png" width="80%">
-
-Liaison は Frontier ですべてのコネクターを管理する中央集権型アーキテクチャを採用しています。
-
-**コンポーネント**
-
-- **Liaison** — Web UI と API、アプリケーションのエントリーポイント
-- **Frontier** — コネクターの接続とトラフィックルーティングを担うゲートウェイ
-- **Edge** — 対象デバイス上で動作するコネクタークライアント
-
----
-
-## 機能紹介
+## 製品紹介
 
 ### ローカル LLM へのアクセス
 
-![モデルへのアクセス、クライアントと上流のプロトコル、モデル名、API キー認証を示す Liaison コンソール。設定例。](docs/assets/readme/local-llm-access-models-dark-v2.png)
+![ローカル LLM のモデルとプロトコル、API キー認証の設定例。](docs/assets/readme/local-llm-access-models-dark-v2.png)
 
-| 機能 | スクリーンショット |
-|:---:|:---:|
-| アプリケーション管理 | ![Application](docs/pages/application_en.png) |
-| プロキシ設定 | ![Proxy](docs/pages/proxy_en.png) |
-| コネクター管理 | ![Edge](docs/pages/edge_en.png) |
+### Web SSH
 
----
+監査に対応したブラウザターミナルで作業。Agent がセッション出力を確認し、コマンド作成を支援します。
+
+![Liaison の Web SSH](docs/assets/readme/web-ssh-dark.png)
+
+### プライベート Web アプリ
+
+メディアサーバーや社内 Web アプリに Liaison 経由でアクセスします。
+
+![Liaison 経由の Jellyfin](docs/pages/jellyfin-ss.png)
+
+### プライベート AI アシスタント
+
+プライベートネットワークを公開せず、内部の AI ツールを利用できます。
+
+![Liaison 経由の OpenClaw](docs/pages/openclaw-ss.png)
+
+### Web MySQL
+
+スキーマの参照や SQL の実行に加え、セッション Agent に照会と結果の説明を依頼できます。必要な操作には承認を要求します。
+
+![Liaison の MySQL ワークスペース](docs/assets/readme/web-mysql-dark.png)
+
+### Web MongoDB
+
+ローカルクライアントなしでコレクションを参照し、Agent に承認済みクエリの実行やドキュメントの説明を依頼できます。
+
+![Liaison の MongoDB ワークスペース](docs/assets/readme/web-mongodb-dark.png)
+
+### Web VNC
+
+管理されたブラウザセッションでプライベート VNC デスクトップを開きます。
+
+![Liaison の VNC デスクトップ](docs/assets/readme/web-vnc-dark.png)
+
+### Web RDP
+
+同じアクセス手順で RDP デスクトップに接続します。
+
+![Liaison の RDP デスクトップ](docs/assets/readme/web-rdp-dark-v2.png)
+
+<a id="documentation"></a>
 
 ## ドキュメント
 
-- [API](./docs/swagger/)
+- [Docker デプロイ](deploy/docker/README.md)
+- [API リファレンス](docs/swagger/swagger.yaml)
+- [リリースノート](https://github.com/liaisonio/liaison/releases)
+- [Issue](https://github.com/liaisonio/liaison/issues)
+- [ディスカッション](https://github.com/liaisonio/liaison/discussions)
 
----
+<a id="contributing"></a>
 
 ## コントリビュート
 
-コントリビュート歓迎です。
+バグ報告、機能提案、ドキュメント改善、Pull Request を歓迎します。[Issues](https://github.com/liaisonio/liaison/issues) または [Pull Request](https://github.com/liaisonio/liaison/pulls) からご参加ください。
 
-- [バグ報告](https://github.com/liaisonio/liaison/issues/new?template=bug_report.md)
-- [機能提案](https://github.com/liaisonio/liaison/issues/new?template=feature_request.md)
-- [PR を開く](https://github.com/liaisonio/liaison/pulls)
-- [ドキュメント改善](https://github.com/liaisonio/liaison/issues/new?template=documentation.md)
-
-1. リポジトリを Fork
-2. ブランチを作成(`git checkout -b feature/AmazingFeature`)
-3. コミット(`git commit -m 'Add some AmazingFeature'`)
-4. Push(`git push origin feature/AmazingFeature`)
-5. Pull Request を開く
-
----
+<a id="license"></a>
 
 ## ライセンス
 
-[GNU Affero General Public License v3.0](LICENSE)
-
----
-
-<div align="center">
-
-**プロジェクトが役立ったら ⭐ Star をお願いします!**
-
-Made with ❤️ by [Liaison Contributors](https://github.com/liaisonio/liaison/graphs/contributors)
-
-[GitHub](https://github.com/liaisonio/liaison) • [Issues](https://github.com/liaisonio/liaison/issues) • [Discussions](https://github.com/liaisonio/liaison/discussions)
-
-</div>
+Liaison は [GNU Affero General Public License v3.0](LICENSE) で公開されています。
