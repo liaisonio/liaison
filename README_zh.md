@@ -144,7 +144,13 @@ LLM 上游支持 **OpenAI-compatible**、**Anthropic Messages** 和 **Ollama**�
 
 <div align="center">
 
-<img src="docs/assets/readme/wechat-community.jpg" width="260" alt="Liaison 微信开发者社区二维码" />
+<p align="center">
+  <img
+    src="https://github.com/user-attachments/assets/62bedb06-bd18-4003-b61d-bec80b80d02b"
+    width="260"
+    alt="Liaison 微信开发者社区二维码"
+  />
+</p>
 
 使用微信扫码加入 Liaison 开发者社区。
 
