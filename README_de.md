@@ -11,6 +11,7 @@ Browser-Arbeitsbereiche, API-Freigaben mit begrenztem Berechtigungsumfang und ko
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
 [![Downloads](https://img.shields.io/github/downloads/liaisonio/liaison/total)](https://github.com/liaisonio/liaison/releases)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 [![Go](https://img.shields.io/github/go-mod/go-version/liaisonio/liaison?logo=go&logoColor=white)](go.mod)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](web/package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](web/package.json)
@@ -155,6 +156,15 @@ Verbinde dich über denselben Zugriffsablauf mit einem RDP-Desktop.
 <a id="contributing"></a>
 
 ## Mitwirken
+
+Liaison wird kontinuierlich weiterentwickelt. Beiträge zur selbst gehosteten Edition in diesem Repository sind willkommen.
+
+- KI-Agenten: Integrationen, Sitzungsverwaltung und Zusammenarbeit.
+- Anwendungszugriff: SSH, Dateien, Datenbanken, IDEs, Remote-Desktops und Modell-APIs.
+- Plattformunterstützung: Installation und Kompatibilität unter Linux, macOS und Windows.
+- Benutzerfreundlichkeit: Verbesserungen der Oberfläche, Übersetzungen und Dokumentation.
+
+Besprich größere Änderungen zuerst in einem Issue. Beschränke jeden PR auf ein Thema und beschreibe die durchgeführten Prüfungen. Füge keine Zugangsdaten, privaten Daten oder umgebungsspezifischen Deployment-Details hinzu. Die Mitarbeit ist vollständig auf GitHub möglich; die Teilnahme an einer Chatgruppe ist freiwillig.
 
 Fehlermeldungen, Funktionsvorschläge, Verbesserungen der Dokumentation und Pull Requests sind willkommen. Starte unter [Issues](https://github.com/liaisonio/liaison/issues) oder erstelle einen [Pull Request](https://github.com/liaisonio/liaison/pulls).
 

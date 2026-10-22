@@ -11,6 +11,7 @@
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
 [![Downloads](https://img.shields.io/github/downloads/liaisonio/liaison/total)](https://github.com/liaisonio/liaison/releases)
 [![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 [![Go](https://img.shields.io/github/go-mod/go-version/liaisonio/liaison?logo=go&logoColor=white)](go.mod)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](web/package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](web/package.json)
@@ -158,7 +159,18 @@ LLM 上游支持 **OpenAI-compatible**、**Anthropic Messages** 和 **Ollama**�
 
 </div>
 
+<a id="contributing"></a>
+
 ## 贡献
+
+Liaison 正在持续迭代，欢迎一起开发本仓库中的自托管版本。
+
+- AI Agent：工具集成、会话管理与协作。
+- 应用访问：SSH、文件、数据库、IDE、远程桌面与模型 API。
+- 跨平台支持：Linux、macOS、Windows 的安装与兼容性。
+- 使用体验：界面改进、多语言与文档。
+
+较大的改动请先开 Issue 讨论范围。PR 请聚焦单一主题，并说明验证方式；不要包含凭据、私人数据或特定环境的部署信息。可以直接在 GitHub 参与开发，不需要先加群。
 
 欢迎提交问题、功能建议、文档改进与代码贡献。可以从 [Issues](https://github.com/liaisonio/liaison/issues) 或 [Pull Requests](https://github.com/liaisonio/liaison/pulls) 开始。
 
