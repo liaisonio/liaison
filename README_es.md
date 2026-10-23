@@ -10,12 +10,12 @@ Espacios de trabajo en el navegador, API compartidas con permisos delimitados y 
 [![CI](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
 [![Downloads](https://img.shields.io/github/downloads/liaisonio/liaison/total)](https://github.com/liaisonio/liaison/releases)
-[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/liaisonio/liaison?logo=go&logoColor=white)](go.mod)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](web/package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](web/package.json)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](web/vite.config.ts)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)](web/tailwind.config.cjs)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 [English](./README.md) | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국어](./README_ko.md) | Español | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
@@ -155,6 +155,15 @@ Conéctate a un escritorio RDP mediante el mismo flujo de acceso.
 <a id="contributing"></a>
 
 ## Contribuir
+
+Liaison sigue evolucionando. Te invitamos a contribuir al desarrollo de la edición autoalojada de este repositorio.
+
+- Agentes de IA: integraciones, gestión de sesiones y colaboración.
+- Acceso a aplicaciones: SSH, archivos, bases de datos, IDE, escritorios remotos y API de modelos.
+- Compatibilidad multiplataforma: instalación y funcionamiento en Linux, macOS y Windows.
+- Experiencia de usuario: mejoras de interfaz, traducciones y documentación.
+
+Para cambios importantes, abre primero un issue para acordar el alcance. Centra cada PR en un tema y explica cómo lo verificaste. No incluyas credenciales, datos privados ni detalles de despliegue de entornos específicos. Puedes participar directamente en GitHub; unirte a un grupo de chat es opcional.
 
 Se agradecen los informes de errores, las propuestas de funciones, las mejoras de documentación y los pull requests. Participa en [Issues](https://github.com/liaisonio/liaison/issues) o abre un [Pull Request](https://github.com/liaisonio/liaison/pulls).
 

@@ -10,12 +10,12 @@
 [![CI](https://github.com/liaisonio/liaison/actions/workflows/go.yml/badge.svg)](https://github.com/liaisonio/liaison/actions/workflows/go.yml)
 [![Release](https://img.shields.io/github/v/release/liaisonio/liaison?display_name=tag&sort=semver)](https://github.com/liaisonio/liaison/releases)
 [![Downloads](https://img.shields.io/github/downloads/liaisonio/liaison/total)](https://github.com/liaisonio/liaison/releases)
-[![License](https://img.shields.io/badge/License-AGPLv3-blue.svg?logo=gnu)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/liaisonio/liaison?logo=go&logoColor=white)](go.mod)
 [![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](web/package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](web/package.json)
 [![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](web/vite.config.ts)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)](web/tailwind.config.cjs)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 [English](./README.md) | [简体中文](./README_zh.md) | 日本語 | [한국어](./README_ko.md) | [Español](./README_es.md) | [Français](./README_fr.md) | [Deutsch](./README_de.md)
 
@@ -155,6 +155,15 @@ Liaison 内蔵 Agent のモデルは、サービスへのアクセス設定と�
 <a id="contributing"></a>
 
 ## コントリビュート
+
+Liaison は継続的に進化しています。このリポジトリのセルフホスト版の開発にぜひご参加ください。
+
+- AI Agent：ツール連携、セッション管理、協調作業。
+- アプリケーションアクセス：SSH、ファイル、データベース、IDE、リモートデスクトップ、モデル API。
+- クロスプラットフォーム対応：Linux、macOS、Windows のインストールと互換性。
+- 使いやすさ：UI 改善、翻訳、ドキュメント。
+
+大きな変更は、まず Issue で範囲を相談してください。PR は一つのテーマに絞り、検証方法を記載してください。認証情報、個人データ、特定環境のデプロイ情報は含めないでください。チャットグループへの参加は任意で、GitHub だけで貢献できます。
 
 バグ報告、機能提案、ドキュメント改善、Pull Request を歓迎します。[Issues](https://github.com/liaisonio/liaison/issues) または [Pull Request](https://github.com/liaisonio/liaison/pulls) からご参加ください。
 
