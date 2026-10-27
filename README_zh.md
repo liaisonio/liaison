@@ -146,7 +146,7 @@ LLM 上游支持 **OpenAI-compatible**、**Anthropic Messages** 和 **Ollama**�
 
 <p align="center">
   <img
-    src="https://github.com/user-attachments/assets/62bedb06-bd18-4003-b61d-bec80b80d02b"
+    src="docs/assets/readme/wechat-community-20261027.jpg"
     width="260"
     alt="Liaison 微信开发者社区二维码"
   />
@@ -154,7 +154,7 @@ LLM 上游支持 **OpenAI-compatible**、**Anthropic Messages** 和 **Ollama**�
 
 使用微信扫码加入 Liaison 开发者社区。
 
-本期群二维码有效期至 2026 年 10 月 18 日前；如已过期，请通过 [社区讨论](https://github.com/liaisonio/liaison/discussions) 联系我们获取新二维码。
+本期群二维码有效期至 2026 年 11 月 3 日前；如已过期，请通过 [社区讨论](https://github.com/liaisonio/liaison/discussions) 联系我们获取新二维码。
 
 </div>
 
