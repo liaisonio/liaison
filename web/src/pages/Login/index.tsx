@@ -10,6 +10,7 @@ import { useSession } from '@/store/session';
 import { Activity, Cable, Github, Lock, ShieldCheck, User } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import './index.less';
+import { loginError } from './error';
 
 type LoginValues = { email: string; password: string };
 
@@ -20,20 +21,22 @@ const Login: React.FC = () => {
 
   const [values, setValues] = useState<LoginValues>({ email: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<unknown>(null);
+  const [missingCredentials, setMissingCredentials] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setMissingCredentials(false);
+    setError(null);
     if (!values.email.trim() || !values.password) {
-      setError(tr('请输入邮箱和密码', 'Enter your email and password'));
+      setMissingCredentials(true);
       return;
     }
     setSubmitting(true);
-    setError('');
     try {
       const result = await login(values);
       if (result.code !== 200 || !result.data?.token) {
-        setError(result.message || tr('登录失败', 'Login failed'));
+        setError(result);
         return;
       }
 
@@ -46,13 +49,8 @@ const Login: React.FC = () => {
         'redirect',
       );
       history.replace(redirect || '/');
-    } catch (error: any) {
-      const backendMessage = error?.response?.data?.message;
-      setError(
-        backendMessage ||
-          error?.message ||
-          tr('登录失败，请重试', 'Login failed, please retry'),
-      );
+    } catch (error: unknown) {
+      setError(error ?? {});
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +130,7 @@ const Login: React.FC = () => {
                 />
               </span>
             </label>
-            {error ? <p className="login-error" role="alert">{error}</p> : null}
+            {missingCredentials || error ? <p className="login-error" role="alert">{missingCredentials ? tr('请输入邮箱和密码', 'Enter your email and password') : loginError(error, tr)}</p> : null}
             <button className="login-submit" type="submit" disabled={submitting}>
               {submitting ? tr('登录中…', 'Signing in…') : tr('登录', 'Sign in')}
             </button>
