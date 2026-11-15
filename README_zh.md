@@ -33,6 +33,7 @@
 - 💬 **用对话查询资源** — 查找权限范围内的连接器、设备与应用。
 - 🔌 **主动出站连接器** — 接入私有设备，无需在设备上开放入站端口。
 - 🔐 **应用访问** — 接入 TCP、HTTP、HTTPS、WebSocket 与 SSH 服务，独立配置访问策略。
+- ⏱️ **按需开放 TCP 端口** — 按需开放 5–300 秒，到期阻止新连接，已建立的连接继续保持。
 - 🖥️ **浏览器工作台** — 在浏览器中使用终端、远程桌面、数据库与缓存。
 - 📁 **文件与对象浏览** — 通过 SFTP 管理文件，浏览 S3 兼容存储（只读）。
 - 🔎 **应用发现** — 探测设备上的已有服务，并从控制台登记应用。
@@ -46,9 +47,9 @@
 下载自带所有镜像的 Docker 离线包，解压后运行安装脚本（需要 Docker 20.10+ 及 Compose）：
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
-tar -xzf liaison-1.15.4-linux-amd64.tar.gz
-cd liaison-1.15.4-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.16.0/liaison-1.16.0-linux-amd64.tar.gz
+tar -xzf liaison-1.16.0-linux-amd64.tar.gz
+cd liaison-1.16.0-linux-amd64
 ./install.sh
 ```
 

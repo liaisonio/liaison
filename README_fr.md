@@ -35,6 +35,7 @@ Espaces de travail dans le navigateur, partage d’API à portée limitée et as
 - 💬 **Recherche de ressources** — Retrouvez les connecteurs, appareils et applications auxquels vous avez accès.
 - 🔌 **Connecteurs à connexions sortantes** — Connectez vos appareils privés sans y ouvrir de ports entrants.
 - 🔐 **Accès aux applications** — Accédez aux services TCP, HTTP, HTTPS, WebSocket et SSH avec des contrôles propres à chaque accès.
+- ⏱️ **Ports TCP à la demande** — Ouvrez un port pendant 5 à 300 secondes ; à l’expiration, les nouvelles connexions sont bloquées et les connexions établies sont maintenues.
 - 🖥️ **Espaces de travail dans le navigateur** — Utilisez terminaux, bureaux distants, bases de données et caches depuis votre navigateur.
 - 📁 **Fichiers et objets** — Gérez les fichiers via SFTP et parcourez le stockage compatible S3 (en lecture seule).
 - 🔎 **Détection d’applications** — Détectez les services existants sur les appareils dotés d’un connecteur et enregistrez-les depuis la console.
@@ -50,9 +51,9 @@ Espaces de travail dans le navigateur, partage d’API à portée limitée et as
 Téléchargez l’archive Docker autonome, décompressez-la et lancez l’installateur (Docker 20.10 ou ultérieur avec Compose est requis) :
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
-tar -xzf liaison-1.15.4-linux-amd64.tar.gz
-cd liaison-1.15.4-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.16.0/liaison-1.16.0-linux-amd64.tar.gz
+tar -xzf liaison-1.16.0-linux-amd64.tar.gz
+cd liaison-1.16.0-linux-amd64
 ./install.sh
 ```
 
