@@ -33,6 +33,7 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 - 💬 **Ask about your resources** — Find connectors, devices, and applications within your access scope.
 - 🔌 **Outbound-only connectors** — Connect private devices without opening inbound ports on them.
 - 🔐 **Application access** — Access TCP, HTTP, HTTPS, WebSocket, and SSH services with per-access controls.
+- ⏱️ **On-demand TCP ports** — Open a port for 5–300 seconds; expiry blocks new connections while established connections continue.
 - 🖥️ **Browser workspaces** — Work with terminals, remote desktops, databases, and caches in your browser.
 - 📁 **Files and objects** — Manage files over SFTP and browse S3-compatible storage (read-only).
 - 🔎 **Application discovery** — Detect existing services on connector devices and register them from the console.
@@ -46,9 +47,9 @@ English | [简体中文](./README_zh.md) | [日本語](./README_ja.md) | [한국
 Download the self-contained Docker bundle, extract it, and run the installer (Docker 20.10+ with Compose is required):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
-tar -xzf liaison-1.15.4-linux-amd64.tar.gz
-cd liaison-1.15.4-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.16.0/liaison-1.16.0-linux-amd64.tar.gz
+tar -xzf liaison-1.16.0-linux-amd64.tar.gz
+cd liaison-1.16.0-linux-amd64
 ./install.sh
 ```
 

@@ -35,6 +35,7 @@
 - 💬 **리소스 검색** — 접근 권한이 있는 커넥터, 기기, 애플리케이션을 찾습니다.
 - 🔌 **아웃바운드 전용 커넥터** — 기기의 인바운드 포트를 열지 않고 비공개 기기에 연결합니다.
 - 🔐 **애플리케이션 접근** — 접근 항목별 제어로 TCP, HTTP, HTTPS, WebSocket, SSH 서비스를 사용합니다.
+- ⏱️ **필요할 때 TCP 포트 열기** — 5~300초 동안 포트를 열고, 만료 후 새 연결은 차단하며 기존 연결은 유지합니다.
 - 🖥️ **브라우저 작업 공간** — 브라우저에서 터미널, 원격 데스크톱, 데이터베이스, 캐시를 사용합니다.
 - 📁 **파일과 객체** — SFTP로 파일을 관리하고 S3 호환 스토리지를 탐색합니다(읽기 전용).
 - 🔎 **애플리케이션 탐지** — 커넥터 기기의 기존 서비스를 탐지하고 콘솔에서 등록합니다.
@@ -50,9 +51,9 @@
 자체 완결형 Docker 번들을 다운로드하고 압축을 푼 뒤 설치 프로그램을 실행합니다(Docker 20.10 이상과 Compose 필요):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
-tar -xzf liaison-1.15.4-linux-amd64.tar.gz
-cd liaison-1.15.4-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.16.0/liaison-1.16.0-linux-amd64.tar.gz
+tar -xzf liaison-1.16.0-linux-amd64.tar.gz
+cd liaison-1.16.0-linux-amd64
 ./install.sh
 ```
 

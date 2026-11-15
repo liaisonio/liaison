@@ -35,6 +35,7 @@
 - 💬 **リソースを対話で確認** — アクセス権のあるコネクター、デバイス、アプリを検索。
 - 🔌 **発信接続のみのコネクター** — デバイス側で受信ポートを開けずにプライベートデバイスへ接続。
 - 🔐 **アプリケーションへのアクセス** — アクセスごとの制御で TCP、HTTP、HTTPS、WebSocket、SSH サービスを利用。
+- ⏱️ **必要なときだけ TCP ポートを開放** — 5〜300 秒間開放し、期限後は新規接続を遮断。確立済みの接続は維持。
 - 🖥️ **ブラウザワークスペース** — ターミナル、リモートデスクトップ、データベース、キャッシュをブラウザで操作。
 - 📁 **ファイルとオブジェクト** — SFTP でファイルを管理し、S3 互換ストレージを閲覧（読み取り専用）。
 - 🔎 **アプリケーションの検出** — コネクターのデバイスにある既存サービスを検出し、コンソールから登録。
@@ -50,9 +51,9 @@
 自己完結型の Docker バンドルをダウンロード・展開し、インストーラーを実行します（Docker 20.10 以降と Compose が必要です）：
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
-tar -xzf liaison-1.15.4-linux-amd64.tar.gz
-cd liaison-1.15.4-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.16.0/liaison-1.16.0-linux-amd64.tar.gz
+tar -xzf liaison-1.16.0-linux-amd64.tar.gz
+cd liaison-1.16.0-linux-amd64
 ./install.sh
 ```
 

@@ -35,6 +35,7 @@ Browser-Arbeitsbereiche, API-Freigaben mit begrenztem Berechtigungsumfang und ko
 - 💬 **Ressourcen abfragen** — Konnektoren, Geräte und Anwendungen innerhalb deines Zugriffsbereichs finden.
 - 🔌 **Nur ausgehende Verbindungen** — Private Geräte anbinden, ohne darauf eingehende Ports zu öffnen.
 - 🔐 **Anwendungszugriff** — TCP-, HTTP-, HTTPS-, WebSocket- und SSH-Dienste mit individuellen Zugriffskontrollen nutzen.
+- ⏱️ **TCP-Ports bei Bedarf** — Ports für 5–300 Sekunden öffnen; danach werden neue Verbindungen blockiert, bestehende bleiben erhalten.
 - 🖥️ **Browser-Arbeitsbereiche** — Terminals, Remote-Desktops, Datenbanken und Caches im Browser verwenden.
 - 📁 **Dateien und Objekte** — Dateien per SFTP verwalten und S3-kompatiblen Speicher durchsuchen (nur lesend).
 - 🔎 **Anwendungserkennung** — Vorhandene Dienste auf Konnektor-Geräten erkennen und über die Konsole registrieren.
@@ -50,9 +51,9 @@ Browser-Arbeitsbereiche, API-Freigaben mit begrenztem Berechtigungsumfang und ko
 Lade das eigenständige Docker-Paket herunter, entpacke es und starte das Installationsprogramm (Docker 20.10 oder neuer mit Compose erforderlich):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
-tar -xzf liaison-1.15.4-linux-amd64.tar.gz
-cd liaison-1.15.4-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.16.0/liaison-1.16.0-linux-amd64.tar.gz
+tar -xzf liaison-1.16.0-linux-amd64.tar.gz
+cd liaison-1.16.0-linux-amd64
 ./install.sh
 ```
 

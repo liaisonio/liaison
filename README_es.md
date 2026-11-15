@@ -35,6 +35,7 @@ Espacios de trabajo en el navegador, API compartidas con permisos delimitados y 
 - 💬 **Consulta tus recursos** — Encuentra conectores, dispositivos y aplicaciones dentro de tu ámbito de acceso.
 - 🔌 **Conectores de salida** — Conecta dispositivos privados sin abrir puertos de entrada en ellos.
 - 🔐 **Acceso a aplicaciones** — Accede a servicios TCP, HTTP, HTTPS, WebSocket y SSH con controles por acceso.
+- ⏱️ **Puertos TCP bajo demanda** — Abre un puerto durante 5–300 segundos; al vencer el plazo se bloquean las conexiones nuevas y se mantienen las existentes.
 - 🖥️ **Espacios de trabajo en el navegador** — Trabaja con terminales, escritorios remotos, bases de datos y cachés desde el navegador.
 - 📁 **Archivos y objetos** — Gestiona archivos por SFTP y explora almacenamiento compatible con S3 (solo lectura).
 - 🔎 **Detección de aplicaciones** — Detecta servicios existentes en los dispositivos con conector y regístralos desde la consola.
@@ -50,9 +51,9 @@ Espacios de trabajo en el navegador, API compartidas con permisos delimitados y 
 Descarga el paquete Docker autónomo, descomprímelo y ejecuta el instalador (requiere Docker 20.10 o posterior y Compose):
 
 ```bash
-wget https://github.com/liaisonio/liaison/releases/download/v1.15.4/liaison-1.15.4-linux-amd64.tar.gz
-tar -xzf liaison-1.15.4-linux-amd64.tar.gz
-cd liaison-1.15.4-linux-amd64
+wget https://github.com/liaisonio/liaison/releases/download/v1.16.0/liaison-1.16.0-linux-amd64.tar.gz
+tar -xzf liaison-1.16.0-linux-amd64.tar.gz
+cd liaison-1.16.0-linux-amd64
 ./install.sh
 ```
 
