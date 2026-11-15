@@ -74,14 +74,20 @@ func (cp *controlPlane) CreateProxy(ctx context.Context, req *v1.CreateProxyRequ
 		}
 	}
 
+	policy, err := normalizeTCPOpeningPolicy(req.TcpOpeningPolicy, accessProtocol)
+	if err != nil {
+		return nil, err
+	}
 	proxy := &model.Proxy{
-		Name:           name,
-		Status:         model.ProxyStatusRunning,
-		Description:    req.Description,
-		Port:           requestedPort,
-		ApplicationID:  uint(req.ApplicationId),
-		AccessProtocol: accessProtocol,
-		HTTPEntryMode:  entryMode,
+		TCPOpeningMode:            policy.Mode,
+		TCPOpeningDurationSeconds: int(policy.DurationSeconds),
+		Name:                      name,
+		Status:                    model.ProxyStatusRunning,
+		Description:               req.Description,
+		Port:                      requestedPort,
+		ApplicationID:             uint(req.ApplicationId),
+		AccessProtocol:            accessProtocol,
+		HTTPEntryMode:             entryMode,
 	}
 	err = cp.repo.CreateProxy(proxy)
 	if err != nil {
@@ -197,6 +203,8 @@ func (cp *controlPlane) ListProxies(ctx context.Context, req *v1.ListProxiesRequ
 }
 
 func (cp *controlPlane) UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequest) (*v1.UpdateProxyResponse, error) {
+	cp.proxyOperations[req.Id%64].Lock()
+	defer cp.proxyOperations[req.Id%64].Unlock()
 	if req.Id == 0 {
 		return nil, badRequest("PROXY_ID_REQUIRED", "访问 ID 不能为空")
 	}
@@ -300,10 +308,19 @@ func (cp *controlPlane) UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequ
 		}
 	}
 
+	if req.TcpOpeningPolicy != nil {
+		policy, err := normalizeTCPOpeningPolicy(req.TcpOpeningPolicy, effectiveAccessProtocol(proxy, application))
+		if err != nil {
+			return nil, err
+		}
+		proxy.TCPOpeningMode, proxy.TCPOpeningDurationSeconds = policy.Mode, int(policy.DurationSeconds)
+	} else if effectiveAccessProtocol(proxy, application) != model.AccessProtocolTCP {
+		proxy.TCPOpeningMode, proxy.TCPOpeningDurationSeconds = "continuous", 10
+	}
 	statusChanged := oldProxy.Status != proxy.Status
 	portChanged := oldProxy.Port != proxy.Port
 	protocolChanged := oldProxy.AccessProtocol != proxy.AccessProtocol
-	runtimeChanged := statusChanged || portChanged || protocolChanged || oldProxy.HTTPEntryMode != proxy.HTTPEntryMode
+	runtimeChanged := oldProxy.TCPOpeningMode != proxy.TCPOpeningMode || oldProxy.TCPOpeningDurationSeconds != proxy.TCPOpeningDurationSeconds || statusChanged || portChanged || protocolChanged || oldProxy.HTTPEntryMode != proxy.HTTPEntryMode
 
 	oldRuntimeEligible := false
 	if oldProxy.Status == model.ProxyStatusRunning {
@@ -365,6 +382,8 @@ func (cp *controlPlane) UpdateProxy(ctx context.Context, req *v1.UpdateProxyRequ
 }
 
 func (cp *controlPlane) DeleteProxy(ctx context.Context, req *v1.DeleteProxyRequest) (*v1.DeleteProxyResponse, error) {
+	cp.proxyOperations[req.Id%64].Lock()
+	defer cp.proxyOperations[req.Id%64].Unlock()
 	if req.Id == 0 {
 		return nil, badRequest("PROXY_ID_REQUIRED", "访问 ID 不能为空")
 	}
@@ -435,6 +454,7 @@ func (cp *controlPlane) transformProxy(proxy *model.Proxy) *v1.Proxy {
 		accessURL = cp.httpEntryURL(proxy)
 	}
 	return &v1.Proxy{
+		TcpOpeningPolicy:       proxyTCPOpeningPolicy(proxy),
 		Id:                     uint64(proxy.ID),
 		Name:                   proxy.Name,
 		Port:                   int32(proxy.Port),

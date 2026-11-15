@@ -16,7 +16,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.9.2
-	github.com/jumboframes/armorigo v0.5.0-rc.2
+	github.com/jumboframes/armorigo v0.6.0-rc.3
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/microsoft/go-mssqldb v1.9.5
 	github.com/pion/transport/v2 v2.2.10
@@ -106,7 +106,7 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/singchia/go-timer/v2 v2.2.1 // indirect
+	github.com/singchia/go-timer/v2 v2.2.2 // indirect
 	github.com/singchia/yafsm v1.0.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect

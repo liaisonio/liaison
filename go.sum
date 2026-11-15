@@ -169,6 +169,8 @@ github.com/josharian/intern v1.0.0/go.mod h1:5DoeVV0s6jJacbCEi61lwdGj/aVlrQvzHFF
 github.com/jumboframes/armorigo v0.2.3/go.mod h1:sXe0R32y6V3oJD2eXcPzMlimvZx0xIDiLedpQOy06t4=
 github.com/jumboframes/armorigo v0.5.0-rc.2 h1:8NuFkCpRTHp1onIn2O5sMpYf39C5UOq0ylOmzmHs7BY=
 github.com/jumboframes/armorigo v0.5.0-rc.2/go.mod h1:H4OlF0Jj8e+8LkAqDjeLtapNNnUuUXR/h4Q32Lqgf9o=
+github.com/jumboframes/armorigo v0.6.0-rc.3 h1:0FnqcCvjmoisUh1cRUwvy/2zPgEE02OQpe02JAGrrLs=
+github.com/jumboframes/armorigo v0.6.0-rc.3/go.mod h1:HJLnG7gBnU2e0D2pO/OCuxG0vcC8eVEQhzGnHJJgssc=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.13.6/go.mod h1:/3/Vjq9QcHkK5uEr5lBEmyoZ1iFhe47etQ6QUkpK6sk=
@@ -235,6 +237,8 @@ github.com/singchia/geminio v1.2.2-rc.2/go.mod h1:b6bld5o0aofg/kuAdc5uAnaTJYvd6Y
 github.com/singchia/go-timer/v2 v2.0.3/go.mod h1:PgkEQc6io8slCUiT5rHzWKU4/P2HXHWk3WWfijZXAf4=
 github.com/singchia/go-timer/v2 v2.2.1 h1:gJucmL99fkuNzGk2AfNPFpa1X3/4+aGO21KkjFAG624=
 github.com/singchia/go-timer/v2 v2.2.1/go.mod h1:PgkEQc6io8slCUiT5rHzWKU4/P2HXHWk3WWfijZXAf4=
+github.com/singchia/go-timer/v2 v2.2.2 h1:r0VPTHfKMPv2MZfKDSG/aXsHYfmR0+GVyXZLhf53vds=
+github.com/singchia/go-timer/v2 v2.2.2/go.mod h1:PgkEQc6io8slCUiT5rHzWKU4/P2HXHWk3WWfijZXAf4=
 github.com/singchia/yafsm v1.0.1 h1:TTDSX7SBCr2YNdv/DZ76LjTer0rYwm7IPt24odNymUs=
 github.com/singchia/yafsm v1.0.1/go.mod h1:fSWQl6DCzqc51DhLfwHr3gN2FhGmOEjTAQ2AOKDSBtY=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

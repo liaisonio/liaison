@@ -5,8 +5,9 @@ import "context"
 // manager <-> entry
 // 一个Proxy是三元组
 type Proxy struct {
-	ID   int
-	Name string
+	TCPOpeningMode string
+	ID             int
+	Name           string
 	// 代理端口
 	ProxyPort int
 	// 边缘ID
