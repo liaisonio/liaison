@@ -2,13 +2,11 @@ package web
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/controlplane"
 	"github.com/liaisonio/liaison/pkg/liaison/manager/iam"
 	"github.com/liaisonio/liaison/pkg/liaison/repo/model"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,9 +60,7 @@ func (web *web) handleAgentAccessHTTP(w http.ResponseWriter, r *http.Request) {
 		data, err = svc.AgentAccesses(ctx, page, size, model.AgentAccessFilter{Name: r.URL.Query().Get("name"), Kind: r.URL.Query().Get("kind")})
 	case (r.Method == http.MethodPost && id == "") || (r.Method == http.MethodPut && len(id) == 32):
 		var input controlplane.AgentAccessInput
-		d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192))
-		d.DisallowUnknownFields()
-		if d.Decode(&input) != nil || d.Decode(new(any)) != io.EOF {
+		if decodeAgentRequest(http.MaxBytesReader(w, r.Body, 8192), &input, false) != nil {
 			writeJSON(w, 400, map[string]any{"code": 400, "message": "invalid request"})
 			return
 		}

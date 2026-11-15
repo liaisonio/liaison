@@ -2,9 +2,7 @@ package web
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"time"
 
@@ -58,9 +56,7 @@ func (web *web) handleEdgeAgentHTTP(w http.ResponseWriter, r *http.Request) {
 		data, err = svc.AgentConnectors(ctx)
 	} else {
 		var req proto.EdgeAgentRequest
-		d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10))
-		d.DisallowUnknownFields()
-		if d.Decode(&req) != nil || d.Decode(new(any)) != io.EOF {
+		if decodeAgentRequest(http.MaxBytesReader(w, r.Body, 256<<10), &req, true) != nil {
 			writeJSON(w, 400, map[string]any{"code": 400, "message": "invalid agent request"})
 			return
 		}
