@@ -468,7 +468,7 @@ export function Pager({
   );
 }
 
-export function StatusPill({ tone = 'neutral', children }: { tone?: 'neutral' | 'success' | 'danger' | 'info'; children: ReactNode }) {
+export function StatusPill({ tone = 'neutral', children }: { tone?: 'neutral' | 'success' | 'danger' | 'info' | 'warning'; children: ReactNode }) {
   return <span className={`liaison-status is-${tone}`}>{children}</span>;
 }
 

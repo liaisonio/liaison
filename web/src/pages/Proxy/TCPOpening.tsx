@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Field, Input, Modal, Notice, Select } from "@/components/ui";
+import { Field, Input, Select } from "@/components/ui";
 import { request } from "@/api/client";
 import { useSession } from "@/store/session";
 import { useI18n } from "@/i18n";
@@ -88,7 +88,6 @@ export function TCPOpeningAction({ row }: { row: API.Proxy }) {
 function OpeningAction({ row, userID }: { row: API.Proxy; userID: number }) {
   const { tr } = useI18n();
   const key = `liaison.tcp-opening.${userID}.${row.id}`;
-  const [dialog, setDialog] = useState(false);
   const [requestID, setRequestID] = useState("");
   const [busy, setBusy] = useState(false);
   const [uncertain, setUncertain] = useState(false);
@@ -110,7 +109,7 @@ function OpeningAction({ row, userID }: { row: API.Proxy; userID: number }) {
     }
   };
   const perform = async (method: "POST" | "GET" | "DELETE", id: string) => {
-    if (pending.current) return;
+    if (pending.current || !enabled) return;
     pending.current = true;
     setBusy(true);
     setUncertain(false);
@@ -194,104 +193,24 @@ function OpeningAction({ row, userID }: { row: API.Proxy; userID: number }) {
     void perform("POST", id);
   };
   return (
-    <>
+    <span className="liaison-tcp-opening-action">
       <button
+        type="button"
         className="liaison-table-link"
-        disabled={!enabled}
-        onClick={() => setDialog(true)}
+        disabled={!enabled || busy || (!uncertain && remaining > 0)}
+        aria-busy={busy}
+        title={tr("到期后已有连接保持，新连接需再次开放。", "Existing connections survive expiry; new connections require another opening.")}
+        onClick={() => requestID ? void perform("GET", requestID) : open()}
       >
-        {requestID
-          ? uncertain
-            ? tr("确认开放状态", "Check opening")
-            : remaining > 0
-            ? tr(`开放中 · ${remaining}s`, `Open · ${remaining}s`)
-            : tr("确认状态…", "Checking…")
-          : tr("开放端口", "Open port")}
+        {busy ? tr("处理中…", "Working…")
+          : uncertain ? tr("重试", "Retry")
+          : remaining > 0 ? tr(`已开放 · ${remaining}s`, `Open · ${remaining}s`)
+          : requestID ? tr("查询状态", "Check status")
+          : tr("临时开放", "Open temporarily")}
       </button>
-      <Modal
-        open={dialog}
-        title={tr("按需开放端口", "On-demand port")}
-        onClose={() => setDialog(false)}
-        width={480}
-        footer={
-          <>
-            <Button onClick={() => setDialog(false)}>
-              {tr("关闭", "Close")}
-            </Button>
-            {requestID ? (
-              <>
-                <Button
-                  disabled={busy || !enabled}
-                  onClick={() => void perform("GET", requestID)}
-                >
-                  {tr("查询状态", "Check status")}
-                </Button>
-                <Button
-                  disabled={busy || !enabled}
-                  onClick={() => void perform("DELETE", requestID)}
-                >
-                  {tr("结束本次开放", "End this opening")}
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="primary"
-                loading={busy}
-                disabled={!enabled}
-                onClick={open}
-              >
-                {tr("开放端口", "Open port")}
-              </Button>
-            )}
-          </>
-        }
-      >
-        <p>{row.name}</p>
-        <code
-          style={{
-            fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            overflowWrap: "anywhere",
-          }}
-        >
-          {row.access_url || `${location.hostname}:${row.port}`}
-        </code>
-        <p>
-          {tr(
-            `每次开放 ${
-              row.tcp_opening_policy?.duration_seconds || 10
-            } 秒。到期后已有连接保持，新连接需再次开放。`,
-            `Each opening lasts ${
-              row.tcp_opening_policy?.duration_seconds || 10
-            } seconds. Existing connections survive expiry; new connections require another opening.`
-          )}
-        </p>
-        <p>
-          {tr(
-            "开放窗口不绑定来源 IP，仍受防火墙规则约束。请保留目标服务的认证。结束本次开放不会撤销其他用户的窗口。",
-            "The window is not bound to a source IP; firewall rules still apply. Keep target-service authentication enabled. Ending your opening does not revoke other users’ windows."
-          )}
-        </p>
-        {busy ? (
-          <p role="status">{tr("正在确认…", "Checking…")}</p>
-        ) : uncertain ? (
-          <Notice tone="danger">
-            {tr(
-              "结果未确认。请查询状态，不会自动延长开放时间。",
-              "Result unconfirmed. Check the status; the opening will not be automatically extended."
-            )}
-          </Notice>
-        ) : (
-          <p role="status">
-            {requestID
-              ? tr(
-                  `本次开放剩余约 ${remaining} 秒`,
-                  `About ${remaining} seconds remaining`
-                )
-              : tr("当前没有本人的开放窗口。", "You have no active opening.")}
-          </p>
-        )}
-      </Modal>
-    </>
+      {uncertain && <small role="alert">
+        {tr("暂时无法确认开放状态，请重试。", "Unable to confirm opening status. Please retry.")}
+      </small>}
+    </span>
   );
 }

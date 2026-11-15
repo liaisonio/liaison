@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+.liaison-tcp-opening-action { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; max-width: 100%; font-variant-numeric: tabular-nums; }
+.liaison-tcp-opening-action [role="alert"] { flex-basis: 100%; color: rgb(var(--danger)); overflow-wrap: anywhere; }
+
 :root.dark {
   --control-radius: 8px;
   --surface-radius: 12px;
@@ -18,6 +21,7 @@
   --brand-violet: 228 0 195;
   --info: 48 166 208;
   --danger: 239 68 68;
+  --warning: 251 191 36;
   --chart-1: 96 165 250;
   --chart-2: 167 139 250;
   --chart-3: 52 211 153;
@@ -46,6 +50,7 @@
   --brand-violet: 178 0 152;
   --info: 14 116 144;
   --danger: 185 28 28;
+  --warning: 180 83 9;
   --chart-1: 37 99 235;
   --chart-2: 124 58 237;
   --chart-3: 5 150 105;
@@ -239,7 +244,8 @@ button {
   white-space: nowrap;
 }
 
-.liaison-scan-port { grid-column: 2; }
+.liaison-scan-port { grid-column: 1 / -1; }
+.liaison-scan-tcp-policy { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 0; border: 0; }
 .liaison-scan-entry-mode { grid-column: 1 / -1; }
 
 @media (max-width: 560px) {
@@ -493,6 +499,7 @@ button {
 .liaison-status.is-success { border-color: rgb(var(--accent) / 0.38); color: rgb(var(--accent)); background: rgb(var(--accent) / 0.08); }
 .liaison-status.is-danger { border-color: rgb(var(--danger) / 0.4); color: rgb(var(--danger)); background: rgb(var(--danger) / 0.06); }
 .liaison-status.is-info { border-color: rgb(var(--accent) / 0.32); color: rgb(var(--accent)); background: rgb(var(--accent) / 0.07); }
+.liaison-status.is-warning { border-color: rgb(var(--warning) / 0.4); color: rgb(var(--warning)); background: rgb(var(--warning) / 0.06); }
 .liaison-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
 .liaison-form-grid .is-full { grid-column: 1 / -1; }
 .liaison-application-form { max-width: 434px; grid-template-columns: minmax(0, 1fr) 128px; margin: 0 auto; gap: 16px; }
