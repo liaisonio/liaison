@@ -28,6 +28,8 @@ const (
 )
 
 type Proxy struct {
+	TCPOpeningMode            string `gorm:"not null;default:continuous"`
+	TCPOpeningDurationSeconds int    `gorm:"not null;default:10"`
 	gorm.Model
 	ApplicationID  uint           `gorm:"column:application_id;type:int;not null"`
 	Name           string         `gorm:"column:name;type:varchar(255);not null"`

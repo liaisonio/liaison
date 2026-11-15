@@ -241,6 +241,10 @@ message DeleteApplicationResponse {
 }
 
 // 代理
+message TCPOpeningPolicy {
+ string mode = 1 [json_name = "mode"];
+ int32 duration_seconds = 2 [json_name = "duration_seconds"];
+}
 message Proxy {
     uint64 id = 1 [json_name = "id"];
     string name = 2 [json_name = "name"];
@@ -256,6 +260,7 @@ message Proxy {
     bool expose_public_port = 12 [json_name = "expose_public_port"];
     string access_protocol = 13 [json_name = "access_protocol"];
     string http_entry_mode = 14 [json_name = "http_entry_mode"];
+ TCPOpeningPolicy tcp_opening_policy = 15 [json_name = "tcp_opening_policy"];
 }
 
 message Proxies {
@@ -289,6 +294,7 @@ message CreateProxyRequest {
     // Native RDP/VNC/database servers are not implemented; use tcp or web.
     string access_protocol = 6 [json_name = "access_protocol"];
     string http_entry_mode = 7 [json_name = "http_entry_mode"];
+ TCPOpeningPolicy tcp_opening_policy = 8 [json_name = "tcp_opening_policy"];
 }
 
 message CreateProxyResponse {
@@ -308,6 +314,7 @@ message UpdateProxyRequest {
     // Explicit selections use the same supported protocols as creation.
     string access_protocol = 7 [json_name = "access_protocol"];
     string http_entry_mode = 8 [json_name = "http_entry_mode"];
+ TCPOpeningPolicy tcp_opening_policy = 9 [json_name = "tcp_opening_policy"];
 }
 
 message UpdateProxyResponse {

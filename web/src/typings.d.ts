@@ -222,8 +222,10 @@ declare namespace API {
   }
 
   // ========== 访问 (Proxy) ==========
+  interface TCPOpeningPolicy {mode: "continuous" | "on_demand"; duration_seconds: number;}
   interface Proxy {
     http_entry_mode?: 'path' | 'port' | 'domain';
+    tcp_opening_policy?: TCPOpeningPolicy;
     id: number;
     name: string;
     description?: string;
@@ -255,6 +257,7 @@ declare namespace API {
 
   interface ProxyCreateParams {
     http_entry_mode?: 'path' | 'port' | 'domain';
+    tcp_opening_policy?: TCPOpeningPolicy;
     name: string;
     description?: string;
     port?: number;
@@ -265,6 +268,7 @@ declare namespace API {
 
   interface ProxyUpdateParams {
     http_entry_mode?: 'path' | 'port' | 'domain';
+    tcp_opening_policy?: TCPOpeningPolicy;
     name?: string;
     description?: string;
     port?: number;

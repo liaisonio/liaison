@@ -70,6 +70,7 @@ func (cp *controlPlane) startProxyRuntime(proxy *model.Proxy, application *model
 	}
 	useHTTPS := application.ApplicationType == model.ApplicationTypeHTTP
 	protoproxy := &proto.Proxy{
+		TCPOpeningMode:  proxy.TCPOpeningMode,
 		ID:              int(proxy.ID),
 		Name:            proxy.Name,
 		ProxyPort:       proxy.Port,
@@ -82,7 +83,7 @@ func (cp *controlPlane) startProxyRuntime(proxy *model.Proxy, application *model
 	}
 	// Native DB listeners must not accept connections before their persisted
 	// source policy is loaded. A lookup failure must not become allow-all.
-	nativeDB := protoproxy.AccessProtocol == "mysql" || protoproxy.AccessProtocol == "postgresql"
+	nativeDB := protoproxy.AccessProtocol == "mysql" || protoproxy.AccessProtocol == "postgresql" || proxy.TCPOpeningMode == "on_demand"
 	if nativeDB {
 		if cp.firewallManager == nil || cp.repo == nil {
 			return errors.New("database source policy is unavailable")

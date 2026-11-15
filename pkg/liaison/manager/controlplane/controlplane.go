@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/cipher"
 	"net"
+	"sync"
 
 	v1 "github.com/liaisonio/liaison/api/v1"
 	"github.com/liaisonio/liaison/pkg/liaison/config"
@@ -77,6 +78,8 @@ type ControlPlane interface {
 
 	ListTrafficMetrics(ctx context.Context, req *v1.ListTrafficMetricsRequest) (*v1.ListTrafficMetricsResponse, error)
 
+	// TCP openings
+	TCPOpening(ctx context.Context, proxyID uint, requestID, operation string) (*TCPOpeningData, error)
 	// Firewall
 	GetProxyFirewall(ctx context.Context, proxyID uint) (*FirewallData, error)
 	UpsertProxyFirewall(ctx context.Context, proxyID uint, cidrs []string) (*FirewallData, error)
@@ -125,6 +128,8 @@ func NewControlPlane(conf *config.Configuration, repo repo.Repo, frontierBound f
 }
 
 type controlPlane struct {
+	proxyOperations  [64]sync.Mutex
+	openingLimiter   tcpOpeningRateLimit
 	historyCipher    cipher.AEAD
 	probeSlots       chan struct{}
 	probeLimiter     probeRateLimit

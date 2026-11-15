@@ -13,6 +13,7 @@ import (
 	"github.com/jumboframes/armorigo/log"
 	"github.com/jumboframes/armorigo/rproxy"
 	"github.com/liaisonio/liaison/pkg/entry/frontierbound"
+	"github.com/liaisonio/liaison/pkg/entry/transport/tcpwindow"
 	"github.com/liaisonio/liaison/pkg/lerrors"
 	"github.com/liaisonio/liaison/pkg/proto"
 	"github.com/liaisonio/liaison/pkg/trafficconn"
@@ -80,6 +81,9 @@ func (m *Gatekeeper) SetFirewall(fw firewallChecker) {
 }
 
 func (m *Gatekeeper) CreateProxy(ctx context.Context, protoproxy *proto.Proxy) error {
+	if protoproxy.TCPOpeningMode == "on_demand" {
+		return m.createOnDemandProxy(ctx, protoproxy)
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -116,92 +120,13 @@ func (m *Gatekeeper) CreateProxy(ctx context.Context, protoproxy *proto.Proxy) e
 		// 更新 protoproxy 的端口，以便后续使用
 		protoproxy.ProxyPort = actualPort
 	}
-	// hook 函数
-	postAccept := func(clientAddr net.Addr, _ net.Addr) (custom interface{}, err error) {
-		m.mu.RLock()
-		fw := m.firewall
-		m.mu.RUnlock()
-		if fw != nil && !fw.CheckAddr(protoproxy.ID, clientAddr) {
-			log.Infof("firewall: rejected %s for tcp proxy %d", clientAddr, protoproxy.ID)
-			return nil, fmt.Errorf("source %s not allowed", clientAddr)
-		}
-		pc := &proxyContext{
-			edgeID:        protoproxy.EdgeID,
-			dst:           protoproxy.Dst,
-			applicationID: protoproxy.ApplicationID,
-			proxyID:       uint(protoproxy.ID),
-			gatekeeper:    m,
-		}
-		return pc, nil
-	}
-	proxyDial := func(dst net.Addr, custom interface{}) (target net.Conn, err error) {
-		pc := custom.(*proxyContext)
-		stream, err := m.frontierBound.OpenStream(context.TODO(), pc.edgeID)
-		if err != nil {
-			return nil, err
-		}
-		return trafficconn.TargetConn(
-			stream,
-			trafficconn.RecorderFunc(pc.gatekeeper.recordTraffic),
-			pc.proxyID,
-			pc.applicationID,
-		), nil
-	}
-	preWrite := func(writer io.Writer, custom interface{}) error {
-		pc := custom.(*proxyContext)
-		dst := proto.Dst{
-			Addr:          pc.dst,
-			ApplicationID: pc.applicationID,
-			ProxyID:       pc.proxyID,
-		}
-		data, err := json.Marshal(dst)
-		if err != nil {
-			log.Errorf("failed to marshal dst: %s", err)
-			return err
-		}
-		lengthBuf := make([]byte, 4)
-		binary.BigEndian.PutUint32(lengthBuf, uint32(len(data)))
-		_, err = writer.Write(lengthBuf)
-		if err != nil {
-			log.Errorf("failed to write dst length: %s", err)
-			return err
-		}
-		_, err = writer.Write(data)
-		if err != nil {
-			log.Errorf("failed to write dst: %s", err)
-			return err
-		}
-		return nil
-	}
-
-	rp, err := rproxy.NewRProxy(listener,
-		rproxy.OptionRProxyPostAccept(postAccept),
-		rproxy.OptionRProxyDial(proxyDial),
-		rproxy.OptionRProxyPreWrite(preWrite))
+	proxyCtx, cancel := context.WithCancel(context.Background())
+	rp, done, err := m.startTCPListener(proxyCtx, protoproxy, listener, nil)
 	if err != nil {
-		log.Errorf("failed to create rproxy: %s", err)
+		cancel()
+		_ = listener.Close()
 		return err
 	}
-
-	// 创建可取消的 context，用于控制 Proxy 方法的退出
-	proxyCtx, cancel := context.WithCancel(context.Background())
-
-	// 创建一个 done channel 来跟踪 goroutine 是否退出
-	done := make(chan struct{})
-
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("rproxy Proxy panic: %v", r)
-			}
-			close(done)
-		}()
-		// 在 goroutine 中运行 Proxy
-		// 注意：rproxy.Proxy 方法在遇到错误时会检查错误是否在退出错误列表中
-		// 如果不在，会继续循环，导致死循环
-		// 我们需要确保在关闭时，监听器先关闭，这样 Accept() 会返回错误
-		rp.Proxy(proxyCtx)
-	}()
 
 	p := &proxy{
 		port:   actualPort, // 使用实际端口
@@ -239,7 +164,9 @@ func (m *Gatekeeper) DeleteProxy(ctx context.Context, id int) error {
 	// 关闭监听器，这样 Accept() 会返回 "use of closed network connection" 错误
 	// 注意：rproxy 库的问题：如果错误不在退出错误列表中，会死循环
 	// 我们需要等待 goroutine 退出，或者设置超时
-	p.rp.Close()
+	if p.rp != nil {
+		p.rp.Close()
+	}
 
 	// 等待 goroutine 退出，最多等待 1 秒
 	// 如果 rproxy 库正确处理了关闭错误，goroutine 应该会立即退出
@@ -273,7 +200,9 @@ func (m *Gatekeeper) Close() {
 			p.cancel()
 		}
 		// 关闭监听器
-		p.rp.Close()
+		if p.rp != nil {
+			p.rp.Close()
+		}
 	}
 	m.proxies = make(map[int]*proxy)
 }
@@ -288,11 +217,13 @@ type proxyContext struct {
 }
 
 type proxy struct {
-	port   int
-	rp     *rproxy.RProxy
-	ctx    context.Context
-	cancel context.CancelFunc
-	done   chan struct{} // 用于跟踪 goroutine 是否退出
+	target  *proto.Proxy
+	opening *tcpOpeningRuntime
+	port    int
+	rp      *rproxy.RProxy
+	ctx     context.Context
+	cancel  context.CancelFunc
+	done    chan struct{} // 用于跟踪 goroutine 是否退出
 }
 
 // recordTraffic 记录流量（累积到stats中，由定时器每分钟上报一次）
@@ -365,4 +296,101 @@ func (m *Gatekeeper) flushAndReport() {
 		}
 		log.Debugf("reported %d traffic metrics", len(statsToReport))
 	}
+}
+
+func (m *Gatekeeper) startTCPListener(proxyCtx context.Context, protoproxy *proto.Proxy, listener net.Listener, windows *tcpwindow.Registry) (*rproxy.RProxy, chan struct{}, error) {
+	// hook 函数
+	postAccept := func(clientAddr net.Addr, _ net.Addr, _ ...interface{}) (custom interface{}, err error) {
+		m.mu.RLock()
+		fw := m.firewall
+		m.mu.RUnlock()
+		if fw != nil && !fw.CheckAddr(protoproxy.ID, clientAddr) {
+			log.Infof("firewall: rejected %s for tcp proxy %d", clientAddr, protoproxy.ID)
+			return nil, fmt.Errorf("source %s not allowed", clientAddr)
+		}
+		if windows != nil {
+			lease, ok := windows.Admit(time.Now())
+			if !ok {
+				return nil, fmt.Errorf("TCP opening closed")
+			}
+			log.Infof("tcp opening admitted: proxy_id=%d request_id=%s actor_id=%d expires_at=%s", protoproxy.ID, lease.ID, lease.OwnerID, lease.ExpiresAt.UTC().Format(time.RFC3339Nano))
+		}
+		pc := &proxyContext{
+			edgeID:        protoproxy.EdgeID,
+			dst:           protoproxy.Dst,
+			applicationID: protoproxy.ApplicationID,
+			proxyID:       uint(protoproxy.ID),
+			gatekeeper:    m,
+		}
+		return pc, nil
+	}
+	proxyDial := func(dst net.Addr, custom interface{}) (target net.Conn, err error) {
+		pc := custom.(*proxyContext)
+		stream, err := m.frontierBound.OpenStream(proxyCtx, pc.edgeID)
+		if err != nil {
+			return nil, err
+		}
+		return trafficconn.TargetConn(
+			stream,
+			trafficconn.RecorderFunc(pc.gatekeeper.recordTraffic),
+			pc.proxyID,
+			pc.applicationID,
+		), nil
+	}
+	preWrite := func(writer io.Writer, custom interface{}) error {
+		pc := custom.(*proxyContext)
+		dst := proto.Dst{
+			Addr:          pc.dst,
+			ApplicationID: pc.applicationID,
+			ProxyID:       pc.proxyID,
+		}
+		data, err := json.Marshal(dst)
+		if err != nil {
+			log.Errorf("failed to marshal dst: %s", err)
+			return err
+		}
+		lengthBuf := make([]byte, 4)
+		binary.BigEndian.PutUint32(lengthBuf, uint32(len(data)))
+		_, err = writer.Write(lengthBuf)
+		if err != nil {
+			log.Errorf("failed to write dst length: %s", err)
+			return err
+		}
+		_, err = writer.Write(data)
+		if err != nil {
+			log.Errorf("failed to write dst: %s", err)
+			return err
+		}
+		return nil
+	}
+
+	rp, err := rproxy.NewRProxy(listener,
+		rproxy.OptionRProxyPostAccept(postAccept),
+		rproxy.OptionRProxyDial(proxyDial),
+		rproxy.OptionRProxyPreWrite(preWrite))
+	if err != nil {
+		log.Errorf("failed to create rproxy: %s", err)
+		return nil, nil, err
+	}
+
+	// 创建可取消的 context，用于控制 Proxy 方法的退出
+
+	// 创建一个 done channel 来跟踪 goroutine 是否退出
+	done := make(chan struct{})
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("rproxy Proxy panic: %v", r)
+			}
+			close(done)
+		}()
+		// 在 goroutine 中运行 Proxy
+		// 注意：rproxy.Proxy 方法在遇到错误时会检查错误是否在退出错误列表中
+		// 如果不在，会继续循环，导致死循环
+		// 我们需要确保在关闭时，监听器先关闭，这样 Accept() 会返回错误
+		rp.Proxy(proxyCtx)
+	}()
+
+	return rp, done, nil
 }

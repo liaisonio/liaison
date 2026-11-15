@@ -5,6 +5,7 @@ import { Button, Column, DangerConfirm, DataTable, Drawer, Field, Input, Modal, 
 import { isLLMAccessType, ACCESS_TYPES, ACCESS_CREATION_TYPES, ACCESS_TYPES_CHANGED_EVENT, accessProtocolForType, accessTypeLabel, applicationTypeForAccess, getProxyAccessType, isAccessType, isProxyPublicPortExposed, isSupportedAccessType, isWebAccessType } from '@/constants/accessTypes';
 import { useI18n } from '@/i18n';
 import OverflowTabs from '@/components/ui/OverflowTabs';
+import ActionMenu from '@/components/ui/ActionMenu';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { history, useSearchParams } from '@/lib/runtime';
 import { createApplication, createProxy, deleteProxy, deleteProxyFirewall, getApplicationList, getClientIP, getProxyFirewall, getProxyList, updateProxy, upsertProxyFirewall } from '@/services/api';
@@ -27,6 +28,7 @@ import './connection.less';
 import {accessGroup,groupTypes,accessTabLabel} from '@/constants/accessGroups';
 import './groups.less';
 import {launchWebEntry} from '@/services/webEntry';
+import {TCPOpeningAction, TCPOpeningFields, defaultOpeningPolicy} from './TCPOpening';
 import WebEntryModeField, {useWebEntryMode} from '@/components/WebEntryModeField';
 
 const pageSize = 10;
@@ -82,6 +84,7 @@ const ProxyPage: React.FC = () => {
   const requestedRouteType = routeSearch.get('access_type')==='aiapi'?'':protocolFamily(routeSearch.get('access_type')) || '';
   const routeType = isSupportedAccessType(requestedRouteType) && (!group || group.types.includes(requestedRouteType)) ? requestedRouteType : group?.types.length===1?group.types[0]:'';
   const [rows, setRows] = useState<API.Proxy[]>([]);
+  const [commandRow, setCommandRow] = useState<API.Proxy>();
   const [applications, setApplications] = useState<API.Application[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -110,6 +113,7 @@ const ProxyPage: React.FC = () => {
   const [deleteRow, setDeleteRow] = useState<API.Proxy>();
   const [form, setForm] = useState({ name: '', application_id: '', access_type: routeType, port: '', description: '' });
   const [suggestedAccessName, setSuggestedAccessName] = useState(defaultAccessName);
+  const [tcpPolicy, setTCPPolicy] = useState<API.TCPOpeningPolicy>(defaultOpeningPolicy);
   const [saving, setSaving] = useState(false);
   const [initialConnection, setInitialConnection] = useState(emptyConnection);
   const [createdAccess, setCreatedAccess] = useState<API.Proxy>();
@@ -181,6 +185,7 @@ const ProxyPage: React.FC = () => {
   const selectedApplication = useMemo(() => applications.find((item) => String(item.id) === form.application_id), [applications, form.application_id]);
   const llmSource=applicationSource||'existing';
   const openCreate = () => {
+    setTCPPolicy(defaultOpeningPolicy);
     setApplicationDraft({name:'',address:''});setCreatedApplication(undefined);
     setApplicationSource(undefined);
     setLLMEdge('');
@@ -231,7 +236,7 @@ const ProxyPage: React.FC = () => {
         await llmConnection.current.saveUpstream();
       }
       if (!access) {
-        const response = await createProxy({ name: form.name.trim() || suggestedAccessName, description: form.description, application_id: application!.id, access_protocol: accessProtocol, http_entry_mode:selectedAccessType==='http'?entryMode:undefined, expose_public_port: !webOnly, port: !webOnly && form.port ? Number(form.port) : undefined });
+        const response = await createProxy({ name: form.name.trim() || suggestedAccessName, description: form.description, application_id: application!.id, access_protocol: accessProtocol, tcp_opening_policy: accessProtocol === 'tcp' ? tcpPolicy : undefined, http_entry_mode:selectedAccessType==='http'?entryMode:undefined, expose_public_port: !webOnly, port: !webOnly && form.port ? Number(form.port) : undefined });
         if (response.code !== 200 || !response.data) throw new Error('create');
         access=response.data; setCreatedAccess(access);
       }
@@ -248,6 +253,7 @@ const ProxyPage: React.FC = () => {
     } finally {setSaving(false);}
   };
   const openEdit = async (row:API.Proxy, continueAccess = false) => {
+    setTCPPolicy(row.tcp_opening_policy || defaultOpeningPolicy);
     setOpenAfterSave(continueAccess);
     setEntryMode(row.http_entry_mode || 'port');
     setOpeningId(row.id);
@@ -278,7 +284,7 @@ const ProxyPage: React.FC = () => {
       await saveInitialConnection(editRow.id,getProxyAccessType(editRow)||'',form.name.trim(),initialConnection);
       setInitialConnection(await loadAccessConnection(editRow.id,getProxyAccessType(editRow)||''));
     }catch{setCreateError(tr('连接配置保存失败，请检查后重试。','Unable to save connection configuration. Check it and retry.'));setSaving(false);return;}
-    try { const isHTTP=getProxyAccessType(editRow)==='http'; const response = await updateProxy(editRow.id, { name: form.name.trim(), description: form.description, http_entry_mode:isHTTP?entryMode:undefined, port: (!isHTTP||entryMode==='port')&&form.port ? Number(form.port) : undefined, expose_public_port: isHTTP?entryMode==='port':isProxyPublicPortExposed(editRow) }); if (response.code !== 200) throw new Error(response.message);
+    try { const isHTTP=getProxyAccessType(editRow)==='http'; const response = await updateProxy(editRow.id, { name: form.name.trim(), description: form.description, tcp_opening_policy:editRow.access_protocol==='tcp'?tcpPolicy:undefined, http_entry_mode:isHTTP?entryMode:undefined, port: (!isHTTP||entryMode==='port')&&form.port ? Number(form.port) : undefined, expose_public_port: isHTTP?entryMode==='port':isProxyPublicPortExposed(editRow) }); if (response.code !== 200) throw new Error(response.message);
       if(openAfterSave){
         try {
           const path=await directAccessPath(editRow.id,getProxyAccessType(editRow)||'');
@@ -379,12 +385,17 @@ const ProxyPage: React.FC = () => {
     { key: 'created', title: tr('创建时间', 'Created'), width: 150, render: (row) => <Timestamp value={row.created_at} /> },
     { key: 'description', title: tr('描述', 'Description'), width: 180, render: (row) => row.description || '-' },
     { key:'actions', title:tr('操作','Actions'), width:'1%', fixed:'right', render:row=><span className="liaison-table-actions liaison-access-actions">
+      {row.access_protocol === 'tcp' && row.tcp_opening_policy?.mode === 'on_demand' ? <TCPOpeningAction key={`${row.id}:${row.updated_at}:${row.status}`} row={row}/> : <>
       {isLLMAccessType(getProxyAccessType(row))?<Link className="liaison-table-link" to={`/ai/${row.id}?from=${encodeURIComponent(`/proxy${routeSearch.toString()?`?${routeSearch.toString()}`:''}`)}`}>{tr('查看','View')}</Link>:<>
       {isProxyPublicPortExposed(row)&&getProxyAccessType(row)!=='http'?<ConnectionCommand row={row} commandLabel={tr('连接命令','Command')} exampleLabel={tr('连接示例','Connection example')} copyHintLabel={tr('点击复制','Click to copy')} copiedLabel={tr('已复制','Copied')}/>:<button className="liaison-table-link" disabled={openingId!==undefined||row.status!=='running'} onClick={()=>void openAccess(row)}>{openingId===row.id?tr('打开中…','Opening…'):tr('去访问','Open')}</button>}
       </>}
+      </>}
       <button className="liaison-table-link" disabled={openingId!==undefined} onClick={()=>void openEdit(row)}>{tr('编辑','Edit')}</button>
-      {isProxyPublicPortExposed(row)&&<button className="liaison-table-link" onClick={()=>void openFirewall(row)}>{tr('防火墙','Firewall')}</button>}
-      <button className="liaison-table-link is-danger" onClick={()=>setDeleteRow(row)}>{tr('删除','Delete')}</button></span> },
+      <ActionMenu label={`${tr('更多操作','More actions')}：${row.name}`} items={[
+        ...(row.access_protocol === 'tcp' && row.tcp_opening_policy?.mode === 'on_demand' ? [{label:tr('连接命令','Connection command'),onClick:()=>setCommandRow(row)}] : []),
+        ...(isProxyPublicPortExposed(row) ? [{label:tr('防火墙','Firewall'),onClick:()=>void openFirewall(row)}] : []),
+        {label:tr('删除','Delete'),danger:true,onClick:()=>setDeleteRow(row)},
+      ]}/></span> },
   ];
 
   const accessForm = (id: string, submit: (event: FormEvent) => void, editing = false) => {
@@ -420,6 +431,7 @@ const ProxyPage: React.FC = () => {
         onApplication={value=>{setApplicationSource(value==='new'?'new':'existing');setInitialConnection(emptyConnection());setForm(old=>({...old,application_id:value==='new'?'':value}));setCreateError('');}}/>
         {llmSource==='new'&&llmEdge&&<ApplicationDraft edge={llmEdge} value={applicationDraft} onChange={setApplicationDraft} disabled={saving||!!createdApplication||!!createdAccess}/>}
       </div>}
+      {(editing ? editRow?.access_protocol === 'tcp' : selectedAccessType === 'tcp') && <TCPOpeningFields value={tcpPolicy} onChange={setTCPPolicy}/>}
       {isHTTP&&<div className="is-full"><WebEntryModeField {...webEntry}/></div>}
       {!(isLLMAccessType(selectedAccessType)&&!editing&&llmSource==='new')&&<div className={editing || !exposesPublicPort ? 'is-full' : 'liaison-access-description'}><Field label={tr('描述', 'Description')}><Input value={form.description} onChange={(event) => setForm((value) => ({ ...value, description: event.target.value }))} placeholder={tr('选填', 'Optional')} /></Field></div>}
       {exposesPublicPort ? <div className="liaison-access-port"><Field label={tr('访问端口', 'Access port')} hint={tr('留空自动分配', 'Leave empty for automatic assignment')}><Input type="number" min={1} max={65535} value={form.port} onChange={(event) => setForm((value) => ({ ...value, port: event.target.value }))} placeholder={tr('自动分配', 'Auto')} /></Field></div> : null}
@@ -430,6 +442,9 @@ const ProxyPage: React.FC = () => {
   };
 
   return <div className="liaison-page-stack liaison-access-list">
+    <Modal open={!!commandRow} title={tr('连接命令','Connection command')} onClose={()=>setCommandRow(undefined)} width={520} footer={<Button onClick={()=>setCommandRow(undefined)}>{tr('关闭','Close')}</Button>}>
+      {commandRow && <Field label={tr('连接示例','Connection example')} hint={tr('选中命令即可复制。','Select the command to copy it.')}><Input readOnly value={connectionCommand(commandRow)} onFocus={event=>event.currentTarget.select()} style={{fontFamily:'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'}}/></Field>}
+    </Modal>
     {group && group.value!=='tcp' && <OverflowTabs label={tr('访问类型','Access types')} value={routeType} onChange={chooseTab} items={[...(tabs.length>1?[{value:'',label:tr('全部','All')}]:[]),...tabs.map(tab=>({value:tab.value,label:accessTabLabel(tab.label)}))]}/>}
     {notice ? <Notice tone={notice.tone}>{notice.text}</Notice> : null}
     <div className="liaison-filter-bar">

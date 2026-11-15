@@ -1,0 +1,12 @@
+.liaison-agent-probe-feedback { display:flex; align-items:flex-start; gap:10px; padding:16px 0; color:rgb(var(--muted)); font-size:12px; }
+.liaison-agent-probe-feedback > svg { flex-shrink:0; margin-top:2px; }
+.liaison-agent-probe-feedback > div { flex:1; min-width:0; }
+.liaison-agent-probe-feedback strong { color:rgb(var(--ink)); font-weight:500; }
+.liaison-agent-probe-feedback p { margin:5px 0; overflow-wrap:anywhere; line-height:1.6; }
+.liaison-agent-probe-feedback small { font-size:12px; }
+@media(max-width:600px) {
+  .liaison-agent-probe-feedback { flex-wrap:wrap; }
+  .liaison-agent-probe-feedback > div { flex-basis:calc(100% - 30px); }
+  .liaison-agent-probe-feedback > button { margin-left:27px; }
+}
+.liaison-scan-overview > .liaison-button { grid-column:2 / -1; justify-self:end; white-space:nowrap; }

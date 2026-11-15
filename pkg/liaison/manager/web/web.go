@@ -166,6 +166,8 @@ func NewWebServerWithListener(conf *config.Configuration, controlPlane controlpl
 
 	// 代理防火墙
 	srv.HandleFunc("/api/v1/proxies/{id}/firewall", web.handleFirewallHTTP)
+	srv.HandleFunc("/api/v1/proxies/{id}/tcp_openings", web.handleTCPOpeningHTTP)
+	srv.HandleFunc("/api/v1/proxies/{id}/tcp_openings/{request_id}", web.handleTCPOpeningHTTP)
 
 	// WebSSH
 	srv.HandleFunc("/api/v1/webssh/proxies/{id}/files/sessions", web.handleCreateFileSessionHTTP)
